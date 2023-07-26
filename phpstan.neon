@@ -1,0 +1,17 @@
+includes:
+    - ./vendor/phpstan/phpstan/conf/bleedingEdge.neon
+    - phpstan-baseline.neon
+
+parameters:
+    level: 8
+    paths:
+        - src
+    tmpDir: build/phpstan
+    treatPhpDocTypesAsCertain: false
+    checkMissingIterableValueType: false
+    checkGenericClassInNonGenericObjectType: true
+    checkPhpDocMissingReturn: true
+    featureToggles:
+        disableCheckMissingIterableValueType: false
+
+    ignoreErrors:
