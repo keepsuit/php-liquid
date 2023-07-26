@@ -19,16 +19,15 @@ it('tokenize blocks', function () {
     expect(tokenize(' {%comment%} '))->toBe([' ', '{%comment%}', ' ']);
 
     expect(tokenize(' {%comment%} {%endcomment%} '))->toBe([' ', '{%comment%}', ' ', '{%endcomment%}', ' ']);
-    expect(tokenize("  {% comment %} {% endcomment %} "))->toBe(['  ', '{% comment %}', ' ', '{% endcomment %}', ' ']);
+    expect(tokenize('  {% comment %} {% endcomment %} '))->toBe(['  ', '{% comment %}', ' ', '{% endcomment %}', ' ']);
 });
 
 it('calculate line numbers per token with profiling', function () {
-    expect(tokenizeLineNumbers("{{funk}}"))->toBe([1]);
-    expect(tokenizeLineNumbers(" {{funk}} "))->toBe([1, 1, 1]);
+    expect(tokenizeLineNumbers('{{funk}}'))->toBe([1]);
+    expect(tokenizeLineNumbers(' {{funk}} '))->toBe([1, 1, 1]);
     expect(tokenizeLineNumbers("\n{{funk}}\n"))->toBe([2, 2, 3]);
     expect(tokenizeLineNumbers(" {{\n funk \n}} "))->toBe([1, 1, 3]);
 });
-
 
 function tokenize(string $source): array
 {
@@ -38,6 +37,7 @@ function tokenize(string $source): array
     while ($token = $tokenizer->shift()) {
         $tokens[] = $token;
     }
+
     return $tokens;
 }
 
@@ -49,5 +49,6 @@ function tokenizeLineNumbers(string $source): array
     while ($tokenizer->shift()) {
         $lineNumbers[] = $tokenizer->getLineNumber();
     }
+
     return $lineNumbers;
 }

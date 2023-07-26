@@ -7,11 +7,12 @@ class Tokenizer
     protected ?int $lineNumber = null;
 
     protected int $offset = 0;
+
     protected array $tokens;
 
     public function __construct(
         protected string $source,
-        int|bool|null $lineNumber = null,
+        int|bool $lineNumber = null,
         protected bool $forLiquidTag = false
     ) {
         $this->tokens = $this->tokenize();
