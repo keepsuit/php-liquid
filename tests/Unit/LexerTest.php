@@ -1,7 +1,7 @@
 <?php
 
-use Keepsuit\Liquid\Parser\Lexer;
-use Keepsuit\Liquid\Parser\TokenType;
+use Keepsuit\Liquid\Lexer;
+use Keepsuit\Liquid\TokenType;
 
 test('strings', function () {
     $tokens = (new Lexer(' \'this is a test""\' "wat \'lol\'"'))->tokenize();

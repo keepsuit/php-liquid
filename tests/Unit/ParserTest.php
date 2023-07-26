@@ -1,7 +1,7 @@
 <?php
 
-use Keepsuit\Liquid\Parser\Parser;
-use Keepsuit\Liquid\Parser\TokenType;
+use Keepsuit\Liquid\Parser;
+use Keepsuit\Liquid\TokenType;
 
 test('consume', function () {
     $parser = new Parser('wat: 7');
