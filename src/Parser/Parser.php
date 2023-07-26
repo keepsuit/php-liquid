@@ -24,12 +24,12 @@ class Parser
         $this->pointer = $int;
     }
 
-    public function consume(?TokenType $type = null): string
+    public function consume(TokenType $type = null): string
     {
         $token = $this->tokens[$this->pointer];
 
         if ($type != null && $token[0] !== $type) {
-            throw new Exception(sprintf("Expected token type %s, got %s", $type->toString(), $token[0]->toString()));
+            throw new Exception(sprintf('Expected token type %s, got %s', $type->toString(), $token[0]->toString()));
         }
 
         $this->pointer += 1;

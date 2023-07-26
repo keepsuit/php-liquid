@@ -7,9 +7,13 @@ use Exception;
 class Lexer
 {
     protected const IDENTIFIER = "/\G[a-zA-Z_][\w-]*\??/";
+
     protected const STRING_LITERAL = '/\G("[^\"]*")|\\G(\'[^\']*\')/';
+
     protected const NUMBER_LITERAL = '/\G-?\d+(\.\d+)?/';
+
     protected const DOTDOT = '/\G\.\./';
+
     protected const COMPARISON_OPERATOR = '/\G(==|!=|<>|<=?|>=?|contains(?=\s))/';
 
     protected const SPECIAL_CHARACTERS = [
@@ -24,6 +28,7 @@ class Lexer
         '?' => TokenType::QuestionMark,
         '-' => TokenType::Dash,
     ];
+
     protected const WHITESPACE_OR_NOTHING = '/\G\s*/';
 
     protected array|Exception|null $result = null;

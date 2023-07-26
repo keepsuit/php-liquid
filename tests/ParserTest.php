@@ -4,7 +4,7 @@ use Keepsuit\Liquid\Parser\Parser;
 use Keepsuit\Liquid\Parser\TokenType;
 
 test('consume', function () {
-    $parser = new Parser("wat: 7");
+    $parser = new Parser('wat: 7');
 
     expect($parser)
         ->consume(TokenType::Identifier)->toBe('wat')
@@ -13,7 +13,7 @@ test('consume', function () {
 });
 
 test('jump', function () {
-    $parser = new Parser("wat: 7");
+    $parser = new Parser('wat: 7');
 
     $parser->jump(2);
 
@@ -22,7 +22,7 @@ test('jump', function () {
 });
 
 test('consumeOrFalse', function () {
-    $parser = new Parser("wat: 7");
+    $parser = new Parser('wat: 7');
 
     expect($parser)
         ->consumeOrFalse(TokenType::Identifier)->toBe('wat')
@@ -32,7 +32,7 @@ test('consumeOrFalse', function () {
 });
 
 test('idOrFalse', function () {
-    $parser = new Parser("wat 6 Peter Hegemon");
+    $parser = new Parser('wat 6 Peter Hegemon');
 
     expect($parser)
         ->idOrFalse('wat')->toBe('wat')
@@ -43,7 +43,7 @@ test('idOrFalse', function () {
 });
 
 test('look', function () {
-    $parser = new Parser("wat 6 Peter Hegemon");
+    $parser = new Parser('wat 6 Peter Hegemon');
 
     expect($parser)
         ->look(TokenType::Identifier)->toBeTrue()
@@ -55,7 +55,7 @@ test('look', function () {
 });
 
 test('expressions', function () {
-    $parser = new Parser("hi.there hi?[5].there? hi.there.bob");
+    $parser = new Parser('hi.there hi?[5].there? hi.there.bob');
 
     expect($parser)
         ->expression()->toBe('hi.there')
@@ -72,7 +72,7 @@ test('expressions', function () {
 });
 
 test('ranges', function () {
-    $parser = new Parser("(5..7) (1.5..9.6) (young..old) (hi[5].wat..old)");
+    $parser = new Parser('(5..7) (1.5..9.6) (young..old) (hi[5].wat..old)');
 
     expect($parser)
         ->expression()->toBe('(5..7)')
@@ -82,7 +82,7 @@ test('ranges', function () {
 });
 
 test('arguments', function () {
-    $parser = new Parser("filter: hi.there[5], keyarg: 7");
+    $parser = new Parser('filter: hi.there[5], keyarg: 7');
 
     expect($parser)
         ->consume(TokenType::Identifier)->toBe('filter')
@@ -93,8 +93,8 @@ test('arguments', function () {
 });
 
 test('invalid expression', function () {
-    $parser = new Parser("==");
+    $parser = new Parser('==');
 
-    expect(fn() => $parser->expression())
-        ->toThrow(Exception::class, "== is not a valid expression");
+    expect(fn () => $parser->expression())
+        ->toThrow(Exception::class, '== is not a valid expression');
 });
