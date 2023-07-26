@@ -4,16 +4,23 @@ namespace Keepsuit\Liquid;
 
 class Tokenizer
 {
+    protected ?int $lineNumber = null;
+
     protected int $offset = 0;
     protected array $tokens;
 
     public function __construct(
         protected string $source,
-        protected bool $lineNumbers = false,
-        protected int $lineNumber = 1,
+        int|bool|null $lineNumber = null,
         protected bool $forLiquidTag = false
     ) {
         $this->tokens = $this->tokenize();
+
+        $this->lineNumber = match (true) {
+            is_int($lineNumber) => $lineNumber,
+            $lineNumber === true => 1,
+            default => null,
+        };
     }
 
     public function shift(): ?string
@@ -26,7 +33,7 @@ class Tokenizer
 
         $this->offset += 1;
 
-        if ($this->lineNumbers) {
+        if ($this->lineNumber !== null) {
             $this->lineNumber += $this->forLiquidTag ? 1 : substr_count($token, PHP_EOL);
         }
 
@@ -60,10 +67,6 @@ class Tokenizer
 
     public function getLineNumber(): ?int
     {
-        if (! $this->lineNumbers) {
-            return null;
-        }
-
         return $this->lineNumber;
     }
 }

@@ -1,6 +1,6 @@
 <?php
 
-use Keepsuit\Liquid\Tokenizer;
+use Keepsuit\Liquid\ParseContext;
 
 test('tokenize strings', function () {
     expect(tokenize(' '))->toBe([' ']);
@@ -32,7 +32,7 @@ it('calculate line numbers per token with profiling', function () {
 
 function tokenize(string $source): array
 {
-    $tokenizer = new Tokenizer($source);
+    $tokenizer = (new ParseContext())->newTokenizer($source);
 
     $tokens = [];
     while ($token = $tokenizer->shift()) {
@@ -43,7 +43,7 @@ function tokenize(string $source): array
 
 function tokenizeLineNumbers(string $source): array
 {
-    $tokenizer = new Tokenizer($source, lineNumbers: true);
+    $tokenizer = (new ParseContext())->newTokenizer($source, startLineNumber: 1);
 
     $lineNumbers = [];
     while ($tokenizer->shift()) {
