@@ -13,7 +13,7 @@ class Tokenizer
     public function __construct(
         protected string $source,
         int|bool $lineNumber = null,
-        protected bool $forLiquidTag = false
+        public readonly bool $forLiquidTag = false
     ) {
         $this->tokens = $this->tokenize();
 
@@ -51,7 +51,7 @@ class Tokenizer
             return explode(PHP_EOL, $this->source);
         }
 
-        $regex = sprintf('/%s/m', TemplateParserRegex::TemplateParser);
+        $regex = sprintf('/%s/m', Regex::TemplateParser);
 
         $tokens = preg_split($regex, $this->source, flags: PREG_SPLIT_NO_EMPTY | PREG_SPLIT_DELIM_CAPTURE);
 

@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid;
 
-class TemplateParserRegex
+class Regex
 {
     const FilterSeparator = '\|';
 
