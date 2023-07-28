@@ -1,6 +1,7 @@
 <?php
 
 use Keepsuit\Liquid\Lexer;
+use Keepsuit\Liquid\SyntaxException;
 use Keepsuit\Liquid\TokenType;
 
 test('strings', function () {
@@ -87,5 +88,5 @@ test('fancy identifiers', function () {
 
 test('unexpected character', function () {
     expect(fn () => (new Lexer('%'))->tokenize())
-        ->toThrow(Exception::class, 'Unexpected character %');
+        ->toThrow(SyntaxException::class, 'Unexpected character: %');
 });

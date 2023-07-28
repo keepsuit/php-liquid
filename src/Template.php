@@ -8,6 +8,8 @@ class Template
 {
     protected static TagRegistry $tagRegistry;
 
+    public static ErrorMode $errorMode = ErrorMode::Warn;
+
     public function __construct(
         public readonly Document $root
     ) {

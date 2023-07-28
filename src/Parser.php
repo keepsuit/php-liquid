@@ -2,8 +2,6 @@
 
 namespace Keepsuit\Liquid;
 
-use Exception;
-
 class Parser
 {
     /**
@@ -29,19 +27,19 @@ class Parser
         $token = $this->tokens[$this->pointer];
 
         if ($type != null && $token[0] !== $type) {
-            throw new Exception(sprintf('Expected token type %s, got %s', $type->toString(), $token[0]->toString()));
+            throw SyntaxException::unexpectedTokenType($type, $token[0]);
         }
 
         $this->pointer += 1;
 
-        return $token[1];
+        return $token[1] ?? '';
     }
 
     public function consumeOrFalse(TokenType $type): string|false
     {
         try {
             return $this->consume($type);
-        } catch (Exception) {
+        } catch (SyntaxException) {
             return false;
         }
     }
@@ -91,7 +89,7 @@ class Parser
                 .$this->consume(TokenType::DotDot)
                 .$this->expression()
                 .$this->consume(TokenType::CloseRound),
-            default => throw new Exception(sprintf('%s is not a valid expression', $token[1]))
+            default => throw SyntaxException::invalidExpression($token[1])
         };
     }
 

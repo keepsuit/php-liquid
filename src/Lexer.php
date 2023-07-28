@@ -66,7 +66,7 @@ class Lexer
                 preg_match(self::IDENTIFIER, $this->input, $matches, offset: $currentIndex) === 1 => [TokenType::Identifier, $matches[0]],
                 preg_match(self::DOTDOT, $this->input, $matches, offset: $currentIndex) === 1 => [TokenType::DotDot, $matches[0]],
                 array_key_exists($this->input[$currentIndex], self::SPECIAL_CHARACTERS) => [self::SPECIAL_CHARACTERS[$this->input[$currentIndex]], $this->input[$currentIndex]],
-                default => new Exception(sprintf('Unexpected character %s', $this->input[$currentIndex])),
+                default => SyntaxException::unexpectedCharacter($this->input[$currentIndex]),
             };
 
             if ($token instanceof Exception) {

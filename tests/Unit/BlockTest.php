@@ -5,13 +5,13 @@ use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\Variable;
 
 test('blankspace', function () {
-    $template = Template::parse("  ");
+    $template = Template::parse('  ');
 
-    expect($template->root->nodeList())->toBe(["  "]);
+    expect($template->root->nodeList())->toBe(['  ']);
 });
 
 test('variable beginning', function () {
-    $template = Template::parse("{{funk}}  ");
+    $template = Template::parse('{{funk}}  ');
 
     expect($template->root->nodeList())
         ->toHaveCount(2)
@@ -20,7 +20,7 @@ test('variable beginning', function () {
 });
 
 test('variable end', function () {
-    $template = Template::parse("  {{funk}}");
+    $template = Template::parse('  {{funk}}');
 
     expect($template->root->nodeList())
         ->toHaveCount(2)
@@ -29,7 +29,7 @@ test('variable end', function () {
 });
 
 test('variable middle', function () {
-    $template = Template::parse("  {{funk}}  ");
+    $template = Template::parse('  {{funk}}  ');
 
     expect($template->root->nodeList())
         ->toHaveCount(3)
@@ -39,7 +39,7 @@ test('variable middle', function () {
 });
 
 test('variable many embedded fragments', function () {
-    $template = Template::parse("  {{funk}} {{so}} {{brother}} ");
+    $template = Template::parse('  {{funk}} {{so}} {{brother}} ');
 
     expect($template->root->nodeList())
         ->toHaveCount(7)
@@ -53,7 +53,7 @@ test('variable many embedded fragments', function () {
 });
 
 test('with block', function () {
-    $template = Template::parse("  {% comment %} {% endcomment %} ");
+    $template = Template::parse('  {% comment %} {% endcomment %} ');
 
     expect($template->root->nodeList())
         ->toHaveCount(3)

@@ -33,7 +33,7 @@ class BlockBody
         return $this->nodeList;
     }
 
-    public static function parse(Tokenizer $tokenizer, ParseContext $parseContext, ?Closure $unknownTagHandler = null): BlockBody
+    public static function parse(Tokenizer $tokenizer, ParseContext $parseContext, Closure $unknownTagHandler = null): BlockBody
     {
         $parseContext->lineNumber = $tokenizer->getLineNumber();
 
@@ -45,7 +45,7 @@ class BlockBody
         return static::parseForDocument($tokenizer, $parseContext, $unknownTagHandler);
     }
 
-    protected static function parseForDocument(Tokenizer $tokenizer, ParseContext $parseContext, ?Closure $unknownTagHandler = null): BlockBody
+    protected static function parseForDocument(Tokenizer $tokenizer, ParseContext $parseContext, Closure $unknownTagHandler = null): BlockBody
     {
         $blank = true;
         $nodeList = [];
@@ -71,6 +71,7 @@ class BlockBody
 
                 if ($tagName === 'liquid') {
                     dd('parseLiquidTag', $token, $markup);
+
                     continue;
                 }
 
