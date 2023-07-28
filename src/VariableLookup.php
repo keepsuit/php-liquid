@@ -2,13 +2,13 @@
 
 namespace Keepsuit\Liquid;
 
-class VariableLookup
+class VariableLookup implements HasParseTreeVisitorChildren
 {
     const COMMAND_METHODS = ['size', 'first', 'last'];
 
     protected int $commandFlags = 0;
 
-    public readonly string $name;
+    public readonly mixed $name;
 
     public readonly array $lookups;
 
@@ -40,11 +40,10 @@ class VariableLookup
         return $matches[0];
     }
 
-    protected static function parseVariableName(string $name): string
+    protected static function parseVariableName(string $name): mixed
     {
         if (static::isWrappedInSquareBrackets($name)) {
-            $name = Expression::parse(substr($name, 1, -1));
-            assert(is_string($name));
+            return Expression::parse(substr($name, 1, -1));
         }
 
         return $name;
@@ -57,6 +56,15 @@ class VariableLookup
 
     public function __toString(): string
     {
+        if (! is_string($this->name)) {
+            dd($this->name);
+        }
+
         return $this->name;
+    }
+
+    public function parseTreeVisitorChildren(): array
+    {
+        return $this->lookups;
     }
 }

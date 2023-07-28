@@ -4,31 +4,30 @@ namespace Keepsuit\Liquid;
 
 trait ParserSwitching
 {
-    abstract protected function strictParse(string $markup): void;
+    abstract protected function strictParse(string $markup): mixed;
 
-    abstract protected function laxParse(string $markup): void;
+    abstract protected function laxParse(string $markup): mixed;
 
-    protected function strictParseWithErrorModeFallback(string $markup, ParseContext $parseContext): void
+    protected function strictParseWithErrorModeFallback(string $markup, ParseContext $parseContext): mixed
     {
         try {
-            $this->strictParseWithErrorContext($markup);
+            return $this->strictParseWithErrorContext($markup);
         } catch (SyntaxException $e) {
             if ($parseContext->errorMode === ErrorMode::Strict) {
                 throw $e;
             }
             if ($parseContext->errorMode === ErrorMode::Warn) {
                 $parseContext->logWarning($e);
-
-                return;
             }
-            $this->laxParse($markup);
+
+            return $this->laxParse($markup);
         }
     }
 
-    private function strictParseWithErrorContext(string $markup): void
+    private function strictParseWithErrorContext(string $markup): mixed
     {
         try {
-            $this->strictParse($markup);
+            return $this->strictParse($markup);
         } catch (SyntaxException $e) {
             $e->setLineNumber($this->lineNumber);
             $e->setMarkupContext($this->markupContext($markup));

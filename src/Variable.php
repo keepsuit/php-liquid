@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid;
 
-class Variable
+class Variable implements HasParseTreeVisitorChildren
 {
     use ParserSwitching;
 
@@ -46,7 +46,7 @@ class Variable
         return $this->markup;
     }
 
-    protected function strictParse(string $markup): void
+    protected function strictParse(string $markup): mixed
     {
         $this->filters = [];
 
@@ -65,9 +65,11 @@ class Variable
         }
 
         $parser->consume(TokenType::EndOfString);
+
+        return null;
     }
 
-    protected function laxParse(string $markup): void
+    protected function laxParse(string $markup): mixed
     {
         $this->filters = [];
 
@@ -91,6 +93,8 @@ class Variable
                 $this->filters[] = $this->parseFilterExpressions($filterName, $filterArgsMatches[1]);
             }
         }
+
+        return null;
     }
 
     protected function parseFilterArgs(Parser $parser): array
@@ -123,5 +127,10 @@ class Variable
         }
 
         return $result;
+    }
+
+    public function parseTreeVisitorChildren(): array
+    {
+        return [$this->name, ...Arr::flatten($this->filters)];
     }
 }

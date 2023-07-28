@@ -1,7 +1,7 @@
 <?php
 
 use Keepsuit\Liquid\I18n;
-use Keepsuit\Liquid\Tags\Comment;
+use Keepsuit\Liquid\Tags\CommentTag;
 use Keepsuit\Liquid\Template;
 
 it('sets default localization in document', function () {
@@ -9,7 +9,7 @@ it('sets default localization in document', function () {
 
     expect($template)
         ->root->nodeList()->toHaveCount(1)
-        ->root->nodeList()->{0}->toBeInstanceOf(Comment::class)
+        ->root->nodeList()->{0}->toBeInstanceOf(CommentTag::class)
         ->root->nodeList()->{0}->parseContext->locale->toBeInstanceOf(I18n::class);
 });
 

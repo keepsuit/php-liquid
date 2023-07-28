@@ -1,6 +1,6 @@
 <?php
 
-use Keepsuit\Liquid\Tags\Comment;
+use Keepsuit\Liquid\Tags\CommentTag;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\Variable;
 
@@ -58,6 +58,6 @@ test('with block', function () {
     expect($template->root->nodeList())
         ->toHaveCount(3)
         ->{0}->toBeString()
-        ->{1}->toBeInstanceOf(Comment::class)
+        ->{1}->toBeInstanceOf(CommentTag::class)
         ->{2}->toBeString();
 });

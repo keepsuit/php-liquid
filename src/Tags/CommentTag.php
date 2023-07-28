@@ -4,7 +4,7 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Block;
 
-class Comment extends Block
+class CommentTag extends Block
 {
     public static function name(): string
     {

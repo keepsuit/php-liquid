@@ -2,8 +2,6 @@
 
 namespace Keepsuit\Liquid;
 
-use Keepsuit\Liquid\Tags\Comment;
-
 class Template
 {
     protected static TagRegistry $tagRegistry;
@@ -48,7 +46,9 @@ class Template
         }
 
         return static::$tagRegistry = (new TagRegistry())
-            ->register(Comment::class);
+            ->register(Tags\CommentTag::class)
+            ->register(Tags\EchoTag::class)
+            ->register(Tags\IfTag::class);
     }
 
     public static function deleteTag(string $name): void
