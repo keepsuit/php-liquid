@@ -8,13 +8,18 @@ abstract class Block extends Tag
 
     protected BlockBody $body;
 
-    public static function parse(string $tagName, string $markup, Tokenizer $tokenizer, ParseContext $parseContext): static
+    public function __construct(string $tagName, string $markup, ParseContext $parseContext)
     {
-        $block = new static($tagName, $markup, $parseContext);
+        parent::__construct($tagName, $markup, $parseContext);
 
-        $block->body = self::parseBody($tokenizer, $parseContext);
+        $this->body = $parseContext->newBlockBody();
+    }
 
-        return $block;
+    public function parse(Tokenizer $tokenizer): static
+    {
+        $this->body = self::parseBody($tokenizer);
+
+        return $this;
     }
 
     public static function blockDelimiter(): string
@@ -22,23 +27,23 @@ abstract class Block extends Tag
         return 'end'.static::name();
     }
 
-    private static function parseBody(Tokenizer $tokenizer, ParseContext $parseContext): BlockBody
+    protected function parseBody(Tokenizer $tokenizer): BlockBody
     {
-        if ($parseContext->depth >= self::MAX_DEPTH) {
+        if ($this->parseContext->depth >= self::MAX_DEPTH) {
             throw new \RuntimeException('Nesting too deep');
         }
 
-        $parseContext->depth += 1;
+        $this->parseContext->depth += 1;
 
-        $blockBody = BlockBody::parse($tokenizer, $parseContext, function (string $tagName, string $markup) {
+        $blockBody = BlockBody::parse($tokenizer, $this->parseContext, function (string $tagName, string $markup) {
             if ($tagName === static::blockDelimiter()) {
                 return false;
             }
 
-            dd($tagName, $markup, static::name());
+            return static::unknownTagHandler($tagName, $markup);
         });
 
-        $parseContext->depth -= 1;
+        $this->parseContext->depth -= 1;
 
         return $blockBody;
     }
@@ -46,5 +51,18 @@ abstract class Block extends Tag
     public function blank(): bool
     {
         return $this->body->blank;
+    }
+
+    /**
+     * @throws SyntaxException
+     */
+    protected function unknownTagHandler(string $tagName, string $markup): bool
+    {
+        throw SyntaxException::unknownTag(
+            parseContext: $this->parseContext,
+            tagName: $tagName,
+            blockName: $markup,
+            blockDelimiter: static::blockDelimiter()
+        );
     }
 }

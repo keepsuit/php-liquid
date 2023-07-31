@@ -18,7 +18,7 @@ class ParseTreeVisitor
         return new static($root, $callbacks);
     }
 
-    public function addCallbackFor(string $nodeType, Closure $callback)
+    public function addCallbackFor(string $nodeType, Closure $callback): static
     {
         $this->callbacks[$nodeType] = $callback;
 
@@ -39,10 +39,10 @@ class ParseTreeVisitor
     protected function children(): array
     {
         if ($this->node instanceof HasParseTreeVisitorChildren) {
-            return $this->node->parseTreeVisitorChildren($this->node);
+            return $this->node->parseTreeVisitorChildren();
         }
 
-        return method_exists($this->node, 'nodeList') ? $this->node->nodeList() : [];
+        return is_object($this->node) && method_exists($this->node, 'nodeList') ? $this->node->nodeList() : [];
     }
 
     protected function getCallbackFor(mixed $nodeType): ?Closure

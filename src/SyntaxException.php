@@ -22,22 +22,25 @@ class SyntaxException extends \Exception
         ]));
     }
 
-    public static function unknownTag(string $tagName, string $markup, ParseContext $parseContext): SyntaxException
+    public static function unknownTag(ParseContext $parseContext, string $tagName, string $blockName, string $blockDelimiter = null): SyntaxException
     {
-        dd('unknownTag', $tagName, $markup);
-
         if ($tagName === 'else') {
             return new SyntaxException($parseContext->locale->translate('errors.syntax.unexpected_else', [
-                'block_name' => $markup,
+                'block_name' => $blockName,
             ]));
         }
 
         if (str_starts_with($tagName, 'end')) {
             return new SyntaxException($parseContext->locale->translate('errors.syntax.invalid_delimiter', [
                 'tag' => $tagName,
-                'block_name' => $markup,
+                'block_name' => $blockName,
+                'block_delimiter' => $blockDelimiter ?? '',
             ]));
         }
+
+        return new SyntaxException($parseContext->locale->translate('errors.syntax.unknown_tag', [
+            'tag' => $tagName,
+        ]));
     }
 
     public static function unexpectedTokenType(TokenType $expectedToken, TokenType $givenToken): SyntaxException

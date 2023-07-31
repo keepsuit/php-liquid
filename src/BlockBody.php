@@ -33,6 +33,20 @@ class BlockBody
         return $this->nodeList;
     }
 
+    public function removeBlankStrings(): BlockBody
+    {
+        if (! $this->blank) {
+            throw new \Exception('Cannot remove blank string from non-blank block body');
+        }
+
+        $this->nodeList = array_filter(
+            $this->nodeList,
+            fn ($node) => ! ($node === ''),
+        );
+
+        return $this;
+    }
+
     public static function parse(Tokenizer $tokenizer, ParseContext $parseContext, Closure $unknownTagHandler = null): BlockBody
     {
         $parseContext->lineNumber = $tokenizer->getLineNumber();
@@ -80,15 +94,17 @@ class BlockBody
 
                 if ($tagClass === null) {
                     if ($unknownTagHandler !== null) {
-                        $unknownTagHandler($tagName, $markup);
+                        if ($unknownTagHandler($tagName, $markup) === false) {
+                            return new BlockBody($nodeList, $blank);
+                        } else {
+                            continue;
+                        }
                     } else {
-                        throw SyntaxException::unknownTag($tagName, $markup, $parseContext);
+                        throw SyntaxException::unknownTag($parseContext, $tagName, $markup);
                     }
-
-                    return new BlockBody($nodeList, $blank);
                 }
 
-                $tag = $tagClass::parse($tagName, $markup, $tokenizer, $parseContext);
+                $tag = (new $tagClass($tagName, $markup, $parseContext))->parse($tokenizer);
                 $blank = $blank && $tag->blank();
                 $nodeList[] = $tag;
             } elseif (str_starts_with($token, self::VARSTART)) {

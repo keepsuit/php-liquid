@@ -53,7 +53,7 @@ class Variable implements HasParseTreeVisitorChildren
         $parser = new Parser($markup);
 
         if ($parser->look(TokenType::EndOfString)) {
-            return;
+            return null;
         }
 
         $this->name = $this->parseContext->parseExpression($parser->expression());
@@ -74,7 +74,7 @@ class Variable implements HasParseTreeVisitorChildren
         $this->filters = [];
 
         if (preg_match(self::MarkupWithQuotedFragment, $markup, $matches) !== 1) {
-            return;
+            return null;
         }
 
         $nameMarkup = $matches[1];

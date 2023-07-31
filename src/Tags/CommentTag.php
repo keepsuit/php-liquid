@@ -15,4 +15,9 @@ class CommentTag extends Block
     {
         return true;
     }
+
+    protected function unknownTagHandler(string $tagName, string $markup): bool
+    {
+        return false;
+    }
 }

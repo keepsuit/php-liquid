@@ -13,13 +13,18 @@ abstract class Tag
 
     abstract public static function name(): string;
 
-    public static function parse(string $tagName, string $markup, Tokenizer $tokenizer, ParseContext $parseContext): static
+    public function parse(Tokenizer $tokenizer): static
     {
-        return new static($tagName, $markup, $parseContext);
+        return $this;
     }
 
     public function blank(): bool
     {
         return false;
+    }
+
+    protected function parseExpression(string $markup): mixed
+    {
+        return $this->parseContext->parseExpression($markup);
     }
 }

@@ -46,9 +46,11 @@ class Template
         }
 
         return static::$tagRegistry = (new TagRegistry())
+            ->register(Tags\CaseTag::class)
             ->register(Tags\CommentTag::class)
             ->register(Tags\EchoTag::class)
-            ->register(Tags\IfTag::class);
+            ->register(Tags\IfTag::class)
+            ->register(Tags\UnlessTag::class);
     }
 
     public static function deleteTag(string $name): void

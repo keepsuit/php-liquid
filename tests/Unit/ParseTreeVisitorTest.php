@@ -25,10 +25,62 @@ test('if condition', function () {
     expect(visit('{% if test %}{% endif %}'))->toBe(['test']);
 });
 
+test('complex if condition', function () {
+    expect(visit('{% if 1 == 1 and 2 == test %}{% endif %}'))->toBe(['test']);
+});
+
+test('if body', function () {
+    expect(visit('{% if 1 == 1 %}{{ test }}{% endif %}'))->toBe(['test']);
+});
+
+test('unless condition', function () {
+    expect(visit('{% unless test %}{% endunless %}'))->toBe(['test']);
+});
+
+test('complex unless condition', function () {
+    expect(visit('{% unless 1 == 1 and 2 == test %}{% endunless %}'))->toBe(['test']);
+});
+
+test('unless body', function () {
+    expect(visit('{% unless 1 == 1 %}{{ test }}{% endunless %}'))->toBe(['test']);
+});
+
+test('elseif condition', function () {
+    expect(visit('{% if 1 == 1 %}{% elsif test %}{% endif %}'))->toBe(['test']);
+});
+
+test('complex elseif condition', function () {
+    expect(visit('{% if 1 == 1 %}{% elsif 1 == 1 and 2 == test %}{% endif %}'))->toBe(['test']);
+});
+
+test('elseif body condition', function () {
+    expect(visit('{% if 1 == 1 %}{% elsif 2 == 2 %}{{ test }}{% endif %}'))->toBe(['test']);
+});
+
+test('else body condition', function () {
+    expect(visit('{% if 1 == 1 %}{% else %}{{ test }}{% endif %}'))->toBe(['test']);
+});
+
+test('case left', function () {
+    expect(visit('{% case test %}{% endcase %}'))->toBe(['test']);
+});
+
+test('case condition', function () {
+    expect(visit('{% case 1 %}{% when test %}{% endcase %}'))->toBe(['test']);
+});
+
+test('case when body', function () {
+    expect(visit('{% case 1 %}{% when 2 %}{{ test }}{% endcase %}'))->toBe(['test']);
+});
+
+test('case else body', function () {
+    expect(visit('{% case 1 %}{% else %}{{ test }}{% endcase %}'))->toBe(['test']);
+});
+
 function traversal(string $source): ParseTreeVisitor
 {
     return ParseTreeVisitor::for(Template::parse($source)->root)
-        ->addCallbackFor(VariableLookup::class, fn (VariableLookup $node) => [$node->name]);
+        ->addCallbackFor(VariableLookup::class, fn (VariableLookup $node) => [$node->name, null]);
 }
 
 function visit(string $source): array

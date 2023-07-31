@@ -9,12 +9,15 @@ use Keepsuit\Liquid\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\ParseContext;
 use Keepsuit\Liquid\Parser;
 use Keepsuit\Liquid\ParserSwitching;
+use Keepsuit\Liquid\SyntaxException;
+use Keepsuit\Liquid\Tokenizer;
 use Keepsuit\Liquid\TokenType;
 
 class IfTag extends Block implements HasParseTreeVisitorChildren
 {
     use ParserSwitching;
 
+    /** @var Condition[] */
     protected array $blocks = [];
 
     public function __construct(string $tagName, string $markup, ParseContext $parseContext)
@@ -29,20 +32,35 @@ class IfTag extends Block implements HasParseTreeVisitorChildren
         return 'if';
     }
 
-    public function parseTreeVisitorChildren(): array
+    public function parse(Tokenizer $tokenizer): static
     {
-        return $this->blocks;
+        $ifBody = $this->parseBody($tokenizer);
+
+        if (count($this->blocks) > 0) {
+            $this->blocks[count($this->blocks) - 1]->attach($ifBody);
+        }
+
+        foreach (array_reverse($this->blocks) as $block) {
+            if ($block->attachment?->blank) {
+                $block->attachment->removeBlankStrings();
+            }
+        }
+
+        return $this;
     }
 
-    protected function pushBlock(string $tag, string $markup): void
+    protected function pushBlock(string $tag, string $markup): Condition
     {
         $block = match (true) {
             $tag === 'else' => new ElseCondition(),
             default => $this->strictParseWithErrorModeFallback($markup, $this->parseContext),
         };
+        assert($block instanceof Condition);
 
         $this->blocks[] = $block;
-        // $block->attach($newBody);
+        $block->attach($this->parseContext->newBlockBody());
+
+        return $block;
     }
 
     protected function strictParse(string $markup): mixed
@@ -64,9 +82,11 @@ class IfTag extends Block implements HasParseTreeVisitorChildren
     {
         $condition = $this->parseComparison($parser);
         $firstCondition = $condition;
-        while ($operator = ($parser->idOrFalse('and') || $parser->idOrFalse('or'))) {
+
+        while ($operator = $parser->idOrFalse('and') ?: $parser->idOrFalse('or')) {
             $childCondition = $this->parseComparison($parser);
-            dd('parseBinaryComparison', $childCondition);
+            $condition->{$operator}($childCondition);
+            $condition = $childCondition;
         }
 
         return $firstCondition;
@@ -85,9 +105,22 @@ class IfTag extends Block implements HasParseTreeVisitorChildren
         }
     }
 
-    protected function parseExpression(string $markup): mixed
+    /**
+     * @throws SyntaxException
+     */
+    protected function unknownTagHandler(string $tagName, string $markup): bool
     {
-        return $this->parseContext->parseExpression($markup);
-        //        return Condition::parseExpression($markup, $this->parseContext);
+        if (in_array($tagName, ['elsif', 'else'])) {
+            $this->pushBlock($tagName, $markup);
+
+            return true;
+        }
+
+        return parent::unknownTagHandler($tagName, $markup);
+    }
+
+    public function parseTreeVisitorChildren(): array
+    {
+        return $this->blocks;
     }
 }

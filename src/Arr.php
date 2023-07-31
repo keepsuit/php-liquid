@@ -4,7 +4,7 @@ namespace Keepsuit\Liquid;
 
 class Arr
 {
-    public static function flatten(array $array, int $depth = INF): array
+    public static function flatten(array $array, float $depth = INF): array
     {
         $result = [];
 
@@ -12,7 +12,7 @@ class Arr
             if (! is_array($item)) {
                 $result[] = $item;
             } else {
-                $values = $depth === 1
+                $values = $depth === 1.0
                     ? array_values($item)
                     : static::flatten($item, $depth - 1);
 
