@@ -4,9 +4,9 @@ namespace Keepsuit\Liquid;
 
 class RangeLookup implements HasParseTreeVisitorChildren
 {
-    public function __construct(
-        protected mixed $start,
-        protected mixed $end,
+    final public function __construct(
+        public readonly mixed $start,
+        public readonly mixed $end,
     ) {
     }
 

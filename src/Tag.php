@@ -4,11 +4,14 @@ namespace Keepsuit\Liquid;
 
 abstract class Tag
 {
+    protected ?int $lineNumber = null;
+
     public function __construct(
         protected string $tagName,
         protected string $markup,
         public readonly ParseContext $parseContext
     ) {
+        $this->lineNumber = $this->parseContext->lineNumber;
     }
 
     abstract public static function name(): string;

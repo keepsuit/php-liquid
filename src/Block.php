@@ -57,6 +57,11 @@ abstract class Block extends Tag
         return $this->blank;
     }
 
+    public function nodeList(): array
+    {
+        return $this->body->nodeList();
+    }
+
     /**
      * @throws SyntaxException
      */

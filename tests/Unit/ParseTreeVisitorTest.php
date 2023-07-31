@@ -97,6 +97,64 @@ test('for range', function () {
     expect(visit('{% for x in (1..test) %}{% endfor %}'))->toBe(['test']);
 });
 
+test('tablerow in', function () {
+    expect(visit('{% tablerow x in test %}{% endtablerow %}'))->toBe(['test']);
+});
+
+test('tablerow limit', function () {
+    expect(visit('{% tablerow x in (1..5) limit: test %}{% endtablerow %}'))->toBe(['test']);
+});
+
+test('tablerow offset', function () {
+    expect(visit('{% tablerow x in (1..5) offset: test %}{% endtablerow %}'))->toBe(['test']);
+});
+
+test('tablerow body', function () {
+    expect(visit('{% tablerow x in (1..5) %}{{ test }}{% endtablerow %}'))->toBe(['test']);
+});
+
+test('cycle', function () {
+    expect(visit('{% cycle test %}'))->toBe(['test']);
+});
+
+test('assign', function () {
+    expect(visit('{% assign x = test %}'))->toBe(['test']);
+});
+
+test('capture', function () {
+    expect(visit('{% capture x %}{{ test }}{% endcapture %}'))->toBe(['test']);
+});
+
+test('include', function () {
+    expect(visit('{% include test %}'))->toBe(['test']);
+});
+
+test('include with', function () {
+    expect(visit('{% include "hai" with test %}'))->toBe(['test']);
+});
+
+test('include for', function () {
+    expect(visit('{% include "hai" for test %}'))->toBe(['test']);
+});
+
+test('render for', function () {
+    expect(visit('{% render "hai" for test %}'))->toBe(['test']);
+});
+
+test('preserve tree structure', function () {
+    expect(traversal('{% for x in xs offset: test %}{{ other }}{% endfor %}')->visit())
+        ->toBe([
+            [
+                null,
+                [
+                    [null, [[null, [['other', []]]]]],
+                    ['test', []],
+                    ['xs', []],
+                ],
+            ],
+        ]);
+});
+
 function traversal(string $source): ParseTreeVisitor
 {
     return ParseTreeVisitor::for(Template::parse($source)->root)

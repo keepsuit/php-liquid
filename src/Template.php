@@ -46,11 +46,17 @@ class Template
         }
 
         return static::$tagRegistry = (new TagRegistry())
+            ->register(Tags\AssignTag::class)
+            ->register(Tags\CaptureTag::class)
             ->register(Tags\CaseTag::class)
             ->register(Tags\CommentTag::class)
+            ->register(Tags\CycleTag::class)
             ->register(Tags\EchoTag::class)
             ->register(Tags\ForTag::class)
             ->register(Tags\IfTag::class)
+            ->register(Tags\IncludeTag::class)
+            ->register(Tags\RenderTag::class)
+            ->register(Tags\TableRowTag::class)
             ->register(Tags\UnlessTag::class);
     }
 

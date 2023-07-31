@@ -48,9 +48,9 @@ class ForTag extends Block implements HasParseTreeVisitorChildren
     {
         $this->forBlock = $this->parseBody($tokenizer);
 
-        if (! $this->forBlock->blank) {
-            $this->elseBlock = $this->parseBody($tokenizer);
-        }
+        //        if (! $this->forBlock->blank) {
+        //            $this->elseBlock = $this->parseBody($tokenizer);
+        //        }
 
         if ($this->blank()) {
             $this->elseBlock?->removeBlankStrings();
@@ -66,7 +66,7 @@ class ForTag extends Block implements HasParseTreeVisitorChildren
 
         $this->variableName = $parser->consume(TokenType::Identifier);
 
-        if ($parser->idOrFalse('in') === null) {
+        if (! $parser->idOrFalse('in')) {
             throw new SyntaxException($this->parseContext->locale->translate('errors.syntax.for_invalid_in'));
         }
 
@@ -115,22 +115,15 @@ class ForTag extends Block implements HasParseTreeVisitorChildren
         }
     }
 
-    /**
-     * @throws SyntaxException
-     */
-    protected function unknownTagHandler(string $tagName, string $markup): bool
+    public function nodeList(): array
     {
-        dd('unknownTagHandler', $tagName, $markup);
-
-        return parent::unknownTagHandler($tagName, $markup);
+        return $this->elseBlock ? [$this->forBlock, $this->elseBlock] : [$this->forBlock];
     }
 
     public function parseTreeVisitorChildren(): array
     {
-        $nodeList = $this->elseBlock ? [$this->forBlock, $this->elseBlock] : [$this->forBlock];
-
         return Arr::compact([
-            ...$nodeList,
+            ...$this->nodeList(),
             $this->limit,
             $this->from,
             $this->collectionName,
