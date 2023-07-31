@@ -42,8 +42,8 @@ class Expression
         if (preg_match(self::INTEGERS_REGEX, $markup, $matches) === 1) {
             return (int) $matches[1];
         }
-        if (preg_match(self::RANGES_REGEX, $markup) === 1) {
-            dd('ranges', $markup);
+        if (preg_match(self::RANGES_REGEX, $markup, $matches) === 1) {
+            return RangeLookup::parse($matches[1], $matches[2]);
         }
         if (preg_match(self::FLOATS_REGEX, $markup, $matches) === 1) {
             return (float) $matches[1];

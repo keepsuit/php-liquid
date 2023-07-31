@@ -30,11 +30,11 @@ class SyntaxException extends \Exception
             ]));
         }
 
-        if (str_starts_with($tagName, 'end')) {
+        if (str_starts_with($tagName, 'end') && $blockDelimiter !== null) {
             return new SyntaxException($parseContext->locale->translate('errors.syntax.invalid_delimiter', [
                 'tag' => $tagName,
                 'block_name' => $blockName,
-                'block_delimiter' => $blockDelimiter ?? '',
+                'block_delimiter' => $blockDelimiter,
             ]));
         }
 

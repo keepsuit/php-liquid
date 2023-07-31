@@ -6,6 +6,8 @@ abstract class Block extends Tag
 {
     protected const MAX_DEPTH = 100;
 
+    protected bool $blank = true;
+
     protected BlockBody $body;
 
     public function __construct(string $tagName, string $markup, ParseContext $parseContext)
@@ -43,6 +45,8 @@ abstract class Block extends Tag
             return static::unknownTagHandler($tagName, $markup);
         });
 
+        $this->blank = $this->blank && $blockBody->blank;
+
         $this->parseContext->depth -= 1;
 
         return $blockBody;
@@ -50,7 +54,7 @@ abstract class Block extends Tag
 
     public function blank(): bool
     {
-        return $this->body->blank;
+        return $this->blank;
     }
 
     /**

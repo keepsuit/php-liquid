@@ -49,6 +49,7 @@ class Template
             ->register(Tags\CaseTag::class)
             ->register(Tags\CommentTag::class)
             ->register(Tags\EchoTag::class)
+            ->register(Tags\ForTag::class)
             ->register(Tags\IfTag::class)
             ->register(Tags\UnlessTag::class);
     }

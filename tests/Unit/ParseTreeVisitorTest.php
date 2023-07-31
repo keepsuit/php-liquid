@@ -77,6 +77,26 @@ test('case else body', function () {
     expect(visit('{% case 1 %}{% else %}{{ test }}{% endcase %}'))->toBe(['test']);
 });
 
+test('for in', function () {
+    expect(visit('{% for x in test %}{% endfor %}'))->toBe(['test']);
+});
+
+test('for limit', function () {
+    expect(visit('{% for x in (1..5) limit: test %}{% endfor %}'))->toBe(['test']);
+});
+
+test('for offset', function () {
+    expect(visit('{% for x in (1..5) offset: test %}{% endfor %}'))->toBe(['test']);
+});
+
+test('for body', function () {
+    expect(visit('{% for x in (1..5) %}{{ test }}{% endfor %}'))->toBe(['test']);
+});
+
+test('for range', function () {
+    expect(visit('{% for x in (1..test) %}{% endfor %}'))->toBe(['test']);
+});
+
 function traversal(string $source): ParseTreeVisitor
 {
     return ParseTreeVisitor::for(Template::parse($source)->root)

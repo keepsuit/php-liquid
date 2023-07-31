@@ -15,4 +15,3 @@ parameters:
         disableCheckMissingIterableValueType: false
 
     ignoreErrors:
-        - '#Unsafe usage of new static\(\)#'
