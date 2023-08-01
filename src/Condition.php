@@ -62,26 +62,17 @@ class Condition implements HasParseTreeVisitorChildren
 
     public function evaluate(Context $context): bool
     {
-        $condition = $this;
-        $result = null;
+        $result = $this->interpretCondition($this->left, $this->right, $this->operator, $context);
 
-        while ($condition !== null) {
-            $result = $this->interpretCondition($condition->left, $condition->right, $condition->operator, $context);
-
-            if ($condition->childRelation === null || $condition->childCondition === null) {
-                break;
-            }
-            if ($condition->childRelation === ConditionsRelation::Or && $result === true) {
-                break;
-            }
-            if ($condition->childRelation === ConditionsRelation::And && $result === false) {
-                break;
-            }
-
-            $condition = $condition->childCondition;
+        if ($this->childCondition === null) {
+            return $result;
         }
 
-        return $result;
+        return match($this->childRelation) {
+            ConditionsRelation::Or => $result || $this->childCondition->evaluate($context),
+            ConditionsRelation::And => $result && $this->childCondition->evaluate($context),
+            default => $result,
+        };
     }
 
     public function parseTreeVisitorChildren(): array
