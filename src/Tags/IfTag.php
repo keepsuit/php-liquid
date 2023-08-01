@@ -20,14 +20,14 @@ class IfTag extends Block implements HasParseTreeVisitorChildren
     /** @var Condition[] */
     protected array $blocks = [];
 
-    public function __construct(string $tagName, string $markup, ParseContext $parseContext)
+    public function __construct(string $markup, ParseContext $parseContext)
     {
-        parent::__construct($tagName, $markup, $parseContext);
+        parent::__construct($markup, $parseContext);
 
         $this->pushBlock('if', $markup);
     }
 
-    public static function name(): string
+    public static function tagName(): string
     {
         return 'if';
     }

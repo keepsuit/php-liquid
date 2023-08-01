@@ -22,9 +22,9 @@ class CaseTag extends Block implements HasParseTreeVisitorChildren
 
     protected mixed $left = null;
 
-    public function __construct(string $tagName, string $markup, ParseContext $parseContext)
+    public function __construct(string $markup, ParseContext $parseContext)
     {
-        parent::__construct($tagName, $markup, $parseContext);
+        parent::__construct($markup, $parseContext);
 
         if (preg_match(self::Syntax, $markup, $matches) === 1) {
             $this->left = $this->parseExpression($matches[1]);
@@ -33,7 +33,7 @@ class CaseTag extends Block implements HasParseTreeVisitorChildren
         }
     }
 
-    public static function name(): string
+    public static function tagName(): string
     {
         return 'case';
     }

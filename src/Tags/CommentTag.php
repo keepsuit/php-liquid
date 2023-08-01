@@ -6,7 +6,7 @@ use Keepsuit\Liquid\Block;
 
 class CommentTag extends Block
 {
-    public static function name(): string
+    public static function tagName(): string
     {
         return 'comment';
     }

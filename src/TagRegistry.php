@@ -15,7 +15,7 @@ class TagRegistry
      */
     public function register(string $tag): static
     {
-        $this->tags[$tag::name()] = $tag;
+        $this->tags[$tag::tagName()] = $tag;
 
         return $this;
     }

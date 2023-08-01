@@ -13,9 +13,9 @@ class CaptureTag extends Block
 
     protected string $to;
 
-    public function __construct(string $tagName, string $markup, ParseContext $parseContext)
+    public function __construct(string $markup, ParseContext $parseContext)
     {
-        parent::__construct($tagName, $markup, $parseContext);
+        parent::__construct($markup, $parseContext);
 
         if (preg_match(static::Syntax, $markup, $matches)) {
             $this->to = $matches[1];
@@ -24,7 +24,7 @@ class CaptureTag extends Block
         }
     }
 
-    public static function name(): string
+    public static function tagName(): string
     {
         return 'capture';
     }

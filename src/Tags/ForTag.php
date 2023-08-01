@@ -32,14 +32,14 @@ class ForTag extends Block implements HasParseTreeVisitorChildren
 
     protected ?BlockBody $elseBlock = null;
 
-    public function __construct(string $tagName, string $markup, ParseContext $parseContext)
+    public function __construct(string $markup, ParseContext $parseContext)
     {
-        parent::__construct($tagName, $markup, $parseContext);
+        parent::__construct($markup, $parseContext);
 
         $this->strictParseWithErrorModeFallback($markup, $parseContext);
     }
 
-    public static function name(): string
+    public static function tagName(): string
     {
         return 'for';
     }

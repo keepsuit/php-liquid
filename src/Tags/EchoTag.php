@@ -11,14 +11,14 @@ class EchoTag extends Tag implements HasParseTreeVisitorChildren
 {
     public readonly Variable $variable;
 
-    public function __construct(string $tagName, string $markup, ParseContext $parseContext)
+    public function __construct(string $markup, ParseContext $parseContext)
     {
-        parent::__construct($tagName, $markup, $parseContext);
+        parent::__construct($markup, $parseContext);
 
         $this->variable = new Variable($markup, $parseContext);
     }
 
-    public static function name(): string
+    public static function tagName(): string
     {
         return 'echo';
     }

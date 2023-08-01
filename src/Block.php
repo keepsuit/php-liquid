@@ -10,9 +10,9 @@ abstract class Block extends Tag
 
     protected BlockBody $body;
 
-    public function __construct(string $tagName, string $markup, ParseContext $parseContext)
+    public function __construct( string $markup, ParseContext $parseContext)
     {
-        parent::__construct($tagName, $markup, $parseContext);
+        parent::__construct($markup, $parseContext);
 
         $this->body = $parseContext->newBlockBody();
     }
@@ -26,7 +26,7 @@ abstract class Block extends Tag
 
     public static function blockDelimiter(): string
     {
-        return 'end'.static::name();
+        return 'end'.static::tagName();
     }
 
     protected function parseBody(Tokenizer $tokenizer): BlockBody

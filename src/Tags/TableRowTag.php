@@ -18,9 +18,9 @@ class TableRowTag extends Block implements HasParseTreeVisitorChildren
 
     protected array $attributes = [];
 
-    public function __construct(string $tagName, string $markup, ParseContext $parseContext)
+    public function __construct(string $markup, ParseContext $parseContext)
     {
-        parent::__construct($tagName, $markup, $parseContext);
+        parent::__construct($markup, $parseContext);
 
         if (! preg_match(self::Syntax, $markup, $matches)) {
             throw new SyntaxException($parseContext->locale->translate('errors.syntax.table_row'));
@@ -36,7 +36,7 @@ class TableRowTag extends Block implements HasParseTreeVisitorChildren
         }
     }
 
-    public static function name(): string
+    public static function tagName(): string
     {
         return 'tablerow';
     }

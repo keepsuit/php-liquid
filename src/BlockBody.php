@@ -104,7 +104,7 @@ class BlockBody
                     }
                 }
 
-                $tag = (new $tagClass($tagName, $markup, $parseContext))->parse($tokenizer);
+                $tag = (new $tagClass($markup, $parseContext))->parse($tokenizer);
                 $blank = $blank && $tag->blank();
                 $nodeList[] = $tag;
             } elseif (str_starts_with($token, self::VARSTART)) {

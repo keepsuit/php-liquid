@@ -17,9 +17,9 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
 
     protected Variable $from;
 
-    public function __construct(string $tagName, string $markup, ParseContext $parseContext)
+    public function __construct(string $markup, ParseContext $parseContext)
     {
-        parent::__construct($tagName, $markup, $parseContext);
+        parent::__construct($markup, $parseContext);
 
         if (preg_match(static::Syntax, $markup, $matches)) {
             $this->to = $matches[1];
@@ -29,7 +29,7 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
         }
     }
 
-    public static function name(): string
+    public static function tagName(): string
     {
         return 'assign';
     }
