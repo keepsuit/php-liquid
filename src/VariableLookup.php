@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid;
 
-class VariableLookup implements HasParseTreeVisitorChildren
+class VariableLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
 {
     const COMMAND_METHODS = ['size', 'first', 'last'];
 
@@ -66,5 +66,12 @@ class VariableLookup implements HasParseTreeVisitorChildren
     public function parseTreeVisitorChildren(): array
     {
         return $this->lookups;
+    }
+
+    public function evaluate(Context $context): mixed
+    {
+        $name = $context->evaluate($this->name);
+        assert(is_string($name));
+        return $context->findVariable($name);
     }
 }
