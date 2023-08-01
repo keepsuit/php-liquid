@@ -52,8 +52,9 @@ class BlockBody
         $parseContext->lineNumber = $tokenizer->getLineNumber();
 
         if ($tokenizer->forLiquidTag) {
-            dd('forLiquidTag');
-            //            return static::parseForLiquidTag($tokenizer, $parseContext);
+            // TODO: Implement parseForLiquidTag
+            throw new \RuntimeException('Parse for liquid tag not implemented yet');
+            // return static::parseForLiquidTag($tokenizer, $parseContext);
         }
 
         return static::parseForDocument($tokenizer, $parseContext, $unknownTagHandler);
@@ -84,9 +85,9 @@ class BlockBody
                 }
 
                 if ($tagName === 'liquid') {
-                    dd('parseLiquidTag', $token, $markup);
-
-                    continue;
+                    // TODO: Implement liquid tag
+                    throw new \RuntimeException('Liquid tag not implemented yet');
+                    //continue;
                 }
 
                 /** @var class-string<Tag>|null $tagClass */
@@ -131,9 +132,9 @@ class BlockBody
      */
     protected static function handleInvalidTagToken(string $token, ParseContext $parseContext): void
     {
-        if (str_ends_with($token, '%}')) {
-            dd('yield', $token);
-        }
+        //        if (str_ends_with($token, '%}')) {
+        //            dd('yield', $token);
+        //        }
 
         throw SyntaxException::missingTagTerminator($token, $parseContext);
     }

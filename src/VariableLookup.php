@@ -57,7 +57,8 @@ class VariableLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
     public function __toString(): string
     {
         if (! is_string($this->name)) {
-            dd($this->name);
+            // TODO: Implement VariableLookup Serialization.
+            throw new \RuntimeException('VariableLookup Serialization is not supported yet.');
         }
 
         return $this->name;

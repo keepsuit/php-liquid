@@ -68,7 +68,7 @@ class Condition implements HasParseTreeVisitorChildren
             return $result;
         }
 
-        return match($this->childRelation) {
+        return match ($this->childRelation) {
             ConditionsRelation::Or => $result || $this->childCondition->evaluate($context),
             ConditionsRelation::And => $result && $this->childCondition->evaluate($context),
             default => $result,

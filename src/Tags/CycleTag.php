@@ -22,7 +22,8 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
         parent::__construct($markup, $parseContext);
 
         if (preg_match(static::NamedSyntax, $markup, $matches)) {
-            dd('named', $matches);
+            //TODO: Implement named cycle syntax.
+            throw new \RuntimeException('Named cycle syntax is not supported yet.');
         } elseif (preg_match(static::SimpleSyntax, $markup, $matches)) {
             $this->variables = $this->parseVariablesFromString($markup);
         } else {
