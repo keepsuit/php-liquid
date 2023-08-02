@@ -6,7 +6,7 @@ class Document
 {
     public function __construct(
         protected readonly ParseContext $parseContext,
-        protected BlockBody $body
+        protected BlockBodySection $body,
     ) {
     }
 
@@ -14,10 +14,13 @@ class Document
     {
         return new Document(
             parseContext: $parseContext,
-            body: BlockBody::fromSections(BlockParser::forDocument()->parse($tokenizer, $parseContext))
+            body: BlockParser::forDocument()->parse($tokenizer, $parseContext)[0] ?? new BlockBodySection()
         );
     }
 
+    /**
+     * @return array<Tag|Variable|string>
+     */
     public function nodeList(): array
     {
         return $this->body->nodeList();

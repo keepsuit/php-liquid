@@ -85,6 +85,11 @@ class CaseTag extends TagBlock implements HasParseTreeVisitorChildren
         return in_array($tagName, ['when', 'else']);
     }
 
+    public function nodeList(): array
+    {
+        return array_map(fn (Condition $block) => $block->attachment, $this->conditions);
+    }
+
     public function parseTreeVisitorChildren(): array
     {
         return [$this->left, ...$this->conditions];

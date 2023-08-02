@@ -42,7 +42,7 @@ abstract class TagBlock extends Tag
 
     public function nodeList(): array
     {
-        return BlockBody::fromSections($this->bodySections)->nodeList();
+        return $this->bodySections;
     }
 
     protected function isSubTag(string $tagName): bool

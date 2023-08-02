@@ -107,6 +107,11 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
         }
     }
 
+    protected function isSubTag(string $tagName): bool
+    {
+        return in_array($tagName, ['else'], true);
+    }
+
     public function nodeList(): array
     {
         return $this->elseBlock ? [$this->forBlock, $this->elseBlock] : [$this->forBlock];
