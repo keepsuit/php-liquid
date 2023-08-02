@@ -3,18 +3,17 @@
 namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Arr;
-use Keepsuit\Liquid\Block;
-use Keepsuit\Liquid\BlockBody;
+use Keepsuit\Liquid\BlockBodySection;
 use Keepsuit\Liquid\HasParseTreeVisitorChildren;
-use Keepsuit\Liquid\ParseContext;
 use Keepsuit\Liquid\Parser;
 use Keepsuit\Liquid\ParserSwitching;
 use Keepsuit\Liquid\Regex;
 use Keepsuit\Liquid\SyntaxException;
+use Keepsuit\Liquid\TagBlock;
 use Keepsuit\Liquid\Tokenizer;
 use Keepsuit\Liquid\TokenType;
 
-class ForTag extends Block implements HasParseTreeVisitorChildren
+class ForTag extends TagBlock implements HasParseTreeVisitorChildren
 {
     use ParserSwitching;
 
@@ -28,16 +27,9 @@ class ForTag extends Block implements HasParseTreeVisitorChildren
 
     protected mixed $limit = null;
 
-    protected BlockBody $forBlock;
+    protected BlockBodySection $forBlock;
 
-    protected ?BlockBody $elseBlock = null;
-
-    public function __construct(string $markup, ParseContext $parseContext)
-    {
-        parent::__construct($markup, $parseContext);
-
-        $this->strictParseWithErrorModeFallback($markup, $parseContext);
-    }
+    protected ?BlockBodySection $elseBlock = null;
 
     public static function tagName(): string
     {
@@ -46,16 +38,15 @@ class ForTag extends Block implements HasParseTreeVisitorChildren
 
     public function parse(Tokenizer $tokenizer): static
     {
-        $this->forBlock = $this->parseBody($tokenizer);
+        parent::parse($tokenizer);
 
-        //        if (! $this->forBlock->blank) {
-        //            $this->elseBlock = $this->parseBody($tokenizer);
-        //        }
+        $this->forBlock = $this->bodySections[0];
 
-        if ($this->blank()) {
-            $this->elseBlock?->removeBlankStrings();
-            $this->forBlock->removeBlankStrings();
+        if (count($this->bodySections) > 1) {
+            $this->elseBlock = $this->bodySections[1];
         }
+
+        $this->strictParseWithErrorModeFallback($this->forBlock->startDelimiter()->markup, $this->parseContext);
 
         return $this;
     }

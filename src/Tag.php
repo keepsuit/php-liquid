@@ -6,7 +6,7 @@ abstract class Tag
 {
     protected ?int $lineNumber = null;
 
-    public function __construct(
+    final public function __construct(
         protected string $markup,
         public readonly ParseContext $parseContext
     ) {

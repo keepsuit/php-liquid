@@ -2,36 +2,25 @@
 
 namespace Keepsuit\Liquid\Tags;
 
-use Keepsuit\Liquid\Block;
+use Keepsuit\Liquid\BlockBodySection;
 use Keepsuit\Liquid\Condition;
 use Keepsuit\Liquid\ElseCondition;
 use Keepsuit\Liquid\HasParseTreeVisitorChildren;
-use Keepsuit\Liquid\ParseContext;
 use Keepsuit\Liquid\Regex;
 use Keepsuit\Liquid\SyntaxException;
+use Keepsuit\Liquid\TagBlock;
 use Keepsuit\Liquid\Tokenizer;
 
-class CaseTag extends Block implements HasParseTreeVisitorChildren
+class CaseTag extends TagBlock implements HasParseTreeVisitorChildren
 {
     protected const Syntax = '/('.Regex::QuotedFragment.')/';
 
     protected const WhenSyntax = '/('.Regex::QuotedFragment.')(?:(?:\s+or\s+|\s*\,\s*)(.*))?/m';
 
     /** @var Condition[] */
-    protected array $blocks = [];
+    protected array $conditions = [];
 
     protected mixed $left = null;
-
-    public function __construct(string $markup, ParseContext $parseContext)
-    {
-        parent::__construct($markup, $parseContext);
-
-        if (preg_match(self::Syntax, $markup, $matches) === 1) {
-            $this->left = $this->parseExpression($matches[1]);
-        } else {
-            throw new SyntaxException($parseContext->locale->translate('errors.syntax.case'));
-        }
-    }
 
     public static function tagName(): string
     {
@@ -40,68 +29,64 @@ class CaseTag extends Block implements HasParseTreeVisitorChildren
 
     public function parse(Tokenizer $tokenizer): static
     {
-        $caseBody = $this->parseBody($tokenizer);
+        parent::parse($tokenizer);
+        $caseSection = array_shift($this->bodySections);
 
-        if (count($this->blocks) > 0) {
-            $this->blocks[count($this->blocks) - 1]->attach($caseBody);
+        if (preg_match(self::Syntax, $this->markup, $matches) === 1) {
+            $this->left = $this->parseExpression($matches[1]);
+        } else {
+            throw new SyntaxException($this->parseContext->locale->translate('errors.syntax.case'));
         }
 
-        foreach (array_reverse($this->blocks) as $block) {
-            if ($block->attachment?->blank) {
-                $block->attachment->removeBlankStrings();
-            }
-        }
+        $this->conditions = array_map(fn (BlockBodySection $block) => $this->parseBodySection($block), $this->bodySections);
 
         return $this;
     }
 
-    protected function recordWhenCondition(string $markup): void
+    protected function parseBodySection(BlockBodySection $section): Condition
     {
-        while ($markup !== '') {
-            $matchesCount = preg_match_all(self::WhenSyntax, $markup, $matches);
+        assert($section->startDelimiter() !== null);
 
-            if ($matchesCount === false || $matchesCount === 0) {
-                throw new SyntaxException($this->parseContext->locale->translate('errors.syntax.case_invalid_when'));
-            }
+        $condition = match ($section->startDelimiter()->tag) {
+            'when' => $this->recordWhenCondition($section->startDelimiter()->markup),
+            'else' => $this->recordElseCondition($section->startDelimiter()->markup),
+            default => SyntaxException::unknownTag($this->parseContext, $section->startDelimiter()->tag, $section->startDelimiter()->markup),
+        };
 
-            $markup = $matches[2][0] ?? '';
-            $block = new Condition($this->left, '==', $this->parseExpression($matches[1][0]));
-            $this->blocks[] = $block;
-        }
+        assert($condition instanceof Condition);
+
+        $condition->attach($section);
+
+        return $condition;
     }
 
-    protected function recordElseCondition(string $markup): void
+    protected function recordWhenCondition(string $markup): Condition
+    {
+        $matchesCount = preg_match_all(self::WhenSyntax, $markup, $matches);
+
+        if ($matchesCount === false || $matchesCount === 0) {
+            throw new SyntaxException($this->parseContext->locale->translate('errors.syntax.case_invalid_when'));
+        }
+
+        return new Condition($this->left, '==', $this->parseExpression($matches[1][0]));
+    }
+
+    protected function recordElseCondition(string $markup): Condition
     {
         if (trim($markup) !== '') {
             throw new SyntaxException($this->parseContext->locale->translate('errors.syntax.case_invalid_else'));
         }
 
-        $block = new ElseCondition();
-        $this->blocks[] = $block;
+        return new ElseCondition();
     }
 
-    /**
-     * @throws SyntaxException
-     */
-    protected function unknownTagHandler(string $tagName, string $markup): bool
+    protected function isSubTag(string $tagName): bool
     {
-        if ($tagName === 'when') {
-            $this->recordWhenCondition($markup);
-
-            return true;
-        }
-
-        if ($tagName === 'else') {
-            $this->recordElseCondition($markup);
-
-            return true;
-        }
-
-        return parent::unknownTagHandler($tagName, $markup);
+        return in_array($tagName, ['when', 'else']);
     }
 
     public function parseTreeVisitorChildren(): array
     {
-        return [$this->left, ...$this->blocks];
+        return [$this->left, ...$this->conditions];
     }
 }

@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\Tests\Stubs;
 
-class TestBlockTag extends \Keepsuit\Liquid\Block
+class TestTagBlockTag extends \Keepsuit\Liquid\TagBlock
 {
     public static function tagName(): string
     {

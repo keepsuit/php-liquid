@@ -4,10 +4,10 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Arr;
 use Keepsuit\Liquid\HasParseTreeVisitorChildren;
-use Keepsuit\Liquid\ParseContext;
 use Keepsuit\Liquid\Regex;
 use Keepsuit\Liquid\SyntaxException;
 use Keepsuit\Liquid\Tag;
+use Keepsuit\Liquid\Tokenizer;
 
 class CycleTag extends Tag implements HasParseTreeVisitorChildren
 {
@@ -17,18 +17,20 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
 
     protected array $variables = [];
 
-    public function __construct(string $markup, ParseContext $parseContext)
+    public function parse(Tokenizer $tokenizer): static
     {
-        parent::__construct($markup, $parseContext);
+        parent::parse($tokenizer);
 
-        if (preg_match(static::NamedSyntax, $markup, $matches)) {
+        if (preg_match(static::NamedSyntax, $this->markup, $matches)) {
             //TODO: Implement named cycle syntax.
             throw new \RuntimeException('Named cycle syntax is not supported yet.');
-        } elseif (preg_match(static::SimpleSyntax, $markup, $matches)) {
-            $this->variables = $this->parseVariablesFromString($markup);
+        } elseif (preg_match(static::SimpleSyntax, $this->markup, $matches)) {
+            $this->variables = $this->parseVariablesFromString($this->markup);
         } else {
-            throw new SyntaxException($parseContext->locale->translate('errors.syntax.cycle'));
+            throw new SyntaxException($this->parseContext->locale->translate('errors.syntax.cycle'));
         }
+
+        return $this;
     }
 
     public static function tagName(): string

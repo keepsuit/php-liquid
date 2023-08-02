@@ -13,7 +13,7 @@ class Condition implements HasParseTreeVisitorChildren
 
     protected ?Condition $childCondition = null;
 
-    public ?BlockBody $attachment = null;
+    public ?BlockBodySection $attachment = null;
 
     public function __construct(
         protected mixed $left = null,
@@ -53,11 +53,16 @@ class Condition implements HasParseTreeVisitorChildren
         return $childCondition;
     }
 
-    public function attach(?BlockBody $body): Condition
+    public function attach(?BlockBodySection $attachment): Condition
     {
-        $this->attachment = $body;
+        $this->attachment = $attachment;
 
         return $this;
+    }
+
+    public function else(): bool
+    {
+        return false;
     }
 
     public function evaluate(Context $context): bool

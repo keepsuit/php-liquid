@@ -2,9 +2,9 @@
 
 namespace Keepsuit\Liquid\Tags;
 
-use Keepsuit\Liquid\Block;
+use Keepsuit\Liquid\TagBlock;
 
-class CommentTag extends Block
+class CommentTag extends TagBlock
 {
     public static function tagName(): string
     {
@@ -14,10 +14,5 @@ class CommentTag extends Block
     public function blank(): bool
     {
         return true;
-    }
-
-    protected function unknownTagHandler(string $tagName, string $markup): bool
-    {
-        return false;
     }
 }

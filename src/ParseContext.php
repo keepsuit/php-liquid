@@ -40,11 +40,6 @@ class ParseContext
         return Expression::parse($markup);
     }
 
-    public function newBlockBody(): BlockBody
-    {
-        return new BlockBody();
-    }
-
     public function logWarning(SyntaxException $e): void
     {
         $this->warnings[] = $e;

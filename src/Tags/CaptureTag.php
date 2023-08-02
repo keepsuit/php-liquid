@@ -2,26 +2,28 @@
 
 namespace Keepsuit\Liquid\Tags;
 
-use Keepsuit\Liquid\Block;
-use Keepsuit\Liquid\ParseContext;
 use Keepsuit\Liquid\Regex;
 use Keepsuit\Liquid\SyntaxException;
+use Keepsuit\Liquid\TagBlock;
+use Keepsuit\Liquid\Tokenizer;
 
-class CaptureTag extends Block
+class CaptureTag extends TagBlock
 {
     protected const Syntax = '/('.Regex::VariableSignature.'+)/';
 
     protected string $to;
 
-    public function __construct(string $markup, ParseContext $parseContext)
+    public function parse(Tokenizer $tokenizer): static
     {
-        parent::__construct($markup, $parseContext);
+        parent::parse($tokenizer);
 
-        if (preg_match(static::Syntax, $markup, $matches)) {
+        if (preg_match(static::Syntax, $this->markup, $matches)) {
             $this->to = $matches[1];
         } else {
-            throw new SyntaxException($parseContext->locale->translate('errors.syntax.capture'));
+            throw new SyntaxException($this->parseContext->locale->translate('errors.syntax.capture'));
         }
+
+        return $this;
     }
 
     public static function tagName(): string

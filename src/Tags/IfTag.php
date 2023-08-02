@@ -2,30 +2,22 @@
 
 namespace Keepsuit\Liquid\Tags;
 
-use Keepsuit\Liquid\Block;
+use Keepsuit\Liquid\BlockBodySection;
 use Keepsuit\Liquid\Condition;
 use Keepsuit\Liquid\ElseCondition;
 use Keepsuit\Liquid\HasParseTreeVisitorChildren;
-use Keepsuit\Liquid\ParseContext;
 use Keepsuit\Liquid\Parser;
 use Keepsuit\Liquid\ParserSwitching;
-use Keepsuit\Liquid\SyntaxException;
+use Keepsuit\Liquid\TagBlock;
 use Keepsuit\Liquid\Tokenizer;
 use Keepsuit\Liquid\TokenType;
 
-class IfTag extends Block implements HasParseTreeVisitorChildren
+class IfTag extends TagBlock implements HasParseTreeVisitorChildren
 {
     use ParserSwitching;
 
     /** @var Condition[] */
-    protected array $blocks = [];
-
-    public function __construct(string $markup, ParseContext $parseContext)
-    {
-        parent::__construct($markup, $parseContext);
-
-        $this->pushBlock('if', $markup);
-    }
+    protected array $conditions = [];
 
     public static function tagName(): string
     {
@@ -34,33 +26,37 @@ class IfTag extends Block implements HasParseTreeVisitorChildren
 
     public function parse(Tokenizer $tokenizer): static
     {
-        $ifBody = $this->parseBody($tokenizer);
+        parent::parse($tokenizer);
 
-        if (count($this->blocks) > 0) {
-            $this->blocks[count($this->blocks) - 1]->attach($ifBody);
-        }
-
-        foreach (array_reverse($this->blocks) as $block) {
-            if ($block->attachment?->blank) {
-                $block->attachment->removeBlankStrings();
-            }
-        }
+        $this->conditions = array_map(fn (BlockBodySection $block) => $this->parseBodySection($block), $this->bodySections);
 
         return $this;
     }
 
-    protected function pushBlock(string $tag, string $markup): Condition
+    public function nodeList(): array
     {
-        $block = match (true) {
-            $tag === 'else' => new ElseCondition(),
-            default => $this->strictParseWithErrorModeFallback($markup, $this->parseContext),
+        return array_map(fn (Condition $block) => $block->attachment, $this->conditions);
+    }
+
+    protected function isSubTag(string $tagName): bool
+    {
+        return in_array($tagName, ['else', 'elsif'], true);
+    }
+
+    protected function parseBodySection(BlockBodySection $section): Condition
+    {
+        assert($section->startDelimiter() !== null);
+
+        $condition = match (true) {
+            $section->startDelimiter()->tag === 'else' => new ElseCondition(),
+            default => $this->strictParseWithErrorModeFallback($section->startDelimiter()->markup, $this->parseContext),
         };
-        assert($block instanceof Condition);
 
-        $this->blocks[] = $block;
-        $block->attach($this->parseContext->newBlockBody());
+        assert($condition instanceof Condition);
 
-        return $block;
+        $condition->attach($section);
+
+        return $condition;
     }
 
     protected function strictParse(string $markup): mixed
@@ -105,22 +101,8 @@ class IfTag extends Block implements HasParseTreeVisitorChildren
         }
     }
 
-    /**
-     * @throws SyntaxException
-     */
-    protected function unknownTagHandler(string $tagName, string $markup): bool
-    {
-        if (in_array($tagName, ['elsif', 'else'])) {
-            $this->pushBlock($tagName, $markup);
-
-            return true;
-        }
-
-        return parent::unknownTagHandler($tagName, $markup);
-    }
-
     public function parseTreeVisitorChildren(): array
     {
-        return $this->blocks;
+        return $this->conditions;
     }
 }

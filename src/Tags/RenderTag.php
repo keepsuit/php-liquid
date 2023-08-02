@@ -3,10 +3,10 @@
 namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\HasParseTreeVisitorChildren;
-use Keepsuit\Liquid\ParseContext;
 use Keepsuit\Liquid\Regex;
 use Keepsuit\Liquid\SyntaxException;
 use Keepsuit\Liquid\Tag;
+use Keepsuit\Liquid\Tokenizer;
 
 class RenderTag extends Tag implements HasParseTreeVisitorChildren
 {
@@ -20,14 +20,14 @@ class RenderTag extends Tag implements HasParseTreeVisitorChildren
 
     protected array $attributes = [];
 
-    public readonly bool $isForLoop;
+    protected bool $isForLoop;
 
-    public function __construct(string $markup, ParseContext $parseContext)
+    public function parse(Tokenizer $tokenizer): static
     {
-        parent::__construct($markup, $parseContext);
+        parent::parse($tokenizer);
 
-        if (! preg_match(static::Syntax, $markup, $matches)) {
-            throw new SyntaxException($parseContext->locale->translate('errors.syntax.render'));
+        if (! preg_match(static::Syntax, $this->markup, $matches)) {
+            throw new SyntaxException($this->parseContext->locale->translate('errors.syntax.render'));
         }
 
         $this->templateNameExpression = $this->parseExpression($matches[1]);
@@ -35,10 +35,12 @@ class RenderTag extends Tag implements HasParseTreeVisitorChildren
         $this->variableNameExpression = ($matches[4] ?? null) ? $this->parseExpression($matches[4]) : null;
         $this->isForLoop = $matches[3] === 'for';
 
-        preg_match_all(sprintf('/%s/', Regex::TagAttributes), $markup, $attributeMatches, PREG_SET_ORDER);
+        preg_match_all(sprintf('/%s/', Regex::TagAttributes), $this->markup, $attributeMatches, PREG_SET_ORDER);
         foreach ($attributeMatches as $matches) {
             $this->attributes[$matches[1]] = $this->parseExpression($matches[2]);
         }
+
+        return $this;
     }
 
     public static function tagName(): string

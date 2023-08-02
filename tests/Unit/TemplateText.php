@@ -24,7 +24,7 @@ it('sets default localization in context with quick initialization', function ()
 });
 
 test('register & delete custom tags', function () {
-    Template::registerTag(\Keepsuit\Liquid\Tests\Stubs\TestBlockTag::class);
+    Template::registerTag(\Keepsuit\Liquid\Tests\Stubs\TestTagBlockTag::class);
 
     expect(Template::registeredTags())->toHaveKey('fake');
 
@@ -34,8 +34,8 @@ test('register & delete custom tags', function () {
 });
 
 test('get registered tags', function () {
-    Template::registerTag(\Keepsuit\Liquid\Tests\Stubs\TestBlockTag::class);
+    Template::registerTag(\Keepsuit\Liquid\Tests\Stubs\TestTagBlockTag::class);
 
     expect(Template::registeredTags())->toHaveKey('fake');
-    expect(Template::registeredTags()['fake'])->toBe(\Keepsuit\Liquid\Tests\Stubs\TestBlockTag::class);
+    expect(Template::registeredTags()['fake'])->toBe(\Keepsuit\Liquid\Tests\Stubs\TestTagBlockTag::class);
 });
