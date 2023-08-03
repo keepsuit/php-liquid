@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid;
 
-abstract class Tag
+abstract class Tag implements CanBeRendered
 {
     protected ?int $lineNumber = null;
 

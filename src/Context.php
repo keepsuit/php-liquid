@@ -11,13 +11,27 @@ class Context
      */
     protected array $scopes;
 
+    /**
+     * @var array<array<string, mixed>>
+     */
+    protected array $environments;
+
+    /**
+     * @var array<array<string, mixed>>
+     */
+    protected array $staticEnvironments;
+
     public function __construct(
-        protected array $environments = [],
+        array $environment = [],
         protected array $outerScopes = [],
         protected array $registers = [],
         protected bool $rethrowExceptions = false,
+        public readonly ResourceLimits $resourceLimits = new ResourceLimits(),
+        array $staticEnvironment = [],
     ) {
         $this->scopes = [...$this->outerScopes];
+        $this->environments = [$environment];
+        $this->staticEnvironments = [$staticEnvironment];
     }
 
     public function evaluate(mixed $value): mixed
@@ -42,9 +56,7 @@ class Context
             return $this->tryFindVariableInEnvironments($key, $throwNotFound);
         }
 
-        $variable = $this->lookupAndEvaluate($scope, $key, $throwNotFound);
-
-        return $variable;
+        return $this->lookupAndEvaluate($scope, $key, $throwNotFound);
     }
 
     protected function lookupAndEvaluate(array $scope, string $key, bool $throwNotFound = true): mixed
@@ -58,6 +70,18 @@ class Context
 
     protected function tryFindVariableInEnvironments(string $key, bool $throwNotFound = true): mixed
     {
-        return $this->lookupAndEvaluate([], $key, $throwNotFound);
+        foreach ($this->environments as $environment) {
+            if ($foundVariable = $this->lookupAndEvaluate($environment, $key, $throwNotFound)) {
+                return $foundVariable;
+            }
+        }
+
+        foreach ($this->staticEnvironments as $environment) {
+            if ($foundVariable = $this->lookupAndEvaluate($environment, $key, $throwNotFound)) {
+                return $foundVariable;
+            }
+        }
+
+        return null;
     }
 }

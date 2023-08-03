@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid;
 
-class Variable implements HasParseTreeVisitorChildren
+class Variable implements HasParseTreeVisitorChildren, CanBeRendered
 {
     use ParserSwitching;
 
@@ -132,5 +132,17 @@ class Variable implements HasParseTreeVisitorChildren
     public function parseTreeVisitorChildren(): array
     {
         return [$this->name, ...Arr::flatten($this->filters)];
+    }
+
+    public function render(Context $context): string
+    {
+        $output = $context->evaluate($this->name);
+
+        return match (true) {
+            $output === null => '',
+            is_array($output) => implode(', ', $output),
+            is_string($output) || is_numeric($output) => (string) $output,
+            default => new \RuntimeException(sprintf('Cannot cast %s to string', gettype($output)))
+        };
     }
 }

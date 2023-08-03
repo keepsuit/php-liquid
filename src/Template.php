@@ -23,6 +23,11 @@ class Template
         );
     }
 
+    public function render(Context $context): string
+    {
+        return $this->root->render($context);
+    }
+
     /**
      * @return array<string, class-string<Tag>>
      */

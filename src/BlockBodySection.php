@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid;
 
-class BlockBodySection
+class BlockBodySection implements CanBeRendered
 {
     public function __construct(
         protected ?BlockBodySectionDelimiter $start = null,
@@ -59,5 +59,24 @@ class BlockBodySection
         $this->nodeList = $nodeList;
 
         return $this;
+    }
+
+    public function render(Context $context): string
+    {
+        $context->resourceLimits->incrementRenderScore(count($this->nodeList));
+
+        $output = '';
+
+        foreach ($this->nodeList as $node) {
+            if (is_string($node)) {
+                $output .= $node;
+
+                continue;
+            }
+
+            $output .= $node->render($context);
+        }
+
+        return $output;
     }
 }

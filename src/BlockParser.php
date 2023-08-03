@@ -45,6 +45,8 @@ final class BlockParser
 
     /**
      * @return array<BlockBodySection>
+     *
+     * @throws SyntaxException
      */
     public function parse(Tokenizer $tokenizer, ParseContext $parseContext): array
     {
@@ -70,6 +72,8 @@ final class BlockParser
 
     /**
      * @return array<BlockBodySection>
+     *
+     * @throws SyntaxException
      */
     protected function parseForDocument(Tokenizer $tokenizer, ParseContext $parseContext): array
     {
@@ -181,6 +185,9 @@ final class BlockParser
         throw SyntaxException::missingVariableTerminator($token, $parseContext);
     }
 
+    /**
+     * @throws SyntaxException
+     */
     protected function handleUnknownTag(string $tagName, string $markup, ParseContext $parseContext): void
     {
         $handler = $this->subTagsHandler;

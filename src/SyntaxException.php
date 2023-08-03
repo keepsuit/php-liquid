@@ -4,7 +4,9 @@ namespace Keepsuit\Liquid;
 
 class SyntaxException extends \Exception
 {
-    protected ?string $markupContext = null;
+    public ?string $markupContext = null;
+
+    public ?string $tagName = null;
 
     public static function missingTagTerminator(string $token, ParseContext $parseContext): self
     {
@@ -22,25 +24,31 @@ class SyntaxException extends \Exception
         ]));
     }
 
-    public static function unknownTag(ParseContext $parseContext, string $tagName, string $blockName, string $blockDelimiter = null): SyntaxException
+    public static function unexpectedOuterTag(ParseContext $parseContext, string $tagName): SyntaxException
     {
-        if ($tagName === 'else') {
-            return new SyntaxException($parseContext->locale->translate('errors.syntax.unexpected_else', [
-                'block_name' => $blockName,
-            ]));
-        }
-
-        if (str_starts_with($tagName, 'end') && $blockDelimiter !== null) {
-            return new SyntaxException($parseContext->locale->translate('errors.syntax.invalid_delimiter', [
-                'tag' => $tagName,
-                'block_name' => $blockName,
-                'block_delimiter' => $blockDelimiter,
-            ]));
-        }
-
-        return new SyntaxException($parseContext->locale->translate('errors.syntax.unknown_tag', [
+        return new SyntaxException($parseContext->locale->translate('errors.syntax.unexpected_outer_tag', [
             'tag' => $tagName,
         ]));
+    }
+
+    public static function unknownTag(ParseContext $parseContext, string $tagName, string $blockTagName): SyntaxException
+    {
+        $exception = match (true) {
+            $tagName === 'else' && $blockTagName !== '' => new SyntaxException($parseContext->locale->translate('errors.syntax.unexpected_else', [
+                'block_name' => $blockTagName,
+            ])),
+            str_starts_with($tagName, 'end') && $blockTagName !== '' => new SyntaxException($parseContext->locale->translate('errors.syntax.invalid_delimiter', [
+                'tag' => $tagName,
+                'block_name' => $blockTagName,
+            ])),
+            default => new SyntaxException($parseContext->locale->translate('errors.syntax.unknown_tag', [
+                'tag' => $tagName,
+            ])),
+        };
+
+        $exception->tagName = $tagName;
+
+        return $exception;
     }
 
     public static function unexpectedTokenType(TokenType $expectedToken, TokenType $givenToken): SyntaxException
