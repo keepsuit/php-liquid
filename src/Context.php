@@ -21,6 +21,8 @@ class Context
      */
     protected array $staticEnvironments;
 
+    protected FilterRegistry $filterRegistry;
+
     public function __construct(
         array $environment = [],
         protected array $outerScopes = [],
@@ -28,10 +30,13 @@ class Context
         protected bool $rethrowExceptions = false,
         public readonly ResourceLimits $resourceLimits = new ResourceLimits(),
         array $staticEnvironment = [],
+        /** @var array<class-string> $filters */
+        array $filters = [],
     ) {
         $this->scopes = [...$this->outerScopes];
         $this->environments = [$environment];
         $this->staticEnvironments = [$staticEnvironment];
+        $this->filterRegistry = FilterRegistry::createWithFilters($this, $filters);
     }
 
     public function evaluate(mixed $value): mixed
@@ -59,7 +64,7 @@ class Context
         return $this->lookupAndEvaluate($scope, $key, $throwNotFound);
     }
 
-    protected function lookupAndEvaluate(array $scope, string $key, bool $throwNotFound = true): mixed
+    public function lookupAndEvaluate(array $scope, string $key, bool $throwNotFound = true): mixed
     {
         if ($this->strictVariables && $throwNotFound && ! array_key_exists($key, $scope)) {
             throw new \RuntimeException("Variable `$key` not found");
@@ -83,5 +88,10 @@ class Context
         }
 
         return null;
+    }
+
+    public function applyFilter(string $filter, mixed $value, array ...$args): mixed
+    {
+        return $this->filterRegistry->invoke($filter, $value, ...$args);
     }
 }

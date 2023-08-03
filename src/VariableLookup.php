@@ -73,7 +73,22 @@ class VariableLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
     {
         $name = $context->evaluate($this->name);
         assert(is_string($name));
+        $object = $context->findVariable($name);
 
-        return $context->findVariable($name);
+        foreach ($this->lookups as $lookup) {
+            $key = $context->evaluate($lookup);
+            assert(is_string($key) || is_int($key));
+
+            if (is_array($object) && array_key_exists($key, $object)) {
+                $object = $context->lookupAndEvaluate($object, $key);
+
+                continue;
+            }
+
+            // TODO: Implement more lookup types.
+            throw new \RuntimeException('VariableLookup not implemented yet.');
+        }
+
+        return $object;
     }
 }

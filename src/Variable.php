@@ -138,6 +138,11 @@ class Variable implements HasParseTreeVisitorChildren, CanBeRendered
     {
         $output = $context->evaluate($this->name);
 
+        foreach ($this->filters as [$filterName, $filterArgs]) {
+            //            $filterArgs = $this->evaluateFilterExpressions($context, $filterArgs);
+            $output = $context->applyFilter($filterName, $output, ...$filterArgs);
+        }
+
         return match (true) {
             $output === null => '',
             is_array($output) => implode(', ', $output),
