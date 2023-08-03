@@ -20,6 +20,9 @@ class Variable implements HasParseTreeVisitorChildren, CanBeRendered
 
     protected ?int $lineNumber = null;
 
+    /**
+     * @var array<array{0:string,1:array}>
+     */
     protected array $filters = [];
 
     public function __construct(
@@ -107,6 +110,9 @@ class Variable implements HasParseTreeVisitorChildren, CanBeRendered
         return $filterArgs;
     }
 
+    /**
+     * @return array{0:string, 1:array, 2?:array<string,mixed>}
+     */
     protected function parseFilterExpressions(string $filterName, array $filterArgs): array
     {
         $parsedFilterArgs = [];
@@ -137,18 +143,14 @@ class Variable implements HasParseTreeVisitorChildren, CanBeRendered
     public function render(Context $context): string
     {
         $output = $context->evaluate($this->name);
+        assert(is_string($output));
 
         foreach ($this->filters as [$filterName, $filterArgs]) {
             $filterArgs = $this->evaluateFilterExpressions($context, $filterArgs);
             $output = $context->applyFilter($filterName, $output, ...$filterArgs);
         }
 
-        return match (true) {
-            $output === null => '',
-            is_array($output) => implode(', ', $output),
-            is_string($output) || is_numeric($output) => (string) $output,
-            default => new \RuntimeException(sprintf('Cannot cast %s to string', gettype($output)))
-        };
+        return $output;
     }
 
     protected function evaluateFilterExpressions(Context $context, array $filterArgs): array
