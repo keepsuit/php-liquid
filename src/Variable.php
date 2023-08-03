@@ -139,7 +139,7 @@ class Variable implements HasParseTreeVisitorChildren, CanBeRendered
         $output = $context->evaluate($this->name);
 
         foreach ($this->filters as [$filterName, $filterArgs]) {
-            //            $filterArgs = $this->evaluateFilterExpressions($context, $filterArgs);
+            $filterArgs = $this->evaluateFilterExpressions($context, $filterArgs);
             $output = $context->applyFilter($filterName, $output, ...$filterArgs);
         }
 
@@ -149,5 +149,13 @@ class Variable implements HasParseTreeVisitorChildren, CanBeRendered
             is_string($output) || is_numeric($output) => (string) $output,
             default => new \RuntimeException(sprintf('Cannot cast %s to string', gettype($output)))
         };
+    }
+
+    protected function evaluateFilterExpressions(Context $context, array $filterArgs): array
+    {
+        return array_map(
+            fn (mixed $value) => $context->evaluate($value),
+            $filterArgs
+        );
     }
 }

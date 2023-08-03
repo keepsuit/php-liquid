@@ -90,7 +90,7 @@ class Context
         return null;
     }
 
-    public function applyFilter(string $filter, mixed $value, array ...$args): mixed
+    public function applyFilter(string $filter, mixed $value, mixed ...$args): mixed
     {
         return $this->filterRegistry->invoke($filter, $value, ...$args);
     }

@@ -44,7 +44,7 @@ class FilterRegistry
         return $this;
     }
 
-    public function invoke(string $filterName, mixed $value, array ...$args): mixed
+    public function invoke(string $filterName, mixed $value, mixed ...$args): mixed
     {
         $filter = $this->filters[$filterName] ?? null;
 
