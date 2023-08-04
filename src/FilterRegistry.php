@@ -12,6 +12,7 @@ class FilterRegistry
     public function __construct(
         protected Context $context
     ) {
+        $this->addFilter(StandardFilters::class);
     }
 
     public static function createWithFilters(Context $context, array $filters): FilterRegistry
@@ -44,7 +45,7 @@ class FilterRegistry
         return $this;
     }
 
-    public function invoke(string $filterName, string $value, string ...$args): string
+    public function invoke(string $filterName, mixed $value, mixed ...$args): mixed
     {
         $filter = $this->filters[$filterName] ?? null;
 

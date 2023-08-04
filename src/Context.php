@@ -57,11 +57,15 @@ class Context
     {
         $scope = Arr::first($this->scopes, fn (array $scope) => array_key_exists($key, $scope));
 
-        if (! is_array($scope)) {
-            return $this->tryFindVariableInEnvironments($key, $throwNotFound);
+        $variable = is_array($scope)
+            ? $this->lookupAndEvaluate($scope, $key, $throwNotFound)
+            : $this->tryFindVariableInEnvironments($key, $throwNotFound);
+
+        if ($variable instanceof RendersToLiquid) {
+            $variable = $variable->toLiquid();
         }
 
-        return $this->lookupAndEvaluate($scope, $key, $throwNotFound);
+        return $variable;
     }
 
     public function lookupAndEvaluate(array $scope, string $key, bool $throwNotFound = true): mixed
@@ -90,7 +94,7 @@ class Context
         return null;
     }
 
-    public function applyFilter(string $filter, string $value, string ...$args): string
+    public function applyFilter(string $filter, mixed $value, mixed ...$args): mixed
     {
         return $this->filterRegistry->invoke($filter, $value, ...$args);
     }

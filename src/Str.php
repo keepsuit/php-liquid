@@ -33,4 +33,28 @@ class Str
     {
         return mb_strtolower($value, 'UTF-8');
     }
+
+    /**
+     * Convert the given string to upper-case.
+     */
+    public static function upper(string $value): string
+    {
+        return mb_strtoupper($value, 'UTF-8');
+    }
+
+    /**
+     * Returns the portion of the string specified by the start and length parameters.
+     */
+    public static function substr(string $string, int $start, int $length = null): string
+    {
+        return mb_substr($string, $start, $length);
+    }
+
+    /**
+     * Return the length of the given string.
+     */
+    public static function length(string $string): int
+    {
+        return mb_strlen($string);
+    }
 }

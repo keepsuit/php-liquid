@@ -77,6 +77,7 @@ class VariableLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
 
         foreach ($this->lookups as $lookup) {
             $key = $context->evaluate($lookup);
+
             assert(is_string($key) || is_int($key));
 
             if (is_array($object) && array_key_exists($key, $object)) {

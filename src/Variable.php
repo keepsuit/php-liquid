@@ -143,14 +143,29 @@ class Variable implements HasParseTreeVisitorChildren, CanBeRendered
     public function render(Context $context): string
     {
         $output = $context->evaluate($this->name);
-        assert(is_string($output));
 
         foreach ($this->filters as [$filterName, $filterArgs]) {
             $filterArgs = $this->evaluateFilterExpressions($context, $filterArgs);
             $output = $context->applyFilter($filterName, $output, ...$filterArgs);
         }
 
-        return $output;
+        if (is_array($output)) {
+            return implode('', $output);
+        }
+
+        if ($output === null) {
+            return '';
+        }
+
+        if (is_string($output) || is_numeric($output) || is_bool($output)) {
+            return (string) $output;
+        }
+
+        if (is_object($output) && method_exists($output, '__toString')) {
+            return (string) $output;
+        }
+
+        return '';
     }
 
     protected function evaluateFilterExpressions(Context $context, array $filterArgs): array

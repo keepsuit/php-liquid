@@ -48,8 +48,46 @@ class Arr
         return $result;
     }
 
-    public static function compact(array $array): array
+    public static function compact(array $array, Closure|string $callbackOrProperty = null): array
     {
-        return array_values(array_filter($array, fn ($item) => $item !== null));
+        $filterCallback = match (true) {
+            $callbackOrProperty === null => fn (mixed $item) => $item !== null,
+            $callbackOrProperty instanceof Closure => $callbackOrProperty,
+            default => fn (mixed $item) => static::valueGetter($item, $callbackOrProperty) !== null,
+        };
+
+        return array_values(array_filter($array, $filterCallback));
+    }
+
+    public static function unique(array $array, Closure|string $callbackOrProperty = null): array
+    {
+        $result = array_unique($callbackOrProperty === null ? [...$array] : Arr::map($array, $callbackOrProperty));
+
+        foreach (array_keys($result) as $key) {
+            $result[$key] = $array[$key];
+        }
+
+        return array_values($result);
+    }
+
+    public static function map(array $array, Closure|string $callbackOrProperty): array
+    {
+        $result = [];
+
+        foreach ($array as $key => $value) {
+            $result[$key] = static::valueGetter($value, $callbackOrProperty);
+        }
+
+        return $result;
+    }
+
+    protected static function valueGetter(mixed $value, Closure|string $callbackOrProperty): mixed
+    {
+        return match (true) {
+            $callbackOrProperty instanceof Closure => $callbackOrProperty($value),
+            is_array($value) => $value[$callbackOrProperty] ?? null,
+            is_object($value) => $value->$callbackOrProperty ?? null,
+            default => throw new \InvalidArgumentException('Cannot sort by property on non-object, non-array items'),
+        };
     }
 }
