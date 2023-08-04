@@ -2,8 +2,6 @@
 
 use Keepsuit\Liquid\StandardFilters;
 use Keepsuit\Liquid\Tests\Stubs\TestDrop;
-use Keepsuit\Liquid\Tests\Stubs\ThingWithParamToLiquid;
-use Keepsuit\Liquid\Tests\Stubs\ThingWithToLiquid;
 
 test('size', function () {
     expect(StandardFilters::size([1, 2, 3]))->toBe(3);
@@ -234,7 +232,7 @@ test('reverse', function () {
 });
 
 test('map', function () {
-    expect(StandardFilters::map([["a" => 1], ["a" => 2], ["a" => 3], ["a" => 4]], 'a'))->toBe([1, 2, 3, 4]);
+    expect(StandardFilters::map([['a' => 1], ['a' => 2], ['a' => 3], ['a' => 4]], 'a'))->toBe([1, 2, 3, 4]);
 
     assertTemplateResult(
         'abc',
