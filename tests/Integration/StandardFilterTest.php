@@ -240,3 +240,13 @@ test('map', function () {
         ['ary' => [['foo' => ['bar' => 'a']], ['foo' => ['bar' => 'b']], ['foo' => ['bar' => 'c']]]],
     );
 });
+
+test('map calls toLiquid', function () {
+    $thing = new ThingWithParamToLiquid();
+
+    assertTemplateResult(
+        "woot: 1",
+        '{{ foo | map: "whatever" }}',
+        ["foo" => [$thing]]
+    );
+});

@@ -16,11 +16,11 @@ class ThingWithParamToLiquid implements RendersToLiquid
         return sprintf('woot: %s', $this->value);
     }
 
-    public function toLiquid(): string
+    public function toLiquid(): mixed
     {
         $this->value += 1;
 
-        return $this->toString();
+        return $this;
     }
 
     public function __get(string $name): string

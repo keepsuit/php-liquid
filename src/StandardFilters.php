@@ -81,7 +81,7 @@ class StandardFilters
      */
     public static function compact(array $input, string $property = null): array
     {
-        return Arr::compact($input, $property);
+        return Arr::compact(static::mapToLiquid($input), $property);
     }
 
     /**
@@ -89,7 +89,7 @@ class StandardFilters
      */
     public static function concat(array $input, array $join): array
     {
-        return [...$input, ...$join];
+        return static::mapToLiquid([...$input, ...$join]);
     }
 
     public static function date($input)
@@ -151,7 +151,7 @@ class StandardFilters
      */
     public static function join(array $input, string $glue = ' '): string
     {
-        return implode($glue, $input);
+        return implode($glue, static::mapToLiquid($input));
     }
 
     public static function last($input)
@@ -169,7 +169,7 @@ class StandardFilters
      */
     public static function map(array $input, string $property = null): array
     {
-        return Arr::map($input, $property);
+        return Arr::map(static::mapToLiquid($input), $property);
     }
 
     public static function minus($input)
@@ -222,7 +222,7 @@ class StandardFilters
      */
     public static function reverse(array $input): array
     {
-        return array_reverse($input);
+        return array_reverse(static::mapToLiquid($input));
     }
 
     public static function round($input)
@@ -270,7 +270,7 @@ class StandardFilters
      */
     public static function sort(array $input, string $property = null): array
     {
-        $result = $property === null ? [...$input] : Arr::map($input, $property);
+        $result = $property === null ? static::mapToLiquid($input) : Arr::map(static::mapToLiquid($input), $property);
 
         uasort($result, function ($a, $b) {
             return match (true) {
@@ -294,7 +294,7 @@ class StandardFilters
      */
     public static function sortNatural(array $input, string $property = null): array
     {
-        $result = $property === null ? [...$input] : Arr::map($input, $property);
+        $result = $property === null ? static::mapToLiquid($input) : Arr::map(static::mapToLiquid($input), $property);
 
         uasort($result, function ($a, $b) {
             return match (true) {
@@ -404,7 +404,7 @@ class StandardFilters
      */
     public static function uniq(array $input, string $property = null): array
     {
-        return Arr::unique($input, $property);
+        return Arr::unique(static::mapToLiquid($input), $property);
     }
 
     /**
@@ -446,5 +446,10 @@ class StandardFilters
         }
 
         return $input;
+    }
+
+    protected static function mapToLiquid(array $input): array
+    {
+        return Arr::map($input, fn (mixed $value) => $value instanceof RendersToLiquid ? $value->toLiquid() : $value);
     }
 }
