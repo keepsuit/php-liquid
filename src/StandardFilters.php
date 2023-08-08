@@ -4,10 +4,15 @@ namespace Keepsuit\Liquid;
 
 class StandardFilters
 {
+    public function __construct(
+        protected Context $context
+    ) {
+    }
+
     /**
      * Returns the absolute value of a number.
      */
-    public static function abs(int|float|string $input): int|float
+    public function abs(int|float|string $input): int|float
     {
         assert(is_numeric($input));
 
@@ -17,7 +22,7 @@ class StandardFilters
     /**
      * Adds a given string to the end of a string.
      */
-    public static function append(string $input, string $append): string
+    public function append(string $input, string $append): string
     {
         return $input.$append;
     }
@@ -25,7 +30,7 @@ class StandardFilters
     /**
      * Limits a number to a minimum value.
      */
-    public static function atLeast(int|float|string $input, int|float $minValue): int|float
+    public function atLeast(int|float|string $input, int|float $minValue): int|float
     {
         return max($minValue, static::castToNumber($input));
     }
@@ -33,7 +38,7 @@ class StandardFilters
     /**
      * Limits a number to a maximum value.
      */
-    public static function atMost(int|float|string $input, int|float $maxValue): int|float
+    public function atMost(int|float|string $input, int|float $maxValue): int|float
     {
         return min($maxValue, static::castToNumber($input));
     }
@@ -41,7 +46,7 @@ class StandardFilters
     /**
      * Encodes a string to [Base64 format](https://developer.mozilla.org/en-US/docs/Glossary/Base64).
      */
-    public static function base64Encode(?string $input): string
+    public function base64Encode(?string $input): string
     {
         return base64_encode($input ?? '');
     }
@@ -49,7 +54,7 @@ class StandardFilters
     /**
      * Decodes a string in [Base64 format](https://developer.mozilla.org/en-US/docs/Glossary/Base64).
      */
-    public static function base64Decode(?string $input): string
+    public function base64Decode(?string $input): string
     {
         $decoded = base64_decode($input ?? '', true);
 
@@ -63,7 +68,7 @@ class StandardFilters
     /**
      * Capitalizes the first word in a string and downcases the remaining characters.
      */
-    public static function capitalize(string $input): string
+    public function capitalize(string $input): string
     {
         return Str::upper(Str::substr($input, 0, 1)).Str::lower(Str::substr($input, 1));
     }
@@ -71,7 +76,7 @@ class StandardFilters
     /**
      * Rounds a number up to the nearest integer.
      */
-    public static function ceil(int|float|string $input): int
+    public function ceil(int|float|string $input): int
     {
         return (int) ceil(static::castToNumber($input));
     }
@@ -79,30 +84,30 @@ class StandardFilters
     /**
      * Removes any `nil` items from an array.
      */
-    public static function compact(array $input, string $property = null): array
+    public function compact(array $input, string $property = null): array
     {
-        return Arr::compact(static::mapToLiquid($input), $property);
+        return Arr::compact($this->mapToLiquid($input), $property);
     }
 
     /**
      * Concatenates (combines) two arrays.
      */
-    public static function concat(array $input, array $join): array
+    public function concat(array $input, array $join): array
     {
-        return static::mapToLiquid([...$input, ...$join]);
+        return $this->mapToLiquid([...$input, ...$join]);
     }
 
-    public static function date($input)
-    {
-
-    }
-
-    public static function default($input)
+    public function date($input)
     {
 
     }
 
-    public static function dividedBy($input)
+    public function default($input)
+    {
+
+    }
+
+    public function dividedBy($input)
     {
 
     }
@@ -110,7 +115,7 @@ class StandardFilters
     /**
      * Converts a string to all lowercase characters.
      */
-    public static function downcase(?string $input): string
+    public function downcase(?string $input): string
     {
         return Str::lower($input ?? '');
     }
@@ -119,7 +124,7 @@ class StandardFilters
      * Escapes special characters in HTML, such as `<>`, `'`, and `&`, and converts characters into escape sequences.
      * The filter doesn't effect characters within the string that don’t have a corresponding escape sequence.
      */
-    public static function escape(?string $input): ?string
+    public function escape(?string $input): ?string
     {
         if ($input === null) {
             return null;
@@ -131,17 +136,17 @@ class StandardFilters
     /**
      * Escape a string once, keeping all previous HTML entities intact
      */
-    public static function escapeOnce(string $input): string
+    public function escapeOnce(string $input): string
     {
         return htmlentities($input, double_encode: false);
     }
 
-    public static function first($input)
+    public function first($input)
     {
 
     }
 
-    public static function floor($input)
+    public function floor($input)
     {
 
     }
@@ -149,17 +154,17 @@ class StandardFilters
     /**
      * Combines all of the items in an array into a single string, separated by a space.
      */
-    public static function join(array $input, string $glue = ' '): string
+    public function join(array $input, string $glue = ' '): string
     {
-        return implode($glue, static::mapToLiquid($input));
+        return implode($glue, $this->mapToLiquid($input));
     }
 
-    public static function last($input)
+    public function last($input)
     {
 
     }
 
-    public static function lstrip($input)
+    public function lstrip($input)
     {
 
     }
@@ -167,52 +172,69 @@ class StandardFilters
     /**
      * Creates an array of values from a specific property of the items in an array.
      */
-    public static function map(array $input, string $property = null): array
+    public function map(array|Drop $input, string $property = null): mixed
     {
-        return Arr::map(static::mapToLiquid($input), $property);
+        if ($input instanceof Drop) {
+            return match (true) {
+                $property === null => $input,
+                property_exists($input, $property) => $input->$property,
+                method_exists($input, $property) => $input->$property(),
+                default => throw new \InvalidArgumentException(sprintf(
+                    'Property or method "%s" does not exist on object of type "%s"',
+                    $property,
+                    get_class($input)
+                ))
+            };
+        }
+
+        if ($property === null) {
+            return $this->mapToLiquid($input);
+        }
+
+        return Arr::map($this->mapToLiquid($input), $property);
     }
 
-    public static function minus($input)
-    {
-
-    }
-
-    public static function modulo($input)
-    {
-
-    }
-
-    public static function newlineToBr($input)
-    {
-
-    }
-
-    public static function plus($input)
-    {
-
-    }
-
-    public static function prepend($input)
+    public function minus($input)
     {
 
     }
 
-    public static function remove($input)
+    public function modulo($input)
     {
 
     }
 
-    public static function removeFirst($input)
+    public function newlineToBr($input)
     {
 
     }
 
-    public static function replace($input)
+    public function plus($input)
     {
 
     }
 
-    public static function replaceFirst($input)
+    public function prepend($input)
+    {
+
+    }
+
+    public function remove($input)
+    {
+
+    }
+
+    public function removeFirst($input)
+    {
+
+    }
+
+    public function replace($input)
+    {
+
+    }
+
+    public function replaceFirst($input)
     {
 
     }
@@ -220,17 +242,17 @@ class StandardFilters
     /**
      * Reverses the order of the items in an array.
      */
-    public static function reverse(array $input): array
+    public function reverse(array $input): array
     {
-        return array_reverse(static::mapToLiquid($input));
+        return array_reverse($this->mapToLiquid($input));
     }
 
-    public static function round($input)
+    public function round($input)
     {
 
     }
 
-    public static function rstrip($input)
+    public function rstrip($input)
     {
 
     }
@@ -238,7 +260,7 @@ class StandardFilters
     /**
      * Returns the size of an array or a string.
      */
-    public static function size(string|array|null $input): int
+    public function size(string|array|null $input): int
     {
         if ($input === null) {
             return 0;
@@ -250,7 +272,7 @@ class StandardFilters
     /**
      * Returns a substring or series of array items, starting at a given 0-based index.
      */
-    public static function slice(string|array|null $input, int $start, int $length = 1): string|array
+    public function slice(string|array|null $input, int $start, int $length = 1): string|array
     {
         $count = static::size($input);
 
@@ -268,9 +290,9 @@ class StandardFilters
     /**
      * Sorts the items in an array in case-sensitive alphabetical, or numerical, order.
      */
-    public static function sort(array $input, string $property = null): array
+    public function sort(array $input, string $property = null): array
     {
-        $result = $property === null ? static::mapToLiquid($input) : Arr::map(static::mapToLiquid($input), $property);
+        $result = $property === null ? $this->mapToLiquid($input) : Arr::map($this->mapToLiquid($input), $property);
 
         uasort($result, function ($a, $b) {
             return match (true) {
@@ -292,9 +314,9 @@ class StandardFilters
     /**
      * Sorts the items in an array in case-insensitive alphabetical order.
      */
-    public static function sortNatural(array $input, string $property = null): array
+    public function sortNatural(array $input, string $property = null): array
     {
-        $result = $property === null ? static::mapToLiquid($input) : Arr::map(static::mapToLiquid($input), $property);
+        $result = $property === null ? $this->mapToLiquid($input) : Arr::map($this->mapToLiquid($input), $property);
 
         uasort($result, function ($a, $b) {
             return match (true) {
@@ -317,7 +339,7 @@ class StandardFilters
      *
      * @param  non-empty-string  $delimiter
      */
-    public static function split(?string $input, string $delimiter): array
+    public function split(?string $input, string $delimiter): array
     {
         if ($input === null) {
             return [];
@@ -326,7 +348,7 @@ class StandardFilters
         return explode($delimiter, $input);
     }
 
-    public static function strip($input)
+    public function strip($input)
     {
 
     }
@@ -334,7 +356,7 @@ class StandardFilters
     /**
      * Strips all HTML tags from a string.
      */
-    public static function stripHtml(?string $input): string
+    public function stripHtml(?string $input): string
     {
         $STRIP_HTML_TAGS = '/<[\S\s]*?>/m';
         $STRIP_HTLM_BLOCKS = '/((<script.*?<\/script>)|(<!--.*?-->)|(<style.*?<\/style>))/m';
@@ -342,17 +364,17 @@ class StandardFilters
         return preg_replace([$STRIP_HTLM_BLOCKS, $STRIP_HTML_TAGS], '', $input ?? '');
     }
 
-    public static function stripNewlines($input)
+    public function stripNewlines($input)
     {
 
     }
 
-    public static function sum($input)
+    public function sum($input)
     {
 
     }
 
-    public static function times($input)
+    public function times($input)
     {
 
     }
@@ -360,7 +382,7 @@ class StandardFilters
     /**
      * Truncates a string down to a given number of characters.
      */
-    public static function truncate(?string $input, int $length = 50, string $ellipsis = '...'): string
+    public function truncate(?string $input, int $length = 50, string $ellipsis = '...'): string
     {
         if ($input === null) {
             return '';
@@ -376,7 +398,7 @@ class StandardFilters
     /**
      * Truncates a string down to a given number of words.
      */
-    public static function truncatewords(?string $input, int $words = 15, string $ellipsis = '...'): string
+    public function truncatewords(?string $input, int $words = 15, string $ellipsis = '...'): string
     {
         if ($input === null) {
             return '';
@@ -402,15 +424,15 @@ class StandardFilters
     /**
      * Removes any duplicate items in an array.
      */
-    public static function uniq(array $input, string $property = null): array
+    public function uniq(array $input, string $property = null): array
     {
-        return Arr::unique(static::mapToLiquid($input), $property);
+        return Arr::unique($this->mapToLiquid($input), $property);
     }
 
     /**
      * Converts a string to all uppercase characters.
      */
-    public static function upcase(?string $input): string
+    public function upcase(?string $input): string
     {
         return Str::upper($input ?? '');
     }
@@ -418,7 +440,7 @@ class StandardFilters
     /**
      * Decodes any [percent-encoded](https://developer.mozilla.org/en-US/docs/Glossary/percent-encoding) characters in a string.
      */
-    public static function urlDecode(?string $input): string
+    public function urlDecode(?string $input): string
     {
         return urldecode($input ?? '');
     }
@@ -427,12 +449,12 @@ class StandardFilters
      * Converts any URL-unsafe characters in a string to the
      * [percent-encoded](https://developer.mozilla.org/en-US/docs/Glossary/percent-encoding) equivalent.
      */
-    public static function urlEncode(string|int|float|null $input): string
+    public function urlEncode(string|int|float|null $input): string
     {
         return urlencode((string) ($input ?? ''));
     }
 
-    public static function where($input)
+    public function where($input)
     {
 
     }
@@ -448,8 +470,15 @@ class StandardFilters
         return $input;
     }
 
-    protected static function mapToLiquid(array $input): array
+    protected function mapToLiquid(array $input): array
     {
-        return Arr::map($input, fn (mixed $value) => $value instanceof RendersToLiquid ? $value->toLiquid() : $value);
+        return Arr::map($input, function (mixed $value) {
+            $value = $value instanceof MapsToLiquid ? $value->toLiquid() : $value;
+            if ($value instanceof IsContextAware) {
+                $value->setContext($this->context);
+            }
+
+            return $value;
+        });
     }
 }

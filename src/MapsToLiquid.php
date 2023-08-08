@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid;
 
-interface RendersToLiquid
+interface MapsToLiquid
 {
     public function toLiquid(): mixed;
 }

@@ -2,9 +2,9 @@
 
 namespace Keepsuit\Liquid\Tests\Stubs;
 
-use Keepsuit\Liquid\RendersToLiquid;
+use Keepsuit\Liquid\MapsToLiquid;
 
-class ThingWithToLiquid implements RendersToLiquid
+class ThingWithToLiquid implements MapsToLiquid
 {
     public function toLiquid(): string
     {

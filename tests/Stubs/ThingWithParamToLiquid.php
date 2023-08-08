@@ -2,9 +2,9 @@
 
 namespace Keepsuit\Liquid\Tests\Stubs;
 
-use Keepsuit\Liquid\RendersToLiquid;
+use Keepsuit\Liquid\MapsToLiquid;
 
-class ThingWithParamToLiquid implements RendersToLiquid
+class ThingWithParamToLiquid implements MapsToLiquid
 {
     public function __construct(
         public int $value = 0

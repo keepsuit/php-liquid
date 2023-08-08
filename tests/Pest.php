@@ -14,12 +14,13 @@ function fixture(string $path): string
     return __DIR__.'/fixtures/'.$path;
 }
 
-function assertTemplateResult(string $expected, string $template, array $assigns = []): void
+function assertTemplateResult(string $expected, string $template, array $assigns = [], array $registers = []): void
 {
     $template = Template::parse($template, ['line_numbers' => true]);
     $context = new Context(
+        registers: $registers,
         rethrowExceptions: true,
-        staticEnvironment: $assigns
+        staticEnvironment: $assigns,
     );
     expect($template->render($context))->toBe($expected);
 }

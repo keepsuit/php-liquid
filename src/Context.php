@@ -61,8 +61,11 @@ class Context
             ? $this->lookupAndEvaluate($scope, $key, $throwNotFound)
             : $this->tryFindVariableInEnvironments($key, $throwNotFound);
 
-        if ($variable instanceof RendersToLiquid) {
+        if ($variable instanceof MapsToLiquid) {
             $variable = $variable->toLiquid();
+        }
+        if ($variable instanceof IsContextAware) {
+            $variable->setContext($this);
         }
 
         return $variable;
@@ -97,5 +100,10 @@ class Context
     public function applyFilter(string $filter, mixed $value, mixed ...$args): mixed
     {
         return $this->filterRegistry->invoke($filter, $value, ...$args);
+    }
+
+    public function getRegister(string $name): mixed
+    {
+        return $this->registers[$name] ?? null;
     }
 }

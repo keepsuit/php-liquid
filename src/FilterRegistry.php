@@ -9,6 +9,13 @@ class FilterRegistry
      */
     protected array $filters = [];
 
+    /**
+     * @template T
+     *
+     * @var array<class-string<T>,T>
+     */
+    protected array $filterClasses = [];
+
     public function __construct(
         protected Context $context
     ) {
@@ -36,10 +43,16 @@ class FilterRegistry
         }
 
         $reflection = new \ReflectionClass($filterClass);
-        foreach ($reflection->getMethods(\ReflectionMethod::IS_STATIC) as $method) {
-            if ($method->isPublic()) {
-                $this->filters[Str::snake($method->getName())] = fn (...$args) => $filterClass::{$method->getName()}(...$args);
+        foreach ($reflection->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+            if ($method->getName() === '__construct') {
+                continue;
             }
+
+            $this->filters[Str::snake($method->getName())] = function (...$args) use ($filterClass, $method) {
+                $filterClassInstance = $this->getFilterClassInstance($filterClass);
+
+                return $filterClassInstance->{$method->getName()}(...$args);
+            };
         }
 
         return $this;
@@ -54,5 +67,20 @@ class FilterRegistry
         }
 
         return $filter($value, ...$args);
+    }
+
+    /**
+     * @template T
+     *
+     * @param  class-string<T>  $filterClass
+     * @return T
+     */
+    protected function getFilterClassInstance(string $filterClass): object
+    {
+        if (! isset($this->filterClasses[$filterClass])) {
+            $this->filterClasses[$filterClass] = new $filterClass($this->context);
+        }
+
+        return $this->filterClasses[$filterClass];
     }
 }
