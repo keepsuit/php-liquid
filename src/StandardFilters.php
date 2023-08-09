@@ -2,6 +2,10 @@
 
 namespace Keepsuit\Liquid;
 
+use DateTime;
+use InvalidArgumentException;
+use Iterator;
+
 class StandardFilters
 {
     public function __construct(
@@ -59,7 +63,7 @@ class StandardFilters
         $decoded = base64_decode($input ?? '', true);
 
         if ($decoded === false) {
-            throw new \InvalidArgumentException('Invalid base64 string provided to base64_decode filter');
+            throw new InvalidArgumentException('Invalid base64 string provided to base64_decode filter');
         }
 
         return $decoded;
@@ -97,9 +101,62 @@ class StandardFilters
         return $this->mapToLiquid([...$input, ...$join]);
     }
 
-    public function date($input)
+    /**
+     * Format a date using strftime format.
+     *
+     *   %a - The abbreviated weekday name (``Sun'')
+     *   %A - The  full  weekday  name (``Sunday'')
+     *   %b - The abbreviated month name (``Jan'')
+     *   %B - The  full  month  name (``January'')
+     *   %c - The preferred local date and time representation
+     *   %d - Day of the month (01..31)
+     *   %H - Hour of the day, 24-hour clock (00..23)
+     *   %I - Hour of the day, 12-hour clock (01..12)
+     *   %j - Day of the year (001..366)
+     *   %m - Month of the year (01..12)
+     *   %M - Minute of the hour (00..59)
+     *   %p - Meridian indicator (``AM''  or  ``PM'')
+     *   %s - Number of seconds since 1970-01-01 00:00:00 UTC.
+     *   %S - Second of the minute (00..60)
+     *   %U - Week  number  of the current year,
+     *           starting with the first Sunday as the first
+     *           day of the first week (00..53)
+     *   %W - Week  number  of the current year,
+     *           starting with the first Monday as the first
+     *           day of the first week (00..53)
+     *   %w - Day of the week (Sunday is 0, 0..6)
+     *   %x - Preferred representation for the date alone, no time
+     *   %X - Preferred representation for the time alone, no date
+     *   %y - Year without a century (00..99)
+     *   %Y - Year with century
+     *   %Z - Time zone name
+     *   %% - Literal ``%'' character
+     */
+    public function date(DateTime|string|int|null $input, string $format = null): ?string
     {
+        if ($input === null || $input === '') {
+            return $input;
+        }
 
+        if ($format === null || $format === '') {
+            return $input;
+        }
+
+        if (is_numeric($input)) {
+            $input = date('Y-m-d H:i:s', (int) $input);
+        }
+
+        if (is_string($input)) {
+            $input = new DateTime($input);
+        }
+
+        $dateFormat = str_replace(
+            ['at', '%a', '%A', '%d', '%e', '%u', '%w', '%W', '%b', '%h', '%B', '%m', '%y', '%Y', '%D', '%F', '%x', '%n', '%t', '%H', '%k', '%I', '%l', '%M', '%p', '%P', '%r', '%R', '%S', '%T', '%X', '%z', '%Z', '%c', '%s', '%%'],
+            ['\a\t', 'D', 'l', 'd', 'j', 'N', 'w', 'W', 'M', 'M', 'F', 'm', 'y', 'Y', 'm/d/y', 'Y-m-d', 'm/d/y', "\n", "\t", 'H', 'G', 'h', 'g', 'i', 'A', 'a', 'h:i:s A', 'H:i', 's', 'H:i:s', 'H:i:s', 'O', 'T', 'D M j H:i:s Y', 'U', '%'],
+            $format
+        );
+
+        return $input->format($dateFormat);
     }
 
     public function default($input)
@@ -141,9 +198,18 @@ class StandardFilters
         return htmlentities($input, double_encode: false);
     }
 
-    public function first($input)
+    /**
+     * Returns the first item in an array.
+     */
+    public function first(array|Iterator $input): mixed
     {
+        $input = $this->mapToLiquid($input);
 
+        if (count($input) === 0) {
+            return null;
+        }
+
+        return $input[0];
     }
 
     public function floor($input)
@@ -159,9 +225,18 @@ class StandardFilters
         return implode($glue, $this->mapToLiquid($input));
     }
 
-    public function last($input)
+    /**
+     * Returns the last item in an array.
+     */
+    public function last(array|Iterator $input): mixed
     {
+        $input = $this->mapToLiquid($input);
 
+        if (count($input) === 0) {
+            return null;
+        }
+
+        return $input[count($input) - 1];
     }
 
     public function lstrip($input)
@@ -172,14 +247,13 @@ class StandardFilters
     /**
      * Creates an array of values from a specific property of the items in an array.
      */
-    public function map(array|Drop $input, string $property = null): mixed
+    public function map(array|Drop|Iterator $input, string $property): mixed
     {
         if ($input instanceof Drop) {
             return match (true) {
-                $property === null => $input,
                 property_exists($input, $property) => $input->$property,
                 method_exists($input, $property) => $input->$property(),
-                default => throw new \InvalidArgumentException(sprintf(
+                default => throw new InvalidArgumentException(sprintf(
                     'Property or method "%s" does not exist on object of type "%s"',
                     $property,
                     get_class($input)
@@ -187,11 +261,20 @@ class StandardFilters
             };
         }
 
-        if ($property === null) {
-            return $this->mapToLiquid($input);
+        $input = $this->mapToLiquid($input);
+
+        if (array_is_list($input)) {
+            return Arr::map($input, $property);
         }
 
-        return Arr::map($this->mapToLiquid($input), $property);
+        if (array_key_exists($property, $input)) {
+            return $input[$property];
+        }
+
+        throw new InvalidArgumentException(sprintf(
+            'Property "%s" does not exist on array',
+            $property
+        ));
     }
 
     public function minus($input)
@@ -229,14 +312,28 @@ class StandardFilters
 
     }
 
-    public function replace($input)
+    /**
+     * Replaces any instance of a substring inside a string with a given string.
+     */
+    public function replace(string $input, string $search, string $replace): string
     {
-
+        return str_replace($search, $replace, $input);
     }
 
-    public function replaceFirst($input)
+    /**
+     * Replaces the first instance of a substring inside a string with a given string.
+     */
+    public function replaceFirst(string $input, string $search, string $replace): string
     {
+        return Str::replaceFirst($search, $replace, $input);
+    }
 
+    /**
+     * Replaces the last instance of a substring inside a string with a given string.
+     */
+    public function replaceLast(string $input, string $search, string $replace): string
+    {
+        return Str::replaceLast($search, $replace, $input);
     }
 
     /**
@@ -290,8 +387,10 @@ class StandardFilters
     /**
      * Sorts the items in an array in case-sensitive alphabetical, or numerical, order.
      */
-    public function sort(array $input, string $property = null): array
+    public function sort(array|Iterator $input, string $property = null): array
     {
+        $input = Arr::from($input);
+
         $result = $property === null ? $this->mapToLiquid($input) : Arr::map($this->mapToLiquid($input), $property);
 
         uasort($result, function ($a, $b) {
@@ -470,9 +569,9 @@ class StandardFilters
         return $input;
     }
 
-    protected function mapToLiquid(array $input): array
+    protected function mapToLiquid(array|Iterator $input): array
     {
-        return Arr::map($input, function (mixed $value) {
+        return Arr::map(Arr::from($input), function (mixed $value) {
             $value = $value instanceof MapsToLiquid ? $value->toLiquid() : $value;
             if ($value instanceof IsContextAware) {
                 $value->setContext($this->context);

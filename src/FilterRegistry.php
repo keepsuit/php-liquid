@@ -9,11 +9,6 @@ class FilterRegistry
      */
     protected array $filters = [];
 
-    /**
-     * @template T
-     *
-     * @var array<class-string<T>,T>
-     */
     protected array $filterClasses = [];
 
     public function __construct(
@@ -70,12 +65,12 @@ class FilterRegistry
     }
 
     /**
-     * @template T
+     * @template T of object
      *
      * @param  class-string<T>  $filterClass
      * @return T
      */
-    protected function getFilterClassInstance(string $filterClass): object
+    protected function getFilterClassInstance(string $filterClass)
     {
         if (! isset($this->filterClasses[$filterClass])) {
             $this->filterClasses[$filterClass] = new $filterClass($this->context);

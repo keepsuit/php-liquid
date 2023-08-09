@@ -268,3 +268,171 @@ test('map calls context', function () {
         ]
     );
 });
+
+test('map on hashes', function () {
+    assertTemplateResult(
+        '4217',
+        '{{ thing | map: "foo" | map: "bar" }}',
+        assigns: ['thing' => ['foo' => [['bar' => 42], ['bar' => 17]]]]
+    );
+});
+
+test('legacy map on hashes with dynamic key', function () {
+    assertTemplateResult(
+        '42',
+        '{% assign key = \'foo\' %}{{ thing | map: key | map: \'bar\' }}',
+        assigns: ['thing' => ['foo' => ['bar' => 42]]]
+    );
+});
+
+test('sort calls to liquid', function () {
+    $t = new \Keepsuit\Liquid\Tests\Stubs\ThingWithParamToLiquid();
+
+    assertTemplateResult(
+        'woot: 1',
+        '{{ foo | sort: "whatever" }}',
+        assigns: ['foo' => [$t]]
+    );
+
+    expect($t->value)->toBe(1);
+});
+
+test('map over Closure', function () {
+    $d = new TestDrop('testfoo');
+    $c = fn () => $d;
+
+    assertTemplateResult(
+        'testfoo',
+        '{{ closures | map: "value" }}',
+        assigns: ['closures' => [$c]]
+    );
+});
+
+test('map over drops returning Closures', function () {
+    $drops = [
+        ['closure' => fn () => 'foo'],
+        ['closure' => fn () => 'bar'],
+    ];
+
+    assertTemplateResult(
+        'foobar',
+        '{{ drops | map: "closure" }}',
+        assigns: ['drops' => $drops]
+    );
+});
+
+test('map works on iterator', function () {
+    assertTemplateResult(
+        '123',
+        '{{ foo | map: "foo" }}',
+        assigns: ['foo' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop()]
+    );
+});
+
+test('map returns empty on 2d input array', function () {
+    $foo = [
+        [1],
+        [2],
+        [3],
+    ];
+
+    expect(fn () => $this->filters->invoke('map', $foo, 'bar'))->toThrow(InvalidArgumentException::class);
+});
+
+test('map returns empty with no property', function () {
+    $foo = [
+        [1],
+        [2],
+        [3],
+    ];
+
+    expect(fn () => $this->filters->invoke('map', $foo, null))->toThrow(TypeError::class);
+});
+
+test('sort works on iterator', function () {
+    assertTemplateResult(
+        '213',
+        '{{ foo | sort: "bar" | map: "foo" }}',
+        assigns: ['foo' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop()]
+    );
+});
+
+test('first and last calls toLiquid', function () {
+    assertTemplateResult(
+        'foobar',
+        '{{ foo | first }}',
+        assigns: ['foo' => [new \Keepsuit\Liquid\Tests\Stubs\ThingWithToLiquid()]]
+    );
+    assertTemplateResult(
+        'foobar',
+        '{{ foo | last }}',
+        assigns: ['foo' => [new \Keepsuit\Liquid\Tests\Stubs\ThingWithToLiquid()]]
+    );
+});
+
+test('truncate calls toLiquid', function () {
+    assertTemplateResult(
+        'wo...',
+        '{{ foo | truncate: 5 }}',
+        assigns: ['foo' => new \Keepsuit\Liquid\Tests\Stubs\ThingWithParamToLiquid()]
+    );
+});
+
+test('date', function () {
+    expect($this->filters->invoke('date', new DateTime('2006-05-05 10:00:00'), '%B'))->toBe('May');
+    expect($this->filters->invoke('date', new DateTime('2006-06-05 10:00:00'), '%B'))->toBe('June');
+    expect($this->filters->invoke('date', new DateTime('2006-07-05 10:00:00'), '%B'))->toBe('July');
+
+    expect($this->filters->invoke('date', '2006-05-05 10:00:00', '%B'))->toBe('May');
+    expect($this->filters->invoke('date', '2006-06-05 10:00:00', '%B'))->toBe('June');
+    expect($this->filters->invoke('date', '2006-07-05 10:00:00', '%B'))->toBe('July');
+
+    expect($this->filters->invoke('date', '2006-07-05 10:00:00', ''))->toBe('2006-07-05 10:00:00');
+    expect($this->filters->invoke('date', '2006-07-05 10:00:00', null))->toBe('2006-07-05 10:00:00');
+
+    expect($this->filters->invoke('date', '2006-07-05 10:00:00', '%m/%d/%Y'))->toBe('07/05/2006');
+
+    expect($this->filters->invoke('date', 'Fri Jul 16 01:00:00 2004', '%m/%d/%Y'))->toBe('07/16/2004');
+    expect($this->filters->invoke('date', 'now', '%Y'))->toBe(date('Y'));
+    expect($this->filters->invoke('date', 'today', '%Y'))->toBe(date('Y'));
+
+    expect($this->filters->invoke('date', null, '%B'))->toBeNull();
+    expect($this->filters->invoke('date', '', '%B'))->toBe('');
+
+    expect($this->filters->invoke('date', 1152098955, '%m/%d/%Y'))->toBe('07/05/2006');
+    expect($this->filters->invoke('date', '1152098955', '%m/%d/%Y'))->toBe('07/05/2006');
+});
+
+test('first last', function () {
+    expect($this->filters->invoke('first', [1, 2, 3]))->toBe(1);
+    expect($this->filters->invoke('last', [1, 2, 3]))->toBe(3);
+
+    expect($this->filters->invoke('first', []))->toBeNull();
+    expect($this->filters->invoke('last', []))->toBeNull();
+});
+
+test('replace', function () {
+    expect($this->filters->invoke('replace', 'a a a a', 'a', 'b'))->toBe('b b b b');
+    expect($this->filters->invoke('replace', '1 1 1 1', 1, 2))->toBe('2 2 2 2');
+    expect($this->filters->invoke('replace', '1 1 1 1', 2, 3))->toBe('1 1 1 1');
+    assertTemplateResult(
+        '2 2 2 2',
+        "{{ '1 1 1 1' | replace: '1', 2 }}",
+    );
+
+    expect($this->filters->invoke('replace_first', 'a a a a', 'a', 'b'))->toBe('b a a a');
+    expect($this->filters->invoke('replace_first', '1 1 1 1', 1, 2))->toBe('2 1 1 1');
+    expect($this->filters->invoke('replace_first', '1 1 1 1', 2, 3))->toBe('1 1 1 1');
+    assertTemplateResult(
+        '2 1 1 1',
+        "{{ '1 1 1 1' | replace_first: '1', 2 }}",
+    );
+
+    expect($this->filters->invoke('replace_last', 'a a a a', 'a', 'b'))->toBe('a a a b');
+    expect($this->filters->invoke('replace_last', '1 1 1 1', 1, 2))->toBe('1 1 1 2');
+    expect($this->filters->invoke('replace_last', '1 1 1 1', 2, 3))->toBe('1 1 1 1');
+    assertTemplateResult(
+        '1 1 1 2',
+        "{{ '1 1 1 1' | replace_last: '1', 2 }}",
+    );
+});

@@ -25,7 +25,7 @@ class Context
 
     public function __construct(
         array $environment = [],
-        protected array $outerScopes = [],
+        protected array $outerScope = [],
         protected array $registers = [],
         protected bool $rethrowExceptions = false,
         public readonly ResourceLimits $resourceLimits = new ResourceLimits(),
@@ -33,7 +33,7 @@ class Context
         /** @var array<class-string> $filters */
         array $filters = [],
     ) {
-        $this->scopes = [...$this->outerScopes];
+        $this->scopes = [$this->outerScope];
         $this->environments = [$environment];
         $this->staticEnvironments = [$staticEnvironment];
         $this->filterRegistry = FilterRegistry::createWithFilters($this, $filters);
@@ -77,7 +77,13 @@ class Context
             throw new \RuntimeException("Variable `$key` not found");
         }
 
-        return $scope[$key] ?? null;
+        $value = $scope[$key] ?? null;
+
+        if ($value instanceof \Closure) {
+            throw new \RuntimeException("Cannot evaluate closures");
+        }
+
+        return $value;
     }
 
     protected function tryFindVariableInEnvironments(string $key, bool $throwNotFound = true): mixed
@@ -105,5 +111,15 @@ class Context
     public function getRegister(string $name): mixed
     {
         return $this->registers[$name] ?? null;
+    }
+
+    public function setToActiveScope(string $key, mixed $value): array
+    {
+        $index = array_key_last($this->scopes);
+
+        return $this->scopes[$index] = [
+            ...$this->scopes[$index],
+            $key => $value,
+        ];
     }
 }

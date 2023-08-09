@@ -2,8 +2,10 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Regex;
+use Keepsuit\Liquid\Str;
 use Keepsuit\Liquid\SyntaxException;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\Tokenizer;
@@ -11,7 +13,7 @@ use Keepsuit\Liquid\Variable;
 
 class AssignTag extends Tag implements HasParseTreeVisitorChildren
 {
-    protected const Syntax = '/('.Regex::VariableSignature.'+)\s*=\s*(.*)\s*/m';
+    const Syntax = '/('.Regex::VariableSignature.')\s*=\s*(.*)\s*/m';
 
     protected string $to;
 
@@ -39,5 +41,20 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
     public function parseTreeVisitorChildren(): array
     {
         return [$this->from];
+    }
+
+    public function render(Context $context): string
+    {
+        $value = $this->from->render($context);
+
+        $context->setToActiveScope($this->to, $value);
+        $context->resourceLimits->incrementAssignScore($this->computeAssignScore($value));
+
+        return '';
+    }
+
+    protected function computeAssignScore(string $value): int
+    {
+        return Str::length($value);
     }
 }

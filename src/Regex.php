@@ -20,7 +20,7 @@ class Regex
 
     const TagName = '#|\w+';
 
-    const VariableSignature = '\(?[\w\-\.\[\]]\)?';
+    const VariableSignature = '\(?[\w\-\.\[\]]+\)?';
 
     const VariableSegment = '[\w\-]';
 

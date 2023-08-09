@@ -27,4 +27,9 @@ class ThingWithParamToLiquid implements MapsToLiquid
     {
         return $this->toString();
     }
+
+    public function __toString(): string
+    {
+        return $this->toString();
+    }
 }

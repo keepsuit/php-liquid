@@ -3,6 +3,8 @@
 namespace Keepsuit\Liquid;
 
 use Closure;
+use InvalidArgumentException;
+use Iterator;
 
 class Arr
 {
@@ -81,13 +83,27 @@ class Arr
         return $result;
     }
 
-    protected static function valueGetter(mixed $value, Closure|string $callbackOrProperty): mixed
+    public static function from(array|Iterator $array): array
     {
         return match (true) {
-            $callbackOrProperty instanceof Closure => $callbackOrProperty($value),
-            is_array($value) => $value[$callbackOrProperty] ?? null,
-            is_object($value) => $value->$callbackOrProperty ?? null,
-            default => throw new \InvalidArgumentException('Cannot sort by property on non-object, non-array items'),
+            $array instanceof Iterator => iterator_to_array($array),
+            default => $array
         };
+    }
+
+    protected static function valueGetter(mixed $value, Closure|string $callbackOrProperty): mixed
+    {
+        if ($value instanceof Closure) {
+            $value = $value();
+        }
+
+        $response = match (true) {
+            $callbackOrProperty instanceof Closure => $callbackOrProperty($value),
+            is_array($value) && ! ($value !== [] && array_is_list($value)) => $value[$callbackOrProperty] ?? null,
+            is_object($value) => $value->$callbackOrProperty ?? null,
+            default => throw new InvalidArgumentException(sprintf('Cannot get value %s from array or object %s', $callbackOrProperty, json_encode($value)))
+        };
+
+        return $response instanceof Closure ? $response() : $response;
     }
 }
