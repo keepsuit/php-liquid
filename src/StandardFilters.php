@@ -16,10 +16,8 @@ class StandardFilters
     /**
      * Returns the absolute value of a number.
      */
-    public function abs(int|float|string $input): int|float
+    public function abs(int|float $input): int|float
     {
-        assert(is_numeric($input));
-
         return abs($input);
     }
 
@@ -34,17 +32,17 @@ class StandardFilters
     /**
      * Limits a number to a minimum value.
      */
-    public function atLeast(int|float|string $input, int|float $minValue): int|float
+    public function atLeast(int|float $input, int|float $minValue): int|float
     {
-        return max($minValue, static::castToNumber($input));
+        return max($minValue, $input);
     }
 
     /**
      * Limits a number to a maximum value.
      */
-    public function atMost(int|float|string $input, int|float $maxValue): int|float
+    public function atMost(int|float $input, int|float $maxValue): int|float
     {
-        return min($maxValue, static::castToNumber($input));
+        return min($maxValue, $input);
     }
 
     /**
@@ -80,9 +78,9 @@ class StandardFilters
     /**
      * Rounds a number up to the nearest integer.
      */
-    public function ceil(int|float|string $input): int
+    public function ceil(int|float $input): int
     {
-        return (int) ceil(static::castToNumber($input));
+        return (int) ceil($input);
     }
 
     /**
@@ -132,7 +130,7 @@ class StandardFilters
      *   %Z - Time zone name
      *   %% - Literal ``%'' character
      */
-    public function date(DateTime|string|int|null $input, string $format = null): ?string
+    public function date(DateTime|string|int|null $input, string $format = null): DateTime|string|int|null
     {
         if ($input === null || $input === '') {
             return $input;
@@ -164,9 +162,17 @@ class StandardFilters
 
     }
 
-    public function dividedBy($input)
+    /**
+     * Divides a number by a given number.
+     * The `divided_by` filter produces a result of the same type as the divisor.
+     * This means if you divide by an integer, the result will be an integer,
+     * and if you divide by a float, the result will be a float.
+     */
+    public function dividedBy(int|float $input, int|float $operand): int|float
     {
+        $result = $input / $operand;
 
+        return is_int($input) && is_int($operand) ? (int) $result : $result;
     }
 
     /**
@@ -212,9 +218,12 @@ class StandardFilters
         return $input[0];
     }
 
-    public function floor($input)
+    /**
+     * Rounds a number down to the nearest integer.
+     */
+    public function floor(int|float $input): int
     {
-
+        return (int) floor($input);
     }
 
     /**
@@ -237,11 +246,6 @@ class StandardFilters
         }
 
         return $input[count($input) - 1];
-    }
-
-    public function lstrip($input)
-    {
-
     }
 
     /**
@@ -277,24 +281,36 @@ class StandardFilters
         ));
     }
 
-    public function minus($input)
+    /**
+     * Subtracts a given number from another number.
+     */
+    public function minus(int|float $input, int|float $operand): int|float
     {
-
+        return $input - $operand;
     }
 
-    public function modulo($input)
+    /**
+     * Returns the remainder of dividing a number by a given number.
+     */
+    public function modulo(int|float $input, int|float $operand): int|float
     {
-
+        return $input % $operand;
     }
 
-    public function newlineToBr($input)
+    /**
+     * Converts newlines (`\n`) in a string to HTML line breaks (`<br>`).
+     */
+    public function newlineToBr(?string $input): string
     {
-
+        return preg_replace('/\r?\n/', "<br />\n", $input ?? '') ?? '';
     }
 
-    public function plus($input)
+    /**
+     * Adds two numbers.
+     */
+    public function plus(int|float $input, int|float $operand): int|float
     {
-
+        return $input + $operand;
     }
 
     public function prepend($input)
@@ -302,14 +318,28 @@ class StandardFilters
 
     }
 
-    public function remove($input)
+    /**
+     * Removes any instance of a substring inside a string.
+     */
+    public function remove(string $input, string $search): string
     {
-
+        return $this->replace($input, $search, '');
     }
 
-    public function removeFirst($input)
+    /**
+     * Removes the first instance of a substring inside a string.
+     */
+    public function removeFirst(string $input, string $search): string
     {
+        return $this->replaceFirst($input, $search, '');
+    }
 
+    /**
+     * Removes the last instance of a substring inside a string.
+     */
+    public function removeLast(string $input, string $search): string
+    {
+        return $this->replaceLast($input, $search, '');
     }
 
     /**
@@ -344,14 +374,12 @@ class StandardFilters
         return array_reverse($this->mapToLiquid($input));
     }
 
-    public function round($input)
+    /**
+     * Rounds a number to the nearest integer or to the requested decimal places.
+     */
+    public function round(int|float $input, int $precision = 0): int|float
     {
-
-    }
-
-    public function rstrip($input)
-    {
-
+        return round($input, $precision);
     }
 
     /**
@@ -447,9 +475,28 @@ class StandardFilters
         return explode($delimiter, $input);
     }
 
-    public function strip($input)
+    /**
+     * Strips all whitespace from the left and right of a string.
+     */
+    public function strip(?string $input): string
     {
+        return trim($input ?? '');
+    }
 
+    /**
+     * Strips all whitespace from the left and right of a string.
+     */
+    public function lstrip(?string $input): string
+    {
+        return ltrim($input ?? '');
+    }
+
+    /**
+     * Strips all whitespace from the left and right of a string.
+     */
+    public function rstrip(?string $input): string
+    {
+        return rtrim($input ?? '');
     }
 
     /**
@@ -460,12 +507,15 @@ class StandardFilters
         $STRIP_HTML_TAGS = '/<[\S\s]*?>/m';
         $STRIP_HTLM_BLOCKS = '/((<script.*?<\/script>)|(<!--.*?-->)|(<style.*?<\/style>))/m';
 
-        return preg_replace([$STRIP_HTLM_BLOCKS, $STRIP_HTML_TAGS], '', $input ?? '');
+        return preg_replace([$STRIP_HTLM_BLOCKS, $STRIP_HTML_TAGS], '', $input ?? '') ?? '';
     }
 
-    public function stripNewlines($input)
+    /**
+     * Strips all newline characters (line breaks) from a string.
+     */
+    public function stripNewlines(?string $input): string
     {
-
+        return preg_replace('/\r?\n/', '', $input ?? '') ?? '';
     }
 
     public function sum($input)
@@ -473,9 +523,12 @@ class StandardFilters
 
     }
 
-    public function times($input)
+    /**
+     * Multiplies a number by a given number.
+     */
+    public function times(int|float $input, int|float $operand): int|float
     {
-
+        return $input * $operand;
     }
 
     /**
@@ -556,17 +609,6 @@ class StandardFilters
     public function where($input)
     {
 
-    }
-
-    protected static function castToNumber(string|int|float $input): int|float
-    {
-        if (is_string($input)) {
-            assert(is_numeric($input), 'Input must be numeric.');
-
-            return (float) $input;
-        }
-
-        return $input;
     }
 
     protected function mapToLiquid(array|Iterator $input): array

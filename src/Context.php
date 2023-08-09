@@ -80,7 +80,7 @@ class Context
         $value = $scope[$key] ?? null;
 
         if ($value instanceof \Closure) {
-            throw new \RuntimeException("Cannot evaluate closures");
+            throw new \RuntimeException('Cannot evaluate closures');
         }
 
         return $value;

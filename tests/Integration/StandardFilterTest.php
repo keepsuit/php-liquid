@@ -1,5 +1,6 @@
 <?php
 
+use Keepsuit\Liquid\Tests\Stubs\NumberDrop;
 use Keepsuit\Liquid\Tests\Stubs\TestDrop;
 
 beforeEach(function () {
@@ -435,4 +436,147 @@ test('replace', function () {
         '1 1 1 2',
         "{{ '1 1 1 1' | replace_last: '1', 2 }}",
     );
+});
+
+test('remove', function () {
+    expect($this->filters->invoke('remove', 'a a a a', 'a'))->toBe('   ');
+    assertTemplateResult(
+        '   ',
+        "{{ '1 1 1 1' | remove: 1 }}",
+    );
+
+    expect($this->filters->invoke('remove_first', 'a b a a', 'a '))->toBe('b a a');
+    assertTemplateResult(
+        ' 1 1 1',
+        "{{ '1 1 1 1' | remove_first: 1 }}",
+    );
+
+    expect($this->filters->invoke('remove_last', 'a a b a', ' a'))->toBe('a a b');
+    assertTemplateResult(
+        '1 1 1 ',
+        "{{ '1 1 1 1' | remove_last: 1 }}",
+    );
+});
+
+test('pipes in string arguments', function () {
+    assertTemplateResult('foobar', "{{ 'foo|bar' | remove: '|' }}");
+});
+
+test('strip', function () {
+    assertTemplateResult('ab c', '{{ source | strip }}', assigns: ['source' => ' ab c  ']);
+    assertTemplateResult('ab c', '{{ source | strip }}', assigns: ['source' => " \tab c  \n \t"]);
+});
+
+test('lstrip', function () {
+    assertTemplateResult('ab c  ', '{{ source | lstrip }}', assigns: ['source' => ' ab c  ']);
+    assertTemplateResult("ab c  \n \t", '{{ source | lstrip }}', assigns: ['source' => " \tab c  \n \t"]);
+});
+
+test('rstrip', function () {
+    assertTemplateResult(' ab c', '{{ source | rstrip }}', assigns: ['source' => ' ab c  ']);
+    assertTemplateResult(" \tab c", '{{ source | rstrip }}', assigns: ['source' => " \tab c  \n \t"]);
+});
+
+test('strip new lines', function () {
+    assertTemplateResult('abc', '{{ source | strip_newlines }}', assigns: ['source' => "a\nb\nc"]);
+    assertTemplateResult('abc', '{{ source | strip_newlines }}', assigns: ['source' => "a\r\nb\nc"]);
+});
+
+test('new lines to br', function () {
+    assertTemplateResult("a<br />\nb<br />\nc", '{{ source | newline_to_br }}', assigns: ['source' => "a\nb\nc"]);
+    assertTemplateResult("a<br />\nb<br />\nc", '{{ source | newline_to_br }}', assigns: ['source' => "a\r\nb\nc"]);
+});
+
+test('plus', function () {
+    assertTemplateResult('2', '{{ 1 | plus:1 }}');
+    assertTemplateResult('2.1', "{{ '1' | plus:'1.1' }}");
+
+    assertTemplateResult('5', "{{ price | plus:'2' }}", assigns: ['price' => new NumberDrop(3)]);
+});
+
+test('minus', function () {
+    assertTemplateResult('4', '{{ 5 | minus:1 }}');
+    assertTemplateResult('2.3', "{{ '4.3' | minus:'2' }}");
+
+    assertTemplateResult('5', "{{ price | minus:'2' }}", assigns: ['price' => new NumberDrop(7)]);
+});
+
+test('abs', function () {
+    assertTemplateResult('17', '{{ 17 | abs }}');
+    assertTemplateResult('17', '{{ -17 | abs }}');
+    assertTemplateResult('17', "{{ '17' | abs }}");
+    assertTemplateResult('17', "{{ '-17' | abs }}");
+    assertTemplateResult('0', '{{ 0 | abs }}');
+    assertTemplateResult('0', "{{ '0' | abs }}");
+    assertTemplateResult('17.42', '{{ 17.42 | abs }}');
+    assertTemplateResult('17.42', '{{ -17.42 | abs }}');
+    assertTemplateResult('17.42', "{{ '17.42' | abs }}");
+    assertTemplateResult('17.42', "{{ '-17.42' | abs }}");
+});
+
+test('times', function () {
+    assertTemplateResult('12', '{{ 3 | times:4 }}');
+    assertTemplateResult('7.25', '{{ 0.0725 | times:100 }}');
+    assertTemplateResult('-7.25', '{{ "-0.0725" | times:100 }}');
+    assertTemplateResult('7.25', '{{ "-0.0725" | times: -100 }}');
+    assertTemplateResult('4', '{{ price | times:2 }}', ['price' => new NumberDrop(2)]);
+});
+
+test('divided by', function () {
+    assertTemplateResult('4', '{{ 12 | divided_by:3 }}');
+    assertTemplateResult('4', '{{ 14 | divided_by:3 }}');
+
+    assertTemplateResult('5', '{{ 15 | divided_by:3 }}');
+    expect(fn () => parseTemplate('{{ 5 | divided_by:0 }}'))->toThrow(DivisionByZeroError::class);
+
+    assertTemplateResult('0.5', '{{ 2.0 | divided_by:4 }}');
+    assertTemplateResult('5', '{{ price | divided_by:2 }}', ['price' => new NumberDrop(10)]);
+});
+
+test('modulo', function () {
+    assertTemplateResult('1', '{{ 3 | modulo:2 }}');
+    expect(fn () => parseTemplate('{{ 1 | modulo: 0 }}'))->toThrow(DivisionByZeroError::class);
+    assertTemplateResult('1', '{{ price | modulo:2 }}', ['price' => new NumberDrop(3)]);
+});
+
+test('round', function () {
+    assertTemplateResult('5', '{{ input | round }}', ['input' => 4.6]);
+    assertTemplateResult('4', "{{ '4.3' | round }}");
+    assertTemplateResult('4.56', '{{ input | round: 2 }}', ['input' => 4.5612]);
+    assertTemplateResult('5', '{{ price | round }}', ['price' => new NumberDrop(4.6)]);
+    assertTemplateResult('4', '{{ price | round }}', ['price' => new NumberDrop(4.3)]);
+});
+
+test('ceil', function () {
+    assertTemplateResult('5', '{{ input | ceil }}', ['input' => 4.6]);
+    assertTemplateResult('5', "{{ '4.3' | ceil }}");
+    assertTemplateResult('5', '{{ price | ceil }}', ['price' => new NumberDrop(4.6)]);
+});
+
+test('floor', function () {
+    assertTemplateResult('4', '{{ input | floor }}', ['input' => 4.6]);
+    assertTemplateResult('4', "{{ '4.3' | floor }}");
+    assertTemplateResult('4', '{{ price | floor }}', ['price' => new NumberDrop(4.6)]);
+});
+
+test('at most', function () {
+    assertTemplateResult('4', '{{ 5 | at_most:4 }}');
+    assertTemplateResult('5', '{{ 5 | at_most:5 }}');
+    assertTemplateResult('5', '{{ 5 | at_most:6 }}');
+
+    assertTemplateResult('4.5', '{{ 4.5 | at_most:5 }}');
+    assertTemplateResult('5', '{{ width | at_most:5 }}', ['width' => new NumberDrop(6)]);
+    assertTemplateResult('4', '{{ width | at_most:5 }}', ['width' => new NumberDrop(4)]);
+    assertTemplateResult('4', '{{ 5 | at_most:width }}', ['width' => new NumberDrop(4)]);
+});
+
+test('at least', function () {
+    assertTemplateResult('5', '{{ 5 | at_least:4 }}');
+    assertTemplateResult('5', '{{ 5 | at_least:5 }}');
+    assertTemplateResult('6', '{{ 5 | at_least:6 }}');
+
+    assertTemplateResult('5', '{{ 4.5 | at_least:5 }}');
+    assertTemplateResult('6', '{{ width | at_least:5 }}', ['width' => new NumberDrop(6)]);
+    assertTemplateResult('5', '{{ width | at_least:5 }}', ['width' => new NumberDrop(4)]);
+    assertTemplateResult('6', '{{ 5 | at_least:width }}', ['width' => new NumberDrop(6)]);
 });
