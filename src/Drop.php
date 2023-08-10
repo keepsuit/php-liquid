@@ -15,4 +15,14 @@ class Drop implements IsContextAware, MapsToLiquid
     {
         return $this;
     }
+
+    public function toLiquidValue(): mixed
+    {
+        return $this;
+    }
+
+    public function __toString(): string
+    {
+        return get_class($this);
+    }
 }

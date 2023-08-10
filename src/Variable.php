@@ -111,28 +111,22 @@ class Variable implements HasParseTreeVisitorChildren, CanBeRendered
     }
 
     /**
-     * @return array{0:string, 1:array, 2?:array<string,mixed>}
+     * @return array{0:string, 1:array, 2:array<string,mixed>}
      */
     protected function parseFilterExpressions(string $filterName, array $filterArgs): array
     {
-        $parsedFilterArgs = [];
-        $keywordArgs = null;
+        $parsedArgs = [];
+        $parsedNamedArgs = [];
 
         foreach ($filterArgs as $arg) {
             if (preg_match(self::JustTagAttributes, $arg, $matches) === 1) {
-                $keywordArgs = $keywordArgs ?? [];
-                $keywordArgs[$matches[1]] = $this->parseContext->parseExpression($matches[2]);
+                $parsedNamedArgs[$matches[1]] = $this->parseContext->parseExpression($matches[2]);
             } else {
-                $parsedFilterArgs[] = $this->parseContext->parseExpression($arg);
+                $parsedArgs[] = $this->parseContext->parseExpression($arg);
             }
         }
 
-        $result = [$filterName, $parsedFilterArgs];
-        if ($keywordArgs !== null) {
-            $result[] = $keywordArgs;
-        }
-
-        return $result;
+        return [$filterName, $parsedArgs, $parsedNamedArgs];
     }
 
     public function parseTreeVisitorChildren(): array
@@ -144,9 +138,10 @@ class Variable implements HasParseTreeVisitorChildren, CanBeRendered
     {
         $output = $context->evaluate($this->name);
 
-        foreach ($this->filters as [$filterName, $filterArgs]) {
-            $filterArgs = $this->evaluateFilterExpressions($context, $filterArgs);
-            $output = $context->applyFilter($filterName, $output, ...$filterArgs);
+        foreach ($this->filters as [$filterName, $filterArgs, $filterNamedArgs]) {
+            $filterArgs = $this->evaluateFilterExpressions($context, $filterArgs ?? []);
+            $filterNamedArgs = $this->evaluateFilterExpressions($context, $filterNamedArgs ?? []);
+            $output = $context->applyFilter($filterName, $output, ...$filterArgs, ...$filterNamedArgs);
         }
 
         if (is_array($output)) {
@@ -157,7 +152,11 @@ class Variable implements HasParseTreeVisitorChildren, CanBeRendered
             return '';
         }
 
-        if (is_string($output) || is_numeric($output) || is_bool($output)) {
+        if (is_bool($output)) {
+            return $output ? 'true' : 'false';
+        }
+
+        if (is_string($output) || is_numeric($output)) {
             return (string) $output;
         }
 

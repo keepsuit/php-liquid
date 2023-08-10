@@ -157,9 +157,22 @@ class StandardFilters
         return $input->format($dateFormat);
     }
 
-    public function default($input)
+    /**
+     * Sets a default value for any variable whose value is one of the following:
+     * - `null`
+     * - `false`
+     * - An empty array
+     * - An empty string
+     */
+    public function default(mixed $input, mixed $defaultValue, bool $allow_false = false): mixed
     {
+        $inputValue = $input instanceof Drop ? $input->toLiquidValue() : $input;
 
+        return match (true) {
+            $inputValue === null, $inputValue === '', $inputValue === [] => $defaultValue,
+            $inputValue === false => $allow_false ? $input : $defaultValue,
+            default => $input,
+        };
     }
 
     /**
@@ -313,9 +326,12 @@ class StandardFilters
         return $input + $operand;
     }
 
-    public function prepend($input)
+    /**
+     * Adds a given string to the beginning of a string.
+     */
+    public function prepend(string $input, string $prepend): string
     {
-
+        return $prepend.$input;
     }
 
     /**

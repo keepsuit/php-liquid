@@ -19,76 +19,76 @@ test('filters', function () {
     expect(createVariable('hello | textileze'))
         ->name()->toBeInstanceOf(VariableLookup::class)
         ->name()->name->toBe('hello')
-        ->filters()->toBe([['textileze', []]]);
+        ->filters()->toBe([['textileze', [], []]]);
 
     expect(createVariable('hello | textileze | paragraph'))
         ->name()->toBeInstanceOf(VariableLookup::class)
         ->name()->name->toBe('hello')
-        ->filters()->toBe([['textileze', []], ['paragraph', []]]);
+        ->filters()->toBe([['textileze', [], []], ['paragraph', [], []]]);
 
     expect(createVariable(' hello | strftime: \'%Y\''))
         ->name()->toBeInstanceOf(VariableLookup::class)
         ->name()->name->toBe('hello')
-        ->filters()->toBe([['strftime', ['%Y']]]);
+        ->filters()->toBe([['strftime', ['%Y'], []]]);
 
     expect(createVariable(' \'typo\' | link_to: \'Typo\', true '))
         ->name()->toBeString()
         ->name()->toBe('typo')
-        ->filters()->toBe([['link_to', ['Typo', true]]]);
+        ->filters()->toBe([['link_to', ['Typo', true], []]]);
 
     expect(createVariable(' \'typo\' | link_to: \'Typo\', false '))
         ->name()->toBeString()
         ->name()->toBe('typo')
-        ->filters()->toBe([['link_to', ['Typo', false]]]);
+        ->filters()->toBe([['link_to', ['Typo', false], []]]);
 
     expect(createVariable(' \'foo\' | repeat: 3 '))
         ->name()->toBeString()
         ->name()->toBe('foo')
-        ->filters()->toBe([['repeat', [3]]]);
+        ->filters()->toBe([['repeat', [3], []]]);
 
     expect(createVariable(' \'foo\' | repeat: 3, 3 '))
         ->name()->toBeString()
         ->name()->toBe('foo')
-        ->filters()->toBe([['repeat', [3, 3]]]);
+        ->filters()->toBe([['repeat', [3, 3], []]]);
 
     expect(createVariable(' \'foo\' | repeat: 3, 3, 3 '))
         ->name()->toBeString()
         ->name()->toBe('foo')
-        ->filters()->toBe([['repeat', [3, 3, 3]]]);
+        ->filters()->toBe([['repeat', [3, 3, 3], []]]);
 
     expect(createVariable(' hello | strftime: \'%Y, okay?\''))
         ->name()->toBeInstanceOf(VariableLookup::class)
         ->name()->name->toBe('hello')
-        ->filters()->toBe([['strftime', ['%Y, okay?']]]);
+        ->filters()->toBe([['strftime', ['%Y, okay?'], []]]);
 
     expect(createVariable(' hello | things: "%Y, okay?", \'the other one\''))
         ->name()->toBeInstanceOf(VariableLookup::class)
         ->name()->name->toBe('hello')
-        ->filters()->toBe([['things', ['%Y, okay?', 'the other one']]]);
+        ->filters()->toBe([['things', ['%Y, okay?', 'the other one'], []]]);
 });
 
 test('filter with date parameter', function () {
     expect(createVariable(' \'2006-06-06\' | date: "%m/%d/%Y"'))
         ->name()->toBeString()
         ->name()->toBe('2006-06-06')
-        ->filters()->toBe([['date', ['%m/%d/%Y']]]);
+        ->filters()->toBe([['date', ['%m/%d/%Y'], []]]);
 });
 
 test('filters without whitespace', function () {
     expect(createVariable('hello | textileze | paragraph'))
         ->name()->toBeInstanceOf(VariableLookup::class)
         ->name()->name->toBe('hello')
-        ->filters()->toBe([['textileze', []], ['paragraph', []]]);
+        ->filters()->toBe([['textileze', [], []], ['paragraph', [], []]]);
 
     expect(createVariable('hello|textileze|paragraph'))
         ->name()->toBeInstanceOf(VariableLookup::class)
         ->name()->name->toBe('hello')
-        ->filters()->toBe([['textileze', []], ['paragraph', []]]);
+        ->filters()->toBe([['textileze', [], []], ['paragraph', [], []]]);
 
     expect(createVariable("hello|replace:'foo','bar'|textileze"))
         ->name()->toBeInstanceOf(VariableLookup::class)
         ->name()->name->toBe('hello')
-        ->filters()->toBe([['replace', ['foo', 'bar']], ['textileze', []]]);
+        ->filters()->toBe([['replace', ['foo', 'bar'], []], ['textileze', [], []]]);
 });
 
 test('symbol', function () {
@@ -96,14 +96,14 @@ test('symbol', function () {
         ->name()->toBeInstanceOf(VariableLookup::class)
         ->name()->name->toBe('http')
         ->name()->lookups->toBe(['disney', 'com', 'logo', 'gif'])
-        ->filters()->toBe([['image', ['med']]]);
+        ->filters()->toBe([['image', ['med'], []]]);
 });
 
 test('string to filters', function () {
     expect(createVariable("'http://disney.com/logo.gif' | image: 'med' "))
         ->name()->toBeString()
         ->name()->toBe('http://disney.com/logo.gif')
-        ->filters()->toBe([['image', ['med']]]);
+        ->filters()->toBe([['image', ['med'], []]]);
 });
 
 test('string single quoted', function () {
@@ -171,7 +171,7 @@ test('lax filter argument parsing', function () {
     expect(createVariable(' number_of_comments | pluralize: \'comment\': \'comments\' ', ['errorMode' => ErrorMode::Lax]))
         ->name()->toBeInstanceOf(VariableLookup::class)
         ->name()->name->toBe('number_of_comments')
-        ->filters()->toBe([['pluralize', ['comment', 'comments']]]);
+        ->filters()->toBe([['pluralize', ['comment', 'comments'], []]]);
 });
 
 test('string filter argument parsing', function () {

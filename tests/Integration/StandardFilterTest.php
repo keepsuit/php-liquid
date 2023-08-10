@@ -1,5 +1,6 @@
 <?php
 
+use Keepsuit\Liquid\Tests\Stubs\BooleanDrop;
 use Keepsuit\Liquid\Tests\Stubs\NumberDrop;
 use Keepsuit\Liquid\Tests\Stubs\TestDrop;
 
@@ -579,4 +580,46 @@ test('at least', function () {
     assertTemplateResult('6', '{{ width | at_least:5 }}', ['width' => new NumberDrop(6)]);
     assertTemplateResult('5', '{{ width | at_least:5 }}', ['width' => new NumberDrop(4)]);
     assertTemplateResult('6', '{{ 5 | at_least:width }}', ['width' => new NumberDrop(6)]);
+});
+
+test('append', function () {
+    assertTemplateResult('bcd', "{{ a | append: 'd'}}", ['a' => 'bc', 'b' => 'd']);
+    assertTemplateResult('bcd', '{{ a | append: b}}', ['a' => 'bc', 'b' => 'd']);
+});
+
+test('prepend', function () {
+    assertTemplateResult('abc', "{{ a | prepend: 'a'}}", ['a' => 'bc', 'b' => 'a']);
+    assertTemplateResult('abc', '{{ a | prepend: b}}', ['a' => 'bc', 'b' => 'a']);
+});
+
+test('concat', function () {
+    expect($this->filters->invoke('concat', [1, 2], [3, 4]))->toBe([1, 2, 3, 4]);
+    expect($this->filters->invoke('concat', [1, 2], ['a']))->toBe([1, 2, 'a']);
+    expect($this->filters->invoke('concat', [1, 2], [10]))->toBe([1, 2, 10]);
+
+    expect(fn () => $this->filters->invoke('concat', [1, 2], 10))->toThrow(TypeError::class);
+});
+
+test('default', function () {
+    expect($this->filters->invoke('default', 'foo', 'bar'))->toBe('foo');
+    expect($this->filters->invoke('default', null, 'bar'))->toBe('bar');
+    expect($this->filters->invoke('default', '', 'bar'))->toBe('bar');
+    expect($this->filters->invoke('default', false, 'bar'))->toBe('bar');
+    expect($this->filters->invoke('default', [], 'bar'))->toBe('bar');
+
+    assertTemplateResult('bar', "{{ false | default: 'bar' }}");
+    assertTemplateResult('bar', "{{ drop | default: 'bar' }}", ['drop' => new BooleanDrop(false)]);
+    assertTemplateResult('Yay', "{{ drop | default: 'bar' }}", ['drop' => new BooleanDrop(true)]);
+});
+
+test('default handle false', function () {
+    expect($this->filters->invoke('default', 'foo', 'bar', allow_false: true))->toBe('foo');
+    expect($this->filters->invoke('default', null, 'bar', allow_false: true))->toBe('bar');
+    expect($this->filters->invoke('default', '', 'bar', allow_false: true))->toBe('bar');
+    expect($this->filters->invoke('default', false, 'bar', allow_false: true))->toBe(false);
+    expect($this->filters->invoke('default', [], 'bar', allow_false: true))->toBe('bar');
+
+    assertTemplateResult('false', "{{ false | default: 'bar', allow_false: true }}");
+    assertTemplateResult('Nay', "{{ drop | default: 'bar', allow_false: true }}", ['drop' => new BooleanDrop(false)]);
+    assertTemplateResult('Yay', "{{ drop | default: 'bar', allow_false: true }}", ['drop' => new BooleanDrop(true)]);
 });

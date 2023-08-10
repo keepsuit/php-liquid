@@ -11,7 +11,12 @@ class BooleanDrop extends Drop
     ) {
     }
 
-    public function toLiquid(): mixed
+    public function toLiquidValue(): bool
+    {
+        return $this->value;
+    }
+
+    public function __toString(): string
     {
         return $this->value ? 'Yay' : 'Nay';
     }
