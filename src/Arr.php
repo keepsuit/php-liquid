@@ -55,10 +55,10 @@ class Arr
         $filterCallback = match (true) {
             $callbackOrProperty === null => fn (mixed $item) => $item !== null,
             $callbackOrProperty instanceof Closure => $callbackOrProperty,
-            default => fn (mixed $item) => static::valueGetter($item, $callbackOrProperty) !== null,
+            default => fn (mixed $item, mixed $key) => static::valueGetter($item, $key, $callbackOrProperty) !== null,
         };
 
-        return array_values(array_filter($array, $filterCallback));
+        return array_values(Arr::filter($array, $filterCallback));
     }
 
     public static function unique(array $array, Closure|string $callbackOrProperty = null): array
@@ -77,7 +77,20 @@ class Arr
         $result = [];
 
         foreach ($array as $key => $value) {
-            $result[$key] = static::valueGetter($value, $callbackOrProperty);
+            $result[$key] = static::valueGetter($value, $key, $callbackOrProperty);
+        }
+
+        return $result;
+    }
+
+    public static function filter(array $array, Closure|string $callbackOrProperty): array
+    {
+        $result = [];
+
+        foreach ($array as $key => $value) {
+            if (static::valueGetter($value, $key, $callbackOrProperty)) {
+                $result[$key] = $value;
+            }
         }
 
         return $result;
@@ -91,14 +104,14 @@ class Arr
         };
     }
 
-    protected static function valueGetter(mixed $value, Closure|string $callbackOrProperty): mixed
+    protected static function valueGetter(mixed $value, mixed $key, Closure|string $callbackOrProperty): mixed
     {
         if ($value instanceof Closure) {
             $value = $value();
         }
 
         $response = match (true) {
-            $callbackOrProperty instanceof Closure => $callbackOrProperty($value),
+            $callbackOrProperty instanceof Closure => $callbackOrProperty($value, $key),
             is_array($value) && ! ($value !== [] && array_is_list($value)) => $value[$callbackOrProperty] ?? null,
             is_object($value) => $value->$callbackOrProperty ?? null,
             default => throw new InvalidArgumentException(sprintf('Cannot get value %s from array or object %s', $callbackOrProperty, json_encode($value)))

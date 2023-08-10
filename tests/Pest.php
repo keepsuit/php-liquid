@@ -14,9 +14,9 @@ function fixture(string $path): string
     return __DIR__.'/fixtures/'.$path;
 }
 
-function parseTemplate(string $template, array $assigns = [], array $registers = []): string
+function parseTemplate(string $template, array $assigns = [], array $registers = [], ErrorMode $errorMode = null): string
 {
-    $template = Template::parse($template, ['line_numbers' => true]);
+    $template = Template::parse($template, lineNumbers: true, errorMode: $errorMode);
     $context = new Context(
         registers: $registers,
         rethrowExceptions: true,
@@ -26,9 +26,9 @@ function parseTemplate(string $template, array $assigns = [], array $registers =
     return $template->render($context);
 }
 
-function assertTemplateResult(string $expected, string $template, array $assigns = [], array $registers = []): void
+function assertTemplateResult(string $expected, string $template, array $assigns = [], array $registers = [], ErrorMode $errorMode = null): void
 {
-    expect(parseTemplate($template, $assigns, $registers))->toBe($expected);
+    expect(parseTemplate($template, $assigns, $registers, $errorMode))->toBe($expected);
 }
 
 function assertMatchSyntaxError(string $error, string $source): void

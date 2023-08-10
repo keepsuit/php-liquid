@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid;
 
-class Variable implements HasParseTreeVisitorChildren, CanBeRendered
+class Variable implements HasParseTreeVisitorChildren, CanBeRendered, CanBeEvaluated
 {
     use ParserSwitching;
 
@@ -134,7 +134,7 @@ class Variable implements HasParseTreeVisitorChildren, CanBeRendered
         return [$this->name, ...Arr::flatten($this->filters)];
     }
 
-    public function render(Context $context): string
+    public function evaluate(Context $context): mixed
     {
         $output = $context->evaluate($this->name);
 
@@ -143,6 +143,13 @@ class Variable implements HasParseTreeVisitorChildren, CanBeRendered
             $filterNamedArgs = $this->evaluateFilterExpressions($context, $filterNamedArgs ?? []);
             $output = $context->applyFilter($filterName, $output, ...$filterArgs, ...$filterNamedArgs);
         }
+
+        return $output;
+    }
+
+    public function render(Context $context): string
+    {
+        $output = $this->evaluate($context);
 
         if (is_array($output)) {
             return implode('', $output);

@@ -92,7 +92,7 @@ test('filters without whitespace', function () {
 });
 
 test('symbol', function () {
-    expect(createVariable("http://disney.com/logo.gif | image: 'med' ", ['errorMode' => ErrorMode::Lax]))
+    expect(createVariable("http://disney.com/logo.gif | image: 'med' ", errorMode: ErrorMode::Lax))
         ->name()->toBeInstanceOf(VariableLookup::class)
         ->name()->name->toBe('http')
         ->name()->lookups->toBe(['disney', 'com', 'logo', 'gif'])
@@ -168,14 +168,14 @@ test('filter with keyword arguments', function () {
 });
 
 test('lax filter argument parsing', function () {
-    expect(createVariable(' number_of_comments | pluralize: \'comment\': \'comments\' ', ['errorMode' => ErrorMode::Lax]))
+    expect(createVariable(' number_of_comments | pluralize: \'comment\': \'comments\' ', errorMode: ErrorMode::Lax))
         ->name()->toBeInstanceOf(VariableLookup::class)
         ->name()->name->toBe('number_of_comments')
         ->filters()->toBe([['pluralize', ['comment', 'comments'], []]]);
 });
 
 test('string filter argument parsing', function () {
-    expect(fn () => createVariable(' number_of_comments | pluralize: \'comment\': \'comments\' ', ['errorMode' => ErrorMode::Strict]))
+    expect(fn () => createVariable(' number_of_comments | pluralize: \'comment\': \'comments\' ', errorMode: ErrorMode::Strict))
         ->toThrow(SyntaxException::class);
 });
 
@@ -190,7 +190,7 @@ test('variable lookup interface', function () {
         ->lookups->toBe(['b', 'c']);
 });
 
-function createVariable(string $markup, array $options = []): Variable
+function createVariable(string $markup, ErrorMode $errorMode = null): Variable
 {
-    return new Variable($markup, new ParseContext($options));
+    return new Variable($markup, new ParseContext(errorMode: $errorMode));
 }

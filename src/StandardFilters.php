@@ -488,6 +488,10 @@ class StandardFilters
             return [];
         }
 
+        if ($delimiter === '') {
+            return str_split($input);
+        }
+
         return explode($delimiter, $input);
     }
 

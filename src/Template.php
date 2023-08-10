@@ -13,10 +13,13 @@ class Template
     ) {
     }
 
-    public static function parse(string $source, array $options = []): Template
-    {
-        $parseContext = new ParseContext($options);
-        $tokenizer = $parseContext->newTokenizer($source, startLineNumber: ($options['line_numbers'] ?? false) ? 1 : null);
+    public static function parse(
+        string $source,
+        bool $lineNumbers = false,
+        ErrorMode $errorMode = null,
+    ): Template {
+        $parseContext = new ParseContext(errorMode: $errorMode);
+        $tokenizer = $parseContext->newTokenizer($source, startLineNumber: $lineNumbers ? 1 : null);
 
         return new Template(
             root: Document::parse($tokenizer, $parseContext)

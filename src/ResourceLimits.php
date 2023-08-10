@@ -8,10 +8,12 @@ class ResourceLimits
 
     protected int $assignScore = 0;
 
+    protected bool $reachedLimit = false;
+
     public function __construct(
-        protected ?int $renderLengthLimit = null,
-        protected ?int $renderScoreLimit = null,
-        protected ?int $assignScoreLimit = null,
+        public readonly ?int $renderLengthLimit = null,
+        public readonly ?int $renderScoreLimit = null,
+        public readonly ?int $assignScoreLimit = null,
     ) {
     }
 
@@ -23,7 +25,7 @@ class ResourceLimits
         $this->renderScore += $amount;
 
         if ($this->renderScoreLimit != null && $this->renderScoreLimit < $this->renderScore) {
-            throw new ResourceLimitException('Memory limit exceeded');
+            $this->throwLimitReachedException();
         }
 
         return $this;
@@ -37,7 +39,7 @@ class ResourceLimits
         $this->assignScore += $amount;
 
         if ($this->assignScoreLimit != null && $this->assignScoreLimit < $this->assignScore) {
-            throw new ResourceLimitException('Memory limit exceeded');
+            $this->throwLimitReachedException();
         }
 
         return $this;
@@ -47,7 +49,30 @@ class ResourceLimits
     {
         $this->renderScore = 0;
         $this->assignScore = 0;
+        $this->reachedLimit = false;
 
         return $this;
+    }
+
+    public function throwLimitReachedException(): void
+    {
+        $this->reachedLimit = true;
+
+        throw new ResourceLimitException();
+    }
+
+    public function reached(): bool
+    {
+        return $this->reachedLimit;
+    }
+
+    public function getAssignScope(): int
+    {
+        return $this->assignScore;
+    }
+
+    public function getRenderScore(): int
+    {
+        return $this->renderScore;
     }
 }

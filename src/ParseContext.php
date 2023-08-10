@@ -8,8 +8,6 @@ class ParseContext
 
     public ErrorMode $errorMode;
 
-    protected array $templateOptions;
-
     public ?int $lineNumber = null;
 
     public bool $trimWhitespace = false;
@@ -23,11 +21,12 @@ class ParseContext
      */
     protected array $warnings = [];
 
-    public function __construct(array $options = [])
-    {
-        $this->templateOptions = $options['dup'] ?? [];
-        $this->locale = (($options['locale'] ?? null) instanceof I18n) ? $options['locale'] : new I18n();
-        $this->errorMode = $options['errorMode'] ?? Template::$errorMode;
+    public function __construct(
+        ErrorMode $errorMode = null,
+        I18n $locale = null,
+    ) {
+        $this->locale = $locale ?? new I18n();
+        $this->errorMode = $errorMode ?? Template::$errorMode;
     }
 
     public function newTokenizer(string $markup, int $startLineNumber = null, bool $forLiquidTag = false): Tokenizer
