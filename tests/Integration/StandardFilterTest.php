@@ -3,6 +3,7 @@
 use Keepsuit\Liquid\Tests\Stubs\BooleanDrop;
 use Keepsuit\Liquid\Tests\Stubs\NumberDrop;
 use Keepsuit\Liquid\Tests\Stubs\TestDrop;
+use Keepsuit\Liquid\Tests\Stubs\ThingWithParamToLiquid;
 
 beforeEach(function () {
     $this->filters = new \Keepsuit\Liquid\FilterRegistry(new \Keepsuit\Liquid\Context());
@@ -247,7 +248,7 @@ test('map', function () {
 });
 
 test('map calls toLiquid', function () {
-    $thing = new \Keepsuit\Liquid\Tests\Stubs\ThingWithParamToLiquid();
+    $thing = new ThingWithParamToLiquid();
 
     assertTemplateResult(
         'woot: 1',
@@ -288,7 +289,7 @@ test('legacy map on hashes with dynamic key', function () {
 });
 
 test('sort calls to liquid', function () {
-    $t = new \Keepsuit\Liquid\Tests\Stubs\ThingWithParamToLiquid();
+    $t = new ThingWithParamToLiquid();
 
     assertTemplateResult(
         'woot: 1',
@@ -376,7 +377,7 @@ test('truncate calls toLiquid', function () {
     assertTemplateResult(
         'wo...',
         '{{ foo | truncate: 5 }}',
-        assigns: ['foo' => new \Keepsuit\Liquid\Tests\Stubs\ThingWithParamToLiquid()]
+        assigns: ['foo' => new ThingWithParamToLiquid()]
     );
 });
 
@@ -622,4 +623,139 @@ test('default handle false', function () {
     assertTemplateResult('false', "{{ false | default: 'bar', allow_false: true }}");
     assertTemplateResult('Nay', "{{ drop | default: 'bar', allow_false: true }}", ['drop' => new BooleanDrop(false)]);
     assertTemplateResult('Yay', "{{ drop | default: 'bar', allow_false: true }}", ['drop' => new BooleanDrop(true)]);
+});
+
+test('where', function () {
+    $input = [
+        ['handle' => 'alpha', 'ok' => true],
+        ['handle' => 'beta', 'ok' => false],
+        ['handle' => 'gamma', 'ok' => false],
+        ['handle' => 'delta', 'ok' => true],
+    ];
+
+    $expectation = [
+        ['handle' => 'alpha', 'ok' => true],
+        ['handle' => 'delta', 'ok' => true],
+    ];
+
+    expect($this->filters->invoke('where', $input, 'ok', true))->toBe($expectation);
+    expect($this->filters->invoke('where', $input, 'ok'))->toBe($expectation);
+});
+
+test('where string keys', function () {
+    $input = ['alpha', 'beta', 'gamma', 'delta'];
+
+    $expectation = ['beta'];
+
+    expect($this->filters->invoke('where', $input, 'be'))->toBe($expectation);
+});
+
+test('where no key set', function () {
+    $input = [
+        ['handle' => 'alpha', 'ok' => true],
+        ['handle' => 'beta'],
+        ['handle' => 'gamma'],
+        ['handle' => 'delta', 'ok' => true],
+    ];
+
+    $expectation = [
+        ['handle' => 'alpha', 'ok' => true],
+        ['handle' => 'delta', 'ok' => true],
+    ];
+
+    expect($this->filters->invoke('where', $input, 'ok', true))->toBe($expectation);
+    expect($this->filters->invoke('where', $input, 'ok'))->toBe($expectation);
+});
+
+test('where non boolean value', function () {
+    $input = [
+        ['message' => 'Bonjour!', 'language' => 'French'],
+        ['message' => 'Hello!', 'language' => 'English'],
+        ['message' => 'Hallo!', 'language' => 'German'],
+    ];
+
+    expect($this->filters->invoke('where', $input, 'language', 'French'))->toBe([['message' => 'Bonjour!', 'language' => 'French']]);
+    expect($this->filters->invoke('where', $input, 'language', 'German'))->toBe([['message' => 'Hallo!', 'language' => 'German']]);
+    expect($this->filters->invoke('where', $input, 'language', 'English'))->toBe([['message' => 'Hello!', 'language' => 'English']]);
+});
+
+test('where non array map input', function () {
+    expect($this->filters->invoke('where', ['a' => 'ok'], 'a', 'ok'))->toBe([['a' => 'ok']]);
+    expect($this->filters->invoke('where', ['a' => 'not ok'], 'a', 'ok'))->toBe([]);
+});
+
+test('where indexable but non map value', function () {
+    expect(fn () => $this->filters->invoke('where', 1, 'ok', true))->toThrow(TypeError::class);
+    expect(fn () => $this->filters->invoke('where', 1, 'ok'))->toThrow(TypeError::class);
+});
+
+test('where array of only unindexable values', function () {
+    expect($this->filters->invoke('where', [null], 'ok', true))->toBe([]);
+    expect($this->filters->invoke('where', [null], 'ok'))->toBe([]);
+});
+
+test('where no target value', function () {
+    $input = [
+        ['foo' => false],
+        ['foo' => true],
+        ['foo' => 'for sure'],
+        ['bar' => true],
+    ];
+
+    expect($this->filters->invoke('where', $input, 'foo'))->toBe([['foo' => true], ['foo' => 'for sure']]);
+});
+
+test('sum with all numbers', function () {
+    $input = [1, 2];
+
+    expect($this->filters->invoke('sum', $input))->toBe(3);
+    expect(fn () => $this->filters->invoke('sum', $input, 'quantity'))->toThrow(InvalidArgumentException::class);
+});
+
+test('sum with numeric strings', function () {
+    $input = [1, 2, '3', '4'];
+
+    expect($this->filters->invoke('sum', $input))->toBe(10);
+    expect(fn () => $this->filters->invoke('sum', $input, 'quantity'))->toThrow(InvalidArgumentException::class);
+});
+
+test('sum with indexable map values', function () {
+    $input = [
+        ['quantity' => 1],
+        ['quantity' => 2, 'weight' => 3],
+        ['weight' => 4],
+    ];
+
+    expect($this->filters->invoke('sum', $input))->toBe(0);
+    expect($this->filters->invoke('sum', $input, 'quantity'))->toBe(3);
+    expect($this->filters->invoke('sum', $input, 'weight'))->toBe(7);
+    expect($this->filters->invoke('sum', $input, 'subtotal'))->toBe(0);
+});
+
+test('sum with indexable non map values', function () {
+    $input = [1, 2, 'foo', ['quantity' => 3]];
+
+    expect($this->filters->invoke('sum', $input))->toBe(3);
+});
+
+test('sum with unindexable values', function () {
+    $input = [1, true, null, ['quantity' => 2]];
+
+    expect($this->filters->invoke('sum', $input))->toBe(1);
+});
+
+test('sum without property calls to liquid', function () {
+    $t = new ThingWithParamToLiquid();
+
+    parseTemplate('{{ foo | sum }}', assigns: ['foo' => [$t]]);
+
+    expect($t->value)->toBe(1);
+});
+
+test('sum with property calls to liquid on property values', function () {
+    $t = new ThingWithParamToLiquid();
+
+    parseTemplate('{{ foo | sum: "quantity" }}', assigns: ['foo' => [['quantity' => $t]]]);
+
+    expect($t->value)->toBe(1);
 });

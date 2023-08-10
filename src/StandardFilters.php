@@ -433,9 +433,9 @@ class StandardFilters
      */
     public function sort(array|Iterator $input, string $property = null): array
     {
-        $input = Arr::from($input);
+        $input = $this->mapToLiquid($input);
 
-        $result = $property === null ? $this->mapToLiquid($input) : Arr::map($this->mapToLiquid($input), $property);
+        $result = $property === null ? $input : Arr::map($input, $property);
 
         uasort($result, function ($a, $b) {
             return match (true) {
@@ -534,9 +534,23 @@ class StandardFilters
         return preg_replace('/\r?\n/', '', $input ?? '') ?? '';
     }
 
-    public function sum($input)
+    /**
+     * Returns the sum of all elements in an array.
+     */
+    public function sum(array|Iterator $input, string $property = null): int|float
     {
+        $input = $this->mapToLiquid($input);
 
+        if ($input === []) {
+            return 0;
+        }
+
+        $values = array_filter(
+            $property !== null ? $this->mapToLiquid(Arr::map($input, $property)) : $input,
+            fn (mixed $value) => is_numeric($value)
+        );
+
+        return array_sum($values);
     }
 
     /**
@@ -622,9 +636,35 @@ class StandardFilters
         return urlencode((string) ($input ?? ''));
     }
 
-    public function where($input)
+    /**
+     * Filters an array to include only items with a specific property value.
+     */
+    public function where(array|Iterator $input, string $property = null, mixed $targetValue = null): array
     {
+        $input = $this->mapToLiquid($input);
 
+        if ($input === []) {
+            return [];
+        }
+
+        $input = array_is_list($input) ? $input : [$input];
+
+        $result = array_filter($input, function (mixed $value) use ($property, $targetValue) {
+            if ($targetValue === null) {
+                return match (true) {
+                    is_string($value) && $property !== null => str_starts_with($value, $property),
+                    is_array($value) && $property !== null => (bool) ($value[$property] ?? null),
+                    default => (bool) $value,
+                };
+            }
+
+            return match (true) {
+                is_array($value) && $property !== null => ($value[$property] ?? null) === $targetValue,
+                default => false,
+            };
+        });
+
+        return array_values($result);
     }
 
     protected function mapToLiquid(array|Iterator $input): array
