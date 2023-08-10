@@ -34,10 +34,10 @@ class SyntaxException extends \Exception
     public static function unknownTag(ParseContext $parseContext, string $tagName, string $blockTagName): SyntaxException
     {
         $exception = match (true) {
-            $tagName === 'else' && $blockTagName !== '' => new SyntaxException($parseContext->locale->translate('errors.syntax.unexpected_else', [
+            $tagName === 'else' => new SyntaxException($parseContext->locale->translate('errors.syntax.unexpected_else', [
                 'block_name' => $blockTagName,
             ])),
-            str_starts_with($tagName, 'end') && $blockTagName !== '' => new SyntaxException($parseContext->locale->translate('errors.syntax.invalid_delimiter', [
+            str_starts_with($tagName, 'end') => new SyntaxException($parseContext->locale->translate('errors.syntax.invalid_delimiter', [
                 'tag' => $tagName,
                 'block_name' => $blockTagName,
             ])),

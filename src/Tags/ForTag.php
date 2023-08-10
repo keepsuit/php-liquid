@@ -46,7 +46,7 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
             $this->elseBlock = $this->bodySections[1];
         }
 
-        $this->strictParseWithErrorModeFallback($this->forBlock->startDelimiter()->markup, $this->parseContext);
+        $this->strictParseWithErrorModeFallback($this->forBlock->startDelimiter()->markup ?? '', $this->parseContext);
 
         return $this;
     }

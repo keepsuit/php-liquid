@@ -123,7 +123,7 @@ final class BlockParser
                     return $sections;
                 }
 
-                $this->handleUnknownTag($tagName, $markup, $parseContext);
+                $this->handleUnknownTag($tagName, $parseContext);
 
                 $section->setEnd(new BlockBodySectionDelimiter($tagName, $markup));
 
@@ -188,7 +188,7 @@ final class BlockParser
     /**
      * @throws SyntaxException
      */
-    protected function handleUnknownTag(string $tagName, string $markup, ParseContext $parseContext): void
+    protected function handleUnknownTag(string $tagName, ParseContext $parseContext): void
     {
         $handler = $this->subTagsHandler;
 
@@ -196,7 +196,7 @@ final class BlockParser
             return;
         }
 
-        throw SyntaxException::unknownTag($parseContext, $tagName, $markup);
+        throw SyntaxException::unknownTag($parseContext, $tagName, $this->tagName ?? '');
     }
 
     protected function isBlockEndTag(string $tagName): bool

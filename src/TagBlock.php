@@ -6,6 +6,9 @@ abstract class TagBlock extends Tag
 {
     protected const MAX_DEPTH = 100;
 
+    /**
+     * @var array<BlockBodySection>
+     */
     protected array $bodySections = [];
 
     public function parse(Tokenizer $tokenizer): static
@@ -43,6 +46,17 @@ abstract class TagBlock extends Tag
     public function nodeList(): array
     {
         return $this->bodySections;
+    }
+
+    public function render(Context $context): string
+    {
+        $output = '';
+
+        foreach ($this->bodySections as $bodySection) {
+            $output .= $bodySection->render($context);
+        }
+
+        return $output;
     }
 
     protected function isSubTag(string $tagName): bool
