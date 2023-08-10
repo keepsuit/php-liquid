@@ -77,6 +77,8 @@ class BlockBodySection implements CanBeRendered
             $output .= $node->render($context);
         }
 
+        $context->resourceLimits->incrementWriteScore($output);
+
         return $output;
     }
 }

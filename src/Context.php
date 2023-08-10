@@ -2,6 +2,9 @@
 
 namespace Keepsuit\Liquid;
 
+use Closure;
+use RuntimeException;
+
 class Context
 {
     protected bool $strictVariables = false;
@@ -39,6 +42,37 @@ class Context
         $this->filterRegistry = FilterRegistry::createWithFilters($this, $filters);
     }
 
+    protected function push(array $newScope = []): void
+    {
+        array_unshift($this->scopes, $newScope);
+    }
+
+    protected function pop(): array
+    {
+        if (count($this->scopes) === 1) {
+            throw new RuntimeException('Cannot pop the outer scope');
+        }
+
+        return array_shift($this->scopes) ?? [];
+    }
+
+    /**
+     * @template TResult
+     *
+     * @param  Closure(): TResult  $closure
+     * @return TResult
+     */
+    public function stack(Closure $closure)
+    {
+        $this->push();
+
+        $result = $closure();
+
+        $this->pop();
+
+        return $result;
+    }
+
     public function evaluate(mixed $value): mixed
     {
         if ($value instanceof CanBeEvaluated) {
@@ -74,13 +108,13 @@ class Context
     public function lookupAndEvaluate(array $scope, string $key, bool $throwNotFound = true): mixed
     {
         if ($this->strictVariables && $throwNotFound && ! array_key_exists($key, $scope)) {
-            throw new \RuntimeException("Variable `$key` not found");
+            throw new RuntimeException("Variable `$key` not found");
         }
 
         $value = $scope[$key] ?? null;
 
-        if ($value instanceof \Closure) {
-            throw new \RuntimeException('Cannot evaluate closures');
+        if ($value instanceof Closure) {
+            throw new RuntimeException('Cannot evaluate closures');
         }
 
         return $value;

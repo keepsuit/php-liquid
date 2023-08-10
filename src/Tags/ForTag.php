@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Arr;
 use Keepsuit\Liquid\BlockBodySection;
+use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Parser;
 use Keepsuit\Liquid\ParserSwitching;
@@ -125,5 +126,50 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
             $this->from,
             $this->collectionName,
         ]);
+    }
+
+    public function render(Context $context): string
+    {
+        $segment = $this->collectionSegment($context);
+
+        if ($segment === []) {
+            return $this->renderElse($context);
+        }
+
+        return $this->renderSegment($context, $segment);
+    }
+
+    protected function collectionSegment(Context $context): array
+    {
+        //        $offsets = $context->getRegister('for') ?? [];
+
+        //        $fromValue = $context->evaluate($this->from);
+        //        $from = $fromValue === null ? 0 : (int) $fromValue;
+
+        $collection = $context->evaluate($this->collectionName);
+        assert(is_array($collection));
+
+        //        $limitValue = $context->evaluate($this->limit);
+        //        $to = $limitValue === null ? null : ((int) $limitValue) + $from;
+
+        return $collection;
+    }
+
+    protected function renderSegment(Context $context, array $segment): string
+    {
+        return $context->stack(function () use ($context, $segment) {
+            $output = '';
+            foreach ($segment as $value) {
+                $context->set($this->variableName, $value);
+                $output .= $this->forBlock->render($context);
+            }
+
+            return $output;
+        });
+    }
+
+    protected function renderElse(Context $context): string
+    {
+        return '';
     }
 }

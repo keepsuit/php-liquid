@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\Regex;
 use Keepsuit\Liquid\SyntaxException;
 use Keepsuit\Liquid\TagBlock;
@@ -34,5 +35,16 @@ class CaptureTag extends TagBlock
     public function blank(): bool
     {
         return true;
+    }
+
+    public function render(Context $context): string
+    {
+        $context->resourceLimits->withCapture(function () use ($context) {
+            $captureValue = parent::render($context);
+
+            $context->setToActiveScope($this->to, $captureValue);
+        });
+
+        return '';
     }
 }
