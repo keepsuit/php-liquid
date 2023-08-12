@@ -105,13 +105,14 @@ class Context
         return $variable;
     }
 
-    public function lookupAndEvaluate(array $scope, string $key, bool $throwNotFound = true): mixed
+    public function lookupAndEvaluate(array|object $scope, int|string $key, bool $throwNotFound = true): mixed
     {
-        if ($this->strictVariables && $throwNotFound && ! array_key_exists($key, $scope)) {
-            throw new RuntimeException("Variable `$key` not found");
-        }
+        $fallback = fn (string $key) => ($this->strictVariables && $throwNotFound ? throw new RuntimeException("Variable `$key` not found") : null);
 
-        $value = $scope[$key] ?? null;
+        $value = match (true) {
+            is_array($scope) => $scope[$key] ?? $fallback($key),
+            is_object($scope) => $scope->$key ?? $fallback($key),
+        };
 
         if ($value instanceof Closure) {
             throw new RuntimeException('Cannot evaluate closures');
@@ -145,6 +146,11 @@ class Context
     public function getRegister(string $name): mixed
     {
         return $this->registers[$name] ?? null;
+    }
+
+    public function setRegister(string $name, mixed $value): mixed
+    {
+        return $this->registers[$name] = $value;
     }
 
     public function setToActiveScope(string $key, mixed $value): array

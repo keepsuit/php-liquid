@@ -25,11 +25,20 @@ class RangeLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
 
     public function evaluate(Context $context): mixed
     {
-        $start = $context->evaluate($this->start);
-        assert(is_numeric($start));
-        $end = $context->evaluate($this->end);
-        assert(is_numeric($end));
+        $start = $this->toInteger($context->evaluate($this->start));
+        $end = $this->toInteger($context->evaluate($this->end));
 
         return range($start, $end);
+    }
+
+    protected function toInteger(mixed $value): int
+    {
+        return match (true) {
+            is_int($value) => $value,
+            is_numeric($value) => (int) $value,
+            is_string($value) => intval($value),
+            $value === null => 0,
+            default => throw new \InvalidArgumentException('Invalid integer'),
+        };
     }
 }

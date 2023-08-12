@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid\Tags;
 use Keepsuit\Liquid\Arr;
 use Keepsuit\Liquid\BlockBodySection;
 use Keepsuit\Liquid\Context;
+use Keepsuit\Liquid\Drops\ForLoopDrop;
 use Keepsuit\Liquid\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Parser;
 use Keepsuit\Liquid\ParserSwitching;
@@ -23,6 +24,10 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
     protected string $variableName;
 
     protected mixed $collectionName;
+
+    protected string $name;
+
+    protected bool $reversed;
 
     protected mixed $from = null;
 
@@ -65,8 +70,8 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
         $collectionNameMarkup = $parser->expression();
         $this->collectionName = $this->parseExpression($collectionNameMarkup);
 
-        $name = sprintf('%s-%s', $this->variableName, $collectionNameMarkup);
-        $reversed = $parser->idOrFalse('reversed') !== false;
+        $this->name = sprintf('%s-%s', $this->variableName, $collectionNameMarkup);
+        $this->reversed = $parser->idOrFalse('reversed') !== false;
 
         while ($parser->look(TokenType::Comma) || $parser->look(TokenType::Identifier)) {
             $parser->consumeOrFalse(TokenType::Comma);
@@ -149,6 +154,10 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
         $collection = $context->evaluate($this->collectionName);
         assert(is_array($collection));
 
+        if ($this->reversed) {
+            $collection = array_reverse($collection);
+        }
+
         //        $limitValue = $context->evaluate($this->limit);
         //        $to = $limitValue === null ? null : ((int) $limitValue) + $from;
 
@@ -157,12 +166,30 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
 
     protected function renderSegment(Context $context, array $segment): string
     {
+        $forStack = $context->getRegister('for_stack') ?? [];
+        assert(is_array($forStack));
+
         return $context->stack(function () use ($context, $segment) {
+            $loopVars = new ForLoopDrop(
+                name: $this->name,
+                length: count($segment),
+            );
+
+            $forStack[] = $loopVars;
+            $context->setRegister('for_stack', $forStack);
+
+            $context->set('forloop', $loopVars);
             $output = '';
             foreach ($segment as $value) {
                 $context->set($this->variableName, $value);
                 $output .= $this->forBlock->render($context);
+                $loopVars->increment();
             }
+
+            $forStack = $context->getRegister('for_stack');
+            assert(is_array($forStack));
+            array_pop($forStack);
+            $context->setRegister('for_stack', $forStack);
 
             return $output;
         });
