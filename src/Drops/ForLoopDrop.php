@@ -39,6 +39,7 @@ class ForLoopDrop extends Drop
             'rindex' => $this->length - $this->index,
             'rindex0' => $this->length - $this->index - 1,
             'length' => $this->length,
+            'parentloop' => $this->parentLoop,
             default => throw new \InvalidArgumentException('Unknown property: '.$name),
         };
     }

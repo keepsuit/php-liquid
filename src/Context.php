@@ -24,6 +24,11 @@ class Context
      */
     protected array $staticEnvironments;
 
+    /**
+     * @var array<Interrupt>
+     */
+    protected array $interrupts = [];
+
     protected FilterRegistry $filterRegistry;
 
     public function __construct(
@@ -66,9 +71,11 @@ class Context
     {
         $this->push();
 
-        $result = $closure();
-
-        $this->pop();
+        try {
+            $result = $closure();
+        } finally {
+            $this->pop();
+        }
 
         return $result;
     }
@@ -163,5 +170,20 @@ class Context
             ...$this->scopes[$index],
             $key => $value,
         ];
+    }
+
+    public function pushInterrupt(Interrupt $interrupt): void
+    {
+        $this->interrupts[] = $interrupt;
+    }
+
+    public function popInterrupt(): ?Interrupt
+    {
+        return array_pop($this->interrupts);
+    }
+
+    public function hasInterrupt(): bool
+    {
+        return count($this->interrupts) > 0;
     }
 }

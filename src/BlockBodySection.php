@@ -75,6 +75,10 @@ class BlockBodySection implements CanBeRendered
             }
 
             $output .= $node->render($context);
+
+            if ($context->hasInterrupt()) {
+                break;
+            }
         }
 
         $context->resourceLimits->incrementWriteScore($output);

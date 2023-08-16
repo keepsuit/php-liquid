@@ -89,7 +89,7 @@ class Parser
                 .$this->consume(TokenType::DotDot)
                 .$this->expression()
                 .$this->consume(TokenType::CloseRound),
-            default => throw SyntaxException::invalidExpression($token[1])
+            default => throw SyntaxException::invalidExpression($token[1] ?? ''),
         };
     }
 

@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Arr;
 use Keepsuit\Liquid\BlockBodySection;
+use Keepsuit\Liquid\BreakInterrupt;
 use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\Drops\ForLoopDrop;
 use Keepsuit\Liquid\HasParseTreeVisitorChildren;
@@ -146,50 +147,69 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
 
     protected function collectionSegment(Context $context): array
     {
-        //        $offsets = $context->getRegister('for') ?? [];
+        $offsets = $context->getRegister('for') ?? [];
+        assert(is_array($offsets));
 
-        //        $fromValue = $context->evaluate($this->from);
-        //        $from = $fromValue === null ? 0 : (int) $fromValue;
-
-        $collection = $context->evaluate($this->collectionName);
+        $collection = $context->evaluate($this->collectionName) ?? [];
+        $collection = $collection instanceof \Iterator ? iterator_to_array($collection) : $collection;
         assert(is_array($collection));
 
-        if ($this->reversed) {
-            $collection = array_reverse($collection);
+        if ($this->from === 'continue') {
+            $offset = $offsets[$this->name];
+        } else {
+            $fromValue = $context->evaluate($this->from);
+            $offset = $fromValue === null ? 0 : (is_numeric($fromValue) ? (int) $fromValue : throw new \InvalidArgumentException('Invalid integer'));
         }
+        assert(is_int($offset));
 
-        //        $limitValue = $context->evaluate($this->limit);
-        //        $to = $limitValue === null ? null : ((int) $limitValue) + $from;
+        $limitValue = $context->evaluate($this->limit);
+        $length = $limitValue === null ? null : (is_numeric($limitValue) ? (int) $limitValue : throw new \InvalidArgumentException('Invalid integer'));
 
-        return $collection;
+        $segment = array_slice($collection, $offset, $length);
+        $segment = $this->reversed ? array_reverse($segment) : $segment;
+
+        $offsets[$this->name] = $offset + count($segment);
+        $context->setRegister('for', $offsets);
+
+        return $segment;
     }
 
     protected function renderSegment(Context $context, array $segment): string
     {
+        /** @var ForLoopDrop[] $forStack */
         $forStack = $context->getRegister('for_stack') ?? [];
         assert(is_array($forStack));
 
-        return $context->stack(function () use ($context, $segment) {
+        return $context->stack(function () use ($context, $segment, $forStack) {
             $loopVars = new ForLoopDrop(
                 name: $this->name,
                 length: count($segment),
+                parentLoop: $forStack !== [] ? $forStack[count($forStack) - 1] : null,
             );
 
             $forStack[] = $loopVars;
             $context->setRegister('for_stack', $forStack);
 
-            $context->set('forloop', $loopVars);
-            $output = '';
-            foreach ($segment as $value) {
-                $context->set($this->variableName, $value);
-                $output .= $this->forBlock->render($context);
-                $loopVars->increment();
-            }
+            try {
+                $context->set('forloop', $loopVars);
+                $output = '';
+                foreach ($segment as $value) {
+                    $context->set($this->variableName, $value);
+                    $output .= $this->forBlock->render($context);
+                    $loopVars->increment();
 
-            $forStack = $context->getRegister('for_stack');
-            assert(is_array($forStack));
-            array_pop($forStack);
-            $context->setRegister('for_stack', $forStack);
+                    $interrupt = $context->popInterrupt();
+
+                    if ($interrupt instanceof BreakInterrupt) {
+                        break;
+                    }
+                }
+            } finally {
+                $forStack = $context->getRegister('for_stack');
+                assert(is_array($forStack));
+                array_pop($forStack);
+                $context->setRegister('for_stack', $forStack);
+            }
 
             return $output;
         });
@@ -197,6 +217,6 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
 
     protected function renderElse(Context $context): string
     {
-        return '';
+        return $this->elseBlock?->render($context) ?? '';
     }
 }

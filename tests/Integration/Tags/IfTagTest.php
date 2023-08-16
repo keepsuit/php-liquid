@@ -128,7 +128,7 @@ test('else if', function () {
 });
 
 test('throw exception with no expression', function () {
-    expect(fn () => parseTemplate('{% if %}'))->toThrow(TypeError::class);
+    expect(fn () => parseTemplate('{% if %}'))->toThrow(SyntaxException::class);
 });
 
 test('operators are isolated', function () {

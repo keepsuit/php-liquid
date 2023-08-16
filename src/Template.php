@@ -55,9 +55,11 @@ class Template
 
         return static::$tagRegistry = (new TagRegistry())
             ->register(Tags\AssignTag::class)
+            ->register(Tags\BreakTag::class)
             ->register(Tags\CaptureTag::class)
             ->register(Tags\CaseTag::class)
             ->register(Tags\CommentTag::class)
+            ->register(Tags\ContinueTag::class)
             ->register(Tags\CycleTag::class)
             ->register(Tags\EchoTag::class)
             ->register(Tags\ForTag::class)
