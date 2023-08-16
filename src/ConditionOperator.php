@@ -33,6 +33,10 @@ enum ConditionOperator
         }
 
         if (gettype($left) !== gettype($right)) {
+            if ($left === null || $right === null) {
+                return false;
+            }
+
             $this->throwCompareTypesException($left, $right);
         }
 

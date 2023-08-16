@@ -107,7 +107,7 @@ class Context
 
     public function lookupAndEvaluate(array|object $scope, int|string $key, bool $throwNotFound = true): mixed
     {
-        $fallback = fn (string $key) => ($this->strictVariables && $throwNotFound ? throw new RuntimeException("Variable `$key` not found") : null);
+        $fallback = fn (int|string $key) => ($this->strictVariables && $throwNotFound ? throw new RuntimeException("Variable `$key` not found") : null);
 
         $value = match (true) {
             is_array($scope) => $scope[$key] ?? $fallback($key),
@@ -124,13 +124,15 @@ class Context
     protected function tryFindVariableInEnvironments(string $key, bool $throwNotFound = true): mixed
     {
         foreach ($this->environments as $environment) {
-            if ($foundVariable = $this->lookupAndEvaluate($environment, $key, $throwNotFound)) {
+            $foundVariable = $this->lookupAndEvaluate($environment, $key, $throwNotFound);
+            if ($foundVariable !== null) {
                 return $foundVariable;
             }
         }
 
         foreach ($this->staticEnvironments as $environment) {
-            if ($foundVariable = $this->lookupAndEvaluate($environment, $key, $throwNotFound)) {
+            $foundVariable = $this->lookupAndEvaluate($environment, $key, $throwNotFound);
+            if ($foundVariable !== null) {
                 return $foundVariable;
             }
         }

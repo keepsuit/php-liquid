@@ -81,9 +81,9 @@ class VariableLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
             assert(is_string($key) || is_int($key));
 
             $object = match (true) {
-                is_array($object) && array_key_exists($key, $object) => $context->lookupAndEvaluate($object, $key),
+                is_array($object) => $context->lookupAndEvaluate($object, $key),
                 is_object($object) => $context->lookupAndEvaluate($object, $key),
-                default => throw new \RuntimeException('Invalid variable lookup')
+                default => null,
             };
 
             if ($object instanceof MapsToLiquid) {

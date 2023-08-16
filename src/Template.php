@@ -18,7 +18,7 @@ class Template
         bool $lineNumbers = false,
         ErrorMode $errorMode = null,
     ): Template {
-        $parseContext = new ParseContext(errorMode: $errorMode);
+        $parseContext = new ParseContext(errorMode: $errorMode ?? static::$errorMode);
         $tokenizer = $parseContext->newTokenizer($source, startLineNumber: $lineNumbers ? 1 : null);
 
         return new Template(

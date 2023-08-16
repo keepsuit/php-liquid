@@ -93,7 +93,9 @@ class Condition implements HasParseTreeVisitorChildren
     protected function interpretCondition(mixed $left, mixed $right, ?string $operator, Context $context): bool
     {
         if ($operator === null) {
-            return (bool) $context->evaluate($left);
+            $result = $context->evaluate($left);
+
+            return $result !== false && $result !== null;
         }
 
         $left = $context->evaluate($left);

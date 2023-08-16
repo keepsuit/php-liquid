@@ -5,9 +5,9 @@ use Keepsuit\Liquid\ErrorMode;
 use Keepsuit\Liquid\SyntaxException;
 use Keepsuit\Liquid\Template;
 
-beforeEach(function () {
+uses()->beforeEach(function () {
     Template::$errorMode = ErrorMode::Strict;
-});
+})->in(__DIR__);
 
 function fixture(string $path): string
 {

@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\BlockBodySection;
 use Keepsuit\Liquid\Condition;
+use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\ElseCondition;
 use Keepsuit\Liquid\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Parser;
@@ -104,5 +105,19 @@ class IfTag extends TagBlock implements HasParseTreeVisitorChildren
     public function parseTreeVisitorChildren(): array
     {
         return $this->conditions;
+    }
+
+    public function render(Context $context): string
+    {
+        $output = '';
+        foreach ($this->conditions as $condition) {
+            $result = $condition->evaluate($context);
+
+            if ($result) {
+                return $condition->attachment?->render($context) ?? '';
+            }
+        }
+
+        return $output;
     }
 }
