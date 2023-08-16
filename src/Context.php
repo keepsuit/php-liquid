@@ -162,6 +162,16 @@ class Context
         return $this->registers[$name] = $value;
     }
 
+    public function getEnvironment(string $name): mixed
+    {
+        return $this->environments[0][$name] ?? null;
+    }
+
+    public function setEnvironment(string $name, mixed $value): mixed
+    {
+        return $this->environments[0][$name] = $value;
+    }
+
     public function setToActiveScope(string $key, mixed $value): array
     {
         $index = array_key_last($this->scopes);

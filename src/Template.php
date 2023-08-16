@@ -61,10 +61,12 @@ class Template
             ->register(Tags\CommentTag::class)
             ->register(Tags\ContinueTag::class)
             ->register(Tags\CycleTag::class)
+            ->register(Tags\DecrementTag::class)
             ->register(Tags\EchoTag::class)
             ->register(Tags\ForTag::class)
             ->register(Tags\IfTag::class)
             ->register(Tags\IncludeTag::class)
+            ->register(Tags\IncrementTag::class)
             ->register(Tags\RenderTag::class)
             ->register(Tags\TableRowTag::class)
             ->register(Tags\UnlessTag::class);
