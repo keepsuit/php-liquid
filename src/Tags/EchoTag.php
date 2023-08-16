@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\Tokenizer;
@@ -33,5 +34,10 @@ class EchoTag extends Tag implements HasParseTreeVisitorChildren
     public function parseTreeVisitorChildren(): array
     {
         return [$this->variable];
+    }
+
+    public function render(Context $context): string
+    {
+        return $this->variable->render($context);
     }
 }
