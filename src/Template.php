@@ -13,6 +13,9 @@ class Template
     ) {
     }
 
+    /**
+     * @throws SyntaxException
+     */
     public static function parse(
         string $source,
         bool $lineNumbers = false,
@@ -67,6 +70,9 @@ class Template
             ->register(Tags\IfTag::class)
             ->register(Tags\IncludeTag::class)
             ->register(Tags\IncrementTag::class)
+            ->register(Tags\InlineCommentTag::class)
+            ->register(Tags\LiquidTag::class)
+            ->register(Tags\RawTag::class)
             ->register(Tags\RenderTag::class)
             ->register(Tags\TableRowTag::class)
             ->register(Tags\UnlessTag::class);

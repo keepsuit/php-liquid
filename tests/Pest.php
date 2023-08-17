@@ -4,6 +4,7 @@ use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\ErrorMode;
 use Keepsuit\Liquid\SyntaxException;
 use Keepsuit\Liquid\Template;
+use PHPUnit\Framework\ExpectationFailedException;
 
 uses()->beforeEach(function () {
     Template::$errorMode = ErrorMode::Strict;
@@ -33,6 +34,13 @@ function assertTemplateResult(string $expected, string $template, array $assigns
 
 function assertMatchSyntaxError(string $error, string $source): void
 {
-    expect(fn () => Template::parse($source)->render(new Context()))
-        ->toThrow(SyntaxException::class, $error);
+    try {
+        Template::parse($source, lineNumbers: true)->render(new Context());
+    } catch (SyntaxException $exception) {
+        expect((string) $exception)->toBe($error);
+
+        return;
+    }
+
+    throw new ExpectationFailedException('Syntax Exception not thrown.');
 }

@@ -4,7 +4,7 @@ namespace Keepsuit\Liquid;
 
 class SyntaxException extends \Exception
 {
-    public ?string $markupContext = null;
+    public ?int $markupLine = null;
 
     public ?string $tagName = null;
 
@@ -12,7 +12,14 @@ class SyntaxException extends \Exception
     {
         return new SyntaxException($parseContext->locale->translate('errors.syntax.tag_termination', [
             'token' => $token,
-            'tagEnd' => Regex::TagEnd,
+            'tag_end' => Regex::TagEnd,
+        ]));
+    }
+
+    public static function tagNeverClosed(?string $tagName, ParseContext $parseContext): SyntaxException
+    {
+        return new SyntaxException($parseContext->locale->translate('errors.syntax.tag_never_closed', [
+            'block_name' => $tagName,
         ]));
     }
 
@@ -20,7 +27,7 @@ class SyntaxException extends \Exception
     {
         return new SyntaxException($parseContext->locale->translate('errors.syntax.variable_termination', [
             'token' => $token,
-            'variableEnd' => Regex::VariableEnd,
+            'variable_end' => Regex::VariableEnd,
         ]));
     }
 
@@ -31,7 +38,7 @@ class SyntaxException extends \Exception
         ]));
     }
 
-    public static function unknownTag(ParseContext $parseContext, string $tagName, string $blockTagName): SyntaxException
+    public static function unknownTag(ParseContext $parseContext, string $tagName, string $blockTagName, string $blockDelimiter = null): SyntaxException
     {
         $exception = match (true) {
             $tagName === 'else' => new SyntaxException($parseContext->locale->translate('errors.syntax.unexpected_else', [
@@ -40,6 +47,7 @@ class SyntaxException extends \Exception
             str_starts_with($tagName, 'end') => new SyntaxException($parseContext->locale->translate('errors.syntax.invalid_delimiter', [
                 'tag' => $tagName,
                 'block_name' => $blockTagName,
+                'block_delimiter' => $blockDelimiter ?? 'end'.$blockTagName,
             ])),
             default => new SyntaxException($parseContext->locale->translate('errors.syntax.unknown_tag', [
                 'tag' => $tagName,
@@ -70,13 +78,19 @@ class SyntaxException extends \Exception
         return new SyntaxException(sprintf('Unexpected character: %s', $character));
     }
 
-    public function setLineNumber(?int $lineNumber): void
+    public function setLineNumber(?int $lineNumber): static
     {
-        $this->line = $lineNumber ?? $this->line;
+        $this->markupLine = $lineNumber;
+
+        return $this;
     }
 
-    public function setMarkupContext(string $markupContext): void
+    public function __toString(): string
     {
-        $this->markupContext = $markupContext;
+        return sprintf(
+            'Liquid syntax error%s: %s',
+            $this->markupLine ? sprintf(' (line %s)', $this->markupLine) : '',
+            $this->getMessage()
+        );
     }
 }

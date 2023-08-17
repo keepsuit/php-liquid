@@ -6,9 +6,9 @@ use Closure;
 
 final class BlockParser
 {
-    protected const LIQUID_TAG_TOKEN = '/\A\s*('.Regex::TagName.')\s*(.*?)\z';
+    protected const LIQUID_TAG_TOKEN = '/\A\s*('.Regex::TagName.')\s*(.*?)\z/';
 
-    protected const FULL_TOKEN = '/\A'.Regex::TagStart.Regex::WhitespaceControl.'?(\s*)('.Regex::TagName.')(\s*)(.*?)'.Regex::WhitespaceControl.'?'.Regex::TagEnd.'\z/m';
+    protected const FULL_TOKEN = '/\A'.Regex::TagStart.Regex::WhitespaceControl.'?(\s*)('.Regex::TagName.')(\s*)((\S|\s)*?)'.Regex::WhitespaceControl.'?'.Regex::TagEnd.'\z/m';
 
     protected const CONTENT_OF_VARIABLE = '/\A'.Regex::VariableStart.Regex::WhitespaceControl.'?(.*?)'.Regex::WhitespaceControl.'?'.Regex::VariableEnd.'\z/m';
 
@@ -53,9 +53,7 @@ final class BlockParser
         $parseContext->lineNumber = $tokenizer->getLineNumber();
 
         if ($tokenizer->forLiquidTag) {
-            // TODO: Implement parseForLiquidTag
-            throw new \RuntimeException('Parse for liquid tag not implemented yet');
-            // return static::parseForLiquidTag($tokenizer, $parseContext);
+            return $this->parseForLiquidTag($tokenizer, $parseContext);
         }
 
         return $this->parseForDocument($tokenizer, $parseContext);
@@ -93,7 +91,7 @@ final class BlockParser
                 $section->setNodeList(self::whitespaceHandler($token, $parseContext, $section->nodeList()));
 
                 if (preg_match(self::FULL_TOKEN, $token, $matches) !== 1) {
-                    static::handleInvalidTagToken($token, $parseContext);
+                    $this->handleInvalidTagToken($token, $parseContext);
                 }
 
                 $tagName = $matches[2];
@@ -101,12 +99,6 @@ final class BlockParser
 
                 if ($parseContext->lineNumber !== null) {
                     $parseContext->lineNumber += substr_count($matches[1], PHP_EOL) + substr_count($matches[3], PHP_EOL);
-                }
-
-                if ($tagName === 'liquid') {
-                    // TODO: Implement liquid tag
-                    throw new \RuntimeException('Liquid tag not implemented yet');
-                    //continue;
                 }
 
                 /** @var class-string<Tag>|null $tagClass */
@@ -149,9 +141,71 @@ final class BlockParser
     }
 
     /**
+     * @return array<BlockBodySection>
+     *
+     * @throws SyntaxException
+     */
+    protected function parseForLiquidTag(Tokenizer $tokenizer, ParseContext $parseContext): array
+    {
+        $sections = [];
+        $section = new BlockBodySection(
+            start: $this->tagName ? new BlockBodySectionDelimiter($this->tagName, $this->markup ?? '') : null,
+            end: null,
+        );
+        $sections[] = $section;
+
+        while (($token = $tokenizer->shift()) !== null) {
+            if ($token === '' || preg_match(self::WHITESPACE_OR_NOTHING, $token) === 1) {
+                $parseContext->lineNumber = $tokenizer->getLineNumber();
+
+                continue;
+            }
+
+            if (preg_match(self::LIQUID_TAG_TOKEN, $token, $matches) !== 1) {
+                throw SyntaxException::unknownTag($parseContext, $token, 'liquid');
+            }
+
+            $tagName = $matches[1];
+            $markup = $matches[2];
+
+            /** @var class-string<Tag>|null $tagClass */
+            $tagClass = Template::registeredTags()[$tagName] ?? null;
+
+            if ($tagClass !== null) {
+                $tag = (new $tagClass($markup, $parseContext))->parse($tokenizer);
+                $section->pushNode($tag);
+
+                continue;
+            }
+
+            if ($this->isBlockEndTag($tagName)) {
+                return $sections;
+            }
+
+            $this->handleUnknownTag($tagName, $parseContext, forLiquid: true);
+
+            $section->setEnd(new BlockBodySectionDelimiter($tagName, $markup));
+
+            $section = new BlockBodySection(
+                start: $section->endDelimiter(),
+            );
+            $sections[] = $section;
+
+            $parseContext->lineNumber = $tokenizer->getLineNumber();
+        }
+
+        if ($section->endDelimiter() === null && $this->endTag() !== null) {
+            $parseContext->lineNumber -= 1;
+            throw SyntaxException::tagNeverClosed($this->tagName, $parseContext);
+        }
+
+        return $sections;
+    }
+
+    /**
      * @return never-return
      */
-    protected static function handleInvalidTagToken(string $token, ParseContext $parseContext): void
+    protected function handleInvalidTagToken(string $token, ParseContext $parseContext): void
     {
         throw SyntaxException::missingTagTerminator($token, $parseContext);
     }
@@ -188,12 +242,16 @@ final class BlockParser
     /**
      * @throws SyntaxException
      */
-    protected function handleUnknownTag(string $tagName, ParseContext $parseContext): void
+    protected function handleUnknownTag(string $tagName, ParseContext $parseContext, bool $forLiquid = false): void
     {
         $handler = $this->subTagsHandler;
 
         if ($handler !== null && $handler($tagName)) {
             return;
+        }
+
+        if ($forLiquid) {
+            throw SyntaxException::unknownTag($parseContext, $tagName, blockTagName: 'liquid', blockDelimiter: '%}');
         }
 
         throw SyntaxException::unknownTag($parseContext, $tagName, $this->tagName ?? '');

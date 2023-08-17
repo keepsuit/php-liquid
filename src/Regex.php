@@ -38,7 +38,7 @@ class Regex
 
     const AnyStartingTag = self::TagStart.'|'.self::VariableStart;
 
-    const PartialTemplateParser = self::TagStart.'.*?'.self::TagEnd.'|'.self::VariableStart.'.*?'.self::VariableIncompleteEnd;
+    const PartialTemplateParser = self::TagStart.'(?:\S|\s)*?'.self::TagEnd.'|'.self::VariableStart.'(?:\S|\s)*?'.self::VariableIncompleteEnd;
 
     const TemplateParser = '('.self::PartialTemplateParser.'|'.self::AnyStartingTag.')';
 

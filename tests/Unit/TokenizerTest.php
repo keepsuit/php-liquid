@@ -25,7 +25,7 @@ it('tokenize blocks', function () {
 it('calculate line numbers per token with profiling', function () {
     expect(tokenizeLineNumbers('{{funk}}'))->toBe([1]);
     expect(tokenizeLineNumbers(' {{funk}} '))->toBe([1, 1, 1]);
-    expect(tokenizeLineNumbers("\n{{funk}}\n"))->toBe([2, 2, 3]);
+    expect(tokenizeLineNumbers("\n{{funk}}\n"))->toBe([1, 2, 2]);
     expect(tokenizeLineNumbers(" {{\n funk \n}} "))->toBe([1, 1, 3]);
 });
 
@@ -46,9 +46,10 @@ function tokenizeLineNumbers(string $source): array
     $tokenizer = (new ParseContext())->newTokenizer($source, startLineNumber: 1);
 
     $lineNumbers = [];
-    while ($tokenizer->shift()) {
+    do {
         $lineNumbers[] = $tokenizer->getLineNumber();
-    }
+    } while ($tokenizer->shift());
+    array_pop($lineNumbers);
 
     return $lineNumbers;
 }

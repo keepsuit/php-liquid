@@ -63,4 +63,9 @@ abstract class TagBlock extends Tag
     {
         return false;
     }
+
+    protected static function blockDelimiter(): ?string
+    {
+        return 'end'.static::tagName();
+    }
 }
