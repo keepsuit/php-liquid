@@ -3,10 +3,10 @@
          failOnRisky="true" failOnEmptyTestSuite="true" beStrictAboutOutputDuringTests="true" cacheDirectory=".phpunit.cache" backupStaticProperties="false">
     <testsuites>
         <testsuite name="Unit">
-            <directory>tests/unit</directory>
+            <directory>tests/Unit</directory>
         </testsuite>
         <testsuite name="Integration">
-            <directory>tests/integration</directory>
+            <directory>tests/Integration</directory>
         </testsuite>
     </testsuites>
     <coverage>
