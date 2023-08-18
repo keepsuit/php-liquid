@@ -119,7 +119,7 @@ test('liquid tag in raw', function () {
 });
 
 test('nested liquid tags', function () {
-    assertTemplateResult("good", <<<'LIQUID'
+    assertTemplateResult('good', <<<'LIQUID'
     {%- liquid
         liquid
             if true
@@ -131,14 +131,14 @@ test('nested liquid tags', function () {
 });
 
 test('nested liquid tags on same line', function () {
-    assertTemplateResult("good", <<<'LIQUID'
+    assertTemplateResult('good', <<<'LIQUID'
     {%- liquid liquid liquid echo "good" -%}
     LIQUID
     );
 });
 
 test('nested liquid is not skipped if used in non tag position', function () {
-    assertTemplateResult("good", <<<'LIQUID'
+    assertTemplateResult('good', <<<'LIQUID'
     {%- liquid liquid liquid echo liquid -%}
     LIQUID,
         ['liquid' => 'good']
