@@ -117,3 +117,41 @@ test('liquid tag in raw', function () {
     LIQUID
     );
 });
+
+test('nested liquid tags', function () {
+    assertTemplateResult("good", <<<'LIQUID'
+    {%- liquid
+        liquid
+            if true
+                echo "good"
+            endif
+    -%}
+    LIQUID
+    );
+});
+
+test('nested liquid tags on same line', function () {
+    assertTemplateResult("good", <<<'LIQUID'
+    {%- liquid liquid liquid echo "good" -%}
+    LIQUID
+    );
+});
+
+test('nested liquid is not skipped if used in non tag position', function () {
+    assertTemplateResult("good", <<<'LIQUID'
+    {%- liquid liquid liquid echo liquid -%}
+    LIQUID,
+        ['liquid' => 'good']
+    );
+});
+
+test('nested liquid with unclosed if tag', function () {
+    assertMatchSyntaxError("Liquid syntax error (line 2): 'if' tag was never closed", <<<'LIQUID'
+    {%- liquid
+        liquid if true
+          echo "good"
+        endif
+    -%}
+    LIQUID
+    );
+});

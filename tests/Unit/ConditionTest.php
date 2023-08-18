@@ -76,16 +76,6 @@ test('comparison of int and string', function (mixed $left, string $operator, mi
     ['1', '<=', 0],
 ]);
 
-test('hash compare backwards compatibility', function (mixed $left, string $operator, mixed $right, mixed $result) {
-    expect((new Condition($left, $operator, $right))->evaluate($this->context))->toBe($result);
-})->with([
-    [[], '>', 2, null],
-    [2, '>', [], null],
-    [[], '==', 2, false],
-    [['a' => 1], '==', 'a' => 1, true],
-    [['a' => 2], 'contains', 'a', true],
-])->skip();
-
 test('contains works on arrays', function (mixed $value, bool $result) {
     $this->context->set('array', [1, 2, 3, 4, 5]);
     $expression = new VariableLookup('array');
