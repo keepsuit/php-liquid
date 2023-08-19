@@ -12,6 +12,9 @@ enum ConditionOperator
     case LessThanOrEqual;
     case Contains;
 
+    /**
+     * @throws SyntaxException
+     */
     public static function parse(string $operator): ConditionOperator
     {
         return match ($operator) {
@@ -28,25 +31,33 @@ enum ConditionOperator
 
     public function evaluate(mixed $left, mixed $right): bool
     {
-        if ($this === ConditionOperator::Contains) {
-            return $this->contains($left, $right);
+        if ($left === null || $right === null) {
+            return match ($this) {
+                ConditionOperator::Equal, ConditionOperator::NotEqual => $this->regularEvaluation($left, $right),
+                default => false,
+            };
         }
 
         if (gettype($left) !== gettype($right)) {
-            if ($left === null || $right === null) {
-                return false;
-            }
-
-            $this->throwCompareTypesException($left, $right);
+            return match ($this) {
+                ConditionOperator::Equal, ConditionOperator::NotEqual, ConditionOperator::Contains => $this->regularEvaluation($left, $right),
+                default => $this->throwCompareTypesException($left, $right),
+            };
         }
 
+        return $this->regularEvaluation($left, $right);
+    }
+
+    protected function regularEvaluation(mixed $left, mixed $right): bool
+    {
         return match ($this) {
-            ConditionOperator::Equal => $left == $right,
-            ConditionOperator::NotEqual => $left != $right,
+            ConditionOperator::Equal => $left === $right,
+            ConditionOperator::NotEqual => $left !== $right,
             ConditionOperator::GreaterThan => $left > $right,
             ConditionOperator::GreaterThanOrEqual => $left >= $right,
             ConditionOperator::LessThan => $left < $right,
             ConditionOperator::LessThanOrEqual => $left <= $right,
+            ConditionOperator::Contains => $this->contains($left, $right),
         };
     }
 

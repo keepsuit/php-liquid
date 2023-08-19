@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\BlockBodySection;
 use Keepsuit\Liquid\Condition;
+use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\ElseCondition;
 use Keepsuit\Liquid\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Regex;
@@ -43,6 +44,31 @@ class CaseTag extends TagBlock implements HasParseTreeVisitorChildren
         return $this;
     }
 
+    public function render(Context $context): string
+    {
+        foreach ($this->conditions as $condition) {
+            if ($condition->else()) {
+                return $condition->attachment?->render($context) ?? '';
+            }
+
+            if ($condition->evaluate($context)) {
+                return $condition->attachment?->render($context) ?? '';
+            }
+        }
+
+        return '';
+    }
+
+    public function nodeList(): array
+    {
+        return array_map(fn (Condition $block) => $block->attachment, $this->conditions);
+    }
+
+    public function parseTreeVisitorChildren(): array
+    {
+        return [$this->left, ...$this->conditions];
+    }
+
     protected function parseBodySection(BlockBodySection $section): Condition
     {
         assert($section->startDelimiter() !== null);
@@ -62,13 +88,17 @@ class CaseTag extends TagBlock implements HasParseTreeVisitorChildren
 
     protected function recordWhenCondition(string $markup): Condition
     {
-        $matchesCount = preg_match_all(self::WhenSyntax, $markup, $matches);
-
-        if ($matchesCount === false || $matchesCount === 0) {
+        if (preg_match(self::WhenSyntax, $markup, $matches) !== 1) {
             throw new SyntaxException($this->parseContext->locale->translate('errors.syntax.case_invalid_when'));
         }
 
-        return new Condition($this->left, '==', $this->parseExpression($matches[1][0]));
+        $condition = new Condition($this->left, '==', $this->parseExpression($matches[1]));
+
+        if ($matches[2] ?? false) {
+            $condition->or($this->recordWhenCondition($matches[2]));
+        }
+
+        return $condition;
     }
 
     protected function recordElseCondition(string $markup): Condition
@@ -83,15 +113,5 @@ class CaseTag extends TagBlock implements HasParseTreeVisitorChildren
     protected function isSubTag(string $tagName): bool
     {
         return in_array($tagName, ['when', 'else']);
-    }
-
-    public function nodeList(): array
-    {
-        return array_map(fn (Condition $block) => $block->attachment, $this->conditions);
-    }
-
-    public function parseTreeVisitorChildren(): array
-    {
-        return [$this->left, ...$this->conditions];
     }
 }

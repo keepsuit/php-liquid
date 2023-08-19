@@ -4,9 +4,7 @@ namespace Keepsuit\Liquid;
 
 class VariableLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
 {
-    const COMMAND_METHODS = ['size', 'first', 'last'];
-
-    protected int $commandFlags = 0;
+    const FILTER_METHODS = ['size', 'first', 'last'];
 
     public readonly mixed $name;
 
@@ -18,12 +16,6 @@ class VariableLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
         $lookups = static::markupLookup($markup);
 
         $this->name = static::parseVariableName(array_shift($lookups));
-
-        foreach ($lookups as $i => $lookup) {
-            if (in_array($lookup, self::COMMAND_METHODS)) {
-                $this->commandFlags |= 1 << $i;
-            }
-        }
 
         $this->lookups = array_map(
             fn ($lookup) => static::parseVariableName($lookup),
@@ -81,16 +73,31 @@ class VariableLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
             assert(is_string($key) || is_int($key));
 
             $object = match (true) {
-                is_array($object) => $context->lookupAndEvaluate($object, $key),
+                is_array($object) && array_key_exists($key, $object) => $context->lookupAndEvaluate($object, $key),
                 is_object($object) => $context->lookupAndEvaluate($object, $key),
+                in_array($lookup, self::FILTER_METHODS) => $this->applyFilter($context, $object, $lookup),
                 default => null,
             };
 
             if ($object instanceof MapsToLiquid) {
                 $object = $object->toLiquid();
             }
+
+            if ($object instanceof Drop) {
+                $object->setContext($context);
+            }
         }
 
         return $object;
+    }
+
+    protected function applyFilter(Context $context, mixed $object, string $filter): mixed
+    {
+        return match ($filter) {
+            'size' => $context->applyFilter('size', $object),
+            'first' => $context->applyFilter('first', $object),
+            'last' => $context->applyFilter('last', $object),
+            default => throw new \RuntimeException(sprintf('Unknown command: %s.', $filter)),
+        };
     }
 }

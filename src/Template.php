@@ -67,6 +67,7 @@ class Template
             ->register(Tags\DecrementTag::class)
             ->register(Tags\EchoTag::class)
             ->register(Tags\ForTag::class)
+            ->register(Tags\IfChanged::class)
             ->register(Tags\IfTag::class)
             ->register(Tags\IncludeTag::class)
             ->register(Tags\IncrementTag::class)

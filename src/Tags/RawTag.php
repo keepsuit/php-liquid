@@ -49,4 +49,14 @@ class RawTag extends TagBlock
     {
         return $this->body;
     }
+
+    public function blank(): bool
+    {
+        return strlen($this->body) === 0;
+    }
+
+    protected function isSubTag(string $tagName): bool
+    {
+        return true;
+    }
 }

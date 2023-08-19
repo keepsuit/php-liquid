@@ -10,7 +10,7 @@ final class BlockParser
 
     protected const FULL_TOKEN = '/\A'.Regex::TagStart.Regex::WhitespaceControl.'?(\s*)('.Regex::TagName.')(\s*)((\S|\s)*?)'.Regex::WhitespaceControl.'?'.Regex::TagEnd.'\z/m';
 
-    protected const CONTENT_OF_VARIABLE = '/\A'.Regex::VariableStart.Regex::WhitespaceControl.'?(.*?)'.Regex::WhitespaceControl.'?'.Regex::VariableEnd.'\z/m';
+    protected const CONTENT_OF_VARIABLE = '/\A'.Regex::VariableStart.Regex::WhitespaceControl.'?((\S|\s)*?)'.Regex::WhitespaceControl.'?'.Regex::VariableEnd.'\z/m';
 
     protected const WHITESPACE_OR_NOTHING = '/\A\s*\z/';
 
@@ -91,7 +91,9 @@ final class BlockParser
                 $section->setNodeList(self::whitespaceHandler($token, $parseContext, $section->nodeList()));
 
                 if (preg_match(self::FULL_TOKEN, $token, $matches) !== 1) {
-                    $this->handleInvalidTagToken($token, $parseContext);
+                    $this->handleUnknownTag($token, $parseContext);
+
+                    continue;
                 }
 
                 $tagName = $matches[2];
@@ -200,14 +202,6 @@ final class BlockParser
         }
 
         return $sections;
-    }
-
-    /**
-     * @return never-return
-     */
-    protected function handleInvalidTagToken(string $token, ParseContext $parseContext): void
-    {
-        throw SyntaxException::missingTagTerminator($token, $parseContext);
     }
 
     protected static function whitespaceHandler(string $token, ParseContext $parseContext, array $nodeList): array
