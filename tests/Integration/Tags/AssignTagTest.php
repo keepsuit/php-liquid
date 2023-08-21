@@ -2,9 +2,9 @@
 
 use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\ErrorMode;
-use Keepsuit\Liquid\ResourceLimitException;
+use Keepsuit\Liquid\Exceptions\ResourceLimitException;
+use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\ResourceLimits;
-use Keepsuit\Liquid\SyntaxException;
 use Keepsuit\Liquid\Template;
 
 test('assign with hyphen in variable name', function () {
@@ -39,12 +39,12 @@ test('assigned with filter', function () {
 });
 
 test('assign syntax error', function () {
-    expect(fn () => parseTemplate('{% assign foo not values %}.'))
+    expect(fn () => renderTemplate('{% assign foo not values %}.'))
         ->toThrow(SyntaxException::class, 'assign');
 });
 
 test('assign uses error mode', function () {
-    expect(fn () => parseTemplate("{% assign foo = ('X' | downcase) %}", errorMode: ErrorMode::Strict))
+    expect(fn () => renderTemplate("{% assign foo = ('X' | downcase) %}", errorMode: ErrorMode::Strict))
         ->toThrow(SyntaxException::class, 'expected DotDot, got Pipe');
 
     assertTemplateResult(
@@ -65,11 +65,11 @@ test('expression with whitespace in square brackets', function () {
 test('assign score exceeding resource limit', function () {
     $template = Template::parse('{% assign foo = 42 %}{% assign bar = 23 %}');
 
-    $context = new Context(resourceLimits: new ResourceLimits(assignScoreLimit: 1));
+    $context = new Context(rethrowExceptions: true, resourceLimits: new ResourceLimits(assignScoreLimit: 1));
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
     expect($context->resourceLimits->reached())->toBeTrue();
 
-    $context = new Context(resourceLimits: new ResourceLimits(assignScoreLimit: 2));
+    $context = new Context(rethrowExceptions: true, resourceLimits: new ResourceLimits(assignScoreLimit: 2));
     expect($template->render($context))->toBe('');
     expect($context->resourceLimits->reached())->toBeFalse();
     expect($context->resourceLimits->getAssignScope())->toBe(2);
@@ -78,11 +78,11 @@ test('assign score exceeding resource limit', function () {
 test('assign score exceeding resource limit from composite object', function () {
     $template = Template::parse("{% assign foo = 'aaaa' | split: '' %}");
 
-    $context = new Context(resourceLimits: new ResourceLimits(assignScoreLimit: 3));
+    $context = new Context(rethrowExceptions: true, resourceLimits: new ResourceLimits(assignScoreLimit: 3));
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
     expect($context->resourceLimits->reached())->toBeTrue();
 
-    $context = new Context(resourceLimits: new ResourceLimits(assignScoreLimit: 5));
+    $context = new Context(rethrowExceptions: true, resourceLimits: new ResourceLimits(assignScoreLimit: 5));
     expect($template->render($context))->toBe('');
     expect($context->resourceLimits->reached())->toBeFalse();
     expect($context->resourceLimits->getAssignScope())->toBe(5);
@@ -108,7 +108,7 @@ test('assign score of array', function () {
 
 function assignScoreOf(mixed $value): int
 {
-    $context = new Context(staticEnvironment: ['value' => $value]);
+    $context = new Context(rethrowExceptions: true, staticEnvironment: ['value' => $value]);
     Template::parse('{% assign obj = value %}')->render($context);
 
     return $context->resourceLimits->getAssignScope();

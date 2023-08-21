@@ -2,9 +2,13 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Arr;
+use Keepsuit\Liquid\Context;
+use Keepsuit\Liquid\Drops\TableRowLoopDrop;
+use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
+use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Regex;
-use Keepsuit\Liquid\SyntaxException;
 use Keepsuit\Liquid\TagBlock;
 use Keepsuit\Liquid\Tokenizer;
 
@@ -17,6 +21,11 @@ class TableRowTag extends TagBlock implements HasParseTreeVisitorChildren
     protected mixed $collectionName;
 
     protected array $attributes = [];
+
+    public static function tagName(): string
+    {
+        return 'tablerow';
+    }
 
     public function parse(Tokenizer $tokenizer): static
     {
@@ -38,9 +47,51 @@ class TableRowTag extends TagBlock implements HasParseTreeVisitorChildren
         return $this;
     }
 
-    public static function tagName(): string
+    public function render(Context $context): string
     {
-        return 'tablerow';
+        $collection = $context->evaluate($this->collectionName) ?? [];
+        $collection = match (true) {
+            $collection instanceof \Iterator => iterator_to_array($collection),
+            is_string($collection) => str_split($collection),
+            default => $collection
+        };
+        assert(is_array($collection));
+
+        $offset = Arr::has($this->attributes, 'offset') ? ($context->evaluate($this->attributes['offset']) ?? 0) : 0;
+        assert(is_int($offset), new InvalidArgumentException('invalid integer'));
+        $length = Arr::has($this->attributes, 'limit') ? ($context->evaluate($this->attributes['limit']) ?? 0) : null;
+        assert($length === null || is_int($length), new InvalidArgumentException('invalid integer'));
+
+        $collection = array_slice($collection, $offset, $length);
+        $length = count($collection);
+
+        $cols = Arr::has($this->attributes, 'cols') ? ($context->evaluate($this->attributes['cols']) ?? 0) : count($collection);
+        assert(is_int($cols), new InvalidArgumentException('invalid integer'));
+
+        $output = '<tr class="row1">';
+
+        $context->stack(function () use ($collection, $context, $cols, $length, &$output) {
+            $tableRowLoop = new TableRowLoopDrop($length, $cols);
+            $context->set('tablerowloop', $tableRowLoop);
+
+            foreach ($collection as $item) {
+                $context->set($this->variableName, $item);
+
+                $output .= sprintf('<td class="col%s">', $tableRowLoop->col);
+                $output .= parent::render($context);
+                $output .= '</td>';
+
+                if ($tableRowLoop->col_last && ! $tableRowLoop->last) {
+                    $output .= sprintf('</tr><tr class="row%s">', $tableRowLoop->row + 1);
+                }
+
+                $tableRowLoop->increment();
+            }
+        });
+
+        $output .= '</tr>';
+
+        return $output;
     }
 
     public function parseTreeVisitorChildren(): array

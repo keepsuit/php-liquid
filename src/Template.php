@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Exceptions\SyntaxException;
+
 class Template
 {
     protected static TagRegistry $tagRegistry;

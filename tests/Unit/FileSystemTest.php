@@ -1,6 +1,6 @@
 <?php
 
-use Keepsuit\Liquid\FileSystemException;
+use Keepsuit\Liquid\Exceptions\FileSystemException;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\FileSystems\LocalFileSystem;
 

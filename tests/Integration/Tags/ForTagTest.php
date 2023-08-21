@@ -1,7 +1,7 @@
 <?php
 
 use Keepsuit\Liquid\Context;
-use Keepsuit\Liquid\SyntaxException;
+use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\Tests\Stubs\ErrorDrop;
 use Keepsuit\Liquid\Tests\Stubs\LoaderDrop;
@@ -61,7 +61,7 @@ test('for with range', function () {
         '{%for item in (1..3) %} {{item}} {%endfor%}'
     );
 
-    expect(fn () => parseTemplate('{% for i in (a..2) %}{% endfor %}', assigns: ['a' => [1, 2]]))->toThrow('Invalid integer');
+    expect(fn () => renderTemplate('{% for i in (a..2) %}{% endfor %}', assigns: ['a' => [1, 2]]))->toThrow('Invalid integer');
 
     assertTemplateResult(
         ' 0  1  2  3 ',
@@ -165,7 +165,7 @@ test('limiting with invalid limit', function () {
       {% endfor %}
     LIQUID;
 
-    expect(fn () => parseTemplate($template, assigns: $assigns))->toThrow(InvalidArgumentException::class, 'Invalid integer');
+    expect(fn () => renderTemplate($template, assigns: $assigns))->toThrow(InvalidArgumentException::class, 'Invalid integer');
 });
 
 test('limiting with invalid offset', function () {
@@ -176,7 +176,7 @@ test('limiting with invalid offset', function () {
       {% endfor %}
     LIQUID;
 
-    expect(fn () => parseTemplate($template, assigns: $assigns))->toThrow(InvalidArgumentException::class, 'Invalid integer');
+    expect(fn () => renderTemplate($template, assigns: $assigns))->toThrow(InvalidArgumentException::class, 'Invalid integer');
 });
 
 test('dynamic variable limiting', function () {
@@ -345,7 +345,7 @@ test('for parentloop references parent loop', function () {
 });
 
 test('bad variable naming in for loop', function () {
-    expect(fn () => parseTemplate('{% for a/b in x %}{% endfor %}'))->toThrow(SyntaxException::class);
+    expect(fn () => renderTemplate('{% for a/b in x %}{% endfor %}'))->toThrow(SyntaxException::class);
 });
 
 test('spacing with variable naming in for loop', function () {

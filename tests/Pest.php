@@ -2,7 +2,7 @@
 
 use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\ErrorMode;
-use Keepsuit\Liquid\SyntaxException;
+use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Template;
 use PHPUnit\Framework\ExpectationFailedException;
 
@@ -18,27 +18,44 @@ function fixture(string $path): string
 /**
  * @throws SyntaxException
  */
-function parseTemplate(string $template, array $assigns = [], array $registers = [], ErrorMode $errorMode = null): string
-{
+function renderTemplate(
+    string $template,
+    array $assigns = [],
+    array $registers = [],
+    ErrorMode $errorMode = null,
+    bool $renderErrors = false,
+): string {
     $template = Template::parse($template, lineNumbers: true, errorMode: $errorMode);
     $context = new Context(
         registers: $registers,
-        rethrowExceptions: true,
+        rethrowExceptions: ! $renderErrors,
         staticEnvironment: $assigns,
     );
 
     return $template->render($context);
 }
 
-function assertTemplateResult(string $expected, string $template, array $assigns = [], array $registers = [], ErrorMode $errorMode = null): void
-{
-    expect(parseTemplate($template, $assigns, $registers, $errorMode))->toBe($expected);
+function assertTemplateResult(
+    string $expected,
+    string $template,
+    array $assigns = [],
+    array $registers = [],
+    ErrorMode $errorMode = null,
+    bool $renderErrors = false,
+): void {
+    expect(renderTemplate(
+        template: $template,
+        assigns: $assigns,
+        registers: $registers,
+        errorMode: $errorMode,
+        renderErrors: $renderErrors
+    ))->toBe($expected);
 }
 
 function assertMatchSyntaxError(string $error, string $template, array $assigns = [], array $registers = [], ErrorMode $errorMode = null): void
 {
     try {
-        parseTemplate($template, $assigns, $registers, $errorMode);
+        renderTemplate($template, $assigns, $registers, $errorMode);
     } catch (SyntaxException $exception) {
         expect((string) $exception)->toBe($error);
 

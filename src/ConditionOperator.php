@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Exceptions\SyntaxException;
+
 enum ConditionOperator
 {
     case Equal;

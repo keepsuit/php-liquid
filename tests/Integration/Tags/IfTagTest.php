@@ -1,6 +1,6 @@
 <?php
 
-use Keepsuit\Liquid\SyntaxException;
+use Keepsuit\Liquid\Exceptions\SyntaxException;
 
 afterEach(function () {
     \Keepsuit\Liquid\Condition::resetOperators();
@@ -128,11 +128,11 @@ test('else if', function () {
 });
 
 test('throw exception with no expression', function () {
-    expect(fn () => parseTemplate('{% if %}'))->toThrow(SyntaxException::class);
+    expect(fn () => renderTemplate('{% if %}'))->toThrow(SyntaxException::class);
 });
 
 test('operators are isolated', function () {
-    expect(fn () => parseTemplate('{% if 1 or throw or or 1 %}yes{% endif %}'))->toThrow(SyntaxException::class);
+    expect(fn () => renderTemplate('{% if 1 or throw or or 1 %}yes{% endif %}'))->toThrow(SyntaxException::class);
 });
 
 test('multiple conditions', function (string $result, array $assigns) {

@@ -1,8 +1,8 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Exceptions;
 
-class TranslationException extends \Exception
+class TranslationException extends LiquidException
 {
     public static function keyNotExists(string $key, string $path): TranslationException
     {

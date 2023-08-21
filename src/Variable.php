@@ -18,7 +18,7 @@ class Variable implements HasParseTreeVisitorChildren, CanBeRendered, CanBeEvalu
 
     protected mixed $name = null;
 
-    protected ?int $lineNumber = null;
+    public readonly ?int $lineNumber;
 
     /**
      * @var array<array{0:string,1:array}>

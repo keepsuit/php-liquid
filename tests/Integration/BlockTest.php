@@ -1,10 +1,10 @@
 <?php
 
-use Keepsuit\Liquid\SyntaxException;
+use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Template;
 
 test('unexpected end tag', function () {
-    expect(fn () => parseTemplate('{% if true %}{% endunless %}'))
+    expect(fn () => renderTemplate('{% if true %}{% endunless %}'))
         ->toThrow(SyntaxException::class, "'endunless' is not a valid delimiter for if tags. use endif");
 });
 

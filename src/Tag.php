@@ -4,7 +4,7 @@ namespace Keepsuit\Liquid;
 
 abstract class Tag implements CanBeRendered
 {
-    protected ?int $lineNumber = null;
+    public readonly ?int $lineNumber;
 
     final public function __construct(
         protected string $markup,

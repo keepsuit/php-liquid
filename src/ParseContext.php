@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Exceptions\SyntaxException;
+
 class ParseContext
 {
     public readonly I18n $locale;

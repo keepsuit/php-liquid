@@ -1,6 +1,6 @@
 <?php
 
-use Keepsuit\Liquid\TranslationException;
+use Keepsuit\Liquid\Exceptions\TranslationException;
 
 beforeEach(function () {
     $this->i18n = new Keepsuit\Liquid\I18n(fixture('en_locale.yml'));

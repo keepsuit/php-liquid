@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Exceptions\TranslationException;
+
 class I18n
 {
     public readonly string $path;

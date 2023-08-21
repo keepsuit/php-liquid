@@ -3,7 +3,7 @@
 namespace Keepsuit\Liquid\Tests\Stubs;
 
 use Keepsuit\Liquid\Drop;
-use Keepsuit\Liquid\SyntaxException;
+use Keepsuit\Liquid\Exceptions\SyntaxException;
 
 class ErrorDrop extends Drop
 {

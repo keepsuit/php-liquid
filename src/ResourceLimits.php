@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid;
 
 use Closure;
+use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 
 class ResourceLimits
 {

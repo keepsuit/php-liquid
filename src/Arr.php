@@ -29,6 +29,11 @@ class Arr
         return $default instanceof Closure ? $default() : $default;
     }
 
+    public static function has(array $array, string $key): bool
+    {
+        return array_key_exists($key, $array);
+    }
+
     public static function flatten(array $array, float $depth = INF): array
     {
         $result = [];

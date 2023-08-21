@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid;
 
 use Exception;
+use Keepsuit\Liquid\Exceptions\SyntaxException;
 
 class Lexer
 {

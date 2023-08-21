@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\FileSystems;
 
-use Keepsuit\Liquid\FileSystemException;
+use Keepsuit\Liquid\Exceptions\FileSystemException;
 use Keepsuit\Liquid\LiquidFileSystem;
 
 class LocalFileSystem implements LiquidFileSystem

@@ -6,11 +6,16 @@ class IteratorDrop implements \Iterator
 {
     protected int $index = 0;
 
-    protected array $data = [
-        ['foo' => 1, 'bar' => 2],
-        ['foo' => 2, 'bar' => 1],
-        ['foo' => 3, 'bar' => 3],
-    ];
+    protected array $data;
+
+    public function __construct(array $data = null)
+    {
+        $this->data = $data ?? [
+            ['foo' => 1, 'bar' => 2],
+            ['foo' => 2, 'bar' => 1],
+            ['foo' => 3, 'bar' => 3],
+        ];
+    }
 
     public function current(): mixed
     {

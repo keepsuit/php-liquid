@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Exceptions\SyntaxException;
+
 trait ParserSwitching
 {
     abstract protected function strictParse(string $markup): mixed;

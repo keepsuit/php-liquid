@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Exceptions\SyntaxException;
+
 class Document implements CanBeRendered
 {
     public function __construct(

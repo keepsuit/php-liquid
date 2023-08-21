@@ -1,8 +1,8 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Exceptions;
 
-class ResourceLimitException extends \Exception
+class ResourceLimitException extends LiquidException
 {
     public function __construct()
     {

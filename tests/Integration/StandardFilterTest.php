@@ -529,7 +529,7 @@ test('divided by', function () {
     assertTemplateResult('4', '{{ 14 | divided_by:3 }}');
 
     assertTemplateResult('5', '{{ 15 | divided_by:3 }}');
-    expect(fn () => parseTemplate('{{ 5 | divided_by:0 }}'))->toThrow(DivisionByZeroError::class);
+    expect(fn () => renderTemplate('{{ 5 | divided_by:0 }}'))->toThrow(DivisionByZeroError::class);
 
     assertTemplateResult('0.5', '{{ 2.0 | divided_by:4 }}');
     assertTemplateResult('5', '{{ price | divided_by:2 }}', ['price' => new NumberDrop(10)]);
@@ -537,7 +537,7 @@ test('divided by', function () {
 
 test('modulo', function () {
     assertTemplateResult('1', '{{ 3 | modulo:2 }}');
-    expect(fn () => parseTemplate('{{ 1 | modulo: 0 }}'))->toThrow(DivisionByZeroError::class);
+    expect(fn () => renderTemplate('{{ 1 | modulo: 0 }}'))->toThrow(DivisionByZeroError::class);
     assertTemplateResult('1', '{{ price | modulo:2 }}', ['price' => new NumberDrop(3)]);
 });
 
@@ -747,7 +747,7 @@ test('sum with unindexable values', function () {
 test('sum without property calls to liquid', function () {
     $t = new ThingWithParamToLiquid();
 
-    parseTemplate('{{ foo | sum }}', assigns: ['foo' => [$t]]);
+    renderTemplate('{{ foo | sum }}', assigns: ['foo' => [$t]]);
 
     expect($t->value)->toBe(1);
 });
@@ -755,7 +755,7 @@ test('sum without property calls to liquid', function () {
 test('sum with property calls to liquid on property values', function () {
     $t = new ThingWithParamToLiquid();
 
-    parseTemplate('{{ foo | sum: "quantity" }}', assigns: ['foo' => [['quantity' => $t]]]);
+    renderTemplate('{{ foo | sum: "quantity" }}', assigns: ['foo' => [['quantity' => $t]]]);
 
     expect($t->value)->toBe(1);
 });

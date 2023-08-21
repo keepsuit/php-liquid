@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid;
 
 use Closure;
+use Keepsuit\Liquid\Exceptions\LiquidException;
 use RuntimeException;
 
 class Context
@@ -28,6 +29,11 @@ class Context
      * @var array<Interrupt>
      */
     protected array $interrupts = [];
+
+    /**
+     * @var array<\Throwable>
+     */
+    protected array $errors = [];
 
     protected FilterRegistry $filterRegistry;
 
@@ -195,5 +201,25 @@ class Context
     public function hasInterrupt(): bool
     {
         return count($this->interrupts) > 0;
+    }
+
+    /**
+     * @throws \Throwable
+     */
+    public function handleError(\Throwable $error, int $lineNumber = null): string
+    {
+        if (! ($error instanceof LiquidException)) {
+            throw $error;
+        }
+
+        $error->setLineNumber($lineNumber);
+
+        $this->errors[] = $error;
+
+        if ($this->rethrowExceptions) {
+            throw $error;
+        }
+
+        return (string) $error;
     }
 }

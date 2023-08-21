@@ -1,11 +1,13 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Exceptions;
 
-class SyntaxException extends \Exception
+use Keepsuit\Liquid\ParseContext;
+use Keepsuit\Liquid\Regex;
+use Keepsuit\Liquid\TokenType;
+
+class SyntaxException extends LiquidException
 {
-    public ?int $markupLine = null;
-
     public ?string $tagName = null;
 
     public static function missingTagTerminator(string $token, ParseContext $parseContext): self
@@ -78,19 +80,8 @@ class SyntaxException extends \Exception
         return new SyntaxException(sprintf('Unexpected character: %s', $character));
     }
 
-    public function setLineNumber(?int $lineNumber): static
+    protected function messagePrefix(): string
     {
-        $this->markupLine = $lineNumber;
-
-        return $this;
-    }
-
-    public function __toString(): string
-    {
-        return sprintf(
-            'Liquid syntax error%s: %s',
-            $this->markupLine ? sprintf(' (line %s)', $this->markupLine) : '',
-            $this->getMessage()
-        );
+        return 'Liquid syntax error';
     }
 }

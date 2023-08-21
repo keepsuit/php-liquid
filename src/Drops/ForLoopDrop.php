@@ -5,13 +5,14 @@ namespace Keepsuit\Liquid\Drops;
 use Keepsuit\Liquid\Drop;
 
 /**
- * @property-read bool $first
- * @property-read bool $last
- * @property-read int  $index
- * @property-read int  $index0
- * @property-read int  $rindex
- * @property-read int  $rindex0
- * @property-read int  $length
+ * @property-read bool             $first      Returns true if the current iteration is the first. Returns false if not.
+ * @property-read bool             $last       Returns true if the current iteration is the last. Returns false if not.
+ * @property-read int              $index      The 1-based index of the current iteration.
+ * @property-read int              $index0     The 0-based index of the current iteration.
+ * @property-read int              $rindex     The 1-based index of the current iteration, in reverse order.
+ * @property-read int              $rindex0    The 0-based index of the current iteration, in reverse order.
+ * @property-read int              $length     The total number of iterations in the loop.
+ * @property-read ForLoopDrop|null $parentloop The parent forloop object. If the current for loop isn’t nested inside another for loop, then null is returned.
  */
 class ForLoopDrop extends Drop
 {

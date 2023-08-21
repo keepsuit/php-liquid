@@ -6,9 +6,9 @@ use Keepsuit\Liquid\BlockBodySection;
 use Keepsuit\Liquid\Condition;
 use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\ElseCondition;
+use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Regex;
-use Keepsuit\Liquid\SyntaxException;
 use Keepsuit\Liquid\TagBlock;
 use Keepsuit\Liquid\Tokenizer;
 
