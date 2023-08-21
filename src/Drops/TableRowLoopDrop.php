@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid\Drops;
 
+use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
+
 /**
  * @property int  $col          The 1-based index of the current column.
  * @property int  $col0         The 0-based index of the current column.
@@ -57,7 +59,7 @@ class TableRowLoopDrop
             'rindex' => $this->length - $this->index,
             'rindex0' => $this->length - $this->index - 1,
             'row' => $this->row,
-            default => throw new \InvalidArgumentException('Unknown property: '.$name),
+            default => throw new InvalidArgumentException('Unknown property: '.$name),
         };
     }
 }

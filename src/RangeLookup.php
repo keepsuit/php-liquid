@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
+
 class RangeLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
 {
     final public function __construct(
@@ -38,7 +40,7 @@ class RangeLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
             is_numeric($value) => (int) $value,
             is_string($value) => intval($value),
             $value === null => 0,
-            default => throw new \InvalidArgumentException('Invalid integer'),
+            default => throw new InvalidArgumentException('Invalid integer'),
         };
     }
 }

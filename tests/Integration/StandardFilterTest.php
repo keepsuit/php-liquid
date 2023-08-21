@@ -1,5 +1,6 @@
 <?php
 
+use Keepsuit\Liquid\Exceptions\ArithmeticException;
 use Keepsuit\Liquid\Tests\Stubs\BooleanDrop;
 use Keepsuit\Liquid\Tests\Stubs\NumberDrop;
 use Keepsuit\Liquid\Tests\Stubs\TestDrop;
@@ -529,7 +530,7 @@ test('divided by', function () {
     assertTemplateResult('4', '{{ 14 | divided_by:3 }}');
 
     assertTemplateResult('5', '{{ 15 | divided_by:3 }}');
-    expect(fn () => renderTemplate('{{ 5 | divided_by:0 }}'))->toThrow(DivisionByZeroError::class);
+    expect(fn () => renderTemplate('{{ 5 | divided_by:0 }}'))->toThrow(ArithmeticException::class);
 
     assertTemplateResult('0.5', '{{ 2.0 | divided_by:4 }}');
     assertTemplateResult('5', '{{ price | divided_by:2 }}', ['price' => new NumberDrop(10)]);
@@ -537,7 +538,7 @@ test('divided by', function () {
 
 test('modulo', function () {
     assertTemplateResult('1', '{{ 3 | modulo:2 }}');
-    expect(fn () => renderTemplate('{{ 1 | modulo: 0 }}'))->toThrow(DivisionByZeroError::class);
+    expect(fn () => renderTemplate('{{ 1 | modulo: 0 }}'))->toThrow(ArithmeticException::class);
     assertTemplateResult('1', '{{ price | modulo:2 }}', ['price' => new NumberDrop(3)]);
 });
 

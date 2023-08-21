@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid\Drops;
 
 use Keepsuit\Liquid\Drop;
+use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 
 /**
  * @property-read bool             $first      Returns true if the current iteration is the first. Returns false if not.
@@ -41,7 +42,7 @@ class ForLoopDrop extends Drop
             'rindex0' => $this->length - $this->index - 1,
             'length' => $this->length,
             'parentloop' => $this->parentLoop,
-            default => throw new \InvalidArgumentException('Unknown property: '.$name),
+            default => throw new InvalidArgumentException('Unknown property: '.$name),
         };
     }
 }

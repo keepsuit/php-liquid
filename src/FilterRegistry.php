@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
+
 class FilterRegistry
 {
     /**
@@ -34,7 +36,7 @@ class FilterRegistry
     public function addFilter(string $filterClass): static
     {
         if (! class_exists($filterClass)) {
-            throw new \InvalidArgumentException("Filter class $filterClass does not exist.");
+            throw new InvalidArgumentException("Filter class $filterClass does not exist.");
         }
 
         $reflection = new \ReflectionClass($filterClass);

@@ -3,6 +3,8 @@
 namespace Keepsuit\Liquid;
 
 use Closure;
+use Keepsuit\Liquid\Exceptions\ArithmeticException;
+use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\LiquidException;
 use RuntimeException;
 
@@ -208,9 +210,11 @@ class Context
      */
     public function handleError(\Throwable $error, int $lineNumber = null): string
     {
-        if (! ($error instanceof LiquidException)) {
-            throw $error;
-        }
+        $error = match (true) {
+            $error instanceof LiquidException => $error,
+            $error instanceof \ArithmeticError => new ArithmeticException($error),
+            default => new InternalException($error),
+        };
 
         $error->setLineNumber($lineNumber);
 

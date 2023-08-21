@@ -7,6 +7,7 @@ use Keepsuit\Liquid\BlockBodySection;
 use Keepsuit\Liquid\BreakInterrupt;
 use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\Drops\ForLoopDrop;
+use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Parser;
@@ -158,12 +159,12 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
             $offset = $offsets[$this->name];
         } else {
             $fromValue = $context->evaluate($this->from);
-            $offset = $fromValue === null ? 0 : (is_numeric($fromValue) ? (int) $fromValue : throw new \InvalidArgumentException('Invalid integer'));
+            $offset = $fromValue === null ? 0 : (is_numeric($fromValue) ? (int) $fromValue : throw new InvalidArgumentException('Invalid integer'));
         }
         assert(is_int($offset));
 
         $limitValue = $context->evaluate($this->limit);
-        $length = $limitValue === null ? null : (is_numeric($limitValue) ? (int) $limitValue : throw new \InvalidArgumentException('Invalid integer'));
+        $length = $limitValue === null ? null : (is_numeric($limitValue) ? (int) $limitValue : throw new InvalidArgumentException('Invalid integer'));
 
         $segment = array_slice($collection, $offset, $length);
         $segment = $this->reversed ? array_reverse($segment) : $segment;
