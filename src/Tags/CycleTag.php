@@ -18,7 +18,7 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
 
     protected array $variables = [];
 
-    protected string $name = '';
+    protected mixed $name;
 
     public static function tagName(): string
     {
@@ -47,6 +47,7 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
         $output = '';
 
         $register = $context->getRegister('cycle') ?? [];
+        assert(is_array($register));
         $key = $context->evaluate($this->name);
 
         $iteration = $register[$key] ?? 0;

@@ -51,17 +51,38 @@ enum ConditionOperator
     protected function regularEvaluation(mixed $left, mixed $right): bool
     {
         return match ($this) {
-            ConditionOperator::Equal => $left === $right,
-            ConditionOperator::NotEqual => $left !== $right,
+            ConditionOperator::Equal => $this->evaluateEqual($left, $right),
+            ConditionOperator::NotEqual => ! $this->evaluateEqual($left, $right),
             ConditionOperator::GreaterThan => $left > $right,
             ConditionOperator::GreaterThanOrEqual => $left >= $right,
             ConditionOperator::LessThan => $left < $right,
             ConditionOperator::LessThanOrEqual => $left <= $right,
-            ConditionOperator::Contains => $this->contains($left, $right),
+            ConditionOperator::Contains => $this->evaluateContains($left, $right),
         };
     }
 
-    protected function contains(mixed $left, mixed $right): bool
+    protected function evaluateEqual(mixed $left, mixed $right): bool
+    {
+        if ($left === $right) {
+            return true;
+        }
+
+        [$left, $right] = match (true) {
+            $right instanceof Literal => [$right, $left],
+            default => [$left, $right],
+        };
+
+        if ($left instanceof Literal) {
+            return match ($left) {
+                Literal::Empty => empty($right),
+                default => false
+            };
+        }
+
+        return false;
+    }
+
+    protected function evaluateContains(mixed $left, mixed $right): bool
     {
         return match (gettype($left)) {
             'array' => in_array($right, $left, true),
@@ -70,6 +91,9 @@ enum ConditionOperator
         };
     }
 
+    /**
+     * @return never-returns
+     */
     protected function throwCompareTypesException(mixed $left, mixed $right): void
     {
         throw new \RuntimeException(sprintf('Cannot compare %s with %s', gettype($left), gettype($right)));

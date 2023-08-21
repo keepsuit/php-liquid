@@ -20,8 +20,8 @@ class Expression
         '' => null,
         'true' => true,
         'false' => false,
-        'blank' => '',
-        'empty' => '',
+        'blank' => Literal::Blank,
+        'empty' => Literal::Empty,
     ];
 
     public static function parse(?string $markup): mixed
