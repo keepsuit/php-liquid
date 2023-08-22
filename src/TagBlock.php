@@ -40,7 +40,13 @@ abstract class TagBlock extends Tag
 
     public function blank(): bool
     {
-        return $this->bodySections === [];
+        foreach ($this->bodySections as $bodySection) {
+            if (! $bodySection->blank()) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function nodeList(): array

@@ -89,4 +89,34 @@ class BlockBodySection implements CanBeRendered
 
         return $output;
     }
+
+    public function blank(): bool
+    {
+        foreach ($this->nodeList as $node) {
+            if (is_string($node) && Str::blank($node)) {
+                continue;
+            }
+
+            if (is_string($node) || $node instanceof Variable) {
+                return false;
+            }
+
+            if ($node->blank()) {
+                continue;
+            }
+
+            return false;
+        }
+
+        return true;
+    }
+
+    public function removeBlankStrings(): void
+    {
+        if (! $this->blank()) {
+            throw new \RuntimeException('Cannot remove blank strings from non-blank section');
+        }
+
+        $this->nodeList = array_filter($this->nodeList, fn ($node) => ! is_string($node));
+    }
 }

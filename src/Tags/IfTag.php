@@ -55,6 +55,9 @@ class IfTag extends TagBlock implements HasParseTreeVisitorChildren
 
         assert($condition instanceof Condition);
 
+        if ($section->blank()) {
+            $section->removeBlankStrings();
+        }
         $condition->attach($section);
 
         return $condition;

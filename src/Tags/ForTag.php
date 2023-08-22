@@ -56,6 +56,11 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
 
         $this->strictParseWithErrorModeFallback($this->forBlock->startDelimiter()->markup ?? '', $this->parseContext);
 
+        if ($this->blank()) {
+            $this->forBlock->removeBlankStrings();
+            $this->elseBlock?->removeBlankStrings();
+        }
+
         return $this;
     }
 

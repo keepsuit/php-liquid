@@ -93,4 +93,12 @@ class Str
 
         return $subject;
     }
+
+    /**
+     * Check if the given string contains only empty space.
+     */
+    public static function blank(string $value): bool
+    {
+        return trim($value) === '';
+    }
 }

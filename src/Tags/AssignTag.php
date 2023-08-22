@@ -19,6 +19,11 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
 
     protected Variable $from;
 
+    public static function tagName(): string
+    {
+        return 'assign';
+    }
+
     public function parse(Tokenizer $tokenizer): static
     {
         parent::parse($tokenizer);
@@ -33,16 +38,6 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
         return $this;
     }
 
-    public static function tagName(): string
-    {
-        return 'assign';
-    }
-
-    public function parseTreeVisitorChildren(): array
-    {
-        return [$this->from];
-    }
-
     public function render(Context $context): string
     {
         $value = $this->from->evaluate($context);
@@ -51,6 +46,16 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
         $context->resourceLimits->incrementAssignScore(static::computeAssignScore($value));
 
         return '';
+    }
+
+    public function blank(): bool
+    {
+        return true;
+    }
+
+    public function parseTreeVisitorChildren(): array
+    {
+        return [$this->from];
     }
 
     protected static function computeAssignScore(mixed $value): int

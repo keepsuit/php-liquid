@@ -241,9 +241,8 @@ test('case when comma', function () {
 });
 
 test('case when comma and blank body', function () {
-    // TODO: Remove empty string when body is empty
     assertTemplateResult(
-        '  result',
+        'result',
         '{% case condition %}{% when 1, 2 %} {% assign r = "result" %} {% endcase %}{{ r }}',
         assigns: ['condition' => 2]
     );
