@@ -31,7 +31,7 @@ trait ParserSwitching
         try {
             return $this->strictParse($markup);
         } catch (SyntaxException $e) {
-            $e->setLineNumber($this->lineNumber);
+            $e->lineNumber = $this->lineNumber;
             throw $e;
         }
     }

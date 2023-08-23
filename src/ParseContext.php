@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid;
 
+use Closure;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 
 class ParseContext
@@ -44,5 +45,22 @@ class ParseContext
     public function logWarning(SyntaxException $e): void
     {
         $this->warnings[] = $e;
+    }
+
+    /**
+     * @template TResult
+     *
+     * @param  Closure(ParseContext $parseContext): TResult  $closure
+     * @return TResult
+     */
+    public function partial(Closure $closure)
+    {
+        $this->partial = true;
+
+        try {
+            return $closure($this);
+        } finally {
+            $this->partial = false;
+        }
     }
 }

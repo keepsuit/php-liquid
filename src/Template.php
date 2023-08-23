@@ -11,7 +11,8 @@ class Template
     public static ErrorMode $errorMode = ErrorMode::Warn;
 
     public function __construct(
-        public readonly Document $root
+        public readonly Document $root,
+        public readonly ?string $name = null,
     ) {
     }
 
@@ -28,6 +29,16 @@ class Template
 
         return new Template(
             root: Document::parse($tokenizer, $parseContext)
+        );
+    }
+
+    public static function parsePartial(string $source, ParseContext $parseContext, string $name = null): Template
+    {
+        $tokenizer = $parseContext->newTokenizer($source, startLineNumber: $parseContext->lineNumber !== null ? 1 : null);
+
+        return new Template(
+            root: Document::parse($tokenizer, $parseContext),
+            name: $name,
         );
     }
 

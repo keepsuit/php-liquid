@@ -6,16 +6,29 @@ use Closure;
 use Keepsuit\Liquid\Exceptions\ArithmeticException;
 use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\LiquidException;
+use Keepsuit\Liquid\Exceptions\StackLevelException;
+use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use RuntimeException;
 
 class Context
 {
     protected bool $strictVariables = false;
 
+    protected int $baseScopeDepth = 0;
+
+    protected ?string $templateName = null;
+
+    protected bool $partial = false;
+
     /**
      * @var array<array<string, mixed>>
      */
     protected array $scopes;
+
+    /**
+     * @var array<string, mixed>
+     */
+    protected array $registers = [];
 
     /**
      * @var array<array<string, mixed>>
@@ -39,15 +52,21 @@ class Context
 
     protected FilterRegistry $filterRegistry;
 
+    /**
+     * @var array<string, Template>
+     */
+    protected array $partialsCache = [];
+
     public function __construct(
         array $environment = [],
-        protected array $outerScope = [],
-        protected array $registers = [],
-        protected bool $rethrowExceptions = false,
-        public readonly ResourceLimits $resourceLimits = new ResourceLimits(),
         array $staticEnvironment = [],
+        protected array $outerScope = [],
+        //        protected array $registers = [],
         /** @var array<class-string> $filters */
         array $filters = [],
+        protected bool $rethrowExceptions = false,
+        public readonly ResourceLimits $resourceLimits = new ResourceLimits(),
+        public readonly LiquidFileSystem $fileSystem = new BlankFileSystem(),
     ) {
         $this->scopes = [$this->outerScope];
         $this->environments = [$environment];
@@ -216,7 +235,8 @@ class Context
             default => new InternalException($error),
         };
 
-        $error->setLineNumber($lineNumber);
+        $error->lineNumber = $lineNumber;
+        $error->templateName = $this->templateName;
 
         $this->errors[] = $error;
 
@@ -225,5 +245,62 @@ class Context
         }
 
         return (string) $error;
+    }
+
+    public function loadPartial(ParseContext $parseContext, string $templateName): Template
+    {
+        $cacheKey = sprintf('%s:%s', $templateName, $parseContext->errorMode->name);
+
+        if (Arr::has($this->partialsCache, $cacheKey)) {
+            return $this->partialsCache[$cacheKey];
+        }
+
+        $source = $this->fileSystem->readTemplateFile($templateName);
+
+        try {
+            $template = $parseContext->partial(function (ParseContext $parseContext) use ($templateName, $source) {
+                return Template::parsePartial($source, $parseContext, $templateName);
+            });
+        } catch (LiquidException $exception) {
+            $exception->templateName = $templateName;
+
+            throw $exception;
+        }
+
+        $this->partialsCache[$cacheKey] = $template;
+
+        return $template;
+    }
+
+    /**
+     * @throws StackLevelException
+     */
+    public function newIsolatedSubContext(?string $templateName): Context
+    {
+        $this->checkOverflow();
+
+        $subContext = new Context(
+            staticEnvironment: $this->staticEnvironments[0],
+            rethrowExceptions: $this->rethrowExceptions,
+            resourceLimits: $this->resourceLimits,
+            fileSystem: $this->fileSystem,
+        );
+        $subContext->baseScopeDepth = $this->baseScopeDepth + 1;
+        $subContext->filterRegistry = $this->filterRegistry;
+        $subContext->errors = $this->errors;
+        $subContext->templateName = $templateName;
+        $subContext->partial = true;
+
+        return $subContext;
+    }
+
+    /**
+     * @throws StackLevelException
+     */
+    protected function checkOverflow(): void
+    {
+        if ($this->baseScopeDepth + count($this->scopes) > TagBlock::MAX_DEPTH) {
+            throw new StackLevelException();
+        }
     }
 }

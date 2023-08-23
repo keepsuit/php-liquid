@@ -91,7 +91,7 @@ test('base64 encode', function () {
 test('base64 decode', function () {
     expect($this->filters->invoke('base64_decode', 'b25lIHR3byB0aHJlZQ=='))->toBe('one two three');
     expect($this->filters->invoke('base64_decode', null))->toBe('');
-    expect(fn () => $this->filters->invoke('base64_decode', 'invalidbase64'))->toThrow(InvalidArgumentException::class);
+    expect(fn () => $this->filters->invoke('base64_decode', 'invalidbase64'))->toThrow(\Keepsuit\Liquid\Exceptions\InvalidArgumentException::class);
 });
 
 test('url encode', function () {

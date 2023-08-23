@@ -124,4 +124,13 @@ class Arr
 
         return $response instanceof Closure ? $response() : $response;
     }
+
+    public static function last(array $array): mixed
+    {
+        if (empty($array)) {
+            return null;
+        }
+
+        return array_values($array)[count($array) - 1];
+    }
 }

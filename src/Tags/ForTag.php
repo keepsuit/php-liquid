@@ -64,6 +64,32 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
         return $this;
     }
 
+    public function render(Context $context): string
+    {
+        $segment = $this->collectionSegment($context);
+
+        if ($segment === []) {
+            return $this->renderElse($context);
+        }
+
+        return $this->renderSegment($context, $segment);
+    }
+
+    public function nodeList(): array
+    {
+        return $this->elseBlock ? [$this->forBlock, $this->elseBlock] : [$this->forBlock];
+    }
+
+    public function parseTreeVisitorChildren(): array
+    {
+        return Arr::compact([
+            ...$this->nodeList(),
+            $this->limit,
+            $this->from,
+            $this->collectionName,
+        ]);
+    }
+
     protected function strictParse(string $markup): mixed
     {
         $parser = new Parser($markup);
@@ -123,32 +149,6 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
     protected function isSubTag(string $tagName): bool
     {
         return in_array($tagName, ['else'], true);
-    }
-
-    public function nodeList(): array
-    {
-        return $this->elseBlock ? [$this->forBlock, $this->elseBlock] : [$this->forBlock];
-    }
-
-    public function parseTreeVisitorChildren(): array
-    {
-        return Arr::compact([
-            ...$this->nodeList(),
-            $this->limit,
-            $this->from,
-            $this->collectionName,
-        ]);
-    }
-
-    public function render(Context $context): string
-    {
-        $segment = $this->collectionSegment($context);
-
-        if ($segment === []) {
-            return $this->renderElse($context);
-        }
-
-        return $this->renderSegment($context, $segment);
     }
 
     protected function collectionSegment(Context $context): array

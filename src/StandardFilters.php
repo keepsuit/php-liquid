@@ -3,8 +3,8 @@
 namespace Keepsuit\Liquid;
 
 use DateTime;
-use InvalidArgumentException;
 use Iterator;
+use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 
 class StandardFilters
 {
@@ -270,6 +270,7 @@ class StandardFilters
             return match (true) {
                 property_exists($input, $property) => $input->$property,
                 method_exists($input, $property) => $input->$property(),
+                $input instanceof \Traversable => $this->map(iterator_to_array($input), $property),
                 default => throw new InvalidArgumentException(sprintf(
                     'Property or method "%s" does not exist on object of type "%s"',
                     $property,

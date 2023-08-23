@@ -18,11 +18,11 @@ class Document implements CanBeRendered
             $bodySections = BlockParser::forDocument()->parse($tokenizer, $parseContext);
         } catch (SyntaxException $exception) {
             if (in_array($exception->tagName, ['else', 'end'])) {
-                throw SyntaxException::unexpectedOuterTag($parseContext, $exception->tagName ?? '')
-                    ->setLineNumber($parseContext->lineNumber);
+                $exception = SyntaxException::unexpectedOuterTag($parseContext, $exception->tagName ?? '');
             }
 
-            $exception->setLineNumber($parseContext->lineNumber);
+            $exception->lineNumber = $parseContext->lineNumber;
+
             throw $exception;
         }
 

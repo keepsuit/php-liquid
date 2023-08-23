@@ -4,6 +4,7 @@ use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\ErrorMode;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 use PHPUnit\Framework\ExpectationFailedException;
 
 uses()->beforeEach(function () {
@@ -22,15 +23,23 @@ function renderTemplate(
     string $template,
     array $assigns = [],
     array $registers = [],
+    array $partials = [],
     ErrorMode $errorMode = null,
     bool $renderErrors = false,
 ): string {
     $template = Template::parse($template, lineNumbers: true, errorMode: $errorMode);
+
+    $fileSystem = new StubFileSystem(partials: $partials);
+
     $context = new Context(
-        registers: $registers,
-        rethrowExceptions: ! $renderErrors,
         staticEnvironment: $assigns,
+        rethrowExceptions: ! $renderErrors,
+        fileSystem: $fileSystem,
     );
+
+    foreach ($registers as $key => $value) {
+        $context->setRegister($key, $value);
+    }
 
     return $template->render($context);
 }
@@ -40,6 +49,7 @@ function assertTemplateResult(
     string $template,
     array $assigns = [],
     array $registers = [],
+    array $partials = [],
     ErrorMode $errorMode = null,
     bool $renderErrors = false,
 ): void {
@@ -47,6 +57,7 @@ function assertTemplateResult(
         template: $template,
         assigns: $assigns,
         registers: $registers,
+        partials: $partials,
         errorMode: $errorMode,
         renderErrors: $renderErrors
     ))->toBe($expected);
@@ -55,7 +66,7 @@ function assertTemplateResult(
 function assertMatchSyntaxError(string $error, string $template, array $assigns = [], array $registers = [], ErrorMode $errorMode = null): void
 {
     try {
-        renderTemplate($template, $assigns, $registers, $errorMode);
+        renderTemplate(template: $template, assigns: $assigns, registers: $registers, errorMode: $errorMode);
     } catch (SyntaxException $exception) {
         expect((string) $exception)->toBe($error);
 

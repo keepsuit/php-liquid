@@ -2,9 +2,11 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Exceptions\StackLevelException;
+
 abstract class TagBlock extends Tag
 {
-    protected const MAX_DEPTH = 100;
+    const MAX_DEPTH = 100;
 
     /**
      * @var array<BlockBodySection>
@@ -24,7 +26,7 @@ abstract class TagBlock extends Tag
     protected function parseBody(Tokenizer $tokenizer): array
     {
         if ($this->parseContext->depth >= self::MAX_DEPTH) {
-            throw new \RuntimeException('Nesting too deep');
+            throw new StackLevelException();
         }
 
         $this->parseContext->depth += 1;

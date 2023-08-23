@@ -2,7 +2,9 @@
 
 namespace Keepsuit\Liquid\Tests\Stubs;
 
-class IteratorDrop implements \Iterator
+use Keepsuit\Liquid\Drop;
+
+class IteratorDrop extends Drop implements \Iterator
 {
     protected int $index = 0;
 

@@ -4,21 +4,16 @@ namespace Keepsuit\Liquid\Exceptions;
 
 abstract class LiquidException extends \Exception
 {
-    protected ?int $markupLine = null;
+    public ?int $lineNumber = null;
 
-    public function setLineNumber(?int $lineNumber): static
-    {
-        $this->markupLine = $lineNumber;
-
-        return $this;
-    }
+    public ?string $templateName = null;
 
     public function __toString(): string
     {
         return sprintf(
             '%s%s: %s',
             $this->messagePrefix(),
-            $this->markupLine ? sprintf(' (line %s)', $this->markupLine) : '',
+            $this->lineNumber ? sprintf(' (%sline %s)', $this->templateName ? ($this->templateName.' ') : '', $this->lineNumber) : '',
             $this->getMessage()
         );
     }
