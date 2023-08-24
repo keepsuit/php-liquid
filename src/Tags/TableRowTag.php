@@ -54,7 +54,7 @@ class TableRowTag extends TagBlock implements HasParseTreeVisitorChildren
         $collection = match (true) {
             $collection instanceof Range => $collection->toArray(),
             $collection instanceof \Iterator => iterator_to_array($collection),
-            is_string($collection) => str_split($collection),
+            is_string($collection) => $collection === '' ? [] : str_split($collection),
             default => $collection
         };
         assert(is_array($collection));
