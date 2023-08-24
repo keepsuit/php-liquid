@@ -17,6 +17,6 @@ class StubFileSystem implements LiquidFileSystem
     {
         $this->fileReadCount += 1;
 
-        return $this->partials[$templatePath] ?? '';
+        return $this->partials[$templatePath] ?? throw new \RuntimeException('Template not found');
     }
 }

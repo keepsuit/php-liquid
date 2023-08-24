@@ -32,7 +32,13 @@ trait ParserSwitching
             return $this->strictParse($markup);
         } catch (SyntaxException $e) {
             $e->lineNumber = $this->lineNumber;
+            $e->markupContext = $this->markupContext($markup);
             throw $e;
         }
+    }
+
+    protected function markupContext(string $markup): string
+    {
+        return sprintf('in "%s"', trim($markup));
     }
 }

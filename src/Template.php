@@ -10,6 +10,16 @@ class Template
 
     public static ErrorMode $errorMode = ErrorMode::Warn;
 
+    /**
+     * @var array<\Throwable>
+     */
+    protected array $errors = [];
+
+    /**
+     * @var array<\Throwable>
+     */
+    protected array $warnings = [];
+
     public function __construct(
         public readonly Document $root,
         public readonly ?string $name = null,
@@ -44,7 +54,11 @@ class Template
 
     public function render(Context $context): string
     {
-        return $this->root->render($context);
+        try {
+            return $this->root->render($context);
+        } finally {
+            $this->errors = $context->getErrors();
+        }
     }
 
     /**
@@ -95,5 +109,15 @@ class Template
     public static function deleteTag(string $name): void
     {
         static::getTagRegistry()->delete($name);
+    }
+
+    public function getErrors(): array
+    {
+        return $this->errors;
+    }
+
+    public function getWarnings(): array
+    {
+        return $this->warnings;
     }
 }

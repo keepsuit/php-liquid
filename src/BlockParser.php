@@ -140,6 +140,10 @@ final class BlockParser
             $parseContext->lineNumber = $tokenizer->getLineNumber();
         }
 
+        if ($section->endDelimiter() === null && $this->endTag() !== null) {
+            throw SyntaxException::tagNeverClosed($this->tagName, $parseContext);
+        }
+
         return $sections;
     }
 

@@ -77,7 +77,7 @@ class BlockBodySection implements CanBeRendered
             try {
                 $output .= $node->render($context);
             } catch (\Throwable $exception) {
-                return $output.$context->handleError($exception, $node->lineNumber);
+                $output .= $context->handleError($exception, $node->lineNumber);
             }
 
             if ($context->hasInterrupt()) {

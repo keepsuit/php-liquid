@@ -77,7 +77,7 @@ class SyntaxException extends LiquidException
 
     public static function unexpectedCharacter(string $character): SyntaxException
     {
-        return new SyntaxException(sprintf('Unexpected character: %s', $character));
+        return new SyntaxException(sprintf('Unexpected character %s', $character));
     }
 
     protected function messagePrefix(): string

@@ -45,10 +45,7 @@ class Context
      */
     protected array $interrupts = [];
 
-    /**
-     * @var array<\Throwable>
-     */
-    protected array $errors = [];
+    protected ContextSharedState $sharedState;
 
     protected FilterRegistry $filterRegistry;
 
@@ -61,7 +58,6 @@ class Context
         array $environment = [],
         array $staticEnvironment = [],
         protected array $outerScope = [],
-        //        protected array $registers = [],
         /** @var array<class-string> $filters */
         array $filters = [],
         protected bool $rethrowExceptions = false,
@@ -72,6 +68,7 @@ class Context
         $this->environments = [$environment];
         $this->staticEnvironments = [$staticEnvironment];
         $this->filterRegistry = FilterRegistry::createWithFilters($this, $filters);
+        $this->sharedState = new ContextSharedState();
     }
 
     protected function push(array $newScope = []): void
@@ -238,13 +235,18 @@ class Context
         $error->lineNumber = $lineNumber;
         $error->templateName = $this->templateName;
 
-        $this->errors[] = $error;
+        $this->sharedState->errors[] = $error;
 
         if ($this->rethrowExceptions) {
             throw $error;
         }
 
         return (string) $error;
+    }
+
+    public function getErrors(): array
+    {
+        return $this->sharedState->errors;
     }
 
     public function loadPartial(ParseContext $parseContext, string $templateName): Template
@@ -287,7 +289,7 @@ class Context
         );
         $subContext->baseScopeDepth = $this->baseScopeDepth + 1;
         $subContext->filterRegistry = $this->filterRegistry;
-        $subContext->errors = $this->errors;
+        $subContext->sharedState = $this->sharedState;
         $subContext->templateName = $templateName;
         $subContext->partial = true;
 

@@ -32,13 +32,13 @@ class VariableLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
         return $matches[0];
     }
 
-    protected static function parseVariableName(string $name): mixed
+    protected static function parseVariableName(?string $name): mixed
     {
-        if (static::isWrappedInSquareBrackets($name)) {
-            return Expression::parse(substr($name, 1, -1));
-        }
-
-        return $name;
+        return match (true) {
+            $name === null => null,
+            static::isWrappedInSquareBrackets($name) => Expression::parse(substr($name, 1, -1)),
+            default => $name,
+        };
     }
 
     protected static function isWrappedInSquareBrackets(string $name): bool

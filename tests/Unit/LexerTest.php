@@ -88,5 +88,5 @@ test('fancy identifiers', function () {
 
 test('unexpected character', function () {
     expect(fn () => (new Lexer('%'))->tokenize())
-        ->toThrow(SyntaxException::class, 'Unexpected character: %');
+        ->toThrow(SyntaxException::class, 'Unexpected character %');
 });
