@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid;
 
+use ArithmeticError;
 use Closure;
 use Keepsuit\Liquid\Exceptions\ArithmeticException;
 use Keepsuit\Liquid\Exceptions\InternalException;
@@ -9,8 +10,9 @@ use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use RuntimeException;
+use Throwable;
 
-class Context
+final class Context
 {
     protected bool $strictVariables = false;
 
@@ -25,38 +27,26 @@ class Context
      */
     protected array $scopes;
 
-    /**
-     * @var array<string, mixed>
-     */
-    protected array $registers = [];
-
-    /**
-     * @var array<array<string, mixed>>
-     */
-    protected array $environments;
-
-    /**
-     * @var array<array<string, mixed>>
-     */
-    protected array $staticEnvironments;
+    protected ContextSharedState $sharedState;
 
     /**
      * @var array<Interrupt>
      */
     protected array $interrupts = [];
 
-    protected ContextSharedState $sharedState;
-
-    protected FilterRegistry $filterRegistry;
-
     /**
      * @var array<string, Template>
      */
     protected array $partialsCache = [];
 
+    protected ?FilterRegistry $filterRegistry = null;
+
     public function __construct(
-        array $environment = [],
-        array $staticEnvironment = [],
+        /** @var array<string, mixed> */
+        protected array $environment = [],
+        /** @var array<string, mixed> */
+        protected array $staticEnvironment = [],
+        /** array<string, mixed> */
         protected array $outerScope = [],
         /** @var array<class-string> $filters */
         array $filters = [],
@@ -65,10 +55,8 @@ class Context
         public readonly LiquidFileSystem $fileSystem = new BlankFileSystem(),
     ) {
         $this->scopes = [$this->outerScope];
-        $this->environments = [$environment];
-        $this->staticEnvironments = [$staticEnvironment];
-        $this->filterRegistry = FilterRegistry::createWithFilters($this, $filters);
-        $this->sharedState = new ContextSharedState();
+
+        $this->sharedState = new ContextSharedState(filters: $filters);
     }
 
     protected function push(array $newScope = []): void
@@ -154,18 +142,14 @@ class Context
 
     protected function tryFindVariableInEnvironments(string $key, bool $throwNotFound = true): mixed
     {
-        foreach ($this->environments as $environment) {
-            $foundVariable = $this->lookupAndEvaluate($environment, $key, $throwNotFound);
-            if ($foundVariable !== null) {
-                return $foundVariable;
-            }
+        $foundVariable = $this->lookupAndEvaluate($this->environment, $key, $throwNotFound);
+        if ($foundVariable !== null) {
+            return $foundVariable;
         }
 
-        foreach ($this->staticEnvironments as $environment) {
-            $foundVariable = $this->lookupAndEvaluate($environment, $key, $throwNotFound);
-            if ($foundVariable !== null) {
-                return $foundVariable;
-            }
+        $foundVariable = $this->lookupAndEvaluate($this->staticEnvironment, $key, $throwNotFound);
+        if ($foundVariable !== null) {
+            return $foundVariable;
         }
 
         return null;
@@ -173,27 +157,31 @@ class Context
 
     public function applyFilter(string $filter, mixed $value, mixed ...$args): mixed
     {
+        if ($this->filterRegistry === null) {
+            $this->filterRegistry = FilterRegistry::createWithFilters($this, $this->sharedState->filters);
+        }
+
         return $this->filterRegistry->invoke($filter, $value, ...$args);
     }
 
     public function getRegister(string $name): mixed
     {
-        return $this->registers[$name] ?? null;
+        return $this->sharedState->registers[$name] ?? null;
     }
 
     public function setRegister(string $name, mixed $value): mixed
     {
-        return $this->registers[$name] = $value;
+        return $this->sharedState->registers[$name] = $value;
     }
 
     public function getEnvironment(string $name): mixed
     {
-        return $this->environments[0][$name] ?? null;
+        return $this->environment[$name] ?? null;
     }
 
     public function setEnvironment(string $name, mixed $value): mixed
     {
-        return $this->environments[0][$name] = $value;
+        return $this->environment[$name] = $value;
     }
 
     public function setToActiveScope(string $key, mixed $value): array
@@ -222,13 +210,13 @@ class Context
     }
 
     /**
-     * @throws \Throwable
+     * @throws Throwable
      */
-    public function handleError(\Throwable $error, int $lineNumber = null): string
+    public function handleError(Throwable $error, int $lineNumber = null): string
     {
         $error = match (true) {
             $error instanceof LiquidException => $error,
-            $error instanceof \ArithmeticError => new ArithmeticException($error),
+            $error instanceof ArithmeticError => new ArithmeticException($error),
             default => new InternalException($error),
         };
 
@@ -282,13 +270,12 @@ class Context
         $this->checkOverflow();
 
         $subContext = new Context(
-            staticEnvironment: $this->staticEnvironments[0],
+            staticEnvironment: $this->staticEnvironment,
             rethrowExceptions: $this->rethrowExceptions,
             resourceLimits: $this->resourceLimits,
             fileSystem: $this->fileSystem,
         );
         $subContext->baseScopeDepth = $this->baseScopeDepth + 1;
-        $subContext->filterRegistry = $this->filterRegistry;
         $subContext->sharedState = $this->sharedState;
         $subContext->templateName = $templateName;
         $subContext->partial = true;
