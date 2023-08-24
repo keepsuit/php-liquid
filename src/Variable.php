@@ -151,6 +151,10 @@ class Variable implements HasParseTreeVisitorChildren, CanBeRendered, CanBeEvalu
     {
         $output = $this->evaluate($context);
 
+        if ($output instanceof CanBeRendered) {
+            return $output->render($context);
+        }
+
         if (is_array($output)) {
             return implode('', $output);
         }

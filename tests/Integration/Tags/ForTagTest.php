@@ -62,7 +62,7 @@ test('for with range', function () {
         '{%for item in (1..3) %} {{item}} {%endfor%}'
     );
 
-    expect(fn () => renderTemplate('{% for i in (a..2) %}{% endfor %}', assigns: ['a' => [1, 2]]))->toThrow('Invalid integer');
+    expect(fn () => renderTemplate('{% for i in (a..2) %}{% endfor %}', assigns: ['a' => [1, 2]]))->toThrow('Invalid expression type \'array\' in range expression');
 
     assertTemplateResult(
         ' 0  1  2  3 ',

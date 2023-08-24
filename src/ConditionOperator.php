@@ -69,6 +69,10 @@ enum ConditionOperator
             return true;
         }
 
+        if ($left instanceof Range && $right instanceof Range) {
+            return $left->start === $right->start && $left->end === $right->end;
+        }
+
         [$left, $right] = match (true) {
             $right instanceof Literal => [$right, $left],
             default => [$left, $right],

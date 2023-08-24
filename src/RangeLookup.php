@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid;
 
-use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
+use Keepsuit\Liquid\Exceptions\SyntaxException;
 
 class RangeLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
 {
@@ -30,7 +30,7 @@ class RangeLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
         $start = $this->toInteger($context->evaluate($this->start));
         $end = $this->toInteger($context->evaluate($this->end));
 
-        return range($start, $end);
+        return new Range($start, $end);
     }
 
     protected function toInteger(mixed $value): int
@@ -40,7 +40,12 @@ class RangeLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
             is_numeric($value) => (int) $value,
             is_string($value) => intval($value),
             $value === null => 0,
-            default => throw new InvalidArgumentException('Invalid integer'),
+            default => throw new SyntaxException(sprintf("Invalid expression type '%s' in range expression", match (true) {
+                $value instanceof Range => sprintf('(%s..%s)', $value->start, $value->end),
+                is_bool($value) => $value ? 'true' : 'false',
+                is_array($value) => 'array',
+                default => gettype($value),
+            })),
         };
     }
 }

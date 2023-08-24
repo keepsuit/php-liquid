@@ -12,6 +12,7 @@ use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Parser;
 use Keepsuit\Liquid\ParserSwitching;
+use Keepsuit\Liquid\Range;
 use Keepsuit\Liquid\Regex;
 use Keepsuit\Liquid\TagBlock;
 use Keepsuit\Liquid\Tokenizer;
@@ -157,7 +158,11 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
         assert(is_array($offsets));
 
         $collection = $context->evaluate($this->collectionName) ?? [];
-        $collection = $collection instanceof \Iterator ? iterator_to_array($collection) : $collection;
+        $collection = match (true) {
+            $collection instanceof Range => $collection->toArray(),
+            $collection instanceof \Iterator => iterator_to_array($collection),
+            default => $collection,
+        };
         assert(is_array($collection));
 
         if ($this->from === 'continue') {

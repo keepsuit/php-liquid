@@ -8,6 +8,7 @@ use Keepsuit\Liquid\Drops\TableRowLoopDrop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\HasParseTreeVisitorChildren;
+use Keepsuit\Liquid\Range;
 use Keepsuit\Liquid\Regex;
 use Keepsuit\Liquid\TagBlock;
 use Keepsuit\Liquid\Tokenizer;
@@ -51,6 +52,7 @@ class TableRowTag extends TagBlock implements HasParseTreeVisitorChildren
     {
         $collection = $context->evaluate($this->collectionName) ?? [];
         $collection = match (true) {
+            $collection instanceof Range => $collection->toArray(),
             $collection instanceof \Iterator => iterator_to_array($collection),
             is_string($collection) => str_split($collection),
             default => $collection
