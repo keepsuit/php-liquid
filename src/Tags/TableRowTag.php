@@ -60,15 +60,21 @@ class TableRowTag extends TagBlock implements HasParseTreeVisitorChildren
         assert(is_array($collection));
 
         $offset = Arr::has($this->attributes, 'offset') ? ($context->evaluate($this->attributes['offset']) ?? 0) : 0;
-        assert(is_int($offset), new InvalidArgumentException('invalid integer'));
+        if (! is_int($offset)) {
+            throw new InvalidArgumentException('invalid integer');
+        }
         $length = Arr::has($this->attributes, 'limit') ? ($context->evaluate($this->attributes['limit']) ?? 0) : null;
-        assert($length === null || is_int($length), new InvalidArgumentException('invalid integer'));
+        if ($length !== null && ! is_int($length)) {
+            throw new InvalidArgumentException('invalid integer');
+        }
 
         $collection = array_slice($collection, $offset, $length);
         $length = count($collection);
 
         $cols = Arr::has($this->attributes, 'cols') ? ($context->evaluate($this->attributes['cols']) ?? 0) : count($collection);
-        assert(is_int($cols), new InvalidArgumentException('invalid integer'));
+        if (! is_int($cols)) {
+            throw new InvalidArgumentException('invalid integer');
+        }
 
         $output = '<tr class="row1">';
 
