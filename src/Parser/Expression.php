@@ -1,6 +1,10 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Parser;
+
+use Keepsuit\Liquid\Literal;
+use Keepsuit\Liquid\RangeLookup;
+use Keepsuit\Liquid\VariableLookup;
 
 class Expression
 {

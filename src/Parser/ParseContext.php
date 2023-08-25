@@ -5,7 +5,6 @@ namespace Keepsuit\Liquid\Parser;
 use Closure;
 use Keepsuit\Liquid\ErrorMode;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Expression;
 use Keepsuit\Liquid\I18n;
 use Keepsuit\Liquid\Template;
 

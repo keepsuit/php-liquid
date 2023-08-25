@@ -7,6 +7,8 @@ use Iterator;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Contracts\MapsToLiquid;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
+use Keepsuit\Liquid\Support\Arr;
+use Keepsuit\Liquid\Support\Str;
 
 class StandardFilters
 {

@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid;
 
 use Keepsuit\Liquid\Exceptions\TranslationException;
+use Keepsuit\Liquid\Support\YamlParser;
 
 class I18n
 {

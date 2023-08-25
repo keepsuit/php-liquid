@@ -1,6 +1,6 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Support;
 
 use Closure;
 use InvalidArgumentException;

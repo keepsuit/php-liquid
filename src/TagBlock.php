@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid;
 
 use Keepsuit\Liquid\Exceptions\StackLevelException;
+use Keepsuit\Liquid\Parser\BlockParser;
 use Keepsuit\Liquid\Parser\Tokenizer;
 
 abstract class TagBlock extends Tag

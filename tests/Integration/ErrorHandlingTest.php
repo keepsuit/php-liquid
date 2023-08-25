@@ -1,11 +1,11 @@
 <?php
 
-use Keepsuit\Liquid\Arr;
 use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\ErrorMode;
 use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\StandardException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\Tests\Stubs\ErrorDrop;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;

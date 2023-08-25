@@ -1,7 +1,7 @@
 <?php
 
-use Keepsuit\Liquid\Arr;
 use Keepsuit\Liquid\Parser\ParseTreeVisitor;
+use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\VariableLookup;
 

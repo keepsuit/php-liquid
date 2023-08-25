@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid;
 
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
+use Keepsuit\Liquid\Support\Str;
 
 class FilterRegistry
 {

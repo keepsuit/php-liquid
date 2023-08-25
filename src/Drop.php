@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Contracts\MapsToLiquid;
 use Keepsuit\Liquid\Drops\DropMethodPrivate;
+use Keepsuit\Liquid\Support\Str;
 
 class Drop implements IsContextAware, MapsToLiquid
 {

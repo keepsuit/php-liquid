@@ -10,6 +10,7 @@ use Keepsuit\Liquid\Parser\Parser;
 use Keepsuit\Liquid\Parser\ParserSwitching;
 use Keepsuit\Liquid\Parser\Regex;
 use Keepsuit\Liquid\Parser\TokenType;
+use Keepsuit\Liquid\Support\Arr;
 
 class Variable implements HasParseTreeVisitorChildren, CanBeRendered, CanBeEvaluated
 {

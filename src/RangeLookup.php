@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Parser\Expression;
 
 class RangeLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
 {

@@ -3,8 +3,8 @@
 namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\BlockBodySection;
-use Keepsuit\Liquid\BlockParser;
 use Keepsuit\Liquid\Context;
+use Keepsuit\Liquid\Parser\BlockParser;
 use Keepsuit\Liquid\Parser\Tokenizer;
 use Keepsuit\Liquid\Tag;
 
