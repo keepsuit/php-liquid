@@ -3,7 +3,7 @@
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 
 afterEach(function () {
-    \Keepsuit\Liquid\Condition::resetOperators();
+    \Keepsuit\Liquid\Condition\Condition::resetOperators();
 });
 
 test('if', function () {

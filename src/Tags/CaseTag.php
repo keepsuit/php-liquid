@@ -3,10 +3,10 @@
 namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\BlockBodySection;
-use Keepsuit\Liquid\Condition;
+use Keepsuit\Liquid\Condition\Condition;
+use Keepsuit\Liquid\Condition\ElseCondition;
 use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
-use Keepsuit\Liquid\ElseCondition;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Regex;
 use Keepsuit\Liquid\TagBlock;

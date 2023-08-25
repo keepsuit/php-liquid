@@ -1,8 +1,10 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Condition;
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Literal;
+use Keepsuit\Liquid\Range;
 
 enum ConditionOperator
 {

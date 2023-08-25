@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\Tags;
 
-use Keepsuit\Liquid\Condition;
+use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\Tokenizer;
 

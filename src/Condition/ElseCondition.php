@@ -1,6 +1,8 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Condition;
+
+use Keepsuit\Liquid\Context;
 
 class ElseCondition extends Condition
 {

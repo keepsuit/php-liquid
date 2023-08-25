@@ -1,6 +1,6 @@
 <?php
 
-use Keepsuit\Liquid\Condition;
+use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\VariableLookup;
