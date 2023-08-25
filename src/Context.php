@@ -30,24 +30,25 @@ final class Context
     protected ContextSharedState $sharedState;
 
     /**
+     * @var array<string, mixed>
+     */
+    protected array $dynamicRegisters = [];
+
+    /**
      * @var array<Interrupt>
      */
     protected array $interrupts = [];
-
-    /**
-     * @var array<string, Template>
-     */
-    protected array $partialsCache = [];
 
     protected ?FilterRegistry $filterRegistry = null;
 
     public function __construct(
         /** @var array<string, mixed> */
         protected array $environment = [],
-        /** @var array<string, mixed> */
-        protected array $staticEnvironment = [],
+        /** @var array<string, mixed> $staticEnvironment */
+        array $staticEnvironment = [],
         /** array<string, mixed> */
         protected array $outerScope = [],
+        array $registers = [],
         /** @var array<class-string> $filters */
         array $filters = [],
         protected bool $rethrowExceptions = false,
@@ -56,12 +57,18 @@ final class Context
     ) {
         $this->scopes = [$this->outerScope];
 
-        $this->sharedState = new ContextSharedState(filters: $filters);
+        $this->sharedState = new ContextSharedState(
+            staticEnvironment: $staticEnvironment,
+            staticRegisters: $registers,
+            filters: $filters
+        );
     }
 
     protected function push(array $newScope = []): void
     {
         array_unshift($this->scopes, $newScope);
+
+        $this->checkOverflow();
     }
 
     protected function pop(): array
@@ -101,9 +108,25 @@ final class Context
         return $value;
     }
 
+    /**
+     * @param  array<string,mixed>  $values
+     */
+    public function merge(array $values): void
+    {
+        $this->scopes[0] = [
+            ...$this->scopes[0],
+            ...$values,
+        ];
+    }
+
     public function set(string $key, mixed $value): void
     {
         $this->scopes[0][$key] = $value;
+    }
+
+    public function get(string $key): mixed
+    {
+        return $this->evaluate(Expression::parse($key));
     }
 
     public function findVariable(string $key, bool $throwNotFound = true): mixed
@@ -134,7 +157,7 @@ final class Context
         };
 
         if ($value instanceof Closure) {
-            throw new RuntimeException('Cannot evaluate closures');
+            return $this->sharedState->closuresCache[$value] ??= $value($this);
         }
 
         return $value;
@@ -147,7 +170,7 @@ final class Context
             return $foundVariable;
         }
 
-        $foundVariable = $this->lookupAndEvaluate($this->staticEnvironment, $key, $throwNotFound);
+        $foundVariable = $this->lookupAndEvaluate($this->sharedState->staticEnvironment, $key, $throwNotFound);
         if ($foundVariable !== null) {
             return $foundVariable;
         }
@@ -166,12 +189,12 @@ final class Context
 
     public function getRegister(string $name): mixed
     {
-        return $this->sharedState->registers[$name] ?? null;
+        return $this->dynamicRegisters[$name] ?? $this->sharedState->staticRegisters[$name] ?? null;
     }
 
-    public function setRegister(string $name, mixed $value): mixed
+    public function setRegister(string $name, mixed $value): void
     {
-        return $this->sharedState->registers[$name] = $value;
+        $this->dynamicRegisters[$name] = $value;
     }
 
     public function getEnvironment(string $name): mixed
@@ -241,8 +264,8 @@ final class Context
     {
         $cacheKey = sprintf('%s:%s', $templateName, $parseContext->errorMode->name);
 
-        if (Arr::has($this->partialsCache, $cacheKey)) {
-            return $this->partialsCache[$cacheKey];
+        if (Arr::has($this->sharedState->partialsCache, $cacheKey)) {
+            return $this->sharedState->partialsCache[$cacheKey];
         }
 
         $source = $this->fileSystem->readTemplateFile($templateName);
@@ -257,7 +280,7 @@ final class Context
             throw $exception;
         }
 
-        $this->partialsCache[$cacheKey] = $template;
+        $this->sharedState->partialsCache[$cacheKey] = $template;
 
         return $template;
     }
@@ -270,7 +293,6 @@ final class Context
         $this->checkOverflow();
 
         $subContext = new Context(
-            staticEnvironment: $this->staticEnvironment,
             rethrowExceptions: $this->rethrowExceptions,
             resourceLimits: $this->resourceLimits,
             fileSystem: $this->fileSystem,

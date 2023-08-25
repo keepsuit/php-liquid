@@ -6,6 +6,10 @@ class Str
 {
     protected static array $snakeCache = [];
 
+    protected static array $camelCache = [];
+
+    protected static array $studlyCache = [];
+
     /**
      * Convert a string to snake case.
      */
@@ -24,6 +28,36 @@ class Str
         }
 
         return static::$snakeCache[$key][$delimiter] = $value;
+    }
+
+    /**
+     * Convert a string to camel case.
+     */
+    public static function camel(string $value): string
+    {
+        if (isset(static::$camelCache[$value])) {
+            return static::$camelCache[$value];
+        }
+
+        return static::$camelCache[$value] = lcfirst(static::studly($value));
+    }
+
+    /**
+     * Convert a value to studly caps case.
+     */
+    public static function studly(string $value): string
+    {
+        $key = $value;
+
+        if (isset(static::$studlyCache[$key])) {
+            return static::$studlyCache[$key];
+        }
+
+        $words = explode(' ', str_replace(['-', '_'], ' ', $value));
+
+        $studlyWords = array_map(fn ($word) => ucfirst($word), $words);
+
+        return static::$studlyCache[$key] = implode($studlyWords);
     }
 
     /**

@@ -8,7 +8,15 @@ class VariableLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
 
     public readonly mixed $name;
 
+    /**
+     * @var string[]
+     */
     public readonly array $lookups;
+
+    /**
+     * @var int[]
+     */
+    protected array $lookupFilters = [];
 
     public function __construct(
         protected string $markup
@@ -17,10 +25,15 @@ class VariableLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
 
         $this->name = static::parseVariableName(array_shift($lookups));
 
-        $this->lookups = array_map(
-            fn ($lookup) => static::parseVariableName($lookup),
-            $lookups
-        );
+        $newLookups = [];
+        foreach ($lookups as $i => $lookup) {
+            if (in_array($lookup, self::FILTER_METHODS)) {
+                $this->lookupFilters[] = $i;
+            }
+
+            $newLookups[$i] = self::parseVariableName($lookup);
+        }
+        $this->lookups = $newLookups;
     }
 
     protected static function markupLookup(string $markup): array
@@ -67,7 +80,7 @@ class VariableLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
         assert(is_string($name));
         $object = $context->findVariable($name);
 
-        foreach ($this->lookups as $lookup) {
+        foreach ($this->lookups as $i => $lookup) {
             $key = $context->evaluate($lookup);
 
             assert(is_string($key) || is_int($key));
@@ -75,7 +88,7 @@ class VariableLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
             $object = match (true) {
                 is_array($object) && array_key_exists($key, $object) => $context->lookupAndEvaluate($object, $key),
                 is_object($object) => $context->lookupAndEvaluate($object, $key),
-                in_array($lookup, self::FILTER_METHODS) => $this->applyFilter($context, $object, $lookup),
+                in_array($i, $this->lookupFilters) => $this->applyFilter($context, $object, (string) $key),
                 default => null,
             };
 

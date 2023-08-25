@@ -9,7 +9,7 @@ use Keepsuit\Liquid\Exceptions\SyntaxException;
 
 class ErrorDrop extends Drop
 {
-    public function __get(string $name)
+    protected function liquidMethodMissing(string $name): mixed
     {
         return match ($name) {
             'standard_error' => throw new StandardException('Standard error'),

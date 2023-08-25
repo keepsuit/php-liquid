@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\Drops;
 
-use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
+use Keepsuit\Liquid\Drop;
 
 /**
  * @property int  $col          The 1-based index of the current column.
@@ -18,7 +18,7 @@ use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
  * @property int  $rindex0      The 0-based index of the current iteration, in reverse order.
  * @property int  $row          The 1-based index of current row.
  */
-class TableRowLoopDrop
+class TableRowLoopDrop extends Drop
 {
     protected int $row = 1;
 
@@ -32,6 +32,7 @@ class TableRowLoopDrop
     ) {
     }
 
+    #[DropMethodPrivate]
     public function increment(): void
     {
         $this->index += 1;
@@ -44,7 +45,7 @@ class TableRowLoopDrop
         }
     }
 
-    public function __get(string $name): mixed
+    public function liquidMethodMissing(string $name): mixed
     {
         return match ($name) {
             'col' => $this->col,
@@ -59,7 +60,7 @@ class TableRowLoopDrop
             'rindex' => $this->length - $this->index,
             'rindex0' => $this->length - $this->index - 1,
             'row' => $this->row,
-            default => throw new InvalidArgumentException('Unknown property: '.$name),
+            default => parent::liquidMethodMissing($name),
         };
     }
 }

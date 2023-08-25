@@ -23,6 +23,7 @@
         "pestphp/pest": "^2.6",
         "pestphp/pest-plugin-arch": "^2.0",
         "phpstan/phpstan": "^1.10",
+        "spatie/invade": "^2.0",
         "spatie/ray": "^1.28"
     },
     "suggest": {

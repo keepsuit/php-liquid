@@ -3,7 +3,6 @@
 namespace Keepsuit\Liquid\Drops;
 
 use Keepsuit\Liquid\Drop;
-use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 
 /**
  * @property-read bool             $first      Returns true if the current iteration is the first. Returns false if not.
@@ -26,12 +25,13 @@ class ForLoopDrop extends Drop
     ) {
     }
 
+    #[DropMethodPrivate]
     public function increment(): void
     {
         $this->index += 1;
     }
 
-    public function __get(string $name): mixed
+    protected function liquidMethodMissing(string $name): mixed
     {
         return match ($name) {
             'first' => $this->index === 0,
@@ -42,7 +42,7 @@ class ForLoopDrop extends Drop
             'rindex0' => $this->length - $this->index - 1,
             'length' => $this->length,
             'parentloop' => $this->parentLoop,
-            default => throw new InvalidArgumentException('Unknown property: '.$name),
+            default => parent::liquidMethodMissing($name),
         };
     }
 }
