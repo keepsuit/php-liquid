@@ -1,6 +1,6 @@
 <?php
 
-use Keepsuit\Liquid\Regex;
+use Keepsuit\Liquid\Parser\Regex;
 
 test('empty')
     ->expect(regexMatch('', Regex::QuotedFragment))

@@ -1,6 +1,6 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Parser;
 
 use Closure;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;

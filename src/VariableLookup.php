@@ -4,6 +4,8 @@ namespace Keepsuit\Liquid;
 
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
+use Keepsuit\Liquid\Contracts\MapsToLiquid;
+use Keepsuit\Liquid\Parser\Regex;
 
 class VariableLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
 {

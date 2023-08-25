@@ -4,7 +4,7 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Context;
-use Keepsuit\Liquid\Tokenizer;
+use Keepsuit\Liquid\Parser\Tokenizer;
 
 class UnlessTag extends IfTag
 {

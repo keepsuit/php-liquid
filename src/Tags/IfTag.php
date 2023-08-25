@@ -7,11 +7,11 @@ use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Condition\ElseCondition;
 use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
-use Keepsuit\Liquid\Parser;
-use Keepsuit\Liquid\ParserSwitching;
+use Keepsuit\Liquid\Parser\Parser;
+use Keepsuit\Liquid\Parser\ParserSwitching;
+use Keepsuit\Liquid\Parser\Tokenizer;
+use Keepsuit\Liquid\Parser\TokenType;
 use Keepsuit\Liquid\TagBlock;
-use Keepsuit\Liquid\Tokenizer;
-use Keepsuit\Liquid\TokenType;
 
 class IfTag extends TagBlock implements HasParseTreeVisitorChildren
 {

@@ -4,9 +4,9 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Regex;
+use Keepsuit\Liquid\Parser\Tokenizer;
+use Keepsuit\Liquid\Parser\Regex;
 use Keepsuit\Liquid\TagBlock;
-use Keepsuit\Liquid\Tokenizer;
 
 class CaptureTag extends TagBlock
 {

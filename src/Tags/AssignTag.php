@@ -6,9 +6,9 @@ use Keepsuit\Liquid\Arr;
 use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Regex;
+use Keepsuit\Liquid\Parser\Tokenizer;
+use Keepsuit\Liquid\Parser\Regex;
 use Keepsuit\Liquid\Tag;
-use Keepsuit\Liquid\Tokenizer;
 use Keepsuit\Liquid\Variable;
 
 class AssignTag extends Tag implements HasParseTreeVisitorChildren

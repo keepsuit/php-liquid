@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\Tests\Stubs;
 
-use Keepsuit\Liquid\MapsToLiquid;
+use Keepsuit\Liquid\Contracts\MapsToLiquid;
 
 class ThingWithParamToLiquid implements MapsToLiquid
 {

@@ -10,13 +10,13 @@ use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Drops\ForLoopDrop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parser;
-use Keepsuit\Liquid\ParserSwitching;
+use Keepsuit\Liquid\Parser\Parser;
+use Keepsuit\Liquid\Parser\ParserSwitching;
+use Keepsuit\Liquid\Parser\Tokenizer;
+use Keepsuit\Liquid\Parser\TokenType;
 use Keepsuit\Liquid\Range;
-use Keepsuit\Liquid\Regex;
+use Keepsuit\Liquid\Parser\Regex;
 use Keepsuit\Liquid\TagBlock;
-use Keepsuit\Liquid\Tokenizer;
-use Keepsuit\Liquid\TokenType;
 
 class ForTag extends TagBlock implements HasParseTreeVisitorChildren
 {

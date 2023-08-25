@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid;
 use DateTime;
 use Iterator;
 use Keepsuit\Liquid\Contracts\IsContextAware;
+use Keepsuit\Liquid\Contracts\MapsToLiquid;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 
 class StandardFilters

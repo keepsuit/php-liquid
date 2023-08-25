@@ -2,8 +2,8 @@
 
 use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\ParseContext;
+use Keepsuit\Liquid\Parser\Tokenizer;
 use Keepsuit\Liquid\Tests\Stubs\TestTag;
-use Keepsuit\Liquid\Tokenizer;
 
 test('tag', function () {
     $tag = (new TestTag('', new ParseContext()))->parse(new Tokenizer(''));

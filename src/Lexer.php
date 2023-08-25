@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid;
 
 use Exception;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Parser\TokenType;
 
 class Lexer
 {

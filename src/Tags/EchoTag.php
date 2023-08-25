@@ -4,8 +4,8 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
+use Keepsuit\Liquid\Parser\Tokenizer;
 use Keepsuit\Liquid\Tag;
-use Keepsuit\Liquid\Tokenizer;
 use Keepsuit\Liquid\Variable;
 
 class EchoTag extends Tag implements HasParseTreeVisitorChildren

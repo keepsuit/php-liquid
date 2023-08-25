@@ -8,10 +8,10 @@ use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Drops\TableRowLoopDrop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Parser\Tokenizer;
 use Keepsuit\Liquid\Range;
-use Keepsuit\Liquid\Regex;
+use Keepsuit\Liquid\Parser\Regex;
 use Keepsuit\Liquid\TagBlock;
-use Keepsuit\Liquid\Tokenizer;
 
 class TableRowTag extends TagBlock implements HasParseTreeVisitorChildren
 {

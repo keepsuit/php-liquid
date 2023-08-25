@@ -2,7 +2,7 @@
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Lexer;
-use Keepsuit\Liquid\TokenType;
+use Keepsuit\Liquid\Parser\TokenType;
 
 test('strings', function () {
     $tokens = (new Lexer(' \'this is a test""\' "wat \'lol\'"'))->tokenize();

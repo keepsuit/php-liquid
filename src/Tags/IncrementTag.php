@@ -3,8 +3,8 @@
 namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Context;
+use Keepsuit\Liquid\Parser\Tokenizer;
 use Keepsuit\Liquid\Tag;
-use Keepsuit\Liquid\Tokenizer;
 
 class IncrementTag extends Tag
 {
