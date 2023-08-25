@@ -1,7 +1,7 @@
 <?php
 
 use Keepsuit\Liquid\Context;
-use Keepsuit\Liquid\ParseContext;
+use Keepsuit\Liquid\Parser\ParseContext;
 use Keepsuit\Liquid\Parser\Tokenizer;
 use Keepsuit\Liquid\Tests\Stubs\TestTag;
 

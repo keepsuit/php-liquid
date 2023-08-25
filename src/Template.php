@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid;
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Parser\ParseContext;
 
 class Template
 {

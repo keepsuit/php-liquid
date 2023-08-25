@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid;
 
 use Keepsuit\Liquid\Contracts\CanBeRendered;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Parser\ParseContext;
 use Keepsuit\Liquid\Parser\Tokenizer;
 
 class Document implements CanBeRendered

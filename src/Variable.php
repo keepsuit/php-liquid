@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\CanBeRendered;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
+use Keepsuit\Liquid\Parser\ParseContext;
 use Keepsuit\Liquid\Parser\Parser;
 use Keepsuit\Liquid\Parser\ParserSwitching;
 use Keepsuit\Liquid\Parser\Regex;

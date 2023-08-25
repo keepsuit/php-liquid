@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid;
 use Keepsuit\Liquid\Contracts\CanBeRendered;
 use Keepsuit\Liquid\Contracts\Disableable;
 use Keepsuit\Liquid\Exceptions\TagDisabledException;
+use Keepsuit\Liquid\Parser\ParseContext;
 use Keepsuit\Liquid\Parser\Tokenizer;
 
 abstract class Tag implements CanBeRendered

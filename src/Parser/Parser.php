@@ -3,7 +3,6 @@
 namespace Keepsuit\Liquid\Parser;
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Lexer;
 
 class Parser
 {

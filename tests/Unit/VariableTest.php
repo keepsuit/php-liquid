@@ -2,7 +2,7 @@
 
 use Keepsuit\Liquid\ErrorMode;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\ParseContext;
+use Keepsuit\Liquid\Parser\ParseContext;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\Variable;
 use Keepsuit\Liquid\VariableLookup;

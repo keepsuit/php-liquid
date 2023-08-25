@@ -14,6 +14,7 @@ use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Interrupts\Interrupt;
+use Keepsuit\Liquid\Parser\ParseContext;
 use RuntimeException;
 use Throwable;
 

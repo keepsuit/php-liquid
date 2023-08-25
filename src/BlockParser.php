@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid;
 
 use Closure;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Parser\ParseContext;
 use Keepsuit\Liquid\Parser\Regex;
 use Keepsuit\Liquid\Parser\Tokenizer;
 

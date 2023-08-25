@@ -1,7 +1,7 @@
 <?php
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Lexer;
+use Keepsuit\Liquid\Parser\Lexer;
 use Keepsuit\Liquid\Parser\TokenType;
 
 test('strings', function () {
