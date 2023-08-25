@@ -26,6 +26,8 @@ class ContextSharedState
         public array $errors = [],
         /** @var array<class-string> $filters */
         public array $filters = [],
+        /** @var array<string, int> */
+        public array $disabledTags = [],
     ) {
         $this->closuresCache = new WeakMap();
     }

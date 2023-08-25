@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Contracts\CanBeRendered;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 
 class Document implements CanBeRendered

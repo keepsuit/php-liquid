@@ -1,6 +1,8 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Contracts;
+
+use Keepsuit\Liquid\Context;
 
 interface CanBeRendered
 {

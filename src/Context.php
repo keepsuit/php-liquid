@@ -4,6 +4,9 @@ namespace Keepsuit\Liquid;
 
 use ArithmeticError;
 use Closure;
+use Keepsuit\Liquid\Contracts\CanBeEvaluated;
+use Keepsuit\Liquid\Contracts\IsContextAware;
+use Keepsuit\Liquid\Contracts\LiquidFileSystem;
 use Keepsuit\Liquid\Exceptions\ArithmeticException;
 use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\LiquidException;
@@ -83,7 +86,7 @@ final class Context
     /**
      * @template TResult
      *
-     * @param  Closure(): TResult  $closure
+     * @param  Closure(Context $context): TResult  $closure
      * @return TResult
      */
     public function stack(Closure $closure)
@@ -91,7 +94,7 @@ final class Context
         $this->push();
 
         try {
-            $result = $closure();
+            $result = $closure($this);
         } finally {
             $this->pop();
         }
@@ -127,6 +130,11 @@ final class Context
     public function get(string $key): mixed
     {
         return $this->evaluate(Expression::parse($key));
+    }
+
+    public function has(string $key): bool
+    {
+        return $this->get($key) !== null;
     }
 
     public function findVariable(string $key, bool $throwNotFound = true): mixed
@@ -303,6 +311,35 @@ final class Context
         $subContext->partial = true;
 
         return $subContext;
+    }
+
+    /**
+     * @template TResult
+     *
+     * @param  string[]  $tags
+     * @param  Closure(Context $context): TResult  $closure
+     * @return TResult
+     */
+    public function withDisabledTags(array $tags, Closure $closure)
+    {
+        foreach ($tags as $tag) {
+            $this->sharedState->disabledTags[$tag] = ($this->sharedState->disabledTags[$tag] ?? 0) + 1;
+        }
+
+        try {
+            $output = $closure($this);
+        } finally {
+            foreach ($tags as $tag) {
+                $this->sharedState->disabledTags[$tag] = max(0, ($this->sharedState->disabledTags[$tag] ?? 0) - 1);
+            }
+        }
+
+        return $output;
+    }
+
+    public function tagDisabled(string $tag): bool
+    {
+        return ($this->sharedState->disabledTags[$tag] ?? 0) > 0;
     }
 
     /**

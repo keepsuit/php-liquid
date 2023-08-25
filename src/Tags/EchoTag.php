@@ -3,7 +3,7 @@
 namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Context;
-use Keepsuit\Liquid\HasParseTreeVisitorChildren;
+use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\Tokenizer;
 use Keepsuit\Liquid\Variable;

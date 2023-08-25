@@ -4,8 +4,8 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Arr;
 use Keepsuit\Liquid\Context;
+use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Regex;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\Tokenizer;

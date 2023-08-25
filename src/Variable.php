@@ -2,6 +2,10 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Contracts\CanBeEvaluated;
+use Keepsuit\Liquid\Contracts\CanBeRendered;
+use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
+
 class Variable implements HasParseTreeVisitorChildren, CanBeRendered, CanBeEvaluated
 {
     use ParserSwitching;

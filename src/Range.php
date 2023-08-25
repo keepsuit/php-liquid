@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Contracts\CanBeRendered;
+
 class Range implements CanBeRendered
 {
     public function __construct(

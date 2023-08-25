@@ -439,3 +439,44 @@ test('new isolated subcontext inherit filters', function () {
 
     expect(\Keepsuit\Liquid\Template::parse('{{ "hi?" | hi }}')->render($subContext))->toBe('hi? hi!');
 });
+
+test('disabled specified tags', function () {
+    $this->context->withDisabledTags(['foo', 'bar'], function (Context $context) {
+        expect($context)
+            ->tagDisabled('foo')->toBe(true)
+            ->tagDisabled('bar')->toBe(true)
+            ->tagDisabled('unknown')->toBe(false);
+    });
+});
+
+test('disabled nested tags', function () {
+    $this->context->withDisabledTags(['foo'], function (Context $context) {
+        $context->withDisabledTags(['foo'], function (Context $context) {
+            expect($context)
+                ->tagDisabled('foo')->toBe(true)
+                ->tagDisabled('bar')->toBe(false);
+        });
+
+        $context->withDisabledTags(['bar'], function (Context $context) {
+            expect($context)
+                ->tagDisabled('foo')->toBe(true)
+                ->tagDisabled('bar')->toBe(true);
+
+            $context->withDisabledTags(['foo'], function (Context $context) {
+                expect($context)
+                    ->tagDisabled('foo')->toBe(true)
+                    ->tagDisabled('bar')->toBe(true);
+            });
+        });
+
+        expect($context)
+            ->tagDisabled('foo')->toBe(true)
+            ->tagDisabled('bar')->toBe(false);
+    });
+});
+
+test('has key will not add an error for missing keys', function () {
+    $this->context->has('unknown');
+
+    expect($this->context->getErrors())->toBe([]);
+});

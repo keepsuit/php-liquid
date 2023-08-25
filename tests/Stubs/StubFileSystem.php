@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\Tests\Stubs;
 
-use Keepsuit\Liquid\LiquidFileSystem;
+use Keepsuit\Liquid\Contracts\LiquidFileSystem;
 
 class StubFileSystem implements LiquidFileSystem
 {

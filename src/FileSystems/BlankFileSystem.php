@@ -2,8 +2,8 @@
 
 namespace Keepsuit\Liquid\FileSystems;
 
+use Keepsuit\Liquid\Contracts\LiquidFileSystem;
 use Keepsuit\Liquid\Exceptions\FileSystemException;
-use Keepsuit\Liquid\LiquidFileSystem;
 
 class BlankFileSystem implements LiquidFileSystem
 {

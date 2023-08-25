@@ -58,13 +58,15 @@ abstract class TagBlock extends Tag
 
     public function render(Context $context): string
     {
-        $output = '';
+        return $context->withDisabledTags($this->disabledTags(), function (Context $context) {
+            $output = '';
 
-        foreach ($this->bodySections as $bodySection) {
-            $output .= $bodySection->render($context);
-        }
+            foreach ($this->bodySections as $bodySection) {
+                $output .= $bodySection->render($context);
+            }
 
-        return $output;
+            return $output;
+        });
     }
 
     protected function isSubTag(string $tagName): bool

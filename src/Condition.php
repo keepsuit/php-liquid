@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
+
 class Condition implements HasParseTreeVisitorChildren
 {
     /**

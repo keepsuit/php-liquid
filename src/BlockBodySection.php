@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Contracts\CanBeRendered;
+
 class BlockBodySection implements CanBeRendered
 {
     public function __construct(
@@ -75,6 +77,10 @@ class BlockBodySection implements CanBeRendered
             }
 
             try {
+                if ($node instanceof Tag) {
+                    $node->ensureTagIsEnabled($context);
+                }
+
                 $output .= $node->render($context);
             } catch (\Throwable $exception) {
                 $output .= $context->handleError($exception, $node->lineNumber);

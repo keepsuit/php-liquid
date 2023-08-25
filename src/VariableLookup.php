@@ -2,6 +2,9 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Contracts\CanBeEvaluated;
+use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
+
 class VariableLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
 {
     const FILTER_METHODS = ['size', 'first', 'last'];

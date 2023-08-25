@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid;
 
 use Closure;
+use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 
 class ParseTreeVisitor
 {

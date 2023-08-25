@@ -2,6 +2,10 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Contracts\CanBeRendered;
+use Keepsuit\Liquid\Contracts\Disableable;
+use Keepsuit\Liquid\Exceptions\TagDisabledException;
+
 abstract class Tag implements CanBeRendered
 {
     public readonly ?int $lineNumber;
@@ -25,6 +29,11 @@ abstract class Tag implements CanBeRendered
         return false;
     }
 
+    public function disabledTags(): array
+    {
+        return [];
+    }
+
     public function raw(): string
     {
         return sprintf('%s %s', static::tagName(), $this->markup);
@@ -43,5 +52,18 @@ abstract class Tag implements CanBeRendered
     protected function parseExpression(string $markup): mixed
     {
         return $this->parseContext->parseExpression($markup);
+    }
+
+    public function ensureTagIsEnabled(Context $context): void
+    {
+        if (! $this instanceof Disableable) {
+            return;
+        }
+
+        if (! $context->tagDisabled(static::tagName())) {
+            return;
+        }
+
+        throw new TagDisabledException(static::tagName(), $this->parseContext);
     }
 }
