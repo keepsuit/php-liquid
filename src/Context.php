@@ -13,6 +13,7 @@ use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
+use Keepsuit\Liquid\Interrupts\Interrupt;
 use RuntimeException;
 use Throwable;
 

@@ -3,8 +3,8 @@
 namespace Keepsuit\Liquid\Exceptions;
 
 use Keepsuit\Liquid\ParseContext;
-use Keepsuit\Liquid\Parser\TokenType;
 use Keepsuit\Liquid\Parser\Regex;
+use Keepsuit\Liquid\Parser\TokenType;
 
 class SyntaxException extends LiquidException
 {

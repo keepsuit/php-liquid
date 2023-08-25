@@ -2,8 +2,8 @@
 
 namespace Keepsuit\Liquid\Tags;
 
-use Keepsuit\Liquid\BreakInterrupt;
 use Keepsuit\Liquid\Context;
+use Keepsuit\Liquid\Interrupts\BreakInterrupt;
 use Keepsuit\Liquid\Tag;
 
 class BreakTag extends Tag

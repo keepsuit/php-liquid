@@ -8,8 +8,8 @@ use Keepsuit\Liquid\Condition\ElseCondition;
 use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parser\Tokenizer;
 use Keepsuit\Liquid\Parser\Regex;
+use Keepsuit\Liquid\Parser\Tokenizer;
 use Keepsuit\Liquid\TagBlock;
 
 class CaseTag extends TagBlock implements HasParseTreeVisitorChildren

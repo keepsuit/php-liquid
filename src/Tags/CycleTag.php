@@ -6,8 +6,8 @@ use Keepsuit\Liquid\Arr;
 use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parser\Tokenizer;
 use Keepsuit\Liquid\Parser\Regex;
+use Keepsuit\Liquid\Parser\Tokenizer;
 use Keepsuit\Liquid\Tag;
 
 class CycleTag extends Tag implements HasParseTreeVisitorChildren

@@ -4,8 +4,8 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parser\Tokenizer;
 use Keepsuit\Liquid\Parser\Regex;
+use Keepsuit\Liquid\Parser\Tokenizer;
 use Keepsuit\Liquid\TagBlock;
 
 class RawTag extends TagBlock
