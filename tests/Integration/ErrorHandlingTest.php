@@ -1,10 +1,10 @@
 <?php
 
-use Keepsuit\Liquid\Context;
-use Keepsuit\Liquid\ErrorMode;
 use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\StandardException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Parse\ErrorMode;
+use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\Tests\Stubs\ErrorDrop;

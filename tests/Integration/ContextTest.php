@@ -1,7 +1,7 @@
 <?php
 
-use Keepsuit\Liquid\Context;
-use Keepsuit\Liquid\Range;
+use Keepsuit\Liquid\Nodes\Range;
+use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Tests\Stubs\Category;
 use Keepsuit\Liquid\Tests\Stubs\CategoryDrop;
 use Keepsuit\Liquid\Tests\Stubs\CentsDrop;
@@ -418,7 +418,7 @@ test('new isolated subcontext registers do not pollute context', function () {
 });
 
 test('new isolated subcontext inherit resource limits', function () {
-    $resourceLimits = new \Keepsuit\Liquid\ResourceLimits();
+    $resourceLimits = new \Keepsuit\Liquid\Render\ResourceLimits();
     $context = new Context(resourceLimits: $resourceLimits);
     $subContext = $context->newIsolatedSubContext('sub');
 

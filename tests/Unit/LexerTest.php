@@ -1,8 +1,8 @@
 <?php
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parser\Lexer;
-use Keepsuit\Liquid\Parser\TokenType;
+use Keepsuit\Liquid\Parse\Lexer;
+use Keepsuit\Liquid\Parse\TokenType;
 
 test('strings', function () {
     $tokens = (new Lexer(' \'this is a test""\' "wat \'lol\'"'))->tokenize();

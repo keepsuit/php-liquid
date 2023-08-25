@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\Tests\Stubs;
 
-use Keepsuit\Liquid\Context;
+use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Tag;
 
 class FooBarTag extends Tag

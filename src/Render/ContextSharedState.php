@@ -1,8 +1,9 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Render;
 
 use Closure;
+use Keepsuit\Liquid\Template;
 use WeakMap;
 
 class ContextSharedState

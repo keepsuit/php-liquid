@@ -1,6 +1,8 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Support;
+
+use Keepsuit\Liquid\Tag;
 
 class TagRegistry
 {

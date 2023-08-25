@@ -1,8 +1,7 @@
 <?php
 
-namespace Keepsuit\Liquid\Parser;
+namespace Keepsuit\Liquid\Parse;
 
-use Keepsuit\Liquid\ErrorMode;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 
 trait ParserSwitching

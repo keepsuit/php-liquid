@@ -3,8 +3,8 @@
 namespace Keepsuit\Liquid\Condition;
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Literal;
-use Keepsuit\Liquid\Range;
+use Keepsuit\Liquid\Nodes\Literal;
+use Keepsuit\Liquid\Nodes\Range;
 
 enum ConditionOperator
 {

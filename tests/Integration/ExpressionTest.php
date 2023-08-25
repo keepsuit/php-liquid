@@ -1,6 +1,6 @@
 <?php
 
-use Keepsuit\Liquid\Range;
+use Keepsuit\Liquid\Nodes\Range;
 
 test('keyword literals', function () {
     assertTemplateResult('true', '{{ true }}');

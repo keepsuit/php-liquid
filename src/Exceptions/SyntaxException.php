@@ -2,9 +2,9 @@
 
 namespace Keepsuit\Liquid\Exceptions;
 
-use Keepsuit\Liquid\Parser\ParseContext;
-use Keepsuit\Liquid\Parser\Regex;
-use Keepsuit\Liquid\Parser\TokenType;
+use Keepsuit\Liquid\Parse\ParseContext;
+use Keepsuit\Liquid\Parse\Regex;
+use Keepsuit\Liquid\Parse\TokenType;
 
 class SyntaxException extends LiquidException
 {

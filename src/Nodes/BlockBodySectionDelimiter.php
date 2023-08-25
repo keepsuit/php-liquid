@@ -1,6 +1,6 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Nodes;
 
 class BlockBodySectionDelimiter
 {

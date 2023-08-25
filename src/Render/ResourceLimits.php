@@ -1,6 +1,6 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Render;
 
 use Closure;
 use Keepsuit\Liquid\Exceptions\ResourceLimitException;

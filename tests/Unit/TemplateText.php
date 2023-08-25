@@ -1,6 +1,6 @@
 <?php
 
-use Keepsuit\Liquid\I18n;
+use Keepsuit\Liquid\Support\I18n;
 use Keepsuit\Liquid\Tags\CommentTag;
 use Keepsuit\Liquid\Template;
 

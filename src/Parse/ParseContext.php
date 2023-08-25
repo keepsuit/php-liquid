@@ -1,11 +1,10 @@
 <?php
 
-namespace Keepsuit\Liquid\Parser;
+namespace Keepsuit\Liquid\Parse;
 
 use Closure;
-use Keepsuit\Liquid\ErrorMode;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\I18n;
+use Keepsuit\Liquid\Support\I18n;
 use Keepsuit\Liquid\Template;
 
 class ParseContext

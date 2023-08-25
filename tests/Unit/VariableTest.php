@@ -1,11 +1,11 @@
 <?php
 
-use Keepsuit\Liquid\ErrorMode;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parser\ParseContext;
+use Keepsuit\Liquid\Nodes\Variable;
+use Keepsuit\Liquid\Nodes\VariableLookup;
+use Keepsuit\Liquid\Parse\ErrorMode;
+use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Template;
-use Keepsuit\Liquid\Variable;
-use Keepsuit\Liquid\VariableLookup;
 
 test('variable', function () {
     $var = createVariable('hello');

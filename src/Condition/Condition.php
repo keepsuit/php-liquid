@@ -2,9 +2,9 @@
 
 namespace Keepsuit\Liquid\Condition;
 
-use Keepsuit\Liquid\BlockBodySection;
-use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
+use Keepsuit\Liquid\Nodes\BlockBodySection;
+use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Arr;
 
 class Condition implements HasParseTreeVisitorChildren

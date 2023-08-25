@@ -2,10 +2,10 @@
 
 namespace Keepsuit\Liquid\Tags;
 
-use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parser\Regex;
-use Keepsuit\Liquid\Parser\Tokenizer;
+use Keepsuit\Liquid\Parse\Regex;
+use Keepsuit\Liquid\Parse\Tokenizer;
+use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\TagBlock;
 
 class CaptureTag extends TagBlock

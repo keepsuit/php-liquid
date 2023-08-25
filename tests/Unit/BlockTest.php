@@ -1,8 +1,8 @@
 <?php
 
+use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Tags\CommentTag;
 use Keepsuit\Liquid\Template;
-use Keepsuit\Liquid\Variable;
 
 test('blankspace', function () {
     $template = Template::parse('  ');

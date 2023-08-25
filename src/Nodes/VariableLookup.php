@@ -1,12 +1,14 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Nodes;
 
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Contracts\MapsToLiquid;
-use Keepsuit\Liquid\Parser\Expression;
-use Keepsuit\Liquid\Parser\Regex;
+use Keepsuit\Liquid\Drop;
+use Keepsuit\Liquid\Parse\Expression;
+use Keepsuit\Liquid\Parse\Regex;
+use Keepsuit\Liquid\Render\Context;
 
 class VariableLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
 {

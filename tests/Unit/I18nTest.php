@@ -3,7 +3,7 @@
 use Keepsuit\Liquid\Exceptions\TranslationException;
 
 beforeEach(function () {
-    $this->i18n = new Keepsuit\Liquid\I18n(fixture('en_locale.yml'));
+    $this->i18n = new \Keepsuit\Liquid\Support\I18n(fixture('en_locale.yml'));
 });
 
 test('translate simple string', function () {

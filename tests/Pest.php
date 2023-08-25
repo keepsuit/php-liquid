@@ -1,8 +1,8 @@
 <?php
 
-use Keepsuit\Liquid\Context;
-use Keepsuit\Liquid\ErrorMode;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Parse\ErrorMode;
+use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 use PHPUnit\Framework\ExpectationFailedException;

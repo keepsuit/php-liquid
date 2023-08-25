@@ -1,14 +1,14 @@
 <?php
 
-namespace Keepsuit\Liquid\Parser;
+namespace Keepsuit\Liquid\Parse;
 
 use Closure;
-use Keepsuit\Liquid\BlockBodySection;
-use Keepsuit\Liquid\BlockBodySectionDelimiter;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Nodes\BlockBodySection;
+use Keepsuit\Liquid\Nodes\BlockBodySectionDelimiter;
+use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\Template;
-use Keepsuit\Liquid\Variable;
 
 final class BlockParser
 {

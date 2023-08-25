@@ -2,19 +2,19 @@
 
 namespace Keepsuit\Liquid\Tags;
 
-use Keepsuit\Liquid\BlockBodySection;
-use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Drops\ForLoopDrop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Interrupts\BreakInterrupt;
-use Keepsuit\Liquid\Parser\Parser;
-use Keepsuit\Liquid\Parser\ParserSwitching;
-use Keepsuit\Liquid\Parser\Regex;
-use Keepsuit\Liquid\Parser\Tokenizer;
-use Keepsuit\Liquid\Parser\TokenType;
-use Keepsuit\Liquid\Range;
+use Keepsuit\Liquid\Nodes\BlockBodySection;
+use Keepsuit\Liquid\Nodes\Range;
+use Keepsuit\Liquid\Parse\Parser;
+use Keepsuit\Liquid\Parse\ParserSwitching;
+use Keepsuit\Liquid\Parse\Regex;
+use Keepsuit\Liquid\Parse\Tokenizer;
+use Keepsuit\Liquid\Parse\TokenType;
+use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\TagBlock;
 

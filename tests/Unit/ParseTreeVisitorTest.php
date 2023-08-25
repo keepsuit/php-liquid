@@ -1,9 +1,9 @@
 <?php
 
-use Keepsuit\Liquid\Parser\ParseTreeVisitor;
+use Keepsuit\Liquid\Nodes\VariableLookup;
+use Keepsuit\Liquid\Parse\ParseTreeVisitor;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Template;
-use Keepsuit\Liquid\VariableLookup;
 
 test('variable', function () {
     expect(visit('{{ test }}'))->toBe(['test']);

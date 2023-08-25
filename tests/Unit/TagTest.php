@@ -1,8 +1,8 @@
 <?php
 
-use Keepsuit\Liquid\Context;
-use Keepsuit\Liquid\Parser\ParseContext;
-use Keepsuit\Liquid\Parser\Tokenizer;
+use Keepsuit\Liquid\Parse\ParseContext;
+use Keepsuit\Liquid\Parse\Tokenizer;
+use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Tests\Stubs\TestTag;
 
 test('tag', function () {

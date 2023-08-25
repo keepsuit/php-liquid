@@ -1,10 +1,10 @@
 <?php
 
-use Keepsuit\Liquid\Context;
-use Keepsuit\Liquid\ErrorMode;
 use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\ResourceLimits;
+use Keepsuit\Liquid\Parse\ErrorMode;
+use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Render\ResourceLimits;
 use Keepsuit\Liquid\Template;
 
 test('assign with hyphen in variable name', function () {

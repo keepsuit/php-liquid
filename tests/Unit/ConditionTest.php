@@ -1,9 +1,9 @@
 <?php
 
 use Keepsuit\Liquid\Condition\Condition;
-use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\VariableLookup;
+use Keepsuit\Liquid\Nodes\VariableLookup;
+use Keepsuit\Liquid\Render\Context;
 
 beforeEach(function () {
     $this->context = new Context();

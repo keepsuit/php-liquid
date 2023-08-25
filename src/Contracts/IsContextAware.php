@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\Contracts;
 
-use Keepsuit\Liquid\Context;
+use Keepsuit\Liquid\Render\Context;
 
 interface IsContextAware
 {

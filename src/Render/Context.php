@@ -1,6 +1,6 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Render;
 
 use ArithmeticError;
 use Closure;
@@ -14,9 +14,11 @@ use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Interrupts\Interrupt;
-use Keepsuit\Liquid\Parser\Expression;
-use Keepsuit\Liquid\Parser\ParseContext;
+use Keepsuit\Liquid\Parse\Expression;
+use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Support\Arr;
+use Keepsuit\Liquid\TagBlock;
+use Keepsuit\Liquid\Template;
 use RuntimeException;
 use Throwable;
 

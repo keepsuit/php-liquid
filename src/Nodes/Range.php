@@ -1,8 +1,9 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Nodes;
 
 use Keepsuit\Liquid\Contracts\CanBeRendered;
+use Keepsuit\Liquid\Render\Context;
 
 class Range implements CanBeRendered
 {

@@ -2,15 +2,15 @@
 
 namespace Keepsuit\Liquid\Tags;
 
-use Keepsuit\Liquid\BlockBodySection;
 use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Condition\ElseCondition;
-use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
-use Keepsuit\Liquid\Parser\Parser;
-use Keepsuit\Liquid\Parser\ParserSwitching;
-use Keepsuit\Liquid\Parser\Tokenizer;
-use Keepsuit\Liquid\Parser\TokenType;
+use Keepsuit\Liquid\Nodes\BlockBodySection;
+use Keepsuit\Liquid\Parse\Parser;
+use Keepsuit\Liquid\Parse\ParserSwitching;
+use Keepsuit\Liquid\Parse\Tokenizer;
+use Keepsuit\Liquid\Parse\TokenType;
+use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\TagBlock;
 
 class IfTag extends TagBlock implements HasParseTreeVisitorChildren

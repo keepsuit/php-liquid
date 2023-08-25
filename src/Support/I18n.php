@@ -1,9 +1,8 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Support;
 
 use Keepsuit\Liquid\Exceptions\TranslationException;
-use Keepsuit\Liquid\Support\YamlParser;
 
 class I18n
 {
@@ -13,7 +12,7 @@ class I18n
 
     public function __construct(string $path = null)
     {
-        $this->path = $path ?? __DIR__.'/../locales/en.yml';
+        $this->path = $path ?? __DIR__.'/../../locales/en.yml';
     }
 
     public function translate(string $key, array $vars = []): string

@@ -1,7 +1,7 @@
 <?php
 
-use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\Contracts\Disableable;
+use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\TagBlock;
 use Keepsuit\Liquid\Template;

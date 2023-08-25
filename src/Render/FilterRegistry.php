@@ -1,8 +1,9 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Render;
 
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
+use Keepsuit\Liquid\Filters\StandardFilters;
 use Keepsuit\Liquid\Support\Str;
 
 class FilterRegistry

@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\Tags;
 
-use Keepsuit\Liquid\Context;
+use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\TagBlock;
 
 class CommentTag extends TagBlock

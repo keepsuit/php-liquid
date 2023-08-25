@@ -3,7 +3,11 @@
 namespace Keepsuit\Liquid;
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parser\ParseContext;
+use Keepsuit\Liquid\Nodes\Document;
+use Keepsuit\Liquid\Parse\ErrorMode;
+use Keepsuit\Liquid\Parse\ParseContext;
+use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Support\TagRegistry;
 
 class Template
 {

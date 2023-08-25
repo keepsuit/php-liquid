@@ -1,8 +1,8 @@
 <?php
 
-use Keepsuit\Liquid\Context;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\Tests\Stubs\ErrorDrop;
 use Keepsuit\Liquid\Tests\Stubs\LoaderDrop;

@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\Exceptions;
 
-use Keepsuit\Liquid\Parser\ParseContext;
+use Keepsuit\Liquid\Parse\ParseContext;
 
 class TagDisabledException extends LiquidException
 {

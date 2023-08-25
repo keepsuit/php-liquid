@@ -2,8 +2,8 @@
 
 namespace Keepsuit\Liquid\Tags;
 
-use Keepsuit\Liquid\Context;
-use Keepsuit\Liquid\Parser\Tokenizer;
+use Keepsuit\Liquid\Parse\Tokenizer;
+use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Tag;
 
 class DecrementTag extends Tag

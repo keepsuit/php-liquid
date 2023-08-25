@@ -1,6 +1,6 @@
 <?php
 
-use Keepsuit\Liquid\Parser\ParseContext;
+use Keepsuit\Liquid\Parse\ParseContext;
 
 test('tokenize strings', function () {
     expect(tokenize(' '))->toBe([' ']);

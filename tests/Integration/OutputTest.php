@@ -1,6 +1,6 @@
 <?php
 
-use Keepsuit\Liquid\Context;
+use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\Tests\Stubs\FunnyFilter;
 

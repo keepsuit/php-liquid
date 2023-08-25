@@ -1,15 +1,16 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Nodes;
 
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\CanBeRendered;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
-use Keepsuit\Liquid\Parser\ParseContext;
-use Keepsuit\Liquid\Parser\Parser;
-use Keepsuit\Liquid\Parser\ParserSwitching;
-use Keepsuit\Liquid\Parser\Regex;
-use Keepsuit\Liquid\Parser\TokenType;
+use Keepsuit\Liquid\Parse\ParseContext;
+use Keepsuit\Liquid\Parse\Parser;
+use Keepsuit\Liquid\Parse\ParserSwitching;
+use Keepsuit\Liquid\Parse\Regex;
+use Keepsuit\Liquid\Parse\TokenType;
+use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Arr;
 
 class Variable implements HasParseTreeVisitorChildren, CanBeRendered, CanBeEvaluated

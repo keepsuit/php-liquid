@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\Condition;
 
-use Keepsuit\Liquid\Context;
+use Keepsuit\Liquid\Render\Context;
 
 class ElseCondition extends Condition
 {

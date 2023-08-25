@@ -3,8 +3,8 @@
 namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Condition\Condition;
-use Keepsuit\Liquid\Context;
-use Keepsuit\Liquid\Parser\Tokenizer;
+use Keepsuit\Liquid\Parse\Tokenizer;
+use Keepsuit\Liquid\Render\Context;
 
 class UnlessTag extends IfTag
 {

@@ -1,12 +1,14 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Filters;
 
 use DateTime;
 use Iterator;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Contracts\MapsToLiquid;
+use Keepsuit\Liquid\Drop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
+use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\Str;
 

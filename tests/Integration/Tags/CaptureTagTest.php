@@ -1,6 +1,6 @@
 <?php
 
-use Keepsuit\Liquid\Context;
+use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Template;
 
 test('capture block content in variable', function () {

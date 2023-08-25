@@ -7,7 +7,7 @@ use Keepsuit\Liquid\Tests\Stubs\TestDrop;
 use Keepsuit\Liquid\Tests\Stubs\ThingWithParamToLiquid;
 
 beforeEach(function () {
-    $this->filters = new \Keepsuit\Liquid\FilterRegistry(new \Keepsuit\Liquid\Context());
+    $this->filters = new \Keepsuit\Liquid\Render\FilterRegistry(new \Keepsuit\Liquid\Render\Context());
 });
 
 test('size', function () {

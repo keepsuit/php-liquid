@@ -1,9 +1,11 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Nodes;
 
 use Keepsuit\Liquid\Contracts\CanBeRendered;
+use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Str;
+use Keepsuit\Liquid\Tag;
 
 class BlockBodySection implements CanBeRendered
 {

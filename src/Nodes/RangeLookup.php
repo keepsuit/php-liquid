@@ -1,11 +1,12 @@
 <?php
 
-namespace Keepsuit\Liquid;
+namespace Keepsuit\Liquid\Nodes;
 
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parser\Expression;
+use Keepsuit\Liquid\Parse\Expression;
+use Keepsuit\Liquid\Render\Context;
 
 class RangeLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
 {
