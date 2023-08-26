@@ -56,7 +56,7 @@ final class BlockParser
      */
     public function parse(Tokenizer $tokenizer, ParseContext $parseContext): array
     {
-        $parseContext->lineNumber = $tokenizer->getLineNumber();
+        $parseContext->lineNumber = $tokenizer->getStartLineNumber();
 
         if ($tokenizer->forLiquidTag) {
             return $this->parseForLiquidTag($tokenizer, $parseContext);
@@ -88,7 +88,7 @@ final class BlockParser
         );
         $sections[] = $section;
 
-        while (($token = $tokenizer->shift()) !== null) {
+        foreach ($tokenizer->shift() as $token) {
             if ($token === '') {
                 continue;
             }
@@ -142,7 +142,7 @@ final class BlockParser
                 $section->pushNode($token);
             }
 
-            $parseContext->lineNumber = $tokenizer->getLineNumber();
+            $parseContext->lineNumber = $tokenizer->getEndLineNumber();
         }
 
         if ($section->endDelimiter() === null && $this->endTag() !== null) {
@@ -166,9 +166,9 @@ final class BlockParser
         );
         $sections[] = $section;
 
-        while (($token = $tokenizer->shift()) !== null) {
+        foreach ($tokenizer->shift() as $token) {
             if ($token === '' || preg_match(self::WHITESPACE_OR_NOTHING, $token) === 1) {
-                $parseContext->lineNumber = $tokenizer->getLineNumber();
+                $parseContext->lineNumber = $tokenizer->getEndLineNumber();
 
                 continue;
             }
@@ -203,11 +203,11 @@ final class BlockParser
             );
             $sections[] = $section;
 
-            $parseContext->lineNumber = $tokenizer->getLineNumber();
+            $parseContext->lineNumber = $tokenizer->getEndLineNumber();
         }
 
         if ($section->endDelimiter() === null && $this->endTag() !== null) {
-            $parseContext->lineNumber -= 1;
+            $parseContext->lineNumber = $tokenizer->getEndLineNumber() - 1;
             throw SyntaxException::tagNeverClosed($this->tagName, $parseContext);
         }
 

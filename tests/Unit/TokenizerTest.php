@@ -34,7 +34,7 @@ function tokenize(string $source): array
     $tokenizer = (new ParseContext())->newTokenizer($source);
 
     $tokens = [];
-    while ($token = $tokenizer->shift()) {
+    foreach ($tokenizer->shift() as $token) {
         $tokens[] = $token;
     }
 
@@ -46,10 +46,9 @@ function tokenizeLineNumbers(string $source): array
     $tokenizer = (new ParseContext())->newTokenizer($source, startLineNumber: 1);
 
     $lineNumbers = [];
-    do {
-        $lineNumbers[] = $tokenizer->getLineNumber();
-    } while ($tokenizer->shift());
-    array_pop($lineNumbers);
+    foreach ($tokenizer->shift() as $ignored) {
+        $lineNumbers[] = $tokenizer->getStartLineNumber();
+    }
 
     return $lineNumbers;
 }

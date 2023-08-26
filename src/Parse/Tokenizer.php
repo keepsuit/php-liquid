@@ -4,41 +4,48 @@ namespace Keepsuit\Liquid\Parse;
 
 class Tokenizer
 {
-    protected ?int $lineNumber = null;
+    protected ?int $startLineNumber = null;
+
+    protected ?int $endLineNumber = null;
 
     protected int $offset = 0;
 
+    /**
+     * @var array<string>
+     */
     protected array $tokens;
 
     public function __construct(
         protected string $source,
-        int|bool $lineNumber = null,
+        int|bool $startLineNumber = null,
         public readonly bool $forLiquidTag = false
     ) {
         $this->tokens = $this->tokenize();
 
-        $this->lineNumber = match (true) {
-            is_int($lineNumber) => $lineNumber,
-            $lineNumber === true => 1,
+        $this->startLineNumber = match (true) {
+            is_int($startLineNumber) => $startLineNumber,
+            $startLineNumber === true => 1,
             default => null,
         };
     }
 
-    public function shift(): ?string
+    /**
+     * @return \Generator<string>
+     */
+    public function shift(): \Generator
     {
-        $token = $this->tokens[$this->offset] ?? null;
+        while ($this->offset < count($this->tokens)) {
+            $token = $this->tokens[$this->offset];
 
-        if ($token === null) {
-            return null;
+            $this->offset += 1;
+
+            if ($this->startLineNumber !== null) {
+                $this->startLineNumber = $this->endLineNumber ?? $this->startLineNumber;
+                $this->endLineNumber = $this->startLineNumber + ($this->forLiquidTag ? 1 : substr_count($token, PHP_EOL));
+            }
+
+            yield $token;
         }
-
-        $this->offset += 1;
-
-        if ($this->lineNumber !== null) {
-            $this->lineNumber += $this->forLiquidTag ? 1 : substr_count($token, PHP_EOL);
-        }
-
-        return $token;
     }
 
     protected function tokenize(): array
@@ -66,8 +73,13 @@ class Tokenizer
         return $tokens;
     }
 
-    public function getLineNumber(): ?int
+    public function getStartLineNumber(): ?int
     {
-        return $this->lineNumber;
+        return $this->startLineNumber;
+    }
+
+    public function getEndLineNumber(): ?int
+    {
+        return $this->endLineNumber;
     }
 }

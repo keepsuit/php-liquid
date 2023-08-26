@@ -36,7 +36,7 @@ class ParseContext
 
     public function newTokenizer(string $markup, int $startLineNumber = null, bool $forLiquidTag = false): Tokenizer
     {
-        return new Tokenizer($markup, lineNumber: $startLineNumber, forLiquidTag: $forLiquidTag);
+        return new Tokenizer($markup, startLineNumber: $startLineNumber, forLiquidTag: $forLiquidTag);
     }
 
     public function parseExpression(string $markup): mixed

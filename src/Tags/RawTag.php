@@ -29,7 +29,7 @@ class RawTag extends TagBlock
 
         $this->body = '';
 
-        while ($token = $tokenizer->shift()) {
+        foreach ($tokenizer->shift() as $token) {
             if (preg_match(self::FullTokenPossiblyInvalid, $token, $matches) === 1 && static::blockDelimiter() === $matches[2]) {
                 $this->parseContext->trimWhitespace = $token[-3] === Regex::WhitespaceControl;
 
