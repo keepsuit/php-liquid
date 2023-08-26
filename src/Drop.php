@@ -62,14 +62,14 @@ class Drop implements IsContextAware, MapsToLiquid
             }
 
             if (method_exists($this, $methodName)) {
-                return $this->$methodName();
+                return $this->{$methodName}();
             }
         }
 
         return $this->liquidMethodMissing($name);
     }
 
-    private function getInvokableMethods(): array
+    protected function getInvokableMethods(): array
     {
         if ($this->invokableMethods !== null) {
             return $this->invokableMethods;
@@ -79,6 +79,10 @@ class Drop implements IsContextAware, MapsToLiquid
             fn (\ReflectionMethod $method) => $method->getName(),
             (new \ReflectionClass(Drop::class))->getMethods(\ReflectionMethod::IS_PUBLIC)
         );
+
+        if ($this instanceof \Iterator) {
+            $blacklist = [...$blacklist, 'current', 'next', 'key', 'valid', 'rewind'];
+        }
 
         $subClassPublicMethods = array_map(
             function (\ReflectionMethod $method) {
@@ -92,7 +96,7 @@ class Drop implements IsContextAware, MapsToLiquid
         );
 
         return $this->invokableMethods = array_filter(
-            array_diff($subClassPublicMethods, $blacklist),
+            ['toLiquid', ...array_diff($subClassPublicMethods, $blacklist)],
             fn (?string $name) => $name !== null && ! str_starts_with($name, '__')
         );
     }

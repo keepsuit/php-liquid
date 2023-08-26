@@ -273,16 +273,11 @@ class StandardFilters
     public function map(array|Drop|Iterator $input, string $property): mixed
     {
         if ($input instanceof Drop) {
-            return match (true) {
-                property_exists($input, $property) => $input->$property,
-                method_exists($input, $property) => $input->$property(),
-                $input instanceof \Traversable => $this->map(iterator_to_array($input), $property),
-                default => throw new InvalidArgumentException(sprintf(
-                    'Property or method "%s" does not exist on object of type "%s"',
-                    $property,
-                    get_class($input)
-                ))
-            };
+            if ($input instanceof \Traversable) {
+                return $this->map(iterator_to_array($input), $property);
+            }
+
+            return $input->$property;
         }
 
         $input = $this->mapToLiquid($input);
