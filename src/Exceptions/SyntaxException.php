@@ -14,7 +14,7 @@ class SyntaxException extends LiquidException
     {
         return new SyntaxException($parseContext->locale->translate('errors.syntax.tag_termination', [
             'token' => $token,
-            'tag_end' => Regex::TagEnd,
+            'regexp' => stripslashes(Regex::TagEnd),
         ]));
     }
 
@@ -29,7 +29,7 @@ class SyntaxException extends LiquidException
     {
         return new SyntaxException($parseContext->locale->translate('errors.syntax.variable_termination', [
             'token' => $token,
-            'variable_end' => Regex::VariableEnd,
+            'regexp' => stripcslashes(Regex::VariableEnd),
         ]));
     }
 
@@ -64,7 +64,7 @@ class SyntaxException extends LiquidException
     public static function unexpectedTokenType(TokenType $expectedToken, TokenType $givenToken): SyntaxException
     {
         return new SyntaxException(sprintf(
-            'Unexpected token type: expected %s, got %s',
+            'Expected %s, got %s',
             $expectedToken->toString(),
             $givenToken->toString()
         ));

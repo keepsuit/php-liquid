@@ -97,7 +97,7 @@ final class BlockParser
                 $section->setNodeList(self::whitespaceHandler($token, $parseContext, $section->nodeList()));
 
                 if (preg_match(self::FULL_TOKEN, $token, $matches) !== 1) {
-                    $this->handleUnknownTag($token, $parseContext);
+                    $this->handleInvalidTagToken($token, $parseContext);
 
                     continue;
                 }
@@ -216,6 +216,10 @@ final class BlockParser
 
     protected static function whitespaceHandler(string $token, ParseContext $parseContext, array $nodeList): array
     {
+        if (strlen($token) < 3) {
+            return $nodeList;
+        }
+
         if ($token[2] === Regex::WhitespaceControl) {
             $previousToken = $nodeList[count($nodeList) - 1] ?? null;
 
@@ -241,6 +245,17 @@ final class BlockParser
         }
 
         throw SyntaxException::missingVariableTerminator($token, $parseContext);
+    }
+
+    protected function handleInvalidTagToken(string $token, ParseContext $parseContext): void
+    {
+        if (str_ends_with($token, '%}')) {
+            $this->handleUnknownTag($token, $parseContext);
+
+            return;
+        }
+
+        throw SyntaxException::missingTagTerminator($token, $parseContext);
     }
 
     /**

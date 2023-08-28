@@ -45,7 +45,7 @@ test('assign syntax error', function () {
 
 test('assign uses error mode', function () {
     expect(fn () => renderTemplate("{% assign foo = ('X' | downcase) %}", errorMode: ErrorMode::Strict))
-        ->toThrow(SyntaxException::class, 'expected DotDot, got Pipe');
+        ->toThrow(SyntaxException::class, 'Expected DotDot, got Pipe');
 
     assertTemplateResult(
         '',
