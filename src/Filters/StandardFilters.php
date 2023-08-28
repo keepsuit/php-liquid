@@ -433,8 +433,15 @@ class StandardFilters
     /**
      * Sorts the items in an array in case-sensitive alphabetical, or numerical, order.
      */
-    public function sort(array|Iterator $input, string $property = null): array
+    public function sort(mixed $input, string $property = null): array
     {
+        $input = match (true) {
+            is_array($input) && ! array_is_list($input) => [$input],
+            is_array($input) => $input,
+            is_iterable($input) => iterator_to_array($input),
+            default => [$input],
+        };
+
         $input = $this->mapToLiquid($input);
 
         $result = $property === null ? $input : Arr::map($input, $property);
@@ -459,9 +466,18 @@ class StandardFilters
     /**
      * Sorts the items in an array in case-insensitive alphabetical order.
      */
-    public function sortNatural(array $input, string $property = null): array
+    public function sortNatural(mixed $input, string $property = null): array
     {
-        $result = $property === null ? $this->mapToLiquid($input) : Arr::map($this->mapToLiquid($input), $property);
+        $input = match (true) {
+            is_array($input) && ! array_is_list($input) => [$input],
+            is_array($input) => $input,
+            is_iterable($input) => iterator_to_array($input),
+            default => [$input],
+        };
+
+        $input = $this->mapToLiquid($input);
+
+        $result = $property === null ? $input : Arr::map($input, $property);
 
         uasort($result, function ($a, $b) {
             return match (true) {

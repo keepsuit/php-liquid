@@ -43,7 +43,7 @@ class FilterRegistry
 
         $reflection = new \ReflectionClass($filterClass);
         foreach ($reflection->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
-            if ($method->getName() === '__construct') {
+            if (str_starts_with($method->getName(), '__')) {
                 continue;
             }
 
