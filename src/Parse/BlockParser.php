@@ -224,12 +224,7 @@ final class BlockParser
             $previousToken = $nodeList[count($nodeList) - 1] ?? null;
 
             if (is_string($previousToken)) {
-                $firstChar = $previousToken[0] ?? '';
-                $previousToken = rtrim($previousToken);
-                if ($previousToken === '') {
-                    $previousToken .= $firstChar;
-                }
-                $nodeList[count($nodeList) - 1] = $previousToken;
+                $nodeList[count($nodeList) - 1] = rtrim($previousToken);
             }
         }
 
