@@ -21,11 +21,6 @@ class Template
      */
     protected array $errors = [];
 
-    /**
-     * @var array<\Throwable>
-     */
-    protected array $warnings = [];
-
     protected ?Profiler $profiler = null;
 
     public function __construct(
@@ -124,11 +119,6 @@ class Template
     public function getErrors(): array
     {
         return $this->errors;
-    }
-
-    public function getWarnings(): array
-    {
-        return $this->warnings;
     }
 
     public function getProfiler(): ?Profiler

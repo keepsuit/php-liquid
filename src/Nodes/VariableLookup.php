@@ -97,7 +97,7 @@ class VariableLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
                 is_array($object) && array_key_exists($key, $object) => $context->lookupAndEvaluate($object, $key),
                 is_object($object) => $context->lookupAndEvaluate($object, $key),
                 in_array($i, $this->lookupFilters) => $this->applyFilter($context, $object, (string) $key),
-                default => null,
+                default => $context->lookupAndEvaluate($object, $key),
             };
 
             if ($object instanceof MapsToLiquid) {

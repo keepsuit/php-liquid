@@ -93,7 +93,7 @@ class ResourceLimits
         return $this->reachedLimit;
     }
 
-    public function getAssignScope(): int
+    public function getAssignScore(): int
     {
         return $this->assignScore;
     }

@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid\Render;
 
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
+use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
 use Keepsuit\Liquid\Filters\StandardFilters;
 use Keepsuit\Liquid\Support\Str;
 
@@ -57,15 +58,22 @@ class FilterRegistry
         return $this;
     }
 
+    /**
+     * @throws UndefinedFilterException
+     */
     public function invoke(string $filterName, mixed $value, mixed ...$args): mixed
     {
         $filter = $this->filters[$filterName] ?? null;
 
-        if (! $filter) {
-            return $value;
+        if ($filter !== null) {
+            return $filter($value, ...$args);
         }
 
-        return $filter($value, ...$args);
+        if ($this->context->strictVariables) {
+            throw new UndefinedFilterException($filterName);
+        }
+
+        return $value;
     }
 
     /**

@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Contracts\MapsToLiquid;
 use Keepsuit\Liquid\Drops\DropMethodPrivate;
+use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Str;
 
@@ -34,6 +35,10 @@ class Drop implements IsContextAware, MapsToLiquid
 
     protected function liquidMethodMissing(string $name): mixed
     {
+        if ($this->context?->strictVariables) {
+            throw new UndefinedDropMethodException($name);
+        }
+
         return null;
     }
 

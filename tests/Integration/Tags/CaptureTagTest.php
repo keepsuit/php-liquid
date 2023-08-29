@@ -48,5 +48,5 @@ test('assigning from capture', function () {
 test('increment assign score by bytes', function () {
     $context = new Context();
     Template::parse('{% capture foo %}すごい{% endcapture %}')->render($context);
-    expect($context->resourceLimits->getAssignScope())->toBe(9);
+    expect($context->resourceLimits->getAssignScore())->toBe(9);
 });

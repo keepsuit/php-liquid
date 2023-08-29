@@ -11,13 +11,16 @@ use Keepsuit\Liquid\Contracts\MapsToLiquid;
 use Keepsuit\Liquid\Exceptions\ArithmeticException;
 use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\LiquidException;
+use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
+use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Interrupts\Interrupt;
 use Keepsuit\Liquid\Parse\Expression;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Profiler\Profiler;
 use Keepsuit\Liquid\Support\Arr;
+use Keepsuit\Liquid\Support\MissingValue;
 use Keepsuit\Liquid\TagBlock;
 use Keepsuit\Liquid\Template;
 use RuntimeException;
@@ -25,8 +28,6 @@ use Throwable;
 
 final class Context
 {
-    protected bool $strictVariables = false;
-
     protected int $baseScopeDepth = 0;
 
     protected ?string $templateName = null;
@@ -65,6 +66,7 @@ final class Context
         /** @var array<class-string> $filters */
         array $filters = [],
         protected bool $rethrowExceptions = false,
+        public readonly bool $strictVariables = false,
         bool $profile = false,
         public readonly ResourceLimits $resourceLimits = new ResourceLimits(),
         public readonly LiquidFileSystem $fileSystem = new BlankFileSystem(),
@@ -150,13 +152,20 @@ final class Context
         return $this->get($key) !== null;
     }
 
-    public function findVariable(string $key, bool $throwNotFound = true): mixed
+    /**
+     * @throws UndefinedVariableException
+     */
+    public function findVariable(string $key): mixed
     {
         $scope = Arr::first($this->scopes, fn (array $scope) => array_key_exists($key, $scope));
 
         $variable = is_array($scope)
-            ? $this->lookupAndEvaluate($scope, $key, $throwNotFound)
-            : $this->tryFindVariableInEnvironments($key, $throwNotFound);
+            ? $this->internalContextLookup($scope, $key)
+            : $this->tryFindVariableInEnvironments($key);
+
+        if ($variable instanceof MissingValue) {
+            return $this->strictVariables ? throw new UndefinedVariableException($key) : null;
+        }
 
         if ($variable instanceof MapsToLiquid) {
             $variable = $variable->toLiquid();
@@ -168,13 +177,39 @@ final class Context
         return $variable;
     }
 
-    public function lookupAndEvaluate(array|object $scope, int|string $key, bool $throwNotFound = true): mixed
+    /**
+     * @throws UndefinedVariableException
+     */
+    public function lookupAndEvaluate(mixed $scope, int|string $key): mixed
     {
-        $fallback = fn (int|string $key) => ($this->strictVariables && $throwNotFound ? throw new RuntimeException("Variable `$key` not found") : null);
-
         $value = match (true) {
-            is_array($scope) => $scope[$key] ?? $fallback($key),
-            is_object($scope) => $scope->$key ?? $fallback($key),
+            is_array($scope) || is_object($scope) => $this->internalContextLookup($scope, $key),
+            default => new MissingValue(),
+        };
+
+        if ($value instanceof MissingValue) {
+            return $this->strictVariables ? throw new UndefinedVariableException((string) $key) : null;
+        }
+
+        return $value;
+    }
+
+    protected function tryFindVariableInEnvironments(string $key): mixed
+    {
+        $foundVariable = $this->internalContextLookup($this->environment, $key);
+        if (! $foundVariable instanceof MissingValue) {
+            return $foundVariable;
+        }
+
+        return $this->internalContextLookup($this->sharedState->staticEnvironment, $key);
+    }
+
+    public function internalContextLookup(array|object $scope, int|string $key): mixed
+    {
+        $value = match (true) {
+            is_array($scope) && array_key_exists($key, $scope) => $scope[$key],
+            is_object($scope) => $scope->$key,
+            default => new MissingValue(),
         };
 
         if ($value instanceof Closure) {
@@ -182,21 +217,6 @@ final class Context
         }
 
         return $value;
-    }
-
-    protected function tryFindVariableInEnvironments(string $key, bool $throwNotFound = true): mixed
-    {
-        $foundVariable = $this->lookupAndEvaluate($this->environment, $key, $throwNotFound);
-        if ($foundVariable !== null) {
-            return $foundVariable;
-        }
-
-        $foundVariable = $this->lookupAndEvaluate($this->sharedState->staticEnvironment, $key, $throwNotFound);
-        if ($foundVariable !== null) {
-            return $foundVariable;
-        }
-
-        return null;
     }
 
     public function applyFilter(string $filter, mixed $value, mixed ...$args): mixed
@@ -259,8 +279,9 @@ final class Context
     public function handleError(Throwable $error, int $lineNumber = null): string
     {
         $error = match (true) {
-            $error instanceof LiquidException => $error,
+            $error instanceof ResourceLimitException => throw $error,
             $error instanceof ArithmeticError => new ArithmeticException($error),
+            $error instanceof LiquidException => $error,
             default => new InternalException($error),
         };
 

@@ -3,6 +3,9 @@
 namespace Keepsuit\Liquid\Nodes;
 
 use Keepsuit\Liquid\Contracts\CanBeRendered;
+use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
+use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
+use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Str;
 use Keepsuit\Liquid\Tag;
@@ -85,6 +88,8 @@ class BlockBodySection implements CanBeRendered
                 }
 
                 $output .= $this->renderNode($context, $node);
+            } catch (UndefinedVariableException|UndefinedDropMethodException|UndefinedFilterException $exception) {
+                $context->handleError($exception, $node->lineNumber);
             } catch (\Throwable $exception) {
                 $output .= $context->handleError($exception, $node->lineNumber);
             }

@@ -72,7 +72,7 @@ test('assign score exceeding resource limit', function () {
     $context = new Context(rethrowExceptions: true, resourceLimits: new ResourceLimits(assignScoreLimit: 2));
     expect($template->render($context))->toBe('');
     expect($context->resourceLimits->reached())->toBeFalse();
-    expect($context->resourceLimits->getAssignScope())->toBe(2);
+    expect($context->resourceLimits->getAssignScore())->toBe(2);
 });
 
 test('assign score exceeding resource limit from composite object', function () {
@@ -85,7 +85,7 @@ test('assign score exceeding resource limit from composite object', function () 
     $context = new Context(rethrowExceptions: true, resourceLimits: new ResourceLimits(assignScoreLimit: 5));
     expect($template->render($context))->toBe('');
     expect($context->resourceLimits->reached())->toBeFalse();
-    expect($context->resourceLimits->getAssignScope())->toBe(5);
+    expect($context->resourceLimits->getAssignScore())->toBe(5);
 });
 
 test('assign score of int', function () {
@@ -111,5 +111,5 @@ function assignScoreOf(mixed $value): int
     $context = new Context(rethrowExceptions: true, staticEnvironment: ['value' => $value]);
     Template::parse('{% assign obj = value %}')->render($context);
 
-    return $context->resourceLimits->getAssignScope();
+    return $context->resourceLimits->getAssignScore();
 }
