@@ -6,6 +6,7 @@ use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\Document;
 use Keepsuit\Liquid\Parse\ErrorMode;
 use Keepsuit\Liquid\Parse\ParseContext;
+use Keepsuit\Liquid\Profiler\Profiler;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\TagRegistry;
 
@@ -24,6 +25,8 @@ class Template
      * @var array<\Throwable>
      */
     protected array $warnings = [];
+
+    protected ?Profiler $profiler = null;
 
     public function __construct(
         public readonly Document $root,
@@ -59,6 +62,8 @@ class Template
 
     public function render(Context $context): string
     {
+        $this->profiler = $context->getProfiler();
+
         try {
             return $this->root->render($context);
         } finally {
@@ -124,5 +129,10 @@ class Template
     public function getWarnings(): array
     {
         return $this->warnings;
+    }
+
+    public function getProfiler(): ?Profiler
+    {
+        return $this->profiler;
     }
 }

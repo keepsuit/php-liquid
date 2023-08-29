@@ -16,6 +16,7 @@ use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Interrupts\Interrupt;
 use Keepsuit\Liquid\Parse\Expression;
 use Keepsuit\Liquid\Parse\ParseContext;
+use Keepsuit\Liquid\Profiler\Profiler;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\TagBlock;
 use Keepsuit\Liquid\Template;
@@ -51,6 +52,8 @@ final class Context
 
     protected ?FilterRegistry $filterRegistry = null;
 
+    protected ?Profiler $profiler;
+
     public function __construct(
         /** @var array<string, mixed> */
         protected array $environment = [],
@@ -62,6 +65,7 @@ final class Context
         /** @var array<class-string> $filters */
         array $filters = [],
         protected bool $rethrowExceptions = false,
+        bool $profile = false,
         public readonly ResourceLimits $resourceLimits = new ResourceLimits(),
         public readonly LiquidFileSystem $fileSystem = new BlankFileSystem(),
     ) {
@@ -72,6 +76,8 @@ final class Context
             staticRegisters: $registers,
             filters: $filters
         );
+
+        $this->profiler = $profile ? new Profiler() : null;
     }
 
     protected function push(array $newScope = []): void
@@ -275,6 +281,16 @@ final class Context
         return $this->sharedState->errors;
     }
 
+    public function getTemplateName(): ?string
+    {
+        return $this->templateName;
+    }
+
+    public function getProfiler(): ?Profiler
+    {
+        return $this->profiler;
+    }
+
     public function loadPartial(ParseContext $parseContext, string $templateName): Template
     {
         $cacheKey = sprintf('%s:%s', $templateName, $parseContext->errorMode->name);
@@ -315,6 +331,7 @@ final class Context
         $subContext->baseScopeDepth = $this->baseScopeDepth + 1;
         $subContext->sharedState = $this->sharedState;
         $subContext->templateName = $templateName;
+        $subContext->profiler = $this->profiler;
         $subContext->partial = true;
 
         return $subContext;

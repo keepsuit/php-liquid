@@ -40,6 +40,10 @@ class Document implements CanBeRendered
 
     public function render(Context $context): string
     {
+        if ($context->getProfiler() !== null) {
+            return $context->getProfiler()->profile($context->getTemplateName(), fn () => $this->body->render($context));
+        }
+
         return $this->body->render($context);
     }
 

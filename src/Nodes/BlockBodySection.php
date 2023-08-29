@@ -84,7 +84,7 @@ class BlockBodySection implements CanBeRendered
                     $node->ensureTagIsEnabled($context);
                 }
 
-                $output .= $node->render($context);
+                $output .= $this->renderNode($context, $node);
             } catch (\Throwable $exception) {
                 $output .= $context->handleError($exception, $node->lineNumber);
             }
@@ -97,6 +97,20 @@ class BlockBodySection implements CanBeRendered
         $context->resourceLimits->incrementWriteScore($output);
 
         return $output;
+    }
+
+    protected function renderNode(Context $context, Variable|Tag $node): string
+    {
+        if ($context->getProfiler() !== null) {
+            return $context->getProfiler()->profileNode(
+                templateName: $context->getTemplateName(),
+                renderFunction: fn () => $node->render($context),
+                code: $node->raw(),
+                lineNumber: $node->lineNumber,
+            );
+        }
+
+        return $node->render($context);
     }
 
     public function blank(): bool
