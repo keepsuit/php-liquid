@@ -24,7 +24,7 @@ Template::registerTag(PaginateTag::class);
         $style = new SymfonyStyle($input, $output);
 
         $times = 10;
-        $warmup = 2;
+        $warmup = 5;
 
         $output->writeln(sprintf('Running benchmark for %s seconds (with %s seconds warmup).', $times, $warmup));
 

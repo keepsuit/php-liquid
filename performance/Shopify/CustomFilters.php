@@ -182,7 +182,7 @@ class CustomFilters
         };
     }
 
-    protected function defaultPagination(array $paginate): string
+    public function defaultPagination(array $paginate): string
     {
         $html = [];
 

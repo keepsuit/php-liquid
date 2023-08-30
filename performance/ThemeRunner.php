@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Performance;
 
+use Keepsuit\Liquid\Performance\Shopify\Database;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Template;
 
@@ -50,8 +51,10 @@ class ThemeRunner
 
     public function render(): void
     {
+        $database = [...Database::tables()];
+
         foreach ($this->compiledTemplates as $compiled) {
-            $compiled->render();
+            $compiled->render($database);
         }
     }
 

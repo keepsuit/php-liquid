@@ -20,20 +20,25 @@ class CompiledThemeTestTemplate
         return basename($this->templateName);
     }
 
-    public function render(): void
+    public function render(array $assigns = []): void
     {
         if ($this->layout) {
-            $context = new Context(
-                staticEnvironment: [
-                    'content_for_layout' => $this->template->render(),
-                ],
-                filters: [
-                    CustomFilters::class,
-                ]
-            );
-            $this->layout->render($context);
+            $this->layout->render($this->buildContext([
+                ...$assigns,
+                'content_for_layout' => $this->template->render($this->buildContext($assigns)),
+            ]));
         } else {
-            $this->template->render();
+            $this->template->render($this->buildContext($assigns));
         }
+    }
+
+    protected function buildContext(array $assigns = []): Context
+    {
+        return new Context(
+            staticEnvironment: $assigns,
+            filters: [
+                CustomFilters::class,
+            ],
+        );
     }
 }
