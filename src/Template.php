@@ -51,7 +51,7 @@ class Template
         );
     }
 
-    public function render(Context $context): string
+    public function render(Context $context = new Context()): string
     {
         $this->profiler = $context->getProfiler();
 
