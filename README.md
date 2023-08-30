@@ -12,6 +12,17 @@ Liquid is a template engine with interesting advantages:
 - It is safe since it does not allow users to run insecure code on your server.
 - It is extensible, allowing you to add your own filters and tags.
 
+## Shopify Liquid version compatibility
+
+| Shopify Liquid | PHP Liquid |
+|---------------:|-----------:|
+|            5.4 |        0.1 |
+
+#### Differences from Shopify Liquid
+
+- **Error Modes** are not implemented, the parsing is always strict.
+- `include` tag is not implemented because it is deprecated and can be replaced with `render`.
+
 ## Installation
 
 You can install the package via composer:
