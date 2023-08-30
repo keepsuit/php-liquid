@@ -125,18 +125,6 @@ test('capture', function () {
     expect(visit('{% capture x %}{{ test }}{% endcapture %}'))->toBe(['test']);
 });
 
-test('include', function () {
-    expect(visit('{% include test %}'))->toBe(['test']);
-});
-
-test('include with', function () {
-    expect(visit('{% include "hai" with test %}'))->toBe(['test']);
-});
-
-test('include for', function () {
-    expect(visit('{% include "hai" for test %}'))->toBe(['test']);
-});
-
 test('render for', function () {
     expect(visit('{% render "hai" for test %}'))->toBe(['test']);
 });

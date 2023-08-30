@@ -97,7 +97,6 @@ class Template
             ->register(Tags\ForTag::class)
             ->register(Tags\IfChanged::class)
             ->register(Tags\IfTag::class)
-            ->register(Tags\IncludeTag::class)
             ->register(Tags\IncrementTag::class)
             ->register(Tags\InlineCommentTag::class)
             ->register(Tags\LiquidTag::class)
