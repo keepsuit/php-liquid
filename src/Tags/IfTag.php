@@ -5,9 +5,9 @@ namespace Keepsuit\Liquid\Tags;
 use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Condition\ElseCondition;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
+use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\BlockBodySection;
 use Keepsuit\Liquid\Parse\Parser;
-use Keepsuit\Liquid\Parse\ParserSwitching;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\Context;
@@ -15,8 +15,6 @@ use Keepsuit\Liquid\TagBlock;
 
 class IfTag extends TagBlock implements HasParseTreeVisitorChildren
 {
-    use ParserSwitching;
-
     /** @var Condition[] */
     protected array $conditions = [];
 
@@ -29,9 +27,33 @@ class IfTag extends TagBlock implements HasParseTreeVisitorChildren
     {
         parent::parse($tokenizer);
 
-        $this->conditions = array_map(fn (BlockBodySection $block) => $this->parseBodySection($block), $this->bodySections);
+        try {
+            $this->conditions = array_map(fn (BlockBodySection $block) => $this->parseBodySection($block), $this->bodySections);
+        } catch (SyntaxException $exception) {
+            $exception->markupContext = $this->markup;
+            throw $exception;
+        }
 
         return $this;
+    }
+
+    public function render(Context $context): string
+    {
+        $output = '';
+        foreach ($this->conditions as $condition) {
+            $result = $condition->evaluate($context);
+
+            if ($result) {
+                return $condition->attachment?->render($context) ?? '';
+            }
+        }
+
+        return $output;
+    }
+
+    public function parseTreeVisitorChildren(): array
+    {
+        return $this->conditions;
     }
 
     public function nodeList(): array
@@ -44,16 +66,17 @@ class IfTag extends TagBlock implements HasParseTreeVisitorChildren
         return in_array($tagName, ['else', 'elsif'], true);
     }
 
+    /**
+     * @throws SyntaxException
+     */
     protected function parseBodySection(BlockBodySection $section): Condition
     {
         assert($section->startDelimiter() !== null);
 
         $condition = match (true) {
             $section->startDelimiter()->tag === 'else' => new ElseCondition(),
-            default => $this->strictParseWithErrorModeFallback($section->startDelimiter()->markup, $this->parseContext),
+            default => $this->parseCondition($section->startDelimiter()->markup),
         };
-
-        assert($condition instanceof Condition);
 
         if ($section->blank()) {
             $section->removeBlankStrings();
@@ -63,7 +86,10 @@ class IfTag extends TagBlock implements HasParseTreeVisitorChildren
         return $condition;
     }
 
-    protected function strictParse(string $markup): mixed
+    /**
+     * @throws SyntaxException
+     */
+    protected function parseCondition(string $markup): Condition
     {
         $parser = new Parser($markup);
 
@@ -71,11 +97,6 @@ class IfTag extends TagBlock implements HasParseTreeVisitorChildren
         $parser->consume(TokenType::EndOfString);
 
         return $condition;
-    }
-
-    protected function laxParse(string $markup): mixed
-    {
-        throw new \RuntimeException('Not implemented');
     }
 
     protected function parseBinaryComparison(Parser $parser): Condition
@@ -103,24 +124,5 @@ class IfTag extends TagBlock implements HasParseTreeVisitorChildren
         } else {
             return new Condition($a);
         }
-    }
-
-    public function parseTreeVisitorChildren(): array
-    {
-        return $this->conditions;
-    }
-
-    public function render(Context $context): string
-    {
-        $output = '';
-        foreach ($this->conditions as $condition) {
-            $result = $condition->evaluate($context);
-
-            if ($result) {
-                return $condition->attachment?->render($context) ?? '';
-            }
-        }
-
-        return $output;
     }
 }

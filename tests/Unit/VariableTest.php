@@ -3,9 +3,7 @@
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Nodes\VariableLookup;
-use Keepsuit\Liquid\Parse\ErrorMode;
 use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Template;
 
 test('variable', function () {
     $var = createVariable('hello');
@@ -91,14 +89,6 @@ test('filters without whitespace', function () {
         ->filters()->toBe([['replace', ['foo', 'bar'], []], ['textileze', [], []]]);
 });
 
-test('symbol', function () {
-    expect(createVariable("http://disney.com/logo.gif | image: 'med' ", errorMode: ErrorMode::Lax))
-        ->name()->toBeInstanceOf(VariableLookup::class)
-        ->name()->name->toBe('http')
-        ->name()->lookups->toBe(['disney', 'com', 'logo', 'gif'])
-        ->filters()->toBe([['image', ['med'], []]]);
-});
-
 test('string to filters', function () {
     expect(createVariable("'http://disney.com/logo.gif' | image: 'med' "))
         ->name()->toBeString()
@@ -139,12 +129,9 @@ test('dashes', function () {
         ->name()->toBeInstanceOf(VariableLookup::class)
         ->name()->name->toBe('foo-bar-2');
 
-    $oldErrorMode = Template::$errorMode;
-    Template::$errorMode = ErrorMode::Strict;
     expect(fn () => createVariable('foo - bar'))->toThrow(SyntaxException::class);
     expect(fn () => createVariable('-foo'))->toThrow(SyntaxException::class);
     expect(fn () => createVariable('2foo'))->toThrow(SyntaxException::class);
-    Template::$errorMode = $oldErrorMode;
 });
 
 test('string with special chars', function () {
@@ -167,15 +154,8 @@ test('filter with keyword arguments', function () {
         ->filters()->toBe([['things', [], ['greeting' => 'world', 'farewell' => 'goodbye']]]);
 });
 
-test('lax filter argument parsing', function () {
-    expect(createVariable(' number_of_comments | pluralize: \'comment\': \'comments\' ', errorMode: ErrorMode::Lax))
-        ->name()->toBeInstanceOf(VariableLookup::class)
-        ->name()->name->toBe('number_of_comments')
-        ->filters()->toBe([['pluralize', ['comment', 'comments'], []]]);
-});
-
 test('string filter argument parsing', function () {
-    expect(fn () => createVariable(' number_of_comments | pluralize: \'comment\': \'comments\' ', errorMode: ErrorMode::Strict))
+    expect(fn () => createVariable(' number_of_comments | pluralize: \'comment\': \'comments\' '))
         ->toThrow(SyntaxException::class);
 });
 
@@ -190,7 +170,7 @@ test('variable lookup interface', function () {
         ->lookups->toBe(['b', 'c']);
 });
 
-function createVariable(string $markup, ErrorMode $errorMode = null): Variable
+function createVariable(string $markup): Variable
 {
-    return new Variable($markup, new ParseContext(errorMode: $errorMode));
+    return new Variable($markup, new ParseContext());
 }

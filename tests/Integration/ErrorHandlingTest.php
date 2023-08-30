@@ -3,9 +3,7 @@
 use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\StandardException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parse\ErrorMode;
 use Keepsuit\Liquid\Render\Context;
-use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\Tests\Stubs\ErrorDrop;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
@@ -83,14 +81,6 @@ test('unrecognized operator', function () {
     expect(fn () => Template::parse('{% if 1 =! 2 %}ok{% endif %}'))->toThrow(SyntaxException::class);
 });
 
-test('lax unrecognized operator', function () {
-    $template = Template::parse('{% if 1 =! 2 %}ok{% endif %}', errorMode: ErrorMode::Lax);
-
-    expect($template->render(new Context()))->toBe(' Liquid error: Unknown operator =! ');
-    expect($template->getErrors())->toHaveCount(1);
-    expect($template->getErrors()[0])->toBeInstanceOf(SyntaxException::class);
-})->skip('if lax parsing not implemented');
-
 test('with line numbers adds numbers to parser errors', function () {
     assertMatchSyntaxError(
         "Liquid syntax error (line 3): Unknown tag '{% \"cat\" | foobar %}'",
@@ -117,25 +107,6 @@ test('with line numbers adds numbers to parser errors with whitespace trim', fun
     );
 });
 
-test('parsing warn with line numbers adds numbers to lexer errors', function () {
-    $template = Template::parse(
-        <<<'LIQUID'
-
-        foobar
-
-        {% if 1 =! 2 %}ok{% endif %}
-
-        bla
-
-        LIQUID,
-        errorMode: ErrorMode::Warn,
-        lineNumbers: true
-    );
-
-    expect(Arr::map($template->getWarnings(), 'message'))
-        ->toBe(['Liquid syntax error (line 4): Unexpected character = in "1 =! 2"']);
-})->skip('if tag lax parsing not implemented');
-
 test('parsing strict with line numbers adds numbers to lexer errors', function () {
     try {
         Template::parse(
@@ -148,7 +119,6 @@ test('parsing strict with line numbers adds numbers to lexer errors', function (
         bla
 
         LIQUID,
-            errorMode: ErrorMode::Strict,
             lineNumbers: true
         );
     } catch (SyntaxException $exception) {
@@ -180,45 +150,13 @@ test('strict error messages', function () {
     assertMatchSyntaxError(
         'Liquid syntax error (line 1): Unexpected character = in "1 =! 2"',
         ' {% if 1 =! 2 %}ok{% endif %} ',
-        errorMode: ErrorMode::Strict,
     );
 
     assertMatchSyntaxError(
         'Liquid syntax error (line 1): Unexpected character % in "{{%%%}}"',
         '{{%%%}}',
-        errorMode: ErrorMode::Strict,
     );
 });
-
-test('warnings', function () {
-    $template = Template::parse(
-        '{% if ~~~ %}{{%%%}}{% else %}{{ hello. }}{% endif %}',
-        errorMode: ErrorMode::Warn,
-    );
-
-    expect($template->getWarnings())
-        ->toHaveCount(3)
-        ->{0}->getMessage()->toBe('Unexpected character ~ in "~~~"')
-        ->{1}->getMessage()->toBe('Unexpected character % in "{{%%%}}"')
-        ->{2}->getMessage()->toBe('Expected id but found end_of_string in "{{ hello. }}"');
-})->skip('if tag lax parsing not implemented');
-
-test('warnings with line numbers', function () {
-    $template = Template::parse(
-        <<<'LIQUID'
-        {% if ~~~ %}
-        {{%%%}}{% else %}
-        {{ hello. }}{% endif %}
-        LIQUID,
-        errorMode: ErrorMode::Warn,
-    );
-
-    expect($template->getWarnings())
-        ->toHaveCount(3)
-        ->{0}->render()->toBe('Liquid syntax error (line 1): Unexpected character ~ in "~~~"')
-        ->{1}->render()->toBe('Liquid syntax error (line 2): Unexpected character % in "{{%%%}}"')
-        ->{2}->render()->toBe('Liquid syntax error (line 3): Expected id but found end_of_string in "{{ hello. }}"');
-})->skip('if tag lax parsing not implemented');
 
 test('default exception renderer with internal error', function () {
     $template = Template::parse('This is a runtime error: {{ errors.runtime_error }}', lineNumbers: true);

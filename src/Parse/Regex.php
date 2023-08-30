@@ -4,14 +4,6 @@ namespace Keepsuit\Liquid\Parse;
 
 class Regex
 {
-    const FilterSeparator = '\|';
-
-    const ArgumentSeparator = ',';
-
-    const FilterArgumentSeparator = ':';
-
-    const VariableAttributeSeparator = '.';
-
     const WhitespaceControl = '-';
 
     const TagStart = '\{%';

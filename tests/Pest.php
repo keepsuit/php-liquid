@@ -1,15 +1,10 @@
 <?php
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parse\ErrorMode;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 use PHPUnit\Framework\ExpectationFailedException;
-
-uses()->beforeEach(function () {
-    Template::$errorMode = ErrorMode::Strict;
-})->in(__DIR__);
 
 function fixture(string $path): string
 {
@@ -24,10 +19,9 @@ function renderTemplate(
     array $assigns = [],
     array $registers = [],
     array $partials = [],
-    ErrorMode $errorMode = null,
     bool $renderErrors = false,
 ): string {
-    $template = Template::parse($template, lineNumbers: true, errorMode: $errorMode);
+    $template = Template::parse($template, lineNumbers: true);
 
     $fileSystem = new StubFileSystem(partials: $partials);
 
@@ -50,7 +44,6 @@ function assertTemplateResult(
     array $assigns = [],
     array $registers = [],
     array $partials = [],
-    ErrorMode $errorMode = null,
     bool $renderErrors = false,
 ): void {
     expect(renderTemplate(
@@ -58,15 +51,14 @@ function assertTemplateResult(
         assigns: $assigns,
         registers: $registers,
         partials: $partials,
-        errorMode: $errorMode,
         renderErrors: $renderErrors
     ))->toBe($expected);
 }
 
-function assertMatchSyntaxError(string $error, string $template, array $assigns = [], array $registers = [], ErrorMode $errorMode = null): void
+function assertMatchSyntaxError(string $error, string $template, array $assigns = [], array $registers = []): void
 {
     try {
-        renderTemplate(template: $template, assigns: $assigns, registers: $registers, errorMode: $errorMode);
+        renderTemplate(template: $template, assigns: $assigns, registers: $registers);
     } catch (SyntaxException $exception) {
         expect((string) $exception)->toBe($error);
 

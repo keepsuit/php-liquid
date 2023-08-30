@@ -10,7 +10,6 @@ use Keepsuit\Liquid\Interrupts\BreakInterrupt;
 use Keepsuit\Liquid\Nodes\BlockBodySection;
 use Keepsuit\Liquid\Nodes\Range;
 use Keepsuit\Liquid\Parse\Parser;
-use Keepsuit\Liquid\Parse\ParserSwitching;
 use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Parse\TokenType;
@@ -20,8 +19,6 @@ use Keepsuit\Liquid\TagBlock;
 
 class ForTag extends TagBlock implements HasParseTreeVisitorChildren
 {
-    use ParserSwitching;
-
     const Syntax = '/\A('.Regex::VariableSegment.'+)\s+in\s+('.Regex::QuotedFragment.'+)\s*(reversed)?/';
 
     protected string $variableName;
@@ -55,7 +52,7 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
             $this->elseBlock = $this->bodySections[1];
         }
 
-        $this->strictParseWithErrorModeFallback($this->forBlock->startDelimiter()->markup ?? '', $this->parseContext);
+        $this->parseForBlock($this->forBlock->startDelimiter()->markup ?? '');
 
         if ($this->blank()) {
             $this->forBlock->removeBlankStrings();
@@ -91,7 +88,7 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
         ]);
     }
 
-    protected function strictParse(string $markup): mixed
+    protected function parseForBlock(string $markup): void
     {
         $parser = new Parser($markup);
 
@@ -122,14 +119,6 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
         }
 
         $parser->consume(TokenType::EndOfString);
-
-        return $this;
-    }
-
-    protected function laxParse(string $markup): mixed
-    {
-        // TODO: Implement laxParse() method.
-        throw new \RuntimeException('Not implemented yet.');
     }
 
     protected function setAttribute(string $attribute, string $expression): void

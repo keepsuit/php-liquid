@@ -314,7 +314,7 @@ final class Context
 
     public function loadPartial(ParseContext $parseContext, string $templateName): Template
     {
-        $cacheKey = sprintf('%s:%s', $templateName, $parseContext->errorMode->name);
+        $cacheKey = sprintf('%s', $templateName);
 
         if (Arr::has($this->sharedState->partialsCache, $cacheKey)) {
             return $this->sharedState->partialsCache[$cacheKey];

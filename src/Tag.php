@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid;
 
 use Keepsuit\Liquid\Contracts\CanBeRendered;
 use Keepsuit\Liquid\Contracts\Disableable;
+use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Exceptions\TagDisabledException;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Tokenizer;
@@ -42,6 +43,9 @@ abstract class Tag implements CanBeRendered
         return sprintf('%s %s', static::tagName(), $this->markup);
     }
 
+    /**
+     * @throws SyntaxException
+     */
     public function parse(Tokenizer $tokenizer): static
     {
         return $this;

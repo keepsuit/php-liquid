@@ -113,7 +113,8 @@ final class BlockParser
                 $tagClass = Template::registeredTags()[$tagName] ?? null;
 
                 if ($tagClass !== null) {
-                    $tag = (new $tagClass($markup, $parseContext))->parse($tokenizer);
+                    $tag = (new $tagClass($markup, $parseContext));
+                    $tag->parse($tokenizer);
                     $section->pushNode($tag);
 
                     continue;

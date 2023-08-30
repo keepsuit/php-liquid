@@ -10,7 +10,7 @@ use Keepsuit\Liquid\Parse\Expression;
 use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Render\Context;
 
-class VariableLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
+class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 {
     const FILTER_METHODS = ['size', 'first', 'last'];
 

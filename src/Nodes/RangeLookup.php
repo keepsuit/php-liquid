@@ -8,7 +8,7 @@ use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Parse\Expression;
 use Keepsuit\Liquid\Render\Context;
 
-class RangeLookup implements HasParseTreeVisitorChildren, CanBeEvaluated
+class RangeLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 {
     final public function __construct(
         public readonly mixed $start,

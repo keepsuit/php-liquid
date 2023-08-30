@@ -1,7 +1,5 @@
 <?php
 
-use Keepsuit\Liquid\Parse\ErrorMode;
-
 test('parsing css', function () {
     $text = ' div { font-weight: bold; } ';
     assertTemplateResult($text, $text);
@@ -38,12 +36,6 @@ test('throw exception on empty filter', function () {
         'Liquid syntax error (line 1): Expected Identifier, got EndOfString in "{{test |a|b|}}"',
         '{{test |a|b|}}'
     );
-
-    assertTemplateResult(
-        '',
-        '{{|test}}',
-        errorMode: ErrorMode::Lax
-    );
 });
 
 test('meaningless parens error', function () {
@@ -64,96 +56,12 @@ test('unexpected characters', function () {
     );
 });
 
-test('no error on lax empty filter', function () {
-    assertTemplateResult(
-        '',
-        '{{test |a|b|}}',
-        errorMode: ErrorMode::Lax
-    );
-    assertTemplateResult(
-        '',
-        '{{test}}',
-        errorMode: ErrorMode::Lax
-    );
-    assertTemplateResult(
-        '',
-        '{{|test|}}',
-        errorMode: ErrorMode::Lax
-    );
-});
-
-test('meaningless parens error lax', function () {
-    assertTemplateResult(
-        ' YES ',
-        "{% if a == 'foo' or (b == 'bar' and c == 'baz') or false %} YES {% endif %}",
-        assigns: ['b' => 'bar', 'c' => 'baz'],
-        errorMode: ErrorMode::Lax
-    );
-})->skip('Lax mode is not implemented yet');
-
-test('unexpected characters silently eat logic lax', function () {
-    assertTemplateResult(
-        ' YES ',
-        '{% if true && false %} YES {% endif %}',
-        errorMode: ErrorMode::Lax
-    );
-    assertTemplateResult(
-        '',
-        '{% if true || false %} YES {% endif %}',
-        errorMode: ErrorMode::Lax
-    );
-})->skip('Lax mode is not implemented yet');
-
 test('throw exception on invalid tag delimiter', function () {
     assertMatchSyntaxError(
         'Liquid syntax error (line 1): Unexpected outer \'end\' tag',
         '{% end %}'
     );
 });
-
-test('unanchored filter arguments', function () {
-    assertTemplateResult(
-        'hi',
-        "{{ 'hi there' | split$$$:' ' | first }}",
-        errorMode: ErrorMode::Lax
-    );
-    assertTemplateResult(
-        'x',
-        "{{ 'X' | downcase) }}",
-        errorMode: ErrorMode::Lax
-    );
-    assertTemplateResult(
-        'here',
-        "{{ 'hi there' | split:\"t\"\" | reverse | first}}",
-        errorMode: ErrorMode::Lax
-    );
-    assertTemplateResult(
-        'hi ',
-        "{{ 'hi there' | split:\"t\"\" | remove:\"i\" | first}}",
-        errorMode: ErrorMode::Lax
-    );
-})->skip('Lax mode is not implemented yet');
-
-test('inline variables work', function () {
-    assertTemplateResult(
-        'bar',
-        "{% assign 123foo = 'bar' %}{{ 123foo }}",
-        errorMode: ErrorMode::Lax
-    );
-    assertTemplateResult(
-        '123',
-        "{% assign 123 = 'bar' %}{{ 123 }}",
-        errorMode: ErrorMode::Lax
-    );
-});
-
-test('extra dots in ranges', function () {
-    assertTemplateResult(
-        '12345',
-        '{% for i in (1...5) %}{{ i }}{% endfor %}',
-        errorMode: ErrorMode::Lax
-    );
-})->skip('Lax mode is not implemented yet');
 
 test('blank variable markup', function () {
     assertTemplateResult('', '{{}}');

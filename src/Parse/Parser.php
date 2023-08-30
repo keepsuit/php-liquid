@@ -13,6 +13,9 @@ class Parser
 
     protected int $pointer;
 
+    /**
+     * @throws SyntaxException
+     */
     public function __construct(string $input)
     {
         $this->tokens = (new Lexer($input))->tokenize();

@@ -4,7 +4,6 @@ namespace Keepsuit\Liquid;
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\Document;
-use Keepsuit\Liquid\Parse\ErrorMode;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Profiler\Profiler;
 use Keepsuit\Liquid\Render\Context;
@@ -13,8 +12,6 @@ use Keepsuit\Liquid\Support\TagRegistry;
 class Template
 {
     protected static TagRegistry $tagRegistry;
-
-    public static ErrorMode $errorMode = ErrorMode::Warn;
 
     /**
      * @var array<\Throwable>
@@ -35,9 +32,8 @@ class Template
     public static function parse(
         string $source,
         bool $lineNumbers = false,
-        ErrorMode $errorMode = null,
     ): Template {
-        $parseContext = new ParseContext(errorMode: $errorMode ?? static::$errorMode);
+        $parseContext = new ParseContext();
         $tokenizer = $parseContext->newTokenizer($source, startLineNumber: $lineNumbers ? 1 : null);
 
         return new Template(

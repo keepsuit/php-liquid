@@ -2,7 +2,6 @@
 
 use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parse\ErrorMode;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Render\ResourceLimits;
 use Keepsuit\Liquid\Template;
@@ -41,17 +40,9 @@ test('assigned with filter', function () {
 test('assign syntax error', function () {
     expect(fn () => renderTemplate('{% assign foo not values %}.'))
         ->toThrow(SyntaxException::class, 'assign');
-});
 
-test('assign uses error mode', function () {
-    expect(fn () => renderTemplate("{% assign foo = ('X' | downcase) %}", errorMode: ErrorMode::Strict))
+    expect(fn () => renderTemplate("{% assign foo = ('X' | downcase) %}"))
         ->toThrow(SyntaxException::class, 'Expected DotDot, got Pipe');
-
-    assertTemplateResult(
-        '',
-        "{% assign foo = ('X' | downcase) %}",
-        errorMode: ErrorMode::Lax
-    );
 });
 
 test('expression with whitespace in square brackets', function () {

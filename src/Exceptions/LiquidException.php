@@ -17,7 +17,7 @@ abstract class LiquidException extends \Exception
             $this->messagePrefix(),
             $this->lineNumber ? sprintf(' (%sline %s)', $this->templateName ? ($this->templateName.' ') : '', $this->lineNumber) : '',
             $this->getMessage(),
-            $this->markupContext ? sprintf(' %s', $this->markupContext) : ''
+            $this->markupContext ? sprintf(' in "%s"', trim($this->markupContext)) : ''
         );
     }
 

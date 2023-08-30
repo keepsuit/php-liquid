@@ -11,8 +11,6 @@ class ParseContext
 {
     public readonly I18n $locale;
 
-    public ErrorMode $errorMode;
-
     public ?int $lineNumber = null;
 
     public bool $trimWhitespace = false;
@@ -27,11 +25,9 @@ class ParseContext
     protected array $warnings = [];
 
     public function __construct(
-        ErrorMode $errorMode = null,
         I18n $locale = null,
     ) {
         $this->locale = $locale ?? new I18n();
-        $this->errorMode = $errorMode ?? Template::$errorMode;
     }
 
     public function newTokenizer(string $markup, int $startLineNumber = null, bool $forLiquidTag = false): Tokenizer
