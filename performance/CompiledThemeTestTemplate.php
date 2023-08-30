@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Performance;
 
+use Keepsuit\Liquid\Performance\Shopify\CustomFilters;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Template;
 
@@ -25,6 +26,9 @@ class CompiledThemeTestTemplate
             $context = new Context(
                 staticEnvironment: [
                     'content_for_layout' => $this->template->render(),
+                ],
+                filters: [
+                    CustomFilters::class,
                 ]
             );
             $this->layout->render($context);
