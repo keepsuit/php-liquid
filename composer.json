@@ -19,12 +19,14 @@
         "symfony/yaml": "^6.0"
     },
     "require-dev": {
+        "illuminate/support": "^10.21",
         "laravel/pint": "^1.2",
         "pestphp/pest": "^2.6",
         "pestphp/pest-plugin-arch": "^2.0",
         "phpstan/phpstan": "^1.10",
         "spatie/invade": "^2.0",
-        "spatie/ray": "^1.28"
+        "spatie/ray": "^1.28",
+        "symfony/console": "^6.3"
     },
     "suggest": {
         "ext-yaml": "Used to parse YAML files with better performance than symfony/yaml"
@@ -36,7 +38,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Keepsuit\\Liquid\\Tests\\": "tests"
+            "Keepsuit\\Liquid\\Tests\\": "tests",
+            "Keepsuit\\Liquid\\Performance\\": "performance"
         }
     },
     "scripts": {
