@@ -437,7 +437,7 @@ test('new isolated subcontext inherit filters', function () {
     $context = new Context(filters: [\Keepsuit\Liquid\Tests\Stubs\TestFilters::class]);
     $subContext = $context->newIsolatedSubContext('sub');
 
-    expect(\Keepsuit\Liquid\Template::parse('{{ "hi?" | hi }}')->render($subContext))->toBe('hi? hi!');
+    expect(parseTemplate('{{ "hi?" | hi }}')->render($subContext))->toBe('hi? hi!');
 });
 
 test('disabled specified tags', function () {

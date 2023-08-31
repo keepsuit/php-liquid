@@ -4,15 +4,15 @@ namespace Keepsuit\Liquid\Performance;
 
 class BenchmarkRunner
 {
-    public function run(int $seconds, \Closure $callback)
+    public function run(int $seconds, \Closure $callback): BenchmarkResult
     {
         $durationNs = $seconds * 1e9;
         $start = hrtime(true);
 
-        gc_collect_cycles();
-
         $runs = [];
         do {
+            gc_collect_cycles();
+
             $runs[] = $this->measure($callback);
             $end = hrtime(true);
         } while (($end - $start) < $durationNs);

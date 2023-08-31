@@ -22,13 +22,13 @@ class CompiledThemeTestTemplate
 
     public function render(array $assigns = []): void
     {
+        $content = $this->template->render($this->buildContext($assigns));
+
         if ($this->layout) {
             $this->layout->render($this->buildContext([
                 ...$assigns,
-                'content_for_layout' => $this->template->render($this->buildContext($assigns)),
+                'content_for_layout' => $content,
             ]));
-        } else {
-            $this->template->render($this->buildContext($assigns));
         }
     }
 

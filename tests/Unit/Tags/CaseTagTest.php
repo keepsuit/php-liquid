@@ -1,10 +1,9 @@
 <?php
 
 use Keepsuit\Liquid\Tags\CaseTag;
-use Keepsuit\Liquid\Template;
 
 test('case nodelist', function () {
-    $template = Template::parse('{% case var %}{% when true %}WHEN{% else %}ELSE{% endcase %}');
+    $template = parseTemplate('{% case var %}{% when true %}WHEN{% else %}ELSE{% endcase %}');
 
     expect($template->root->nodeList())
         ->toHaveCount(1)

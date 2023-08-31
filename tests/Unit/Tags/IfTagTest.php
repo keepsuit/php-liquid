@@ -1,10 +1,9 @@
 <?php
 
 use Keepsuit\Liquid\Tags\IfTag;
-use Keepsuit\Liquid\Template;
 
 test('if nodelist', function () {
-    $template = Template::parse('{% if true %}IF{% else %}ELSE{% endif %}');
+    $template = parseTemplate('{% if true %}IF{% else %}ELSE{% endif %}');
 
     expect($template->root->nodeList())
         ->toHaveCount(1)

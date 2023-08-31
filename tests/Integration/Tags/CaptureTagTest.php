@@ -1,7 +1,6 @@
 <?php
 
 use Keepsuit\Liquid\Render\Context;
-use Keepsuit\Liquid\Template;
 
 test('capture block content in variable', function () {
     assertTemplateResult('test string', "{% capture 'var' %}test string{% endcapture %}{{var}}");
@@ -47,6 +46,6 @@ test('assigning from capture', function () {
 
 test('increment assign score by bytes', function () {
     $context = new Context();
-    Template::parse('{% capture foo %}すごい{% endcapture %}')->render($context);
+    parseTemplate('{% capture foo %}すごい{% endcapture %}')->render($context);
     expect($context->resourceLimits->getAssignScore())->toBe(9);
 });

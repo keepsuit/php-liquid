@@ -3,6 +3,7 @@
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplateFactory;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 use PHPUnit\Framework\ExpectationFailedException;
 
@@ -14,14 +15,26 @@ function fixture(string $path): string
 /**
  * @throws SyntaxException
  */
+function parseTemplate(
+    string $source,
+    bool $lineNumbers = true,
+    TemplateFactory $factory = null,
+): Template {
+    return ($factory ?? TemplateFactory::new())->parse($source, lineNumbers: $lineNumbers);
+}
+
+/**
+ * @throws SyntaxException
+ */
 function renderTemplate(
     string $template,
     array $assigns = [],
     array $registers = [],
     array $partials = [],
     bool $renderErrors = false,
+    TemplateFactory $factory = null,
 ): string {
-    $template = Template::parse($template, lineNumbers: true);
+    $template = parseTemplate($template, factory: $factory);
 
     $fileSystem = new StubFileSystem(partials: $partials);
 
@@ -45,13 +58,15 @@ function assertTemplateResult(
     array $registers = [],
     array $partials = [],
     bool $renderErrors = false,
+    TemplateFactory $factory = null,
 ): void {
     expect(renderTemplate(
         template: $template,
         assigns: $assigns,
         registers: $registers,
         partials: $partials,
-        renderErrors: $renderErrors
+        renderErrors: $renderErrors,
+        factory: $factory,
     ))->toBe($expected);
 }
 

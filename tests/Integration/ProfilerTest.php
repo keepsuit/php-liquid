@@ -4,19 +4,17 @@ use Keepsuit\Liquid\Profiler\Profiler;
 use Keepsuit\Liquid\Profiler\Timing;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Arr;
-use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplateFactory;
 use Keepsuit\Liquid\Tests\Stubs\ProfilingFileSystem;
+use Keepsuit\Liquid\Tests\Stubs\SleepTag;
 
 beforeEach(function () {
-    Template::registerTag(\Keepsuit\Liquid\Tests\Stubs\SleepTag::class);
-});
-
-afterEach(function () {
-    Template::deleteTag(\Keepsuit\Liquid\Tests\Stubs\SleepTag::class);
+    $this->templateFactory = TemplateFactory::new()
+        ->registerTag(SleepTag::class);
 });
 
 test('context allows flagging profiling', function () {
-    $template = Template::parse("{{ 'a string' | upcase }}");
+    $template = parseTemplate("{{ 'a string' | upcase }}");
     $template->render(new Context());
     expect($template->getProfiler())->toBeNull();
 
@@ -82,7 +80,7 @@ test('profile rendering time', function () {
 
 test('profiling multiple renders', function () {
     $context = new Context(profile: true, fileSystem: new ProfilingFileSystem());
-    $template = Template::parse('{% sleep 0.001 %}', lineNumbers: true);
+    $template = parseTemplate('{% sleep 0.001 %}', lineNumbers: true, factory: $this->templateFactory);
 
     invade($context)->templateName = 'index';
     $template->render($context);
@@ -188,7 +186,7 @@ test('profiling support total time', function () {
 
 function profileTemplate(string $source, array $assigns = []): ?Profiler
 {
-    $template = Template::parse($source, lineNumbers: true);
+    $template = test()->templateFactory->parse($source, lineNumbers: true);
     $template->render(new Context(
         staticEnvironment: $assigns,
         profile: true,

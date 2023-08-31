@@ -324,7 +324,7 @@ final class Context
 
         try {
             $template = $parseContext->partial(function (ParseContext $parseContext) use ($templateName, $source) {
-                return Template::parsePartial($source, $parseContext, $templateName);
+                return Template::parse($parseContext, $source, $templateName);
             });
         } catch (LiquidException $exception) {
             $exception->templateName = $templateName;

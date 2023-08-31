@@ -24,7 +24,6 @@ class LiquidTag extends Tag
     {
         $liquidTokenizer = $this->parseContext->newTokenizer(
             markup: $this->markup,
-            startLineNumber: $this->lineNumber,
             forLiquidTag: true
         );
 

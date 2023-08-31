@@ -4,7 +4,7 @@ namespace Keepsuit\Liquid\Performance;
 
 use Keepsuit\Liquid\Performance\Shopify\Database;
 use Keepsuit\Liquid\Support\Arr;
-use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplateFactory;
 
 class ThemeRunner
 {
@@ -18,9 +18,10 @@ class ThemeRunner
      */
     protected array $compiledTemplates;
 
-    public function __construct()
-    {
-        $files = glob(__DIR__.'/tests/**/*.liquid');
+    public function __construct(
+        protected TemplateFactory $templateFactory
+    ) {
+        $files = glob(__DIR__.'/tests/**/*.liquid') ?: [];
 
         $this->tests = Arr::compact(Arr::map($files, function (string $path) {
             if (basename($path) === 'theme.liquid') {
@@ -30,9 +31,10 @@ class ThemeRunner
             $themePath = dirname($path).'/theme.liquid';
 
             return new ThemeTestTemplate(
+                factory: $this->templateFactory,
                 templateName: $path,
-                liquid: file_get_contents($path),
-                layoutLiquid: file_exists($themePath) ? file_get_contents($themePath) : null,
+                liquid: file_get_contents($path) ?: '',
+                layoutLiquid: file_exists($themePath) ? (file_get_contents($themePath) ?: '') : null,
             );
         }));
 
@@ -42,9 +44,9 @@ class ThemeRunner
     public function compile(): void
     {
         foreach ($this->tests as $test) {
-            Template::parse($test->liquid);
+            $this->templateFactory->parse($test->liquid);
             if ($test->layoutLiquid !== null) {
-                Template::parse($test->layoutLiquid);
+                $this->templateFactory->parse($test->layoutLiquid);
             }
         }
     }

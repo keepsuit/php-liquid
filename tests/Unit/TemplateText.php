@@ -5,7 +5,7 @@ use Keepsuit\Liquid\Tags\CommentTag;
 use Keepsuit\Liquid\Template;
 
 it('sets default localization in document', function () {
-    $template = Template::parse('{%comment%}{%endcomment%}');
+    $template = parseTemplate('{%comment%}{%endcomment%}');
 
     expect($template)
         ->root->nodeList()->toHaveCount(1)
@@ -14,7 +14,7 @@ it('sets default localization in document', function () {
 });
 
 it('sets default localization in context with quick initialization', function () {
-    $template = Template::parse('{%comment%}{%endcomment%}', [
+    $template = parseTemplate('{%comment%}{%endcomment%}', [
         'locale' => $i18n = new I18n(fixture('en_locale.yml')),
     ]);
 

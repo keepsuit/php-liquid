@@ -5,12 +5,11 @@ namespace Keepsuit\Liquid\Parse;
 use Closure;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Support\I18n;
+use Keepsuit\Liquid\Support\TagRegistry;
 use Keepsuit\Liquid\Template;
 
 class ParseContext
 {
-    public readonly I18n $locale;
-
     public ?int $lineNumber = null;
 
     public bool $trimWhitespace = false;
@@ -25,14 +24,20 @@ class ParseContext
     protected array $warnings = [];
 
     public function __construct(
-        I18n $locale = null,
+        bool|int $startLineNumber = null,
+        public readonly TagRegistry $tagRegistry = new TagRegistry(),
+        public readonly I18n $locale = new I18n(),
     ) {
-        $this->locale = $locale ?? new I18n();
+        $this->lineNumber = match (true) {
+            is_int($startLineNumber) => $startLineNumber,
+            $startLineNumber === true => 1,
+            default => null,
+        };
     }
 
-    public function newTokenizer(string $markup, int $startLineNumber = null, bool $forLiquidTag = false): Tokenizer
+    public function newTokenizer(string $markup, bool $forLiquidTag = false): Tokenizer
     {
-        return new Tokenizer($markup, startLineNumber: $startLineNumber, forLiquidTag: $forLiquidTag);
+        return new Tokenizer($markup, startLineNumber: $this->lineNumber, forLiquidTag: $forLiquidTag);
     }
 
     public function parseExpression(string $markup): mixed
@@ -53,12 +58,16 @@ class ParseContext
      */
     public function partial(Closure $closure)
     {
+        $oldLineNumber = $this->lineNumber;
+
         $this->partial = true;
+        $this->lineNumber = $this->lineNumber !== null ? 1 : null;
 
         try {
             return $closure($this);
         } finally {
             $this->partial = false;
+            $this->lineNumber = $oldLineNumber;
         }
     }
 }

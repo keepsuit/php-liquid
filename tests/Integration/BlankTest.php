@@ -1,16 +1,13 @@
 <?php
 
-use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplateFactory;
 use Keepsuit\Liquid\Tests\Stubs\FooBarTag;
 
-afterEach(function () {
-    Template::deleteTag(FooBarTag::class);
-});
-
 test('new tags are not blank by default', function () {
-    Template::registerTag(FooBarTag::class);
+    $factory = TemplateFactory::new()->registerTag(FooBarTag::class);
 
-    expect(renderTemplate(wrapInFor('{% foobar %}')))->toBe(str_repeat(' ', 10));
+    expect(renderTemplate(wrapInFor('{% foobar %}'), factory: $factory))
+        ->toBe(str_repeat(' ', 10));
 });
 
 test('loops are blank', function () {
