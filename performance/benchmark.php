@@ -4,9 +4,10 @@
 use Keepsuit\Liquid\Performance\BenchmarkResult;
 use Keepsuit\Liquid\Performance\BenchmarkRunner;
 use Keepsuit\Liquid\Performance\Shopify\CommentFormTag;
+use Keepsuit\Liquid\Performance\Shopify\CustomFilters;
 use Keepsuit\Liquid\Performance\Shopify\PaginateTag;
 use Keepsuit\Liquid\Performance\ThemeRunner;
-use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplateFactory;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -15,28 +16,33 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 require __DIR__.'/../vendor/autoload.php';
 
-Template::registerTag(CommentFormTag::class);
-Template::registerTag(PaginateTag::class);
+$templateFactory = TemplateFactory::new()
+    ->registerTag(CommentFormTag::class)
+    ->registerTag(PaginateTag::class)
+    ->registerFilter(CustomFilters::class);
 
 (new SingleCommandApplication())
     ->setName('Benchmark')
-    ->setCode(function (InputInterface $input, OutputInterface $output) {
+    ->setCode(function (InputInterface $input, OutputInterface $output) use ($templateFactory) {
         $style = new SymfonyStyle($input, $output);
 
         $times = 10;
-        $warmup = 5;
+        $warmup = 0;
 
-        $output->writeln(sprintf('Running benchmark for %s seconds (with %s seconds warmup).', $times, $warmup));
+        if ($warmup > 0) {
+            $output->writeln(sprintf('Running benchmark for %s seconds (with %s seconds warmup).', $times, $warmup));
+        } else {
+            $output->writeln(sprintf('Running benchmark for %s seconds.', $times));
+        }
 
         $benchmark = new BenchmarkRunner();
-        $profiler = new ThemeRunner();
+        $profiler = new ThemeRunner($templateFactory);
 
         if ($warmup > 0) {
             $output->writeln('Warming up...');
             $benchmark->run($warmup, fn () => $profiler->compile());
         }
 
-        $output->writeln('Benchmarking...');
         $computeTable = $style->createTable();
         $computeTable->setHeaders([
             'test',
@@ -45,8 +51,11 @@ Template::registerTag(PaginateTag::class);
             'runs',
             'duration',
         ]);
+        $output->writeln('Running parse benchmark...');
         outputBenchmarkResult($computeTable, 'parse', $benchmark->run($times, fn () => $profiler->compile()));
+        $output->writeln('Running render benchmark...');
         outputBenchmarkResult($computeTable, 'render', $benchmark->run($times, fn () => $profiler->render()));
+        $output->writeln('Running parse & render benchmark...');
         outputBenchmarkResult($computeTable, 'parse & render', $benchmark->run($times, fn () => $profiler->run()));
         $computeTable->render();
     })

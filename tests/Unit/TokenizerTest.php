@@ -43,7 +43,7 @@ function tokenize(string $source): array
 
 function tokenizeLineNumbers(string $source): array
 {
-    $tokenizer = (new ParseContext())->newTokenizer($source, startLineNumber: 1);
+    $tokenizer = (new ParseContext(startLineNumber: 1))->newTokenizer($source);
 
     $lineNumbers = [];
     foreach ($tokenizer->shift() as $ignored) {

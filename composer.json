@@ -19,7 +19,6 @@
         "symfony/yaml": "^6.0"
     },
     "require-dev": {
-        "illuminate/support": "^10.21",
         "laravel/pint": "^1.2",
         "pestphp/pest": "^2.6",
         "pestphp/pest-plugin-arch": "^2.0",
@@ -46,7 +45,8 @@
         "test": "vendor/bin/pest",
         "test-coverage": "vendor/bin/pest --coverage",
         "format": "vendor/bin/pint",
-        "lint": "vendor/bin/phpstan analyse"
+        "lint": "vendor/bin/phpstan analyse",
+        "benchmark": "@php performance/benchmark.php"
     },
     "config": {
         "sort-packages": true,

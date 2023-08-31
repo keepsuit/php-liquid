@@ -1,10 +1,9 @@
 <?php
 
 use Keepsuit\Liquid\Tags\ForTag;
-use Keepsuit\Liquid\Template;
 
 test('for nodelist', function () {
-    $template = Template::parse('{% for item in items %}FOR{% endfor %}');
+    $template = parseTemplate('{% for item in items %}FOR{% endfor %}');
 
     expect($template->root->nodeList())
         ->toHaveCount(1)
@@ -14,7 +13,7 @@ test('for nodelist', function () {
 });
 
 test('for else nodelist', function () {
-    $template = Template::parse('{% for item in items %}FOR{% else %}ELSE{% endfor %}');
+    $template = parseTemplate('{% for item in items %}FOR{% else %}ELSE{% endfor %}');
 
     expect($template->root->nodeList())
         ->toHaveCount(1)

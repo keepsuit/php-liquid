@@ -1,7 +1,10 @@
 <?php
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Template;
+
+beforeEach(function () {
+    $this->templateFactory = \Keepsuit\Liquid\TemplateFactory::new();
+});
 
 test('unexpected end tag', function () {
     expect(fn () => renderTemplate('{% if true %}{% endunless %}'))
@@ -9,18 +12,21 @@ test('unexpected end tag', function () {
 });
 
 test('with custom tag block', function () {
-    Template::registerTag(\Keepsuit\Liquid\Tests\Stubs\TestTagBlockTag::class);
+    $this->templateFactory->registerTag(\Keepsuit\Liquid\Tests\Stubs\TestTagBlockTag::class);
+
     assertTemplateResult(
         '',
-        '{% testblock %}{% endtestblock %}'
+        '{% testblock %}{% endtestblock %}',
+        factory: $this->templateFactory
     );
 });
 
 test('custom tag block have a default render method', function () {
-    Template::registerTag(\Keepsuit\Liquid\Tests\Stubs\TestTagBlockTag::class);
+    $this->templateFactory->registerTag(\Keepsuit\Liquid\Tests\Stubs\TestTagBlockTag::class);
 
     assertTemplateResult(
         ' bla ',
-        '{% testblock %} bla {% endtestblock %}'
+        '{% testblock %} bla {% endtestblock %}',
+        factory: $this->templateFactory
     );
 });

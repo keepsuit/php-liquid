@@ -2,13 +2,14 @@
 
 namespace Keepsuit\Liquid\Performance;
 
-use Keepsuit\Liquid\Performance\Shopify\CustomFilters;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplateFactory;
 
 class CompiledThemeTestTemplate
 {
     public function __construct(
+        protected TemplateFactory $factory,
         public string $templateName,
         public Template $template,
         public ?Template $layout,
@@ -22,23 +23,20 @@ class CompiledThemeTestTemplate
 
     public function render(array $assigns = []): void
     {
+        $content = $this->template->render($this->buildContext($assigns));
+
         if ($this->layout) {
             $this->layout->render($this->buildContext([
                 ...$assigns,
-                'content_for_layout' => $this->template->render($this->buildContext($assigns)),
+                'content_for_layout' => $content,
             ]));
-        } else {
-            $this->template->render($this->buildContext($assigns));
         }
     }
 
     protected function buildContext(array $assigns = []): Context
     {
-        return new Context(
+        return $this->factory->newRenderContext(
             staticEnvironment: $assigns,
-            filters: [
-                CustomFilters::class,
-            ],
         );
     }
 }

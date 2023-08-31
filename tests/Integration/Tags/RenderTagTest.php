@@ -3,7 +3,6 @@
 use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Render\Context;
-use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
 test('render with no arguments', function () {
@@ -83,7 +82,7 @@ test('render tag caches second read of some partial', function () {
         fileSystem: $fileSystem
     );
 
-    expect(Template::parse('{% render "snippet" %}{% render "snippet" %}')->render($context))->toBe('echoecho');
+    expect(parseTemplate('{% render "snippet" %}{% render "snippet" %}')->render($context))->toBe('echoecho');
     expect($fileSystem->fileReadCount)->toBe(1);
 });
 
@@ -93,13 +92,13 @@ test('render tag does not cache partials across renders', function () {
     $context = new Context(
         fileSystem: $fileSystem
     );
-    expect(Template::parse('{% render "snippet" %}')->render($context))->toBe('my message');
+    expect(parseTemplate('{% render "snippet" %}')->render($context))->toBe('my message');
     expect($fileSystem->fileReadCount)->toBe(1);
 
     $context = new Context(
         fileSystem: $fileSystem
     );
-    expect(Template::parse('{% render "snippet" %}')->render($context))->toBe('my message');
+    expect(parseTemplate('{% render "snippet" %}')->render($context))->toBe('my message');
     expect($fileSystem->fileReadCount)->toBe(2);
 });
 

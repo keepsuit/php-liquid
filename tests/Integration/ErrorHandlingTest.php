@@ -4,7 +4,6 @@ use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\StandardException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Render\Context;
-use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\Tests\Stubs\ErrorDrop;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
@@ -41,7 +40,7 @@ test('template parsed with line numbers renders them in errors', function () {
 });
 
 test('standard error', function () {
-    $template = Template::parse(' {{ errors.standard_error }} ');
+    $template = parseTemplate(' {{ errors.standard_error }} ', lineNumbers: false);
 
     expect($template->render(new Context(staticEnvironment: ['errors' => new ErrorDrop()])))
         ->toBe(' Liquid error: Standard error ');
@@ -51,7 +50,7 @@ test('standard error', function () {
 });
 
 test('syntax error', function () {
-    $template = Template::parse(' {{ errors.syntax_error }} ');
+    $template = parseTemplate(' {{ errors.syntax_error }} ', lineNumbers: false);
 
     expect($template->render(new Context(staticEnvironment: ['errors' => new ErrorDrop()])))
         ->toBe(' Liquid syntax error: Syntax error ');
@@ -61,7 +60,7 @@ test('syntax error', function () {
 });
 
 test('argument error', function () {
-    $template = Template::parse(' {{ errors.argument_error }} ');
+    $template = parseTemplate(' {{ errors.argument_error }} ', lineNumbers: false);
 
     expect($template->render(new Context(staticEnvironment: ['errors' => new ErrorDrop()])))
         ->toBe(' Liquid error: Argument error ');
@@ -78,7 +77,7 @@ test('missing endtag parse time error', function () {
 });
 
 test('unrecognized operator', function () {
-    expect(fn () => Template::parse('{% if 1 =! 2 %}ok{% endif %}'))->toThrow(SyntaxException::class);
+    expect(fn () => parseTemplate('{% if 1 =! 2 %}ok{% endif %}'))->toThrow(SyntaxException::class);
 });
 
 test('with line numbers adds numbers to parser errors', function () {
@@ -109,7 +108,7 @@ test('with line numbers adds numbers to parser errors with whitespace trim', fun
 
 test('parsing strict with line numbers adds numbers to lexer errors', function () {
     try {
-        Template::parse(
+        parseTemplate(
             <<<'LIQUID'
 
         foobar
@@ -159,7 +158,7 @@ test('strict error messages', function () {
 });
 
 test('default exception renderer with internal error', function () {
-    $template = Template::parse('This is a runtime error: {{ errors.runtime_error }}', lineNumbers: true);
+    $template = parseTemplate('This is a runtime error: {{ errors.runtime_error }}', lineNumbers: true);
 
     $output = $template->render(new Context(staticEnvironment: ['errors' => new ErrorDrop()]));
 
@@ -170,7 +169,7 @@ test('default exception renderer with internal error', function () {
 });
 
 test('render template name with line numbers', function () {
-    $template = Template::parse("Argument error:\n{% render 'product' with errors %}", lineNumbers: true);
+    $template = parseTemplate("Argument error:\n{% render 'product' with errors %}", lineNumbers: true);
 
     $output = $template->render(new Context(
         staticEnvironment: ['errors' => new ErrorDrop()],
@@ -188,7 +187,7 @@ test('render template name with line numbers', function () {
 });
 
 test('error is thrown during parse with template name', function () {
-    $template = Template::parse("{% render 'loop' %}", lineNumbers: true);
+    $template = parseTemplate("{% render 'loop' %}", lineNumbers: true);
 
     $output = $template->render(new Context(
         staticEnvironment: ['errors' => new ErrorDrop()],
@@ -201,7 +200,7 @@ test('error is thrown during parse with template name', function () {
 });
 
 test('internal error is thrown with template name', function () {
-    $template = Template::parse("{% render 'snippet' with errors %}", lineNumbers: true);
+    $template = parseTemplate("{% render 'snippet' with errors %}", lineNumbers: true);
 
     $output = $template->render(new Context(
         staticEnvironment: ['errors' => new ErrorDrop()],

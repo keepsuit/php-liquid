@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Performance\Shopify;
 
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Nodes\Range;
 use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
@@ -50,8 +51,11 @@ class PaginateTag extends TagBlock
             $currentPage = $context->get('current_page');
 
             $collection = $context->get($this->collectionName);
-            $collection = is_iterable($collection) ? iterator_to_array($collection) : $collection;
-
+            $collection = match (true) {
+                $collection instanceof Range => $collection->toArray(),
+                $collection instanceof \Iterator => iterator_to_array($collection),
+                default => $collection,
+            };
             if (! is_array($collection)) {
                 throw new InvalidArgumentException(sprintf('Cannot paginate array %s. Not found.', $this->collectionName));
             }
@@ -71,14 +75,14 @@ class PaginateTag extends TagBlock
             ];
 
             if ($pageCount > 2) {
-                foreach (range(1, $pageCount - 1) as $page) {
+                foreach (range(1, (int) $pageCount - 1) as $page) {
                     $pagination['parts'][] = match (true) {
-                        $currentPage === $page => $this->noLink($page),
-                        $page === 1 => $this->link($page, $page),
-                        $page === $pageCount - 1 => $this->link($page, $page),
-                        $page <= $currentPage - $this->attributes['window_size'] => $this->link('...', $page),
-                        $page >= $currentPage + $this->attributes['window_size'] => $this->link('...', $page),
-                        default => $this->link($page, $page),
+                        $currentPage === $page => $this->noLink((string) $page),
+                        $page === 1 => $this->link((string) $page, $page),
+                        $page === $pageCount - 1 => $this->link((string) $page, $page),
+                        $page <= ($currentPage - (int) $this->attributes['window_size']) => $this->link('...', $page),
+                        $page >= ($currentPage + (int) $this->attributes['window_size']) => $this->link('...', $page),
+                        default => $this->link((string) $page, $page),
                     };
                 }
             }

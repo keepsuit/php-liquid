@@ -38,6 +38,7 @@ class CommentFormTag extends TagBlock
     public function render(Context $context): string
     {
         $article = $context->get($this->variableName);
+        assert(is_array($article));
 
         $context->stack(function (Context $context) {
             $context->set('form', [
@@ -52,10 +53,10 @@ class CommentFormTag extends TagBlock
         return $this->wrapInForm($article, parent::render($context));
     }
 
-    protected function wrapInForm(mixed $article, string $input): string
+    protected function wrapInForm(array $article, string $input): string
     {
         return <<<HTML
-        <form id="article-{$article->id}-comment-form" class="comment-form" method="post" action="">
+        <form id="article-{$article['id']}-comment-form" class="comment-form" method="post" action="">
         $input
         </form>
         HTML;

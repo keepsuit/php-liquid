@@ -1,7 +1,6 @@
 <?php
 
-use Keepsuit\Liquid\Render\Context;
-use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplateFactory;
 use Keepsuit\Liquid\Tests\Stubs\CanadianMoneyFilter;
 use Keepsuit\Liquid\Tests\Stubs\HtmlAttributesFilter;
 use Keepsuit\Liquid\Tests\Stubs\MoneyFilters;
@@ -9,32 +8,33 @@ use Keepsuit\Liquid\Tests\Stubs\SubstituteFilter;
 use Keepsuit\Liquid\Tests\Stubs\TestObject;
 
 test('local filter', function () {
-    $context = new Context(
-        filters: [MoneyFilters::class]
-    );
+    $context = TemplateFactory::new()
+        ->registerFilter(MoneyFilters::class)
+        ->newRenderContext();
     $context->set('var', 1000);
 
-    expect(Template::parse('{{ var | money }}')->render($context))
+    expect(parseTemplate('{{ var | money }}')->render($context))
         ->toBe(' 1000$');
 });
 
 test('underscore in filter name', function () {
-    $context = new Context(
-        filters: [MoneyFilters::class]
-    );
+    $context = TemplateFactory::new()
+        ->registerFilter(MoneyFilters::class)
+        ->newRenderContext();
     $context->set('var', 1000);
 
-    expect(Template::parse('{{ var | money_with_underscore }}')->render($context))
+    expect(parseTemplate('{{ var | money_with_underscore }}')->render($context))
         ->toBe(' 1000$');
 });
 
 test('second filter override first', function () {
-    $context = new Context(
-        filters: [MoneyFilters::class, CanadianMoneyFilter::class]
-    );
+    $context = TemplateFactory::new()
+        ->registerFilter(MoneyFilters::class)
+        ->registerFilter(CanadianMoneyFilter::class)
+        ->newRenderContext();
     $context->set('var', 1000);
 
-    expect(Template::parse('{{ var | money }}')->render($context))
+    expect(parseTemplate('{{ var | money }}')->render($context))
         ->toBe(' 1000$ CAD');
 });
 
@@ -120,21 +120,21 @@ test('non existent filter is ignored', function () {
 });
 
 test('filter with keyword arguments', function () {
-    $context = new Context(
-        filters: [SubstituteFilter::class]
-    );
+    $context = TemplateFactory::new()
+        ->registerFilter(SubstituteFilter::class)
+        ->newRenderContext();
     $context->set('surname', 'john');
     $context->set('input', 'hello %{first_name}, %{last_name}');
 
-    expect(Template::parse("{{ input | substitute: first_name: surname, last_name: 'doe' }}")->render($context))
+    expect(parseTemplate("{{ input | substitute: first_name: surname, last_name: 'doe' }}")->render($context))
         ->toBe('hello john, doe');
 });
 
 test('can parse data keyword args', function () {
-    $context = new Context(
-        filters: [HtmlAttributesFilter::class]
-    );
+    $context = TemplateFactory::new()
+        ->registerFilter(HtmlAttributesFilter::class)
+        ->newRenderContext();
 
-    expect(Template::parse("{{ 'img' | html_tag: data-src: 'src', data-widths: '100, 200' }}")->render($context))
+    expect(parseTemplate("{{ 'img' | html_tag: data-src: 'src', data-widths: '100, 200' }}")->render($context))
         ->toBe("data-src='src' data-widths='100, 200'");
 });

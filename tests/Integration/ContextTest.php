@@ -59,10 +59,14 @@ test('hyphenated variable', function () {
 });
 
 test('add filter', function () {
-    $context = new Context(filters: [\Keepsuit\Liquid\Tests\Stubs\TestFilters::class]);
+    $context = \Keepsuit\Liquid\TemplateFactory::new()
+        ->registerFilter(\Keepsuit\Liquid\Tests\Stubs\TestFilters::class)
+        ->newRenderContext();
+
     expect($context->applyFilter('hi', 'hi?'))->toBe('hi? hi!');
 
-    $context = new Context();
+    $context = \Keepsuit\Liquid\TemplateFactory::new()
+        ->newRenderContext();
     expect($context->applyFilter('hi', 'hi?'))->toBe('hi?');
 });
 
@@ -434,10 +438,12 @@ test('new isolated subcontext inherit file system', function () {
 });
 
 test('new isolated subcontext inherit filters', function () {
-    $context = new Context(filters: [\Keepsuit\Liquid\Tests\Stubs\TestFilters::class]);
+    $context = \Keepsuit\Liquid\TemplateFactory::new()
+        ->registerFilter(\Keepsuit\Liquid\Tests\Stubs\TestFilters::class)
+        ->newRenderContext();
     $subContext = $context->newIsolatedSubContext('sub');
 
-    expect(\Keepsuit\Liquid\Template::parse('{{ "hi?" | hi }}')->render($subContext))->toBe('hi? hi!');
+    expect(parseTemplate('{{ "hi?" | hi }}')->render($subContext))->toBe('hi? hi!');
 });
 
 test('disabled specified tags', function () {

@@ -1,8 +1,8 @@
 <?php
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplateFactory;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 use PHPUnit\Framework\ExpectationFailedException;
 
@@ -14,21 +14,32 @@ function fixture(string $path): string
 /**
  * @throws SyntaxException
  */
+function parseTemplate(
+    string $source,
+    bool $lineNumbers = true,
+    TemplateFactory $factory = new TemplateFactory(),
+): Template {
+    return $factory->parse($source, lineNumbers: $lineNumbers);
+}
+
+/**
+ * @throws SyntaxException
+ */
 function renderTemplate(
     string $template,
     array $assigns = [],
     array $registers = [],
     array $partials = [],
     bool $renderErrors = false,
+    TemplateFactory $factory = new TemplateFactory()
 ): string {
-    $template = Template::parse($template, lineNumbers: true);
+    $factory->setFilesystem(new StubFileSystem(partials: $partials));
 
-    $fileSystem = new StubFileSystem(partials: $partials);
+    $template = $factory->parse($template, lineNumbers: true);
 
-    $context = new Context(
+    $context = $factory->newRenderContext(
         staticEnvironment: $assigns,
         rethrowExceptions: ! $renderErrors,
-        fileSystem: $fileSystem,
     );
 
     foreach ($registers as $key => $value) {
@@ -45,13 +56,15 @@ function assertTemplateResult(
     array $registers = [],
     array $partials = [],
     bool $renderErrors = false,
+    TemplateFactory $factory = new TemplateFactory(),
 ): void {
     expect(renderTemplate(
         template: $template,
         assigns: $assigns,
         registers: $registers,
         partials: $partials,
-        renderErrors: $renderErrors
+        renderErrors: $renderErrors,
+        factory: $factory,
     ))->toBe($expected);
 }
 

@@ -3,7 +3,6 @@
 use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\ParseTreeVisitor;
 use Keepsuit\Liquid\Support\Arr;
-use Keepsuit\Liquid\Template;
 
 test('variable', function () {
     expect(visit('{{ test }}'))->toBe(['test']);
@@ -145,7 +144,7 @@ test('preserve tree structure', function () {
 
 function traversal(string $source): ParseTreeVisitor
 {
-    return ParseTreeVisitor::for(Template::parse($source)->root)
+    return ParseTreeVisitor::for(parseTemplate($source)->root)
         ->addCallbackFor(VariableLookup::class, fn (VariableLookup $node) => [$node->name, null]);
 }
 

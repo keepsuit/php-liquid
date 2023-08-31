@@ -8,7 +8,6 @@ use Keepsuit\Liquid\Nodes\BlockBodySection;
 use Keepsuit\Liquid\Nodes\BlockBodySectionDelimiter;
 use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Tag;
-use Keepsuit\Liquid\Template;
 
 final class BlockParser
 {
@@ -39,7 +38,7 @@ final class BlockParser
 
     public static function forDocument(): static
     {
-        return new static();
+        return new self();
     }
 
     public function subTagsHandler(?Closure $subTagsHandler): static
@@ -110,7 +109,7 @@ final class BlockParser
                 }
 
                 /** @var class-string<Tag>|null $tagClass */
-                $tagClass = Template::registeredTags()[$tagName] ?? null;
+                $tagClass = $parseContext->tagRegistry->get($tagName) ?? null;
 
                 if ($tagClass !== null) {
                     $tag = (new $tagClass($markup, $parseContext));
@@ -182,7 +181,7 @@ final class BlockParser
             $markup = $matches[2];
 
             /** @var class-string<Tag>|null $tagClass */
-            $tagClass = Template::registeredTags()[$tagName] ?? null;
+            $tagClass = $parseContext->tagRegistry->get($tagName) ?? null;
 
             if ($tagClass !== null) {
                 $tag = (new $tagClass($markup, $parseContext))->parse($tokenizer);

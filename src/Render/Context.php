@@ -20,6 +20,7 @@ use Keepsuit\Liquid\Parse\Expression;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Profiler\Profiler;
 use Keepsuit\Liquid\Support\Arr;
+use Keepsuit\Liquid\Support\FilterRegistry;
 use Keepsuit\Liquid\Support\MissingValue;
 use Keepsuit\Liquid\TagBlock;
 use Keepsuit\Liquid\Template;
@@ -51,8 +52,6 @@ final class Context
      */
     protected array $interrupts = [];
 
-    protected ?FilterRegistry $filterRegistry = null;
-
     protected ?Profiler $profiler;
 
     public function __construct(
@@ -63,11 +62,10 @@ final class Context
         /** array<string, mixed> */
         protected array $outerScope = [],
         array $registers = [],
-        /** @var array<class-string> $filters */
-        array $filters = [],
         protected bool $rethrowExceptions = false,
         public readonly bool $strictVariables = false,
         bool $profile = false,
+        protected FilterRegistry $filterRegistry = new FilterRegistry(),
         public readonly ResourceLimits $resourceLimits = new ResourceLimits(),
         public readonly LiquidFileSystem $fileSystem = new BlankFileSystem(),
     ) {
@@ -76,7 +74,6 @@ final class Context
         $this->sharedState = new ContextSharedState(
             staticEnvironment: $staticEnvironment,
             staticRegisters: $registers,
-            filters: $filters
         );
 
         $this->profiler = $profile ? new Profiler() : null;
@@ -221,11 +218,7 @@ final class Context
 
     public function applyFilter(string $filter, mixed $value, mixed ...$args): mixed
     {
-        if ($this->filterRegistry === null) {
-            $this->filterRegistry = FilterRegistry::createWithFilters($this, $this->sharedState->filters);
-        }
-
-        return $this->filterRegistry->invoke($filter, $value, ...$args);
+        return $this->filterRegistry->invoke($this, $filter, $value, ...$args);
     }
 
     public function getRegister(string $name): mixed
@@ -324,7 +317,7 @@ final class Context
 
         try {
             $template = $parseContext->partial(function (ParseContext $parseContext) use ($templateName, $source) {
-                return Template::parsePartial($source, $parseContext, $templateName);
+                return Template::parse($parseContext, $source, $templateName);
             });
         } catch (LiquidException $exception) {
             $exception->templateName = $templateName;
@@ -345,6 +338,7 @@ final class Context
         $this->checkOverflow();
 
         $subContext = new Context(
+            filterRegistry: $this->filterRegistry,
             rethrowExceptions: $this->rethrowExceptions,
             resourceLimits: $this->resourceLimits,
             fileSystem: $this->fileSystem,

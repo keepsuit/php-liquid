@@ -3,15 +3,10 @@
 namespace Keepsuit\Liquid\Performance\Shopify;
 
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Filters\FiltersProvider;
 
-class CustomFilters
+class CustomFilters extends FiltersProvider
 {
-    public function __construct(
-        protected Context $context
-    ) {
-    }
-
     public function json(mixed $value): string
     {
         if (is_array($value) && array_key_exists('collections', $value)) {

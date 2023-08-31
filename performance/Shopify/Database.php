@@ -11,7 +11,7 @@ class Database
 
     protected static ?array $tables = null;
 
-    public static function tables()
+    public static function tables(): array
     {
         if (static::$tables !== null) {
             return static::$tables;

@@ -1,10 +1,11 @@
 <?php
 
-use Keepsuit\Liquid\Render\Context;
-use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplateFactory;
 use Keepsuit\Liquid\Tests\Stubs\FunnyFilter;
 
 beforeEach(function () {
+    $this->templateFactory = TemplateFactory::new();
+
     $this->assigns = [
         'car' => [
             'bmw' => 'good',
@@ -33,91 +34,100 @@ test('variable traversing', function () {
 });
 
 test('variable piping', function () {
-    $context = new Context(
-        staticEnvironment: $this->assigns,
-        filters: [FunnyFilter::class]
-    );
+    $context = $this->templateFactory
+        ->registerFilter(FunnyFilter::class)
+        ->newRenderContext(
+            staticEnvironment: $this->assigns,
+        );
 
-    expect(Template::parse(' {{ car.gm | make_funny }} ')->render($context))
+    expect(parseTemplate(' {{ car.gm | make_funny }} ')->render($context))
         ->toBe(' LOL ');
 });
 
 test('variable piping with input', function () {
-    $context = new Context(
-        staticEnvironment: $this->assigns,
-        filters: [FunnyFilter::class]
-    );
+    $context = $this->templateFactory
+        ->registerFilter(FunnyFilter::class)
+        ->newRenderContext(
+            staticEnvironment: $this->assigns,
+        );
 
-    expect(Template::parse(' {{ car.gm | cite_funny }} ')->render($context))
+    expect(parseTemplate(' {{ car.gm | cite_funny }} ')->render($context))
         ->toBe(' LOL: bad ');
 });
 
 test('variable piping with args', function () {
-    $context = new Context(
-        staticEnvironment: $this->assigns,
-        filters: [FunnyFilter::class]
-    );
+    $context = $this->templateFactory
+        ->registerFilter(FunnyFilter::class)
+        ->newRenderContext(
+            staticEnvironment: $this->assigns,
+        );
 
-    expect(Template::parse(" {{ car.gm | add_smiley : ':-(' }} ")->render($context))
+    expect(parseTemplate(" {{ car.gm | add_smiley : ':-(' }} ")->render($context))
         ->toBe(' bad :-( ');
 });
 
 test('variable piping with no args', function () {
-    $context = new Context(
-        staticEnvironment: $this->assigns,
-        filters: [FunnyFilter::class]
-    );
+    $context = $this->templateFactory
+        ->registerFilter(FunnyFilter::class)
+        ->newRenderContext(
+            staticEnvironment: $this->assigns,
+        );
 
-    expect(Template::parse(' {{ car.gm | add_smiley }} ')->render($context))
+    expect(parseTemplate(' {{ car.gm | add_smiley }} ')->render($context))
         ->toBe(' bad :-) ');
 });
 
 test('multiple variable piping with args', function () {
-    $context = new Context(
-        staticEnvironment: $this->assigns,
-        filters: [FunnyFilter::class]
-    );
+    $context = $this->templateFactory
+        ->registerFilter(FunnyFilter::class)
+        ->newRenderContext(
+            staticEnvironment: $this->assigns,
+        );
 
-    expect(Template::parse(" {{ car.gm | add_smiley : ':-(' | add_smiley : ':-('}} ")->render($context))
+    expect(parseTemplate(" {{ car.gm | add_smiley : ':-(' | add_smiley : ':-('}} ")->render($context))
         ->toBe(' bad :-( :-( ');
 });
 
 test('variable piping with multiple args', function () {
-    $context = new Context(
-        staticEnvironment: $this->assigns,
-        filters: [FunnyFilter::class]
-    );
+    $context = $this->templateFactory
+        ->registerFilter(FunnyFilter::class)
+        ->newRenderContext(
+            staticEnvironment: $this->assigns,
+        );
 
-    expect(Template::parse(" {{ car.gm | add_tag : 'span', 'bar'}} ")->render($context))
+    expect(parseTemplate(" {{ car.gm | add_tag : 'span', 'bar'}} ")->render($context))
         ->toBe(' <span id="bar">bad</span> ');
 });
 
 test('variable piping with variable args', function () {
-    $context = new Context(
-        staticEnvironment: $this->assigns,
-        filters: [FunnyFilter::class]
-    );
+    $context = $this->templateFactory
+        ->registerFilter(FunnyFilter::class)
+        ->newRenderContext(
+            staticEnvironment: $this->assigns,
+        );
 
-    expect(Template::parse(" {{ car.gm | add_tag : 'span', car.bmw}} ")->render($context))
+    expect(parseTemplate(" {{ car.gm | add_tag : 'span', car.bmw}} ")->render($context))
         ->toBe(' <span id="good">bad</span> ');
 });
 
 test('multiple pipings', function () {
-    $context = new Context(
-        staticEnvironment: ['best_cars' => 'bmw'],
-        filters: [FunnyFilter::class]
-    );
+    $context = $this->templateFactory
+        ->registerFilter(FunnyFilter::class)
+        ->newRenderContext(
+            staticEnvironment: ['best_cars' => 'bmw']
+        );
 
-    expect(Template::parse(' {{ best_cars | cite_funny | paragraph }} ')->render($context))
+    expect(parseTemplate(' {{ best_cars | cite_funny | paragraph }} ')->render($context))
         ->toBe(' <p>LOL: bmw</p> ');
 });
 
 test('link to', function () {
-    $context = new Context(
-        staticEnvironment: $this->assigns,
-        filters: [FunnyFilter::class]
-    );
+    $context = $this->templateFactory
+        ->registerFilter(FunnyFilter::class)
+        ->newRenderContext(
+            staticEnvironment: $this->assigns,
+        );
 
-    expect(Template::parse(" {{ 'Typo' | link_to: 'http://typo.leetsoft.com' }} ")->render($context))
+    expect(parseTemplate(" {{ 'Typo' | link_to: 'http://typo.leetsoft.com' }} ")->render($context))
         ->toBe(' <a href="http://typo.leetsoft.com">Typo</a> ');
 });
