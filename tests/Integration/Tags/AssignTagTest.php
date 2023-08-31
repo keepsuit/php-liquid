@@ -4,6 +4,7 @@ use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Render\ResourceLimits;
+use Keepsuit\Liquid\TemplateFactory;
 
 test('assign with hyphen in variable name', function () {
     $source = <<<'LIQUID'
@@ -66,13 +67,17 @@ test('assign score exceeding resource limit', function () {
 });
 
 test('assign score exceeding resource limit from composite object', function () {
-    $template = parseTemplate("{% assign foo = 'aaaa' | split: '' %}");
+    $factory = TemplateFactory::new();
 
-    $context = new Context(rethrowExceptions: true, resourceLimits: new ResourceLimits(assignScoreLimit: 3));
+    $template = parseTemplate("{% assign foo = 'aaaa' | split: '' %}", factory: $factory);
+
+    $factory->setResourceLimits(new ResourceLimits(assignScoreLimit: 3));
+    $context = $factory->newRenderContext(rethrowExceptions: true);
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
     expect($context->resourceLimits->reached())->toBeTrue();
 
-    $context = new Context(rethrowExceptions: true, resourceLimits: new ResourceLimits(assignScoreLimit: 5));
+    $factory->setResourceLimits(new ResourceLimits(assignScoreLimit: 5));
+    $context = $factory->newRenderContext(rethrowExceptions: true);
     expect($template->render($context))->toBe('');
     expect($context->resourceLimits->reached())->toBeFalse();
     expect($context->resourceLimits->getAssignScore())->toBe(5);

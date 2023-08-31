@@ -8,17 +8,11 @@ use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Contracts\MapsToLiquid;
 use Keepsuit\Liquid\Drop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
-use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\Str;
 
-class StandardFilters
+class StandardFilters extends FiltersProvider
 {
-    public function __construct(
-        protected Context $context
-    ) {
-    }
-
     /**
      * Returns the absolute value of a number.
      */

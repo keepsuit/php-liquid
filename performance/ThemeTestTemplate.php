@@ -25,6 +25,7 @@ class ThemeTestTemplate
         $layout = $this->layoutLiquid !== null ? $this->factory->parse($this->layoutLiquid) : null;
 
         return new CompiledThemeTestTemplate(
+            factory: $this->factory,
             templateName: $this->templateName,
             template: $template,
             layout: $layout,

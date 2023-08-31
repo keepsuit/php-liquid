@@ -25,8 +25,8 @@ class ParseContext
 
     public function __construct(
         bool|int $startLineNumber = null,
-        public readonly TagRegistry $tagRegistry = new TagRegistry(),
         public readonly I18n $locale = new I18n(),
+        public readonly TagRegistry $tagRegistry = new TagRegistry(),
     ) {
         $this->lineNumber = match (true) {
             is_int($startLineNumber) => $startLineNumber,

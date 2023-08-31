@@ -1,7 +1,6 @@
 <?php
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\TemplateFactory;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
@@ -18,9 +17,9 @@ function fixture(string $path): string
 function parseTemplate(
     string $source,
     bool $lineNumbers = true,
-    TemplateFactory $factory = null,
+    TemplateFactory $factory = new TemplateFactory(),
 ): Template {
-    return ($factory ?? TemplateFactory::new())->parse($source, lineNumbers: $lineNumbers);
+    return $factory->parse($source, lineNumbers: $lineNumbers);
 }
 
 /**
@@ -32,16 +31,15 @@ function renderTemplate(
     array $registers = [],
     array $partials = [],
     bool $renderErrors = false,
-    TemplateFactory $factory = null,
+    TemplateFactory $factory = new TemplateFactory()
 ): string {
-    $template = parseTemplate($template, factory: $factory);
+    $factory->setFilesystem(new StubFileSystem(partials: $partials));
 
-    $fileSystem = new StubFileSystem(partials: $partials);
+    $template = $factory->parse($template, lineNumbers: true);
 
-    $context = new Context(
+    $context = $factory->newRenderContext(
         staticEnvironment: $assigns,
         rethrowExceptions: ! $renderErrors,
-        fileSystem: $fileSystem,
     );
 
     foreach ($registers as $key => $value) {
@@ -58,7 +56,7 @@ function assertTemplateResult(
     array $registers = [],
     array $partials = [],
     bool $renderErrors = false,
-    TemplateFactory $factory = null,
+    TemplateFactory $factory = new TemplateFactory(),
 ): void {
     expect(renderTemplate(
         template: $template,

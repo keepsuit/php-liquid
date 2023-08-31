@@ -4,6 +4,7 @@
 use Keepsuit\Liquid\Performance\BenchmarkResult;
 use Keepsuit\Liquid\Performance\BenchmarkRunner;
 use Keepsuit\Liquid\Performance\Shopify\CommentFormTag;
+use Keepsuit\Liquid\Performance\Shopify\CustomFilters;
 use Keepsuit\Liquid\Performance\Shopify\PaginateTag;
 use Keepsuit\Liquid\Performance\ThemeRunner;
 use Keepsuit\Liquid\TemplateFactory;
@@ -17,7 +18,8 @@ require __DIR__.'/../vendor/autoload.php';
 
 $templateFactory = TemplateFactory::new()
     ->registerTag(CommentFormTag::class)
-    ->registerTag(PaginateTag::class);
+    ->registerTag(PaginateTag::class)
+    ->registerFilter(CustomFilters::class);
 
 (new SingleCommandApplication())
     ->setName('Benchmark')

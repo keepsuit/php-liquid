@@ -25,8 +25,6 @@ class ContextSharedState
         public array $staticRegisters = [],
         /** @var array<\Throwable> */
         public array $errors = [],
-        /** @var array<class-string> $filters */
-        public array $filters = [],
         /** @var array<string, int> */
         public array $disabledTags = [],
     ) {
