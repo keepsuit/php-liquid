@@ -31,7 +31,7 @@ class ParseContext
     /**
      * @var array<string,Template>
      */
-    protected array $partials = [];
+    protected array $partialsCache = [];
 
     public function __construct(
         bool|int $startLineNumber = null,
@@ -46,6 +46,11 @@ class ParseContext
         };
     }
 
+    public function isPartial(): bool
+    {
+        return $this->partial;
+    }
+
     public function newTokenizer(string $markup, bool $forLiquidTag = false): Tokenizer
     {
         return new Tokenizer($markup, startLineNumber: $this->lineNumber, forLiquidTag: $forLiquidTag);
@@ -58,8 +63,8 @@ class ParseContext
 
     public function loadPartial(string $templateName): Template
     {
-        if (Arr::has($this->partials, $templateName)) {
-            return $this->partials[$templateName];
+        if (Arr::has($this->partialsCache, $templateName)) {
+            return $this->partialsCache[$templateName];
         }
 
         $oldLineNumber = $this->lineNumber;
@@ -69,7 +74,7 @@ class ParseContext
         try {
             $source = $this->fileSystem->readTemplateFile($templateName);
             $template = Template::parse($this, $source, $templateName);
-            $this->partials[$templateName] = $template;
+            $this->partialsCache[$templateName] = $template;
 
             return $template;
         } catch (LiquidException $exception) {
@@ -80,6 +85,11 @@ class ParseContext
             $this->partial = false;
             $this->lineNumber = $oldLineNumber;
         }
+    }
+
+    public function getPartialsCache(): array
+    {
+        return $this->partialsCache;
     }
 
     /**

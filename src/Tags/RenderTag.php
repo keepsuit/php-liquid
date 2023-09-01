@@ -18,8 +18,6 @@ class RenderTag extends Tag implements HasParseTreeVisitorChildren
 {
     protected const Syntax = '/('.Regex::QuotedString.'+)(\s+(with|for)\s+('.Regex::QuotedFragment.'+))?(\s+(?:as)\s+('.Regex::VariableSegment.'+))?/';
 
-    protected Template $template;
-
     protected string $templateNameExpression;
 
     protected mixed $variableNameExpression;
@@ -57,7 +55,7 @@ class RenderTag extends Tag implements HasParseTreeVisitorChildren
                 $this->attributes[$matches[1]] = $this->parseExpression($parseContext, $matches[2]);
             }
 
-            $this->template = $parseContext->loadPartial($this->templateNameExpression);
+            $parseContext->loadPartial($this->templateNameExpression);
 
             return $this;
         });
@@ -65,6 +63,8 @@ class RenderTag extends Tag implements HasParseTreeVisitorChildren
 
     public function render(Context $context): string
     {
+        $partial = $context->loadPartial($this->templateNameExpression);
+
         $contextVariableName = $this->aliasName ?? Arr::last(explode('/', $this->templateNameExpression));
         assert(is_string($contextVariableName));
 
@@ -78,12 +78,12 @@ class RenderTag extends Tag implements HasParseTreeVisitorChildren
 
             $output = '';
             foreach ($variable as $value) {
-                $partialContext = $this->buildPartialContext($context, [
+                $partialContext = $this->buildPartialContext($partial, $context, [
                     'forloop' => $forLoop,
                     $contextVariableName => $value,
                 ]);
 
-                $output .= $this->template->render($partialContext);
+                $output .= $partial->render($partialContext);
 
                 $forLoop->increment();
             }
@@ -91,11 +91,11 @@ class RenderTag extends Tag implements HasParseTreeVisitorChildren
             return $output;
         }
 
-        $partialContext = $this->buildPartialContext($context, [
+        $partialContext = $this->buildPartialContext($partial, $context, [
             $contextVariableName => $variable,
         ]);
 
-        return $this->template->render($partialContext);
+        return $partial->render($partialContext);
     }
 
     public function parseTreeVisitorChildren(): array
@@ -107,9 +107,9 @@ class RenderTag extends Tag implements HasParseTreeVisitorChildren
         ];
     }
 
-    protected function buildPartialContext(Context $context, array $variables = []): Context
+    protected function buildPartialContext(Template $partial, Context $context, array $variables = []): Context
     {
-        $innerContext = $context->newIsolatedSubContext($this->template->name);
+        $innerContext = $context->newIsolatedSubContext($partial->name);
 
         foreach ($variables as $key => $value) {
             $innerContext->set($key, $value);

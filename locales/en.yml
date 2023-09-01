@@ -29,3 +29,5 @@ errors:
     tag: "%{tag} usage is not allowed in this context"
   stack:
     nesting_too_deep: "Nesting too deep"
+  runtime:
+    partial_not_loaded: "The partial '%{partial}' has not be loaded during parsing"

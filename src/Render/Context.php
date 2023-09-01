@@ -13,6 +13,7 @@ use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
+use Keepsuit\Liquid\Exceptions\StandardException;
 use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Interrupts\Interrupt;
@@ -33,7 +34,7 @@ final class Context
 
     protected ?string $templateName = null;
 
-    protected bool $partial = false;
+    public bool $partial = false;
 
     /**
      * @var array<array<string, mixed>>
@@ -78,6 +79,11 @@ final class Context
         );
 
         $this->profiler = $profile ? new Profiler() : null;
+    }
+
+    public function isPartial(): bool
+    {
+        return $this->partial;
     }
 
     protected function push(array $newScope = []): void
@@ -304,6 +310,22 @@ final class Context
     public function getProfiler(): ?Profiler
     {
         return $this->profiler;
+    }
+
+    public function loadPartial(string $templateName): Template
+    {
+        if (! Arr::has($this->sharedState->partialsCache, $templateName)) {
+            throw new StandardException($this->locale->translate('errors.runtime.partial_not_loaded', ['partial' => $templateName]));
+        }
+
+        return $this->sharedState->partialsCache[$templateName];
+    }
+
+    public function setPartialsCache(array $partialsCache): Context
+    {
+        $this->sharedState->partialsCache = $partialsCache;
+
+        return $this;
     }
 
     /**
