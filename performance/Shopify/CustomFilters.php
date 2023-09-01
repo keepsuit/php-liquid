@@ -64,17 +64,20 @@ class CustomFilters extends FiltersProvider
     public function highlightActiveTag(string|int|float $tag, string $cssClass = 'active'): string
     {
         $currentTags = $this->context->get('current_tags') ?? [];
+        assert(is_array($currentTags));
 
         if (in_array($tag, $currentTags)) {
             return sprintf('<span class="%s">%s</span>', $cssClass, $tag);
         }
 
-        return $tag;
+        return (string) $tag;
     }
 
     public function linkToAddTag(string|int|float $label, string $tag): string
     {
-        $tags = array_unique([...($this->context->get('current_tags') ?? []), $tag]);
+        $currentTags = $this->context->get('current_tags') ?? [];
+        assert(is_array($currentTags));
+        $tags = array_unique([...$currentTags, $tag]);
 
         return sprintf(
             '<a title="Show tag %s" href="/collections/%s/%s">%s</a>',
@@ -87,7 +90,9 @@ class CustomFilters extends FiltersProvider
 
     public function linkToRemoveTag(string|int|float $label, string $tag): string
     {
-        $tags = array_filter($this->context->get('current_tags') ?? [], fn ($t) => $t !== $tag);
+        $currentTags = $this->context->get('current_tags') ?? [];
+        assert(is_array($currentTags));
+        $tags = array_filter($currentTags, fn ($t) => $t !== $tag);
 
         return sprintf(
             '<a title="Show tag %s" href="/collections/%s/%s">%s</a>',
@@ -210,7 +215,7 @@ class CustomFilters extends FiltersProvider
         $result = $input;
         $result = strtolower($result);
         $result = str_replace(['\'', '"', '()', '[]'], '', $result);
-        $result = preg_replace('/\W+/', '-', $result);
+        $result = preg_replace('/\W+/', '-', $result) ?? '';
 
         return trim($result, '-');
     }

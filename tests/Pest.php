@@ -68,10 +68,16 @@ function assertTemplateResult(
     ))->toBe($expected);
 }
 
-function assertMatchSyntaxError(string $error, string $template, array $assigns = [], array $registers = []): void
-{
+function assertMatchSyntaxError(
+    string $error,
+    string $template,
+    array $assigns = [],
+    array $registers = [],
+    array $partials = [],
+    TemplateFactory $factory = new TemplateFactory()
+): void {
     try {
-        renderTemplate(template: $template, assigns: $assigns, registers: $registers);
+        renderTemplate(template: $template, assigns: $assigns, registers: $registers, partials: $partials, factory: $factory);
     } catch (SyntaxException $exception) {
         expect($exception->toLiquidErrorMessage())->toBe($error);
 

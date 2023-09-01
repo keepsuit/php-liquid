@@ -1,12 +1,12 @@
 <?php
 
 use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Tests\Stubs\TestTag;
 
 test('tag', function () {
-    $tag = (new TestTag('', new ParseContext()))->parse(new Tokenizer(''));
+    $parseContext = new ParseContext();
+    $tag = (new TestTag(''))->parse($parseContext, $parseContext->newTokenizer(''));
 
     expect($tag)
         ->name()->toBe(TestTag::class)
@@ -14,7 +14,8 @@ test('tag', function () {
 });
 
 test('return raw text of tag', function () {
-    $tag = (new TestTag('param1, param2, param3', new ParseContext()))->parse(new Tokenizer(''));
+    $parseContext = new ParseContext();
+    $tag = (new TestTag('param1, param2, param3'))->parse($parseContext, $parseContext->newTokenizer(''));
 
     expect($tag)
         ->raw()->toBe('test param1, param2, param3');

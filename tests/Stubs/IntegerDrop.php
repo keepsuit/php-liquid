@@ -14,7 +14,7 @@ class IntegerDrop extends Drop
         $this->value = (int) $value;
     }
 
-    public function toLiquid(): string
+    public function toLiquid(): int
     {
         return $this->value;
     }

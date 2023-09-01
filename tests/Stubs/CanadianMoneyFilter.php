@@ -11,6 +11,6 @@ class CanadianMoneyFilter
         $formatter = new NumberFormatter('en-US', NumberFormatter::DECIMAL);
         $formatter->setPattern(' #$ CAD');
 
-        return $formatter->formatCurrency($input, 'CAD');
+        return $formatter->formatCurrency((float) $input, 'CAD') ?: '';
     }
 }

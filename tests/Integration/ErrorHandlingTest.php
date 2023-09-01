@@ -1,9 +1,11 @@
 <?php
 
 use Keepsuit\Liquid\Exceptions\InternalException;
+use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Exceptions\StandardException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\TemplateFactory;
 use Keepsuit\Liquid\Tests\Stubs\ErrorDrop;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
@@ -169,13 +171,15 @@ test('default exception renderer with internal error', function () {
 });
 
 test('render template name with line numbers', function () {
-    $template = parseTemplate("Argument error:\n{% render 'product' with errors %}", lineNumbers: true);
-
-    $output = $template->render(new Context(
-        staticEnvironment: ['errors' => new ErrorDrop()],
-        fileSystem: new StubFileSystem([
+    $factory = TemplateFactory::new()
+        ->setFilesystem(new StubFileSystem([
             'product' => '{{ errors.argument_error }}',
-        ])
+        ]));
+
+    $template = parseTemplate("Argument error:\n{% render 'product' with errors %}", factory: $factory);
+
+    $output = $template->render($factory->newRenderContext(
+        staticEnvironment: ['errors' => new ErrorDrop()],
     ));
 
     expect($output)
@@ -187,27 +191,26 @@ test('render template name with line numbers', function () {
 });
 
 test('error is thrown during parse with template name', function () {
-    $template = parseTemplate("{% render 'loop' %}", lineNumbers: true);
-
-    $output = $template->render(new Context(
-        staticEnvironment: ['errors' => new ErrorDrop()],
-        fileSystem: new StubFileSystem([
+    try {
+        renderTemplate("{% render 'loop' %}", partials: [
             'loop' => "{% render 'loop' %}",
-        ])
-    ));
+        ]);
+    } catch (StackLevelException $exception) {
+        expect($exception->toLiquidErrorMessage())
+            ->toBe('Liquid error (loop line 1): Nesting too deep');
 
-    expect($output)->toBe('Liquid error (loop line 1): Nesting too deep');
+        return;
+    }
+
+    $this->fail('Expected StackLevelException to be thrown.');
 });
 
 test('internal error is thrown with template name', function () {
-    $template = parseTemplate("{% render 'snippet' with errors %}", lineNumbers: true);
+    $factory = TemplateFactory::new()
+        ->setFilesystem(new StubFileSystem([
+            'product' => '{{ errors.argument_error }}',
+        ]));
 
-    $output = $template->render(new Context(
-        staticEnvironment: ['errors' => new ErrorDrop()],
-        fileSystem: new StubFileSystem([
-            'snippet' => '{{ errors.runtime_error }}',
-        ])
-    ));
-
-    expect($output)->toBe('Liquid error (snippet line 1): Internal exception');
+    expect(fn () => parseTemplate("{% render 'snippet' with errors %}", factory: $factory))
+        ->toThrow(InternalException::class);
 });

@@ -112,8 +112,8 @@ final class BlockParser
                 $tagClass = $parseContext->tagRegistry->get($tagName) ?? null;
 
                 if ($tagClass !== null) {
-                    $tag = (new $tagClass($markup, $parseContext));
-                    $tag->parse($tokenizer);
+                    $tag = (new $tagClass($markup, $parseContext->lineNumber));
+                    $tag->parse($parseContext, $tokenizer);
                     $section->pushNode($tag);
 
                     continue;
@@ -184,7 +184,8 @@ final class BlockParser
             $tagClass = $parseContext->tagRegistry->get($tagName) ?? null;
 
             if ($tagClass !== null) {
-                $tag = (new $tagClass($markup, $parseContext))->parse($tokenizer);
+                $tag = (new $tagClass($markup, $parseContext->lineNumber));
+                $tag->parse($parseContext, $tokenizer);
                 $section->pushNode($tag);
 
                 continue;

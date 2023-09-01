@@ -4,10 +4,16 @@ namespace Keepsuit\Liquid\Tests\Stubs;
 
 use Keepsuit\Liquid\Drop;
 
+/**
+ * @implements \Iterator<int, int>
+ */
 class EnumerableDrop extends Drop implements \Iterator
 {
     protected int $index = 0;
 
+    /**
+     * @var non-empty-array<int>
+     */
     protected array $data = [1, 2, 3];
 
     protected function liquidMethodMissing(string $name): mixed

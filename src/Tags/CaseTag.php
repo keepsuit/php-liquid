@@ -7,6 +7,7 @@ use Keepsuit\Liquid\Condition\ElseCondition;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\BlockBodySection;
+use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
@@ -28,18 +29,18 @@ class CaseTag extends TagBlock implements HasParseTreeVisitorChildren
         return 'case';
     }
 
-    public function parse(Tokenizer $tokenizer): static
+    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
     {
-        parent::parse($tokenizer);
+        parent::parse($parseContext, $tokenizer);
         $caseSection = array_shift($this->bodySections);
 
         if (preg_match(self::Syntax, $this->markup, $matches) === 1) {
-            $this->left = $this->parseExpression($matches[1]);
+            $this->left = $this->parseExpression($parseContext, $matches[1]);
         } else {
-            throw new SyntaxException($this->parseContext->locale->translate('errors.syntax.case'));
+            throw new SyntaxException($parseContext->locale->translate('errors.syntax.case'));
         }
 
-        $this->conditions = array_map(fn (BlockBodySection $block) => $this->parseBodySection($block), $this->bodySections);
+        $this->conditions = array_map(fn (BlockBodySection $block) => $this->parseBodySection($parseContext, $block), $this->bodySections);
 
         return $this;
     }
@@ -69,14 +70,14 @@ class CaseTag extends TagBlock implements HasParseTreeVisitorChildren
         return [$this->left, ...$this->conditions];
     }
 
-    protected function parseBodySection(BlockBodySection $section): Condition
+    protected function parseBodySection(ParseContext $parseContext, BlockBodySection $section): Condition
     {
         assert($section->startDelimiter() !== null);
 
         $condition = match ($section->startDelimiter()->tag) {
-            'when' => $this->recordWhenCondition($section->startDelimiter()->markup),
-            'else' => $this->recordElseCondition($section->startDelimiter()->markup),
-            default => SyntaxException::unknownTag($this->parseContext, $section->startDelimiter()->tag, $section->startDelimiter()->markup),
+            'when' => $this->recordWhenCondition($parseContext, $section->startDelimiter()->markup),
+            'else' => $this->recordElseCondition($parseContext, $section->startDelimiter()->markup),
+            default => SyntaxException::unknownTag($parseContext, $section->startDelimiter()->tag, $section->startDelimiter()->markup),
         };
 
         assert($condition instanceof Condition);
@@ -89,25 +90,25 @@ class CaseTag extends TagBlock implements HasParseTreeVisitorChildren
         return $condition;
     }
 
-    protected function recordWhenCondition(string $markup): Condition
+    protected function recordWhenCondition(ParseContext $parseContext, string $markup): Condition
     {
         if (preg_match(self::WhenSyntax, $markup, $matches) !== 1) {
-            throw new SyntaxException($this->parseContext->locale->translate('errors.syntax.case_invalid_when'));
+            throw new SyntaxException($parseContext->locale->translate('errors.syntax.case_invalid_when'));
         }
 
-        $condition = new Condition($this->left, '==', $this->parseExpression($matches[1]));
+        $condition = new Condition($this->left, '==', $this->parseExpression($parseContext, $matches[1]));
 
         if ($matches[2] ?? false) {
-            $condition->or($this->recordWhenCondition($matches[2]));
+            $condition->or($this->recordWhenCondition($parseContext, $matches[2]));
         }
 
         return $condition;
     }
 
-    protected function recordElseCondition(string $markup): Condition
+    protected function recordElseCondition(ParseContext $parseContext, string $markup): Condition
     {
         if (trim($markup) !== '') {
-            throw new SyntaxException($this->parseContext->locale->translate('errors.syntax.case_invalid_else'));
+            throw new SyntaxException($parseContext->locale->translate('errors.syntax.case_invalid_else'));
         }
 
         return new ElseCondition();

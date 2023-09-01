@@ -2,24 +2,22 @@
 
 namespace Keepsuit\Liquid;
 
-use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Nodes\BlockBodySection;
 use Keepsuit\Liquid\Parse\BlockParser;
+use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
 
 abstract class TagBlock extends Tag
 {
-    const MAX_DEPTH = 100;
-
     /**
      * @var array<BlockBodySection>
      */
     protected array $bodySections = [];
 
-    public function parse(Tokenizer $tokenizer): static
+    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
     {
-        $this->bodySections = self::parseBody($tokenizer);
+        $this->bodySections = self::parseBody($parseContext, $tokenizer);
 
         return $this;
     }
@@ -27,21 +25,13 @@ abstract class TagBlock extends Tag
     /**
      * @return array<BlockBodySection>
      */
-    protected function parseBody(Tokenizer $tokenizer): array
+    protected function parseBody(ParseContext $parseContext, Tokenizer $tokenizer): array
     {
-        if ($this->parseContext->depth >= self::MAX_DEPTH) {
-            throw new StackLevelException();
-        }
-
-        $this->parseContext->depth += 1;
-
-        $sections = BlockParser::forTag(static::tagName(), $this->markup)
-            ->subTagsHandler(fn (string $tagName) => $this->isSubTag($tagName))
-            ->parse($tokenizer, $this->parseContext);
-
-        $this->parseContext->depth -= 1;
-
-        return $sections;
+        return $parseContext->nested(function () use ($parseContext, $tokenizer) {
+            return BlockParser::forTag(static::tagName(), $this->markup)
+                ->subTagsHandler(fn (string $tagName) => $this->isSubTag($tagName))
+                ->parse($tokenizer, $parseContext);
+        });
     }
 
     public function blank(): bool

@@ -9,6 +9,7 @@ use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Interrupts\BreakInterrupt;
 use Keepsuit\Liquid\Nodes\BlockBodySection;
 use Keepsuit\Liquid\Nodes\Range;
+use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Parser;
 use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
@@ -42,9 +43,9 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
         return 'for';
     }
 
-    public function parse(Tokenizer $tokenizer): static
+    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
     {
-        parent::parse($tokenizer);
+        parent::parse($parseContext, $tokenizer);
 
         $this->forBlock = $this->bodySections[0];
 
@@ -52,7 +53,7 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
             $this->elseBlock = $this->bodySections[1];
         }
 
-        $this->parseForBlock($this->forBlock->startDelimiter()->markup ?? '');
+        $this->parseForBlock($parseContext, $this->forBlock->startDelimiter()->markup ?? '');
 
         if ($this->blank()) {
             $this->forBlock->removeBlankStrings();
@@ -88,18 +89,18 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
         ]);
     }
 
-    protected function parseForBlock(string $markup): void
+    protected function parseForBlock(ParseContext $parseContext, string $markup): void
     {
         $parser = new Parser($markup);
 
         $this->variableName = $parser->consume(TokenType::Identifier);
 
         if (! $parser->idOrFalse('in')) {
-            throw new SyntaxException($this->parseContext->locale->translate('errors.syntax.for_invalid_in'));
+            throw new SyntaxException($parseContext->locale->translate('errors.syntax.for_invalid_in'));
         }
 
         $collectionNameMarkup = $parser->expression();
-        $this->collectionName = $this->parseExpression($collectionNameMarkup);
+        $this->collectionName = $this->parseExpression($parseContext, $collectionNameMarkup);
 
         $this->name = sprintf('%s-%s', $this->variableName, $collectionNameMarkup);
         $this->reversed = $parser->idOrFalse('reversed') !== false;
@@ -110,27 +111,27 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
             $attribute = $parser->idOrFalse('limit') ?: $parser->idOrFalse('offset');
 
             if (! $attribute) {
-                throw new SyntaxException($this->parseContext->locale->translate('errors.syntax.for_invalid_attribute'));
+                throw new SyntaxException($parseContext->locale->translate('errors.syntax.for_invalid_attribute'));
             }
 
             $parser->consume(TokenType::Colon);
 
-            $this->setAttribute($attribute, $parser->expression());
+            $this->setAttribute($parseContext, $attribute, $parser->expression());
         }
 
         $parser->consume(TokenType::EndOfString);
     }
 
-    protected function setAttribute(string $attribute, string $expression): void
+    protected function setAttribute(ParseContext $parseContext, string $attribute, string $expression): void
     {
         if ($attribute === 'offset') {
-            $this->from = $expression === 'continue' ? 'continue' : $this->parseExpression($expression);
+            $this->from = $expression === 'continue' ? 'continue' : $this->parseExpression($parseContext, $expression);
 
             return;
         }
 
         if ($attribute === 'limit') {
-            $this->limit = $this->parseExpression($expression);
+            $this->limit = $this->parseExpression($parseContext, $expression);
 
             return;
         }

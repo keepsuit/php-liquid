@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Nodes\BlockBodySection;
 use Keepsuit\Liquid\Parse\BlockParser;
+use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Tag;
@@ -20,14 +21,14 @@ class LiquidTag extends Tag
         return 'liquid';
     }
 
-    public function parse(Tokenizer $tokenizer): static
+    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
     {
-        $liquidTokenizer = $this->parseContext->newTokenizer(
+        $liquidTokenizer = $parseContext->newTokenizer(
             markup: $this->markup,
             forLiquidTag: true
         );
 
-        $this->bodySections = BlockParser::forDocument()->parse($liquidTokenizer, $this->parseContext);
+        $this->bodySections = BlockParser::forDocument()->parse($liquidTokenizer, $parseContext);
 
         return $this;
     }

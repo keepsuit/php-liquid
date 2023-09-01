@@ -21,8 +21,8 @@ use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Profiler\Profiler;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\FilterRegistry;
+use Keepsuit\Liquid\Support\I18n;
 use Keepsuit\Liquid\Support\MissingValue;
-use Keepsuit\Liquid\TagBlock;
 use Keepsuit\Liquid\Template;
 use RuntimeException;
 use Throwable;
@@ -68,6 +68,7 @@ final class Context
         protected FilterRegistry $filterRegistry = new FilterRegistry(),
         public readonly ResourceLimits $resourceLimits = new ResourceLimits(),
         public readonly LiquidFileSystem $fileSystem = new BlankFileSystem(),
+        public readonly I18n $locale = new I18n(),
     ) {
         $this->scopes = [$this->outerScope];
 
@@ -305,31 +306,6 @@ final class Context
         return $this->profiler;
     }
 
-    public function loadPartial(ParseContext $parseContext, string $templateName): Template
-    {
-        $cacheKey = sprintf('%s', $templateName);
-
-        if (Arr::has($this->sharedState->partialsCache, $cacheKey)) {
-            return $this->sharedState->partialsCache[$cacheKey];
-        }
-
-        $source = $this->fileSystem->readTemplateFile($templateName);
-
-        try {
-            $template = $parseContext->partial(function (ParseContext $parseContext) use ($templateName, $source) {
-                return Template::parse($parseContext, $source, $templateName);
-            });
-        } catch (LiquidException $exception) {
-            $exception->templateName = $templateName;
-
-            throw $exception;
-        }
-
-        $this->sharedState->partialsCache[$cacheKey] = $template;
-
-        return $template;
-    }
-
     /**
      * @throws StackLevelException
      */
@@ -338,8 +314,8 @@ final class Context
         $this->checkOverflow();
 
         $subContext = new Context(
-            filterRegistry: $this->filterRegistry,
             rethrowExceptions: $this->rethrowExceptions,
+            filterRegistry: $this->filterRegistry,
             resourceLimits: $this->resourceLimits,
             fileSystem: $this->fileSystem,
         );
@@ -386,8 +362,8 @@ final class Context
      */
     protected function checkOverflow(): void
     {
-        if ($this->baseScopeDepth + count($this->scopes) > TagBlock::MAX_DEPTH) {
-            throw new StackLevelException();
+        if ($this->baseScopeDepth + count($this->scopes) > ParseContext::MAX_DEPTH) {
+            throw new StackLevelException($this->locale->translate('errors.stack.nesting_too_deep'));
         }
     }
 }

@@ -27,3 +27,5 @@ errors:
     include: "Argument error in tag 'include' - Illegal template name"
   disabled:
     tag: "%{tag} usage is not allowed in this context"
+  stack:
+    nesting_too_deep: "Nesting too deep"

@@ -31,7 +31,7 @@ class Template
         $tokenizer = $parseContext->newTokenizer($source);
 
         return new Template(
-            root: Document::parse($tokenizer, $parseContext),
+            root: Document::parse($parseContext, $tokenizer),
             name: $name,
         );
     }

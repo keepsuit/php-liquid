@@ -10,6 +10,7 @@ use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Render\ResourceLimits;
 use Keepsuit\Liquid\Support\FilterRegistry;
+use Keepsuit\Liquid\Support\I18n;
 use Keepsuit\Liquid\Support\TagRegistry;
 
 final class TemplateFactory
@@ -24,12 +25,15 @@ final class TemplateFactory
 
     protected ResourceLimits $resourceLimits;
 
+    protected I18n $locale;
+
     public function __construct()
     {
         $this->tagRegistry = $this->buildTagRegistry();
         $this->filterRegistry = $this->buildFilterRegistry();
         $this->fileSystem = new BlankFileSystem();
         $this->resourceLimits = new ResourceLimits();
+        $this->locale = new I18n();
     }
 
     public static function new(): TemplateFactory
@@ -58,12 +62,21 @@ final class TemplateFactory
         return $this;
     }
 
+    public function setLocale(I18n $locale): TemplateFactory
+    {
+        $this->locale = $locale;
+
+        return $this;
+    }
+
     public function newParseContext(
         bool $lineNumbers = false,
     ): ParseContext {
         return new ParseContext(
             startLineNumber: $lineNumbers || $this->profile,
-            tagRegistry: $this->tagRegistry
+            tagRegistry: $this->tagRegistry,
+            fileSystem: $this->fileSystem,
+            locale: $this->locale,
         );
     }
 
@@ -90,6 +103,7 @@ final class TemplateFactory
             filterRegistry: $this->filterRegistry,
             resourceLimits: $this->resourceLimits,
             fileSystem: $this->fileSystem,
+            locale: $this->locale,
         );
     }
 

@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
@@ -25,18 +26,18 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
         return 'cycle';
     }
 
-    public function parse(Tokenizer $tokenizer): static
+    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
     {
-        parent::parse($tokenizer);
+        parent::parse($parseContext, $tokenizer);
 
         if (preg_match(static::NamedSyntax, $this->markup, $matches)) {
-            $this->variables = $this->parseVariablesFromString($matches[2]);
-            $this->name = $this->parseExpression($matches[1]);
+            $this->variables = $this->parseVariablesFromString($parseContext, $matches[2]);
+            $this->name = $this->parseExpression($parseContext, $matches[1]);
         } elseif (preg_match(static::SimpleSyntax, $this->markup, $matches)) {
-            $this->variables = $this->parseVariablesFromString($this->markup);
+            $this->variables = $this->parseVariablesFromString($parseContext, $this->markup);
             $this->name = json_encode($this->variables);
         } else {
-            throw new SyntaxException($this->parseContext->locale->translate('errors.syntax.cycle'));
+            throw new SyntaxException($parseContext->locale->translate('errors.syntax.cycle'));
         }
 
         return $this;
@@ -75,13 +76,13 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
         return $this->variables;
     }
 
-    protected function parseVariablesFromString(string $markup): array
+    protected function parseVariablesFromString(ParseContext $parseContext, string $markup): array
     {
         $variables = explode(',', $markup);
 
         $variables = array_map(
             fn (string $var) => preg_match('/\s*('.Regex::QuotedFragment.')\s*/', $var, $matches)
-                ? $this->parseExpression($matches[1])
+                ? $this->parseExpression($parseContext, $matches[1])
                 : null,
             $variables
         );

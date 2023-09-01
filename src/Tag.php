@@ -12,13 +12,10 @@ use Keepsuit\Liquid\Render\Context;
 
 abstract class Tag implements CanBeRendered
 {
-    public readonly ?int $lineNumber;
-
     final public function __construct(
         protected string $markup,
-        public readonly ParseContext $parseContext
+        public readonly ?int $lineNumber = null
     ) {
-        $this->lineNumber = $this->parseContext->lineNumber;
     }
 
     abstract public static function tagName(): string;
@@ -46,7 +43,7 @@ abstract class Tag implements CanBeRendered
     /**
      * @throws SyntaxException
      */
-    public function parse(Tokenizer $tokenizer): static
+    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
     {
         return $this;
     }
@@ -56,9 +53,9 @@ abstract class Tag implements CanBeRendered
         return '';
     }
 
-    protected function parseExpression(string $markup): mixed
+    protected function parseExpression(ParseContext $parseContext, string $markup): mixed
     {
-        return $this->parseContext->parseExpression($markup);
+        return $parseContext->parseExpression($markup);
     }
 
     public function ensureTagIsEnabled(Context $context): void
@@ -71,6 +68,6 @@ abstract class Tag implements CanBeRendered
             return;
         }
 
-        throw new TagDisabledException(static::tagName(), $this->parseContext);
+        throw new TagDisabledException(static::tagName(), $context->locale);
     }
 }
