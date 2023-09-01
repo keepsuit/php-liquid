@@ -73,7 +73,7 @@ function assertMatchSyntaxError(string $error, string $template, array $assigns 
     try {
         renderTemplate(template: $template, assigns: $assigns, registers: $registers);
     } catch (SyntaxException $exception) {
-        expect((string) $exception)->toBe($error);
+        expect($exception->toLiquidErrorMessage())->toBe($error);
 
         return;
     }

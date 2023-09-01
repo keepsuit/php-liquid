@@ -287,7 +287,7 @@ final class Context
             throw $error;
         }
 
-        return (string) $error;
+        return $error->toLiquidErrorMessage();
     }
 
     public function getErrors(): array
@@ -355,7 +355,7 @@ final class Context
     /**
      * @template TResult
      *
-     * @param  string[]  $tags
+     * @param  string[]                            $tags
      * @param  Closure(Context $context): TResult  $closure
      * @return TResult
      */

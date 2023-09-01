@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\Exceptions;
 
-abstract class LiquidException extends \Exception
+abstract class LiquidException extends \ErrorException
 {
     public ?int $lineNumber = null;
 
@@ -10,7 +10,7 @@ abstract class LiquidException extends \Exception
 
     public ?string $markupContext = null;
 
-    public function render(): string
+    public function toLiquidErrorMessage(): string
     {
         return sprintf(
             '%s%s: %s%s',
@@ -19,11 +19,6 @@ abstract class LiquidException extends \Exception
             $this->getMessage(),
             $this->markupContext ? sprintf(' in "%s"', trim($this->markupContext)) : ''
         );
-    }
-
-    public function __toString(): string
-    {
-        return $this->render();
     }
 
     protected function messagePrefix(): string

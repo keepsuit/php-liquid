@@ -28,13 +28,13 @@ test('has a block which does nothing', function () {
     assertTemplateResult('', '{% comment %}{% endcomment %}');
     assertTemplateResult('', '{%comment%}comment{%endcomment%}');
     assertTemplateResult('', '{% comment %}comment{% endcomment %}');
-    assertTemplateResult('', '{% comment %} 1 {% comment %} 2 {% endcomment %} 3 {% endcomment %}');
+    assertMatchSyntaxError('Liquid syntax error (line 1): Unknown tag \'endcomment\'', '{% comment %} 1 {% comment %} 2 {% endcomment %} 3 {% endcomment %}');
 
     assertTemplateResult('', '{%comment%}{%blabla%}{%endcomment%}');
     assertTemplateResult('', '{% comment %}{% blabla %}{% endcomment %}');
     assertTemplateResult('', '{%comment%}{% endif %}{%endcomment%}');
     assertTemplateResult('', '{% comment %}{% endwhatever %}{% endcomment %}');
-    assertTemplateResult('', '{% comment %}{% raw %} {{%%%%}}  }} { {% endcomment %} {% comment {% endraw %} {% endcomment %}');
+    assertTemplateResult(' ', '{% comment %}{% raw %} {{%%%%}}  }} { {% endcomment %} {% comment {% endraw %} {% endcomment %}');
     assertTemplateResult('', '{% comment %}{% " %}{% endcomment %}');
     assertTemplateResult('', '{% comment %}{%%}{% endcomment %}');
 

@@ -121,7 +121,7 @@ test('parsing strict with line numbers adds numbers to lexer errors', function (
             lineNumbers: true
         );
     } catch (SyntaxException $exception) {
-        expect((string) $exception)
+        expect($exception->toLiquidErrorMessage())
             ->toBe('Liquid syntax error (line 4): Unexpected character = in "1 =! 2"');
 
         return;
