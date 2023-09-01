@@ -355,7 +355,7 @@ final class Context
     /**
      * @template TResult
      *
-     * @param  string[]                            $tags
+     * @param  string[]  $tags
      * @param  Closure(Context $context): TResult  $closure
      * @return TResult
      */
