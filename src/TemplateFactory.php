@@ -19,13 +19,15 @@ final class TemplateFactory
 
     public readonly FilterRegistry $filterRegistry;
 
-    protected bool $profile = false;
-
     protected LiquidFileSystem $fileSystem;
 
     protected ResourceLimits $resourceLimits;
 
     protected I18n $locale;
+
+    protected bool $profile = false;
+
+    protected bool $lineNumbers = false;
 
     public function __construct()
     {
@@ -44,6 +46,13 @@ final class TemplateFactory
     public function profile(bool $profile = true): TemplateFactory
     {
         $this->profile = $profile;
+
+        return $this;
+    }
+
+    public function lineNumbers(bool $lineNumbers = true): TemplateFactory
+    {
+        $this->lineNumbers = $lineNumbers;
 
         return $this;
     }
@@ -69,11 +78,10 @@ final class TemplateFactory
         return $this;
     }
 
-    public function newParseContext(
-        bool $lineNumbers = false,
-    ): ParseContext {
+    public function newParseContext(): ParseContext
+    {
         return new ParseContext(
-            startLineNumber: $lineNumbers || $this->profile,
+            startLineNumber: $this->lineNumbers || $this->profile,
             tagRegistry: $this->tagRegistry,
             fileSystem: $this->fileSystem,
             locale: $this->locale,
@@ -110,11 +118,19 @@ final class TemplateFactory
     /**
      * @throws SyntaxException
      */
-    public function parse(
-        string $source,
-        bool $lineNumbers = false,
-    ): Template {
-        return Template::parse($this->newParseContext($lineNumbers), $source);
+    public function parseString(string $source, string $name = null): Template
+    {
+        return Template::parse($this->newParseContext(), $source, $name);
+    }
+
+    /**
+     * @throws SyntaxException
+     */
+    public function parseTemplate(string $templateName): Template
+    {
+        $source = $this->fileSystem->readTemplateFile($templateName);
+
+        return Template::parse($this->newParseContext(), $source, $templateName);
     }
 
     /**

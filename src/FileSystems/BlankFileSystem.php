@@ -7,7 +7,7 @@ use Keepsuit\Liquid\Exceptions\FileSystemException;
 
 class BlankFileSystem implements LiquidFileSystem
 {
-    public function readTemplateFile(string $templatePath): string
+    public function readTemplateFile(string $templateName): string
     {
         throw new FileSystemException('This liquid context does not allow includes.');
     }

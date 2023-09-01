@@ -190,7 +190,7 @@ function profileTemplate(string $source, array $assigns = []): ?Profiler
 {
     /** @var TemplateFactory $factory */
     $factory = test()->templateFactory;
-    $template = $factory->parse($source, lineNumbers: true);
+    $template = $factory->profile()->parseString($source);
     $template->render($factory->newRenderContext(
         staticEnvironment: $assigns,
     ));

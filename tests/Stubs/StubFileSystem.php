@@ -13,10 +13,10 @@ class StubFileSystem implements LiquidFileSystem
     ) {
     }
 
-    public function readTemplateFile(string $templatePath): string
+    public function readTemplateFile(string $templateName): string
     {
         $this->fileReadCount += 1;
 
-        return $this->partials[$templatePath] ?? throw new \RuntimeException('Template not found');
+        return $this->partials[$templateName] ?? throw new \RuntimeException('Template not found');
     }
 }

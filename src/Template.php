@@ -64,4 +64,12 @@ class Template
     {
         return $this->profiler;
     }
+
+    /**
+     * @return array<string,Template>
+     */
+    public function getPartialsCache(): array
+    {
+        return $this->partialsCache;
+    }
 }

@@ -19,7 +19,9 @@ function parseTemplate(
     bool $lineNumbers = true,
     TemplateFactory $factory = new TemplateFactory(),
 ): Template {
-    return $factory->parse($source, lineNumbers: $lineNumbers);
+    return $factory
+        ->lineNumbers($lineNumbers)
+        ->parseString($source);
 }
 
 /**
@@ -34,8 +36,9 @@ function renderTemplate(
     TemplateFactory $factory = new TemplateFactory()
 ): string {
     $factory->setFilesystem(new StubFileSystem(partials: $partials));
+    $factory->lineNumbers();
 
-    $template = $factory->parse($template, lineNumbers: true);
+    $template = $factory->parseString($template);
 
     $context = $factory->newRenderContext(
         staticEnvironment: $assigns,
