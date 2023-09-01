@@ -35,4 +35,6 @@ class Regex
     const TemplateParser = '('.self::PartialTemplateParser.'|'.self::AnyStartingTag.')';
 
     const VariableParser = '\[(?>[^\[\]]+|\g<0>)*\]|'.self::VariableSegment.'+\??';
+
+    const FullTagToken = '/\A'.self::TagStart.self::WhitespaceControl.'?(\s*)('.self::TagName.')(\s*)((\S|\s)*?)'.self::WhitespaceControl.'?'.self::TagEnd.'\z/m';
 }

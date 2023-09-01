@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Parse\Regex;
+use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\TagBlock;
 
@@ -12,18 +14,34 @@ class CommentTag extends TagBlock
         return 'comment';
     }
 
-    public function blank(): bool
+    public function parse(Tokenizer $tokenizer): static
     {
-        return true;
-    }
+        foreach ($tokenizer->shift() as $token) {
+            if (preg_match(Regex::FullTagToken, $token, $matches) !== 1) {
+                continue;
+            }
 
-    protected function isSubTag(string $tagName): bool
-    {
-        return true;
+            $tagName = $matches[2];
+            if ($tagName === 'end'.static::tagName()) {
+                break;
+            }
+        }
+
+        return $this;
     }
 
     public function render(Context $context): string
     {
         return '';
+    }
+
+    public function blank(): bool
+    {
+        return true;
+    }
+
+    public function nodeList(): array
+    {
+        return [];
     }
 }

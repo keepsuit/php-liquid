@@ -13,7 +13,7 @@ final class BlockParser
 {
     protected const LIQUID_TAG_TOKEN = '/\A\s*('.Regex::TagName.')\s*(.*?)\z/';
 
-    protected const FULL_TOKEN = '/\A'.Regex::TagStart.Regex::WhitespaceControl.'?(\s*)('.Regex::TagName.')(\s*)((\S|\s)*?)'.Regex::WhitespaceControl.'?'.Regex::TagEnd.'\z/m';
+    protected const FULL_TOKEN = Regex::FullTagToken;
 
     protected const CONTENT_OF_VARIABLE = '/\A'.Regex::VariableStart.Regex::WhitespaceControl.'?((\S|\s)*?)'.Regex::WhitespaceControl.'?'.Regex::VariableEnd.'\z/m';
 
