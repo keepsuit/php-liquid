@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Tests\Stubs;
 
+use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Tag;
@@ -15,9 +16,9 @@ class SleepTag extends Tag
         return 'sleep';
     }
 
-    public function parse(Tokenizer $tokenizer): static
+    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
     {
-        parent::parse($tokenizer);
+        parent::parse($parseContext, $tokenizer);
 
         $this->duration = floatval($this->markup);
 
@@ -27,7 +28,7 @@ class SleepTag extends Tag
     public function render(Context $context): string
     {
         if ($this->duration > 1) {
-            sleep($this->duration);
+            sleep((int) $this->duration);
         } else {
             usleep((int) (1_000_000 * $this->duration));
         }

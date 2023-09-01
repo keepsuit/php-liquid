@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid\Performance\Shopify;
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
@@ -21,9 +22,9 @@ class CommentFormTag extends TagBlock
         return 'form';
     }
 
-    public function parse(Tokenizer $tokenizer): static
+    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
     {
-        parent::parse($tokenizer);
+        parent::parse($parseContext, $tokenizer);
 
         if (preg_match(self::Syntax, $this->markup, $matches)) {
             $this->variableName = $matches[1];

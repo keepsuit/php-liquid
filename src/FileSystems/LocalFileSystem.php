@@ -13,9 +13,9 @@ class LocalFileSystem implements LiquidFileSystem
     ) {
     }
 
-    public function readTemplateFile(string $templatePath): string
+    public function readTemplateFile(string $templateName): string
     {
-        $fullPath = $this->fullPath($templatePath);
+        $fullPath = $this->fullPath($templateName);
 
         $content = file_get_contents($fullPath);
 

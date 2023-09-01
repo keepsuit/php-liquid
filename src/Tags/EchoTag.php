@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Nodes\Variable;
+use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Tag;
@@ -12,11 +13,11 @@ class EchoTag extends Tag implements HasParseTreeVisitorChildren
 {
     protected Variable $variable;
 
-    public function parse(Tokenizer $tokenizer): static
+    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
     {
-        parent::parse($tokenizer);
+        parent::parse($parseContext, $tokenizer);
 
-        $this->variable = new Variable($this->markup, $this->parseContext);
+        $this->variable = new Variable($this->markup, $parseContext);
 
         return $this;
     }

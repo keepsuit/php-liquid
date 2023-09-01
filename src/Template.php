@@ -20,6 +20,8 @@ class Template
     public function __construct(
         public readonly Document $root,
         public readonly ?string $name = null,
+        /** @var array<string,Template> */
+        protected array $partialsCache = [],
     ) {
     }
 
@@ -29,10 +31,12 @@ class Template
     public static function parse(ParseContext $parseContext, string $source, string $name = null): Template
     {
         $tokenizer = $parseContext->newTokenizer($source);
+        $root = Document::parse($parseContext, $tokenizer);
 
         return new Template(
-            root: Document::parse($tokenizer, $parseContext),
+            root: $root,
             name: $name,
+            partialsCache: $parseContext->isPartial() ? [] : $parseContext->getPartialsCache(),
         );
     }
 
@@ -41,6 +45,10 @@ class Template
         $this->profiler = $context->getProfiler();
 
         try {
+            if (! $context->isPartial()) {
+                $context->setPartialsCache($this->partialsCache);
+            }
+
             return $this->root->render($context);
         } finally {
             $this->errors = $context->getErrors();
@@ -55,5 +63,13 @@ class Template
     public function getProfiler(): ?Profiler
     {
         return $this->profiler;
+    }
+
+    /**
+     * @return array<string,Template>
+     */
+    public function getPartialsCache(): array
+    {
+        return $this->partialsCache;
     }
 }

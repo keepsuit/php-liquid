@@ -10,7 +10,9 @@ use Keepsuit\Liquid\Tests\Stubs\SleepTag;
 
 beforeEach(function () {
     $this->templateFactory = TemplateFactory::new()
-        ->registerTag(SleepTag::class);
+        ->setFilesystem(new ProfilingFileSystem())
+        ->registerTag(SleepTag::class)
+        ->profile();
 });
 
 test('context allows flagging profiling', function () {
@@ -186,11 +188,11 @@ test('profiling support total time', function () {
 
 function profileTemplate(string $source, array $assigns = []): ?Profiler
 {
-    $template = test()->templateFactory->parse($source, lineNumbers: true);
-    $template->render(new Context(
+    /** @var TemplateFactory $factory */
+    $factory = test()->templateFactory;
+    $template = $factory->profile()->parseString($source);
+    $template->render($factory->newRenderContext(
         staticEnvironment: $assigns,
-        profile: true,
-        fileSystem: new ProfilingFileSystem()
     ));
 
     return $template->getProfiler();

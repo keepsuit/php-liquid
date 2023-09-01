@@ -6,8 +6,8 @@ use Keepsuit\Liquid\Contracts\LiquidFileSystem;
 
 class ProfilingFileSystem implements LiquidFileSystem
 {
-    public function readTemplateFile(string $templatePath): string
+    public function readTemplateFile(string $templateName): string
     {
-        return sprintf("Rendering template {%% assign template_name = '%s'%%}\n{{ template_name }}", $templatePath);
+        return sprintf("Rendering template {%% assign template_name = '%s'%%}\n{{ template_name }}", $templateName);
     }
 }

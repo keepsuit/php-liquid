@@ -44,9 +44,9 @@ class ThemeRunner
     public function compile(): void
     {
         foreach ($this->tests as $test) {
-            $this->templateFactory->parse($test->liquid);
+            $this->templateFactory->parseString($test->liquid);
             if ($test->layoutLiquid !== null) {
-                $this->templateFactory->parse($test->layoutLiquid);
+                $this->templateFactory->parseString($test->layoutLiquid);
             }
         }
     }

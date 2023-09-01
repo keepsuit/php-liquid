@@ -13,6 +13,6 @@ class TestModel implements MapsToLiquid
 
     public function toLiquid(): mixed
     {
-        return new TestDrop($this->value);
+        return new TestDrop((string) $this->value);
     }
 }

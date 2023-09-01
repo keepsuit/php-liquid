@@ -3,13 +3,23 @@
 namespace Keepsuit\Liquid\Parse;
 
 use Closure;
-use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Contracts\LiquidFileSystem;
+use Keepsuit\Liquid\Exceptions\ArithmeticException;
+use Keepsuit\Liquid\Exceptions\InternalException;
+use Keepsuit\Liquid\Exceptions\LiquidException;
+use Keepsuit\Liquid\Exceptions\ResourceLimitException;
+use Keepsuit\Liquid\Exceptions\StackLevelException;
+use Keepsuit\Liquid\FileSystems\BlankFileSystem;
+use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\I18n;
 use Keepsuit\Liquid\Support\TagRegistry;
 use Keepsuit\Liquid\Template;
+use Throwable;
 
 class ParseContext
 {
+    const MAX_DEPTH = 100;
+
     public ?int $lineNumber = null;
 
     public bool $trimWhitespace = false;
@@ -19,20 +29,26 @@ class ParseContext
     protected bool $partial = false;
 
     /**
-     * @var array<SyntaxException>
+     * @var array<string,Template>
      */
-    protected array $warnings = [];
+    protected array $partialsCache = [];
 
     public function __construct(
         bool|int $startLineNumber = null,
-        public readonly I18n $locale = new I18n(),
         public readonly TagRegistry $tagRegistry = new TagRegistry(),
+        public readonly LiquidFileSystem $fileSystem = new BlankFileSystem(),
+        public readonly I18n $locale = new I18n(),
     ) {
         $this->lineNumber = match (true) {
             is_int($startLineNumber) => $startLineNumber,
             $startLineNumber === true => 1,
             default => null,
         };
+    }
+
+    public function isPartial(): bool
+    {
+        return $this->partial;
     }
 
     public function newTokenizer(string $markup, bool $forLiquidTag = false): Tokenizer
@@ -45,29 +61,74 @@ class ParseContext
         return Expression::parse($markup);
     }
 
-    public function logWarning(SyntaxException $e): void
+    public function loadPartial(string $templateName): Template
     {
-        $this->warnings[] = $e;
-    }
+        if (Arr::has($this->partialsCache, $templateName)) {
+            return $this->partialsCache[$templateName];
+        }
 
-    /**
-     * @template TResult
-     *
-     * @param  Closure(ParseContext $parseContext): TResult  $closure
-     * @return TResult
-     */
-    public function partial(Closure $closure)
-    {
         $oldLineNumber = $this->lineNumber;
-
         $this->partial = true;
         $this->lineNumber = $this->lineNumber !== null ? 1 : null;
 
         try {
-            return $closure($this);
+            $source = $this->fileSystem->readTemplateFile($templateName);
+            $template = Template::parse($this, $source, $templateName);
+            $this->partialsCache[$templateName] = $template;
+
+            return $template;
+        } catch (LiquidException $exception) {
+            $exception->templateName = $templateName;
+
+            throw $exception;
         } finally {
             $this->partial = false;
             $this->lineNumber = $oldLineNumber;
         }
+    }
+
+    public function getPartialsCache(): array
+    {
+        return $this->partialsCache;
+    }
+
+    /**
+     * @template TReturnValue
+     *
+     * @param  Closure(ParseContext): TReturnValue  $callback
+     * @return TReturnValue
+     *
+     * @throws StackLevelException
+     */
+    public function nested(Closure $callback)
+    {
+        if ($this->depth >= self::MAX_DEPTH) {
+            throw new StackLevelException($this->locale->translate('errors.stack.nesting_too_deep'));
+        }
+
+        $this->depth += 1;
+
+        try {
+            return $callback($this);
+        } finally {
+            $this->depth -= 1;
+        }
+    }
+
+    /**
+     * @throws Throwable
+     */
+    public function handleError(Throwable $error): void
+    {
+        $error = match (true) {
+            $error instanceof ResourceLimitException => throw $error,
+            $error instanceof \ArithmeticError => new ArithmeticException($error),
+            $error instanceof LiquidException => $error,
+            default => new InternalException($error),
+        };
+
+        $error->lineNumber = $this->lineNumber;
+
+        throw $error;
     }
 }

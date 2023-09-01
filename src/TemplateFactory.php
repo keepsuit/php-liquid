@@ -10,6 +10,7 @@ use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Render\ResourceLimits;
 use Keepsuit\Liquid\Support\FilterRegistry;
+use Keepsuit\Liquid\Support\I18n;
 use Keepsuit\Liquid\Support\TagRegistry;
 
 final class TemplateFactory
@@ -18,11 +19,15 @@ final class TemplateFactory
 
     public readonly FilterRegistry $filterRegistry;
 
-    protected bool $profile = false;
-
     protected LiquidFileSystem $fileSystem;
 
     protected ResourceLimits $resourceLimits;
+
+    protected I18n $locale;
+
+    protected bool $profile = false;
+
+    protected bool $lineNumbers = false;
 
     public function __construct()
     {
@@ -30,6 +35,7 @@ final class TemplateFactory
         $this->filterRegistry = $this->buildFilterRegistry();
         $this->fileSystem = new BlankFileSystem();
         $this->resourceLimits = new ResourceLimits();
+        $this->locale = new I18n();
     }
 
     public static function new(): TemplateFactory
@@ -40,6 +46,13 @@ final class TemplateFactory
     public function profile(bool $profile = true): TemplateFactory
     {
         $this->profile = $profile;
+
+        return $this;
+    }
+
+    public function lineNumbers(bool $lineNumbers = true): TemplateFactory
+    {
+        $this->lineNumbers = $lineNumbers;
 
         return $this;
     }
@@ -58,12 +71,20 @@ final class TemplateFactory
         return $this;
     }
 
-    public function newParseContext(
-        bool $lineNumbers = false,
-    ): ParseContext {
+    public function setLocale(I18n $locale): TemplateFactory
+    {
+        $this->locale = $locale;
+
+        return $this;
+    }
+
+    public function newParseContext(): ParseContext
+    {
         return new ParseContext(
-            startLineNumber: $lineNumbers || $this->profile,
-            tagRegistry: $this->tagRegistry
+            startLineNumber: $this->lineNumbers || $this->profile,
+            tagRegistry: $this->tagRegistry,
+            fileSystem: $this->fileSystem,
+            locale: $this->locale,
         );
     }
 
@@ -90,17 +111,26 @@ final class TemplateFactory
             filterRegistry: $this->filterRegistry,
             resourceLimits: $this->resourceLimits,
             fileSystem: $this->fileSystem,
+            locale: $this->locale,
         );
     }
 
     /**
      * @throws SyntaxException
      */
-    public function parse(
-        string $source,
-        bool $lineNumbers = false,
-    ): Template {
-        return Template::parse($this->newParseContext($lineNumbers), $source);
+    public function parseString(string $source, string $name = null): Template
+    {
+        return Template::parse($this->newParseContext(), $source, $name);
+    }
+
+    /**
+     * @throws SyntaxException
+     */
+    public function parseTemplate(string $templateName): Template
+    {
+        $source = $this->fileSystem->readTemplateFile($templateName);
+
+        return Template::parse($this->newParseContext(), $source, $templateName);
     }
 
     /**

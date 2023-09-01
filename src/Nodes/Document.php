@@ -13,12 +13,11 @@ use Keepsuit\Liquid\Tag;
 class Document implements CanBeRendered
 {
     public function __construct(
-        protected readonly ParseContext $parseContext,
         protected BlockBodySection $body,
     ) {
     }
 
-    public static function parse(Tokenizer $tokenizer, ParseContext $parseContext): Document
+    public static function parse(ParseContext $parseContext, Tokenizer $tokenizer): Document
     {
         try {
             $bodySections = BlockParser::forDocument()->parse($tokenizer, $parseContext);
@@ -27,13 +26,12 @@ class Document implements CanBeRendered
                 $exception = SyntaxException::unexpectedOuterTag($parseContext, $exception->tagName ?? '');
             }
 
-            $exception->lineNumber = $parseContext->lineNumber;
-
-            throw $exception;
+            $parseContext->handleError($exception);
+        } catch (\Throwable $exception) {
+            $parseContext->handleError($exception);
         }
 
         return new Document(
-            parseContext: $parseContext,
             body: $bodySections[0] ?? new BlockBodySection()
         );
     }

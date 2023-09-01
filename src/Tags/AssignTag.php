@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid\Tags;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\Variable;
+use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
@@ -24,15 +25,15 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
         return 'assign';
     }
 
-    public function parse(Tokenizer $tokenizer): static
+    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
     {
-        parent::parse($tokenizer);
+        parent::parse($parseContext, $tokenizer);
 
         if (preg_match(static::Syntax, $this->markup, $matches)) {
             $this->to = $matches[1];
-            $this->from = new Variable($matches[2], $this->parseContext);
+            $this->from = new Variable($matches[2], $parseContext);
         } else {
-            throw new SyntaxException($this->parseContext->locale->translate('errors.syntax.assign'));
+            throw new SyntaxException($parseContext->locale->translate('errors.syntax.assign'));
         }
 
         return $this;

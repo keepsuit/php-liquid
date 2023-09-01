@@ -4,6 +4,9 @@ namespace Keepsuit\Liquid\Tests\Stubs;
 
 use Keepsuit\Liquid\Drop;
 
+/**
+ * @implements \Iterator<int, mixed>
+ */
 class IteratorDrop extends Drop implements \Iterator
 {
     protected int $index = 0;

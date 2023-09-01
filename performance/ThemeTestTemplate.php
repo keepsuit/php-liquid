@@ -21,8 +21,8 @@ class ThemeTestTemplate
 
     public function compile(): CompiledThemeTestTemplate
     {
-        $template = $this->factory->parse($this->liquid);
-        $layout = $this->layoutLiquid !== null ? $this->factory->parse($this->layoutLiquid) : null;
+        $template = $this->factory->parseString($this->liquid);
+        $layout = $this->layoutLiquid !== null ? $this->factory->parseString($this->layoutLiquid) : null;
 
         return new CompiledThemeTestTemplate(
             factory: $this->factory,

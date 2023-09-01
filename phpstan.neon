@@ -6,6 +6,8 @@ parameters:
     level: 9
     paths:
         - src
+        - performance
+        - tests/Stubs
     tmpDir: build/phpstan
     treatPhpDocTypesAsCertain: false
     checkMissingIterableValueType: false

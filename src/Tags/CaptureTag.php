@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
@@ -14,14 +15,14 @@ class CaptureTag extends TagBlock
 
     protected string $to;
 
-    public function parse(Tokenizer $tokenizer): static
+    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
     {
-        parent::parse($tokenizer);
+        parent::parse($parseContext, $tokenizer);
 
         if (preg_match(static::Syntax, $this->markup, $matches)) {
             $this->to = $matches[1];
         } else {
-            throw new SyntaxException($this->parseContext->locale->translate('errors.syntax.capture'));
+            throw new SyntaxException($parseContext->locale->translate('errors.syntax.capture'));
         }
 
         return $this;

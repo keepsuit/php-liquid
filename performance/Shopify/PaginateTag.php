@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid\Performance\Shopify;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\Range;
+use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
@@ -25,9 +26,9 @@ class PaginateTag extends TagBlock
         return 'paginate';
     }
 
-    public function parse(Tokenizer $tokenizer): static
+    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
     {
-        parent::parse($tokenizer);
+        parent::parse($parseContext, $tokenizer);
 
         if (preg_match(self::Syntax, $this->markup, $matches)) {
             $this->collectionName = $matches[1];
@@ -39,7 +40,7 @@ class PaginateTag extends TagBlock
         $this->attributes = ['window_size' => 3];
         preg_match_all(sprintf('/%s/', Regex::TagAttributes), $this->markup, $attributeMatches, PREG_SET_ORDER);
         foreach ($attributeMatches as $matches) {
-            $this->attributes[$matches[1]] = $this->parseExpression($matches[2]);
+            $this->attributes[$matches[1]] = $this->parseExpression($parseContext, $matches[2]);
         }
 
         return $this;
