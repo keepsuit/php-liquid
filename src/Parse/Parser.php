@@ -27,6 +27,9 @@ class Parser
         $this->pointer = $int;
     }
 
+    /**
+     * @throws SyntaxException
+     */
     public function consume(TokenType $type = null): string
     {
         $token = $this->tokens[$this->pointer];
@@ -77,6 +80,9 @@ class Parser
         return $token[0] === $type;
     }
 
+    /**
+     * @throws SyntaxException
+     */
     public function expression(): string
     {
         $token = $this->tokens[$this->pointer];
@@ -98,6 +104,9 @@ class Parser
         };
     }
 
+    /**
+     * @throws SyntaxException
+     */
     public function argument(): string
     {
         $output = match (true) {
@@ -108,6 +117,9 @@ class Parser
         return $output.$this->expression();
     }
 
+    /**
+     * @throws SyntaxException
+     */
     protected function variableLookups(): string
     {
         $output = match (true) {

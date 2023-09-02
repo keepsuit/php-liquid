@@ -40,19 +40,19 @@ class RenderTag extends Tag implements HasParseTreeVisitorChildren
                 throw new SyntaxException($parseContext->locale->translate('errors.syntax.render'));
             }
 
-            $templateNameExpression = $this->parseExpression($parseContext, $matches[1]);
+            $templateNameExpression = $this->parseExpression($matches[1]);
             if (! is_string($templateNameExpression)) {
                 throw new InvalidArgumentException('Template name must be a string');
             }
             $this->templateNameExpression = $templateNameExpression;
 
             $this->aliasName = $matches[6] ?? null;
-            $this->variableNameExpression = ($matches[4] ?? null) ? $this->parseExpression($parseContext, $matches[4]) : null;
+            $this->variableNameExpression = ($matches[4] ?? null) ? $this->parseExpression($matches[4]) : null;
             $this->isForLoop = ($matches[3] ?? null) === 'for';
 
             preg_match_all(sprintf('/%s/', Regex::TagAttributes), $this->markup, $attributeMatches, PREG_SET_ORDER);
             foreach ($attributeMatches as $matches) {
-                $this->attributes[$matches[1]] = $this->parseExpression($parseContext, $matches[2]);
+                $this->attributes[$matches[1]] = $this->parseExpression($matches[2]);
             }
 
             $parseContext->loadPartial($this->templateNameExpression);

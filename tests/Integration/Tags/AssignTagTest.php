@@ -39,7 +39,7 @@ test('assigned with filter', function () {
 
 test('assign syntax error', function () {
     expect(fn () => renderTemplate('{% assign foo not values %}.'))
-        ->toThrow(SyntaxException::class, 'assign');
+        ->toThrow(SyntaxException::class, 'Syntax Error in \'assign\' - Valid syntax: assign [var] = [source]');
 
     expect(fn () => renderTemplate("{% assign foo = ('X' | downcase) %}"))
         ->toThrow(SyntaxException::class, 'Expected DotDot, got Pipe');

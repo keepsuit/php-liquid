@@ -40,7 +40,7 @@ class PaginateTag extends TagBlock
         $this->attributes = ['window_size' => 3];
         preg_match_all(sprintf('/%s/', Regex::TagAttributes), $this->markup, $attributeMatches, PREG_SET_ORDER);
         foreach ($attributeMatches as $matches) {
-            $this->attributes[$matches[1]] = $this->parseExpression($parseContext, $matches[2]);
+            $this->attributes[$matches[1]] = $this->parseExpression($matches[2]);
         }
 
         return $this;

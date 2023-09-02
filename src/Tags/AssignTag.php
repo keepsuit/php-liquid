@@ -6,16 +6,14 @@ use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
+use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Tag;
 
 class AssignTag extends Tag implements HasParseTreeVisitorChildren
 {
-    const Syntax = '/('.Regex::VariableSignature.')\s*=\s*(.*)\s*/m';
-
     protected string $to;
 
     protected Variable $from;
@@ -29,12 +27,15 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
     {
         parent::parse($parseContext, $tokenizer);
 
-        if (preg_match(static::Syntax, $this->markup, $matches)) {
-            $this->to = $matches[1];
-            $this->from = new Variable($matches[2], $parseContext);
-        } else {
-            throw new SyntaxException($parseContext->locale->translate('errors.syntax.assign'));
+        $parser = $this->newParser();
+
+        try {
+            $this->to = $parser->consume(TokenType::Identifier);
+            $parser->consume(TokenType::Equals);
+        } catch (SyntaxException $e) {
+            throw new SyntaxException($parseContext->locale->translate('errors.syntax.assign'), previous: $e);
         }
+        $this->from = Variable::fromParser($parser, $parseContext->lineNumber);
 
         return $this;
     }

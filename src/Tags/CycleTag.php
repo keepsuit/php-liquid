@@ -32,7 +32,7 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
 
         if (preg_match(static::NamedSyntax, $this->markup, $matches)) {
             $this->variables = $this->parseVariablesFromString($parseContext, $matches[2]);
-            $this->name = $this->parseExpression($parseContext, $matches[1]);
+            $this->name = $this->parseExpression($matches[1]);
         } elseif (preg_match(static::SimpleSyntax, $this->markup, $matches)) {
             $this->variables = $this->parseVariablesFromString($parseContext, $this->markup);
             $this->name = json_encode($this->variables);
@@ -82,7 +82,7 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
 
         $variables = array_map(
             fn (string $var) => preg_match('/\s*('.Regex::QuotedFragment.')\s*/', $var, $matches)
-                ? $this->parseExpression($parseContext, $matches[1])
+                ? $this->parseExpression($matches[1])
                 : null,
             $variables
         );

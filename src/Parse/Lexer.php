@@ -28,6 +28,7 @@ class Lexer
         ')' => TokenType::CloseRound,
         '?' => TokenType::QuestionMark,
         '-' => TokenType::Dash,
+        '=' => TokenType::Equals,
     ];
 
     protected const WHITESPACE_OR_NOTHING = '/\G\s*/';

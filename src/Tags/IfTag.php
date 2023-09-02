@@ -116,10 +116,10 @@ class IfTag extends TagBlock implements HasParseTreeVisitorChildren
 
     protected function parseComparison(ParseContext $parseContext, Parser $parser): Condition
     {
-        $a = $this->parseExpression($parseContext, $parser->expression());
+        $a = $this->parseExpression($parser->expression());
 
         if ($operator = $parser->consumeOrFalse(TokenType::Comparison)) {
-            $b = $this->parseExpression($parseContext, $parser->expression());
+            $b = $this->parseExpression($parser->expression());
 
             return new Condition($a, $operator, $b);
         } else {

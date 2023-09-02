@@ -3,7 +3,7 @@
 use Keepsuit\Liquid\Render\Context;
 
 test('capture block content in variable', function () {
-    assertTemplateResult('test string', "{% capture 'var' %}test string{% endcapture %}{{var}}");
+    assertTemplateResult('test string', '{% capture var %}test string{% endcapture %}{{var}}');
 });
 
 test('capture with hyphen in variable name', function () {

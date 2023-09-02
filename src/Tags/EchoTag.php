@@ -17,7 +17,7 @@ class EchoTag extends Tag implements HasParseTreeVisitorChildren
     {
         parent::parse($parseContext, $tokenizer);
 
-        $this->variable = new Variable($this->markup, $parseContext);
+        $this->variable = Variable::fromMarkup($this->markup, $parseContext->lineNumber);
 
         return $this;
     }

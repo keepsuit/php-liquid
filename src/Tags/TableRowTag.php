@@ -38,12 +38,12 @@ class TableRowTag extends TagBlock implements HasParseTreeVisitorChildren
         }
 
         $this->variableName = $matches[1];
-        $this->collectionName = $this->parseExpression($parseContext, $matches[2]);
+        $this->collectionName = $this->parseExpression($matches[2]);
 
         preg_match_all(sprintf('/%s/', Regex::TagAttributes), $this->markup, $attributeMatches, PREG_SET_ORDER);
 
         foreach ($attributeMatches as $matches) {
-            $this->attributes[$matches[1]] = $this->parseExpression($parseContext, $matches[2]);
+            $this->attributes[$matches[1]] = $this->parseExpression($matches[2]);
         }
 
         return $this;
