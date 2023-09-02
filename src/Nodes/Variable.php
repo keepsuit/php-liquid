@@ -17,8 +17,6 @@ class Variable implements CanBeEvaluated, CanBeRendered, HasParseTreeVisitorChil
 {
     const JustTagAttributes = '/\A'.Regex::TagAttributes.'\z/';
 
-    protected string $markup = '';
-
     /**
      * @throws SyntaxException
      */
@@ -26,6 +24,7 @@ class Variable implements CanBeEvaluated, CanBeRendered, HasParseTreeVisitorChil
         protected mixed $name,
         /** @var array<array{0:string,1:array}> */
         protected array $filters = [],
+        protected string $markup = '',
         public readonly ?int $lineNumber = null
     ) {
     }
@@ -54,6 +53,8 @@ class Variable implements CanBeEvaluated, CanBeRendered, HasParseTreeVisitorChil
             );
         }
 
+        $markup = $parser->toString();
+
         $name = static::parseExpression($parser->expression());
 
         $filters = [];
@@ -68,6 +69,7 @@ class Variable implements CanBeEvaluated, CanBeRendered, HasParseTreeVisitorChil
         return new Variable(
             name: $name,
             filters: $filters,
+            markup: $markup,
             lineNumber: $lineNumber,
         );
     }

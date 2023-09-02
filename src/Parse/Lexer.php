@@ -40,6 +40,11 @@ class Lexer
     ) {
     }
 
+    /**
+     * @return array<array{0:TokenType, 1:string, 2:int}>
+     *
+     * @throws SyntaxException
+     */
     public function tokenize(): array
     {
         if ($this->result instanceof Exception) {
@@ -62,12 +67,12 @@ class Lexer
             }
 
             $token = match (true) {
-                preg_match(self::COMPARISON_OPERATOR, $this->input, $matches, offset: $currentIndex) === 1 => [TokenType::Comparison, $matches[0]],
-                preg_match(self::STRING_LITERAL, $this->input, $matches, offset: $currentIndex) === 1 => [TokenType::String, $matches[0]],
-                preg_match(self::NUMBER_LITERAL, $this->input, $matches, offset: $currentIndex) === 1 => [TokenType::Number, $matches[0]],
-                preg_match(self::IDENTIFIER, $this->input, $matches, offset: $currentIndex) === 1 => [TokenType::Identifier, $matches[0]],
-                preg_match(self::DOTDOT, $this->input, $matches, offset: $currentIndex) === 1 => [TokenType::DotDot, $matches[0]],
-                array_key_exists($this->input[$currentIndex], self::SPECIAL_CHARACTERS) => [self::SPECIAL_CHARACTERS[$this->input[$currentIndex]], $this->input[$currentIndex]],
+                preg_match(self::COMPARISON_OPERATOR, $this->input, $matches, offset: $currentIndex) === 1 => [TokenType::Comparison, $matches[0], $currentIndex],
+                preg_match(self::STRING_LITERAL, $this->input, $matches, offset: $currentIndex) === 1 => [TokenType::String, $matches[0], $currentIndex],
+                preg_match(self::NUMBER_LITERAL, $this->input, $matches, offset: $currentIndex) === 1 => [TokenType::Number, $matches[0], $currentIndex],
+                preg_match(self::IDENTIFIER, $this->input, $matches, offset: $currentIndex) === 1 => [TokenType::Identifier, $matches[0], $currentIndex],
+                preg_match(self::DOTDOT, $this->input, $matches, offset: $currentIndex) === 1 => [TokenType::DotDot, $matches[0], $currentIndex],
+                array_key_exists($this->input[$currentIndex], self::SPECIAL_CHARACTERS) => [self::SPECIAL_CHARACTERS[$this->input[$currentIndex]], $this->input[$currentIndex], $currentIndex],
                 default => SyntaxException::unexpectedCharacter($this->input[$currentIndex]),
             };
 
@@ -80,7 +85,7 @@ class Lexer
             $currentIndex += strlen($token[1]);
         }
 
-        $output[] = [TokenType::EndOfString];
+        $output[] = [TokenType::EndOfString, '', $currentIndex];
         $this->result = $output;
 
         return $output;

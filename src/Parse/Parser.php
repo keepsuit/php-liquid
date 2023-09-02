@@ -7,7 +7,7 @@ use Keepsuit\Liquid\Exceptions\SyntaxException;
 class Parser
 {
     /**
-     * @var array<int, array{0: TokenType, 1: string}>
+     * @var array<array{0:TokenType, 1:string, 2:int}>
      */
     protected array $tokens;
 
@@ -16,7 +16,7 @@ class Parser
     /**
      * @throws SyntaxException
      */
-    public function __construct(string $input)
+    public function __construct(protected string $input)
     {
         $this->tokens = (new Lexer($input))->tokenize();
         $this->pointer = 0;
@@ -136,5 +136,12 @@ class Parser
         }
 
         return $output.$this->variableLookups();
+    }
+
+    public function toString(): string
+    {
+        $current = $this->tokens[$this->pointer];
+
+        return substr($this->input, $current[2] ?? 0);
     }
 }
