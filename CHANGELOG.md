@@ -2,6 +2,12 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.3.2 - 2023-09-04
+
+### What's changed
+
+- Fallback to null on parser look up to undefined index
+
 ## v0.3.1 - 2023-09-04
 
 ### What's changed
