@@ -124,7 +124,7 @@ test('parsing strict with line numbers adds numbers to lexer errors', function (
         );
     } catch (SyntaxException $exception) {
         expect($exception->toLiquidErrorMessage())
-            ->toBe('Liquid syntax error (line 4): Unexpected character = in "1 =! 2"');
+            ->toBe('Liquid syntax error (line 4): Unexpected character ! in "1 =! 2"');
 
         return;
     }
@@ -149,7 +149,7 @@ test('syntax errors in nested blocks have correct line number', function () {
 
 test('strict error messages', function () {
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Unexpected character = in "1 =! 2"',
+        'Liquid syntax error (line 1): Unexpected character ! in "1 =! 2"',
         ' {% if 1 =! 2 %}ok{% endif %} ',
     );
 

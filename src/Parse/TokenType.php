@@ -20,6 +20,7 @@ enum TokenType
     case CloseRound;
     case QuestionMark;
     case Dash;
+    case Equals;
 
     public function toString(): string
     {
@@ -40,6 +41,7 @@ enum TokenType
             self::CloseRound => 'CloseRound',
             self::QuestionMark => 'QuestionMark',
             self::Dash => 'Dash',
+            self::Equals => 'Equals',
         };
     }
 }

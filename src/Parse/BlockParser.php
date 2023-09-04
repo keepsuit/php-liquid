@@ -237,7 +237,7 @@ final class BlockParser
     protected static function createVariable(string $token, ParseContext $parseContext): Variable
     {
         if (preg_match(static::CONTENT_OF_VARIABLE, $token, $matches) === 1) {
-            return new Variable($matches[1], $parseContext);
+            return Variable::fromMarkup($matches[1], $parseContext->lineNumber);
         }
 
         throw SyntaxException::missingVariableTerminator($token, $parseContext);

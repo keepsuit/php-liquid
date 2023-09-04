@@ -6,41 +6,69 @@ use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\CanBeRendered;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parse\ParseContext;
+use Keepsuit\Liquid\Parse\Expression;
 use Keepsuit\Liquid\Parse\Parser;
-use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Arr;
 
 class Variable implements CanBeEvaluated, CanBeRendered, HasParseTreeVisitorChildren
 {
-    const JustTagAttributes = '/\A'.Regex::TagAttributes.'\z/';
-
-    protected mixed $name = null;
-
-    public readonly ?int $lineNumber;
-
-    /**
-     * @var array<array{0:string,1:array}>
-     */
-    protected array $filters = [];
-
     /**
      * @throws SyntaxException
      */
     public function __construct(
-        public readonly string $markup,
-        public readonly ParseContext $parseContext
+        protected mixed $name,
+        /** @var array<array{0:string,1:array}> */
+        protected array $filters = [],
+        protected string $markup = '',
+        public readonly ?int $lineNumber = null
     ) {
-        $this->lineNumber = $this->parseContext->lineNumber;
+    }
 
+    public static function fromMarkup(string $markup, int $lineNumber = null): Variable
+    {
         try {
-            $this->parseVariable($markup);
+            $variable = static::fromParser(new Parser($markup), $lineNumber);
         } catch (SyntaxException $exception) {
             $exception->markupContext = sprintf('{{%s}}', $markup);
             throw $exception;
         }
+
+        $variable->markup = $markup;
+
+        return $variable;
+    }
+
+    public static function fromParser(Parser $parser, int $lineNumber = null): Variable
+    {
+        if ($parser->look(TokenType::EndOfString)) {
+            return new Variable(
+                name: null,
+                filters: [],
+                lineNumber: $lineNumber,
+            );
+        }
+
+        $markup = $parser->toString();
+
+        $name = static::parseExpression($parser->expression());
+
+        $filters = [];
+        while ($parser->consumeOrFalse(TokenType::Pipe)) {
+            $filterName = $parser->consume(TokenType::Identifier);
+            $filterArgs = $parser->consumeOrFalse(TokenType::Colon) ? static::parseFilterArgs($parser) : [];
+            $filters[] = static::parseFilterExpressions($filterName, $filterArgs);
+        }
+
+        $parser->consume(TokenType::EndOfString);
+
+        return new Variable(
+            name: $name,
+            filters: $filters,
+            markup: $markup,
+            lineNumber: $lineNumber,
+        );
     }
 
     public function name(): mixed
@@ -107,31 +135,7 @@ class Variable implements CanBeEvaluated, CanBeRendered, HasParseTreeVisitorChil
         return $output;
     }
 
-    /**
-     * @throws SyntaxException
-     */
-    protected function parseVariable(string $markup): void
-    {
-        $this->filters = [];
-
-        $parser = new Parser($markup);
-
-        if ($parser->look(TokenType::EndOfString)) {
-            return;
-        }
-
-        $this->name = $this->parseContext->parseExpression($parser->expression());
-
-        while ($parser->consumeOrFalse(TokenType::Pipe)) {
-            $filterName = $parser->consume(TokenType::Identifier);
-            $filterArgs = $parser->consumeOrFalse(TokenType::Colon) ? $this->parseFilterArgs($parser) : [];
-            $this->filters[] = $this->parseFilterExpressions($filterName, $filterArgs);
-        }
-
-        $parser->consume(TokenType::EndOfString);
-    }
-
-    protected function parseFilterArgs(Parser $parser): array
+    protected static function parseFilterArgs(Parser $parser): array
     {
         $filterArgs = [$parser->argument()];
         while ($parser->consumeOrFalse(TokenType::Comma)) {
@@ -142,29 +146,37 @@ class Variable implements CanBeEvaluated, CanBeRendered, HasParseTreeVisitorChil
     }
 
     /**
+     * @param  array<string|array<string,string>>  $filterArgs
      * @return array{0:string, 1:array, 2:array<string,mixed>}
      */
-    protected function parseFilterExpressions(string $filterName, array $filterArgs): array
+    protected static function parseFilterExpressions(string $filterName, array $filterArgs): array
     {
         $parsedArgs = [];
         $parsedNamedArgs = [];
 
         foreach ($filterArgs as $arg) {
-            if (preg_match(self::JustTagAttributes, $arg, $matches) === 1) {
-                $parsedNamedArgs[$matches[1]] = $this->parseContext->parseExpression($matches[2]);
+            if (is_array($arg)) {
+                foreach ($arg as $key => $value) {
+                    $parsedNamedArgs[$key] = static::parseExpression($value);
+                }
             } else {
-                $parsedArgs[] = $this->parseContext->parseExpression($arg);
+                $parsedArgs[] = static::parseExpression($arg);
             }
         }
 
         return [$filterName, $parsedArgs, $parsedNamedArgs];
     }
 
-    protected function evaluateFilterExpressions(Context $context, array $filterArgs): array
+    protected static function evaluateFilterExpressions(Context $context, array $filterArgs): array
     {
         return array_map(
             fn (mixed $value) => $context->evaluate($value),
             $filterArgs
         );
+    }
+
+    protected static function parseExpression(string $markup): mixed
+    {
+        return Expression::parse($markup);
     }
 }

@@ -7,7 +7,7 @@ use Keepsuit\Liquid\Exceptions\SyntaxException;
 class Parser
 {
     /**
-     * @var array<int, array{0: TokenType, 1: string}>
+     * @var array<array{0:TokenType, 1:string, 2:int}>
      */
     protected array $tokens;
 
@@ -16,7 +16,7 @@ class Parser
     /**
      * @throws SyntaxException
      */
-    public function __construct(string $input)
+    public function __construct(protected string $input)
     {
         $this->tokens = (new Lexer($input))->tokenize();
         $this->pointer = 0;
@@ -27,6 +27,9 @@ class Parser
         $this->pointer = $int;
     }
 
+    /**
+     * @throws SyntaxException
+     */
     public function consume(TokenType $type = null): string
     {
         $token = $this->tokens[$this->pointer];
@@ -49,12 +52,15 @@ class Parser
         }
     }
 
-    public function idOrFalse(string $identifier): string|false
+    /**
+     * @throws SyntaxException
+     */
+    public function id(string $identifier): string|false
     {
         $token = $this->tokens[$this->pointer];
 
         if ($token === null || $token[0] !== TokenType::Identifier) {
-            return false;
+            throw SyntaxException::unexpectedTokenType(TokenType::Identifier, $token[0]);
         }
 
         if ($token[1] !== $identifier) {
@@ -66,9 +72,18 @@ class Parser
         return $token[1];
     }
 
+    public function idOrFalse(string $identifier): string|false
+    {
+        try {
+            return $this->id($identifier);
+        } catch (SyntaxException) {
+            return false;
+        }
+    }
+
     public function look(TokenType $type, int $offset = 0): bool
     {
-        $token = $this->tokens[$this->pointer + $offset] ?? null;
+        $token = $this->tokens[$this->pointer + $offset];
 
         if ($token === null) {
             return false;
@@ -77,6 +92,9 @@ class Parser
         return $token[0] === $type;
     }
 
+    /**
+     * @throws SyntaxException
+     */
     public function expression(): string
     {
         $token = $this->tokens[$this->pointer];
@@ -98,16 +116,51 @@ class Parser
         };
     }
 
-    public function argument(): string
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(TokenType $separator = null): array
     {
-        $output = match (true) {
-            $this->look(TokenType::Identifier) && $this->look(TokenType::Colon, 1) => $this->consume().$this->consume().' ',
-            default => ''
-        };
+        $attributes = [];
 
-        return $output.$this->expression();
+        if ($this->look(TokenType::EndOfString) !== false) {
+            return $attributes;
+        }
+
+        do {
+            $attribute = $this->consume(TokenType::Identifier);
+            $this->consume(TokenType::Colon);
+            $attributes[$attribute] = $this->expression();
+
+            $shouldContinue = match (true) {
+                $separator === null => $this->look(TokenType::EndOfString) === false,
+                default => $this->consumeOrFalse($separator) !== false
+            };
+        } while ($shouldContinue);
+
+        return $attributes;
     }
 
+    /**
+     * @return array<string, string>|string
+     *
+     * @throws SyntaxException
+     */
+    public function argument(): string|array
+    {
+        if ($this->look(TokenType::Identifier) && $this->look(TokenType::Colon, 1)) {
+            $identifier = $this->consume(TokenType::Identifier);
+            $this->consume(TokenType::Colon);
+
+            return [$identifier => $this->expression()];
+        }
+
+        return $this->expression();
+    }
+
+    /**
+     * @throws SyntaxException
+     */
     protected function variableLookups(): string
     {
         $output = match (true) {
@@ -124,5 +177,12 @@ class Parser
         }
 
         return $output.$this->variableLookups();
+    }
+
+    public function toString(): string
+    {
+        $current = $this->tokens[$this->pointer];
+
+        return substr($this->input, $current[2] ?? 0);
     }
 }

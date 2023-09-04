@@ -10,9 +10,9 @@ test('strings', function () {
     expect($tokens)
         ->toHaveCount(3)
         ->toBe([
-            [TokenType::String, '\'this is a test""\''],
-            [TokenType::String, '"wat \'lol\'"'],
-            [TokenType::EndOfString],
+            [TokenType::String, '\'this is a test""\'', 1],
+            [TokenType::String, '"wat \'lol\'"', 20],
+            [TokenType::EndOfString, '', 31],
         ]);
 });
 
@@ -22,9 +22,9 @@ test('integer', function () {
     expect($tokens)
         ->toHaveCount(3)
         ->toBe([
-            [TokenType::Identifier, 'hi'],
-            [TokenType::Number, '50'],
-            [TokenType::EndOfString],
+            [TokenType::Identifier, 'hi', 0],
+            [TokenType::Number, '50', 3],
+            [TokenType::EndOfString, '', 5],
         ]);
 });
 
@@ -34,9 +34,9 @@ test('float', function () {
     expect($tokens)
         ->toHaveCount(3)
         ->toBe([
-            [TokenType::Identifier, 'hi'],
-            [TokenType::Number, '5.0'],
-            [TokenType::EndOfString],
+            [TokenType::Identifier, 'hi', 0],
+            [TokenType::Number, '5.0', 3],
+            [TokenType::EndOfString, '', 6],
         ]);
 });
 
@@ -46,10 +46,10 @@ test('specials', function () {
     expect($tokens)
         ->toHaveCount(4)
         ->toBe([
-            [TokenType::Pipe, '|'],
-            [TokenType::Dot, '.'],
-            [TokenType::Colon, ':'],
-            [TokenType::EndOfString],
+            [TokenType::Pipe, '|', 0],
+            [TokenType::Dot, '.', 2],
+            [TokenType::Colon, ':', 3],
+            [TokenType::EndOfString, '', 4],
         ]);
 
     $tokens = (new Lexer('[,]'))->tokenize();
@@ -57,10 +57,10 @@ test('specials', function () {
     expect($tokens)
         ->toHaveCount(4)
         ->toBe([
-            [TokenType::OpenSquare, '['],
-            [TokenType::Comma, ','],
-            [TokenType::CloseSquare, ']'],
-            [TokenType::EndOfString],
+            [TokenType::OpenSquare, '[', 0],
+            [TokenType::Comma, ',', 1],
+            [TokenType::CloseSquare, ']', 2],
+            [TokenType::EndOfString, '', 3],
         ]);
 });
 
@@ -70,9 +70,9 @@ test('fancy identifiers', function () {
     expect($tokens)
         ->toHaveCount(3)
         ->toBe([
-            [TokenType::Identifier, 'hi'],
-            [TokenType::Identifier, 'five?'],
-            [TokenType::EndOfString],
+            [TokenType::Identifier, 'hi', 0],
+            [TokenType::Identifier, 'five?', 3],
+            [TokenType::EndOfString, '', 8],
         ]);
 
     $tokens = (new Lexer('2foo'))->tokenize();
@@ -80,9 +80,9 @@ test('fancy identifiers', function () {
     expect($tokens)
         ->toHaveCount(3)
         ->toBe([
-            [TokenType::Number, '2'],
-            [TokenType::Identifier, 'foo'],
-            [TokenType::EndOfString],
+            [TokenType::Number, '2', 0],
+            [TokenType::Identifier, 'foo', 1],
+            [TokenType::EndOfString, '', 4],
         ]);
 });
 

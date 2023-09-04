@@ -3,7 +3,6 @@
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Nodes\VariableLookup;
-use Keepsuit\Liquid\Parse\ParseContext;
 
 test('variable', function () {
     $var = createVariable('hello');
@@ -172,5 +171,5 @@ test('variable lookup interface', function () {
 
 function createVariable(string $markup): Variable
 {
-    return new Variable($markup, new ParseContext());
+    return Variable::fromMarkup($markup);
 }

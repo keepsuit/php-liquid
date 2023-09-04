@@ -31,7 +31,7 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
 
         if (preg_match(static::Syntax, $this->markup, $matches)) {
             $this->to = $matches[1];
-            $this->from = new Variable($matches[2], $parseContext);
+            $this->from = Variable::fromMarkup($matches[2], $parseContext->lineNumber);
         } else {
             throw new SyntaxException($parseContext->locale->translate('errors.syntax.assign'));
         }
