@@ -2,6 +2,13 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.3.1 - 2023-09-04
+
+### What's changed
+
+- Improved lexer/parser with start position of tokens
+- Refactoring Variable parsing
+
 ## v0.3.0 - 2023-09-01
 
 ### What's Changed
