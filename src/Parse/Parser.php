@@ -68,7 +68,7 @@ class Parser
 
     public function look(TokenType $type, int $offset = 0): bool
     {
-        $token = $this->tokens[$this->pointer + $offset];
+        $token = $this->tokens[$this->pointer + $offset] ?? null;
 
         if ($token === null) {
             return false;
