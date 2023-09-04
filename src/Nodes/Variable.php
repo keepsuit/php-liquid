@@ -8,15 +8,12 @@ use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Parse\Expression;
 use Keepsuit\Liquid\Parse\Parser;
-use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Arr;
 
 class Variable implements CanBeEvaluated, CanBeRendered, HasParseTreeVisitorChildren
 {
-    const JustTagAttributes = '/\A'.Regex::TagAttributes.'\z/';
-
     /**
      * @throws SyntaxException
      */
@@ -149,6 +146,7 @@ class Variable implements CanBeEvaluated, CanBeRendered, HasParseTreeVisitorChil
     }
 
     /**
+     * @param  array<string|array<string,string>>  $filterArgs
      * @return array{0:string, 1:array, 2:array<string,mixed>}
      */
     protected static function parseFilterExpressions(string $filterName, array $filterArgs): array
@@ -157,8 +155,10 @@ class Variable implements CanBeEvaluated, CanBeRendered, HasParseTreeVisitorChil
         $parsedNamedArgs = [];
 
         foreach ($filterArgs as $arg) {
-            if (preg_match(self::JustTagAttributes, $arg, $matches) === 1) {
-                $parsedNamedArgs[$matches[1]] = static::parseExpression($matches[2]);
+            if (is_array($arg)) {
+                foreach ($arg as $key => $value) {
+                    $parsedNamedArgs[$key] = static::parseExpression($value);
+                }
             } else {
                 $parsedArgs[] = static::parseExpression($arg);
             }

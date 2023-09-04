@@ -117,16 +117,45 @@ class Parser
     }
 
     /**
+     * @return array<string, string>
+     */
+    public function attributes(TokenType $separator = null): array
+    {
+        $attributes = [];
+
+        if ($this->look(TokenType::EndOfString) !== false) {
+            return $attributes;
+        }
+
+        do {
+            $attribute = $this->consume(TokenType::Identifier);
+            $this->consume(TokenType::Colon);
+            $attributes[$attribute] = $this->expression();
+
+            $shouldContinue = match (true) {
+                $separator === null => $this->look(TokenType::EndOfString) === false,
+                default => $this->consumeOrFalse($separator) !== false
+            };
+        } while ($shouldContinue);
+
+        return $attributes;
+    }
+
+    /**
+     * @return array<string, string>|string
+     *
      * @throws SyntaxException
      */
-    public function argument(): string
+    public function argument(): string|array
     {
-        $output = match (true) {
-            $this->look(TokenType::Identifier) && $this->look(TokenType::Colon, 1) => $this->consume().$this->consume().' ',
-            default => ''
-        };
+        if ($this->look(TokenType::Identifier) && $this->look(TokenType::Colon, 1)) {
+            $identifier = $this->consume(TokenType::Identifier);
+            $this->consume(TokenType::Colon);
 
-        return $output.$this->expression();
+            return [$identifier => $this->expression()];
+        }
+
+        return $this->expression();
     }
 
     /**

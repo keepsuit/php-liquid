@@ -50,11 +50,11 @@ class RenderTag extends Tag implements HasParseTreeVisitorChildren
                 $this->aliasName = $parser->idOrFalse('as') ? $parser->consume(TokenType::Identifier) : null;
             }
 
-            while ($parser->consumeOrFalse(TokenType::Comma) !== false) {
-                $attribute = $parser->consume(TokenType::Identifier);
-                $parser->consume(TokenType::Colon);
-                $this->attributes[$attribute] = $this->parseExpression($parser->expression());
-            }
+            $parser->consumeOrFalse(TokenType::Comma);
+            $this->attributes = array_map(
+                fn (string $expression) => $this->parseExpression($expression),
+                $parser->attributes(TokenType::Comma)
+            );
 
             $parser->consume(TokenType::EndOfString);
 

@@ -5,19 +5,16 @@ namespace Keepsuit\Liquid\Tags;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Drops\TableRowLoopDrop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
-use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\Range;
 use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
+use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\TagBlock;
 
 class TableRowTag extends TagBlock implements HasParseTreeVisitorChildren
 {
-    const Syntax = '/(\w+)\s+in\s+('.Regex::QuotedFragment.'+)/';
-
     protected string $variableName;
 
     protected mixed $collectionName;
@@ -33,18 +30,18 @@ class TableRowTag extends TagBlock implements HasParseTreeVisitorChildren
     {
         parent::parse($parseContext, $tokenizer);
 
-        if (! preg_match(self::Syntax, $this->markup, $matches)) {
-            throw new SyntaxException($parseContext->locale->translate('errors.syntax.table_row'));
-        }
+        $parser = $this->newParser();
 
-        $this->variableName = $matches[1];
-        $this->collectionName = $this->parseExpression($matches[2]);
+        $this->variableName = $parser->consume(TokenType::Identifier);
+        $parser->id('in');
+        $this->collectionName = $this->parseExpression($parser->expression());
 
-        preg_match_all(sprintf('/%s/', Regex::TagAttributes), $this->markup, $attributeMatches, PREG_SET_ORDER);
+        $this->attributes = array_map(
+            fn (string $expression) => $this->parseExpression($expression),
+            $parser->attributes()
+        );
 
-        foreach ($attributeMatches as $matches) {
-            $this->attributes[$matches[1]] = $this->parseExpression($matches[2]);
-        }
+        $parser->consume(TokenType::EndOfString);
 
         return $this;
     }

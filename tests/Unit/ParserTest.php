@@ -89,7 +89,7 @@ test('arguments', function () {
         ->consume(TokenType::Colon)->toBe(':')
         ->argument()->toBe('hi.there[5]')
         ->consume(TokenType::Comma)->toBe(',')
-        ->argument()->toBe('keyarg: 7');
+        ->argument()->toBe(['keyarg' => '7']);
 });
 
 test('invalid expression', function () {
