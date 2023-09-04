@@ -11,7 +11,6 @@ use Keepsuit\Liquid\Nodes\BlockBodySection;
 use Keepsuit\Liquid\Nodes\Range;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Parser;
-use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\Context;
@@ -20,8 +19,6 @@ use Keepsuit\Liquid\TagBlock;
 
 class ForTag extends TagBlock implements HasParseTreeVisitorChildren
 {
-    const Syntax = '/\A('.Regex::VariableSegment.'+)\s+in\s+('.Regex::QuotedFragment.'+)\s*(reversed)?/';
-
     protected string $variableName;
 
     protected mixed $collectionName;

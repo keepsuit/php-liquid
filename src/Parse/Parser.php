@@ -52,12 +52,15 @@ class Parser
         }
     }
 
-    public function idOrFalse(string $identifier): string|false
+    /**
+     * @throws SyntaxException
+     */
+    public function id(string $identifier): string|false
     {
         $token = $this->tokens[$this->pointer];
 
         if ($token === null || $token[0] !== TokenType::Identifier) {
-            return false;
+            throw SyntaxException::unexpectedTokenType(TokenType::Identifier, $token[0]);
         }
 
         if ($token[1] !== $identifier) {
@@ -67,6 +70,15 @@ class Parser
         $this->pointer += 1;
 
         return $token[1];
+    }
+
+    public function idOrFalse(string $identifier): string|false
+    {
+        try {
+            return $this->id($identifier);
+        } catch (SyntaxException) {
+            return false;
+        }
     }
 
     public function look(TokenType $type, int $offset = 0): bool

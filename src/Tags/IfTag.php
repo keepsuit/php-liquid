@@ -29,7 +29,7 @@ class IfTag extends TagBlock implements HasParseTreeVisitorChildren
         parent::parse($parseContext, $tokenizer);
 
         try {
-            $this->conditions = array_map(fn (BlockBodySection $block) => $this->parseBodySection($parseContext, $block), $this->bodySections);
+            $this->conditions = array_map(fn (BlockBodySection $block) => $this->parseBodySection($block), $this->bodySections);
         } catch (SyntaxException $exception) {
             $exception->markupContext = $this->markup;
             throw $exception;
@@ -70,13 +70,13 @@ class IfTag extends TagBlock implements HasParseTreeVisitorChildren
     /**
      * @throws SyntaxException
      */
-    protected function parseBodySection(ParseContext $parseContext, BlockBodySection $section): Condition
+    protected function parseBodySection(BlockBodySection $section): Condition
     {
         assert($section->startDelimiter() !== null);
 
         $condition = match (true) {
             $section->startDelimiter()->tag === 'else' => new ElseCondition(),
-            default => $this->parseCondition($parseContext, $section->startDelimiter()->markup),
+            default => $this->parseCondition($section->startDelimiter()->markup),
         };
 
         if ($section->blank()) {
@@ -90,23 +90,23 @@ class IfTag extends TagBlock implements HasParseTreeVisitorChildren
     /**
      * @throws SyntaxException
      */
-    protected function parseCondition(ParseContext $parseContext, string $markup): Condition
+    protected function parseCondition(string $markup): Condition
     {
         $parser = new Parser($markup);
 
-        $condition = $this->parseBinaryComparison($parseContext, $parser);
+        $condition = $this->parseBinaryComparison($parser);
         $parser->consume(TokenType::EndOfString);
 
         return $condition;
     }
 
-    protected function parseBinaryComparison(ParseContext $parseContext, Parser $parser): Condition
+    protected function parseBinaryComparison(Parser $parser): Condition
     {
-        $condition = $this->parseComparison($parseContext, $parser);
+        $condition = $this->parseComparison($parser);
         $firstCondition = $condition;
 
         while ($operator = $parser->idOrFalse('and') ?: $parser->idOrFalse('or')) {
-            $childCondition = $this->parseComparison($parseContext, $parser);
+            $childCondition = $this->parseComparison($parser);
             $condition->{$operator}($childCondition);
             $condition = $childCondition;
         }
@@ -114,7 +114,7 @@ class IfTag extends TagBlock implements HasParseTreeVisitorChildren
         return $firstCondition;
     }
 
-    protected function parseComparison(ParseContext $parseContext, Parser $parser): Condition
+    protected function parseComparison(Parser $parser): Condition
     {
         $a = $this->parseExpression($parser->expression());
 

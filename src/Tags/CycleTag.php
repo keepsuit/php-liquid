@@ -5,21 +5,16 @@ namespace Keepsuit\Liquid\Tags;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
+use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\Context;
-use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Tag;
 
 class CycleTag extends Tag implements HasParseTreeVisitorChildren
 {
-    protected const SimpleSyntax = '/\A'.Regex::QuotedFragment.'+/';
-
-    protected const NamedSyntax = '/\A('.Regex::QuotedFragment.')\s*\:\s*(.*)/m';
-
     protected array $variables = [];
 
-    protected mixed $name;
+    protected mixed $name = null;
 
     public static function tagName(): string
     {
@@ -30,14 +25,24 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
     {
         parent::parse($parseContext, $tokenizer);
 
-        if (preg_match(static::NamedSyntax, $this->markup, $matches)) {
-            $this->variables = $this->parseVariablesFromString($parseContext, $matches[2]);
-            $this->name = $this->parseExpression($matches[1]);
-        } elseif (preg_match(static::SimpleSyntax, $this->markup, $matches)) {
-            $this->variables = $this->parseVariablesFromString($parseContext, $this->markup);
-            $this->name = json_encode($this->variables);
-        } else {
-            throw new SyntaxException($parseContext->locale->translate('errors.syntax.cycle'));
+        try {
+            $parser = $this->newParser();
+
+            if ($parser->look(TokenType::Colon, 1)) {
+                $this->name = $this->parseExpression($parser->expression());
+                $parser->consume(TokenType::Colon);
+            }
+
+            $this->variables = [];
+            do {
+                $this->variables[] = $this->parseExpression($parser->expression());
+            } while ($parser->consumeOrFalse(TokenType::Comma));
+
+            if ($this->name === null) {
+                $this->name = json_encode($this->variables);
+            }
+        } catch (SyntaxException $exception) {
+            throw new SyntaxException($parseContext->locale->translate('errors.syntax.cycle'), previous: $exception);
         }
 
         return $this;
@@ -74,19 +79,5 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
     public function parseTreeVisitorChildren(): array
     {
         return $this->variables;
-    }
-
-    protected function parseVariablesFromString(ParseContext $parseContext, string $markup): array
-    {
-        $variables = explode(',', $markup);
-
-        $variables = array_map(
-            fn (string $var) => preg_match('/\s*('.Regex::QuotedFragment.')\s*/', $var, $matches)
-                ? $this->parseExpression($matches[1])
-                : null,
-            $variables
-        );
-
-        return Arr::compact($variables);
     }
 }
