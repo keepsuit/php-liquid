@@ -337,9 +337,11 @@ final class Context
 
         $subContext = new Context(
             rethrowExceptions: $this->rethrowExceptions,
+            strictVariables: $this->strictVariables,
             filterRegistry: $this->filterRegistry,
             resourceLimits: $this->resourceLimits,
             fileSystem: $this->fileSystem,
+            locale: $this->locale,
         );
         $subContext->baseScopeDepth = $this->baseScopeDepth + 1;
         $subContext->sharedState = $this->sharedState;

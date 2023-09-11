@@ -8,7 +8,7 @@ use Keepsuit\Liquid\Tests\Stubs\ThingWithParamToLiquid;
 
 beforeEach(function () {
     $templateFactory = \Keepsuit\Liquid\TemplateFactory::new();
-    $this->filters = $templateFactory->filterRegistry;
+    $this->filters = $templateFactory->getFilterRegistry();
     $this->context = $templateFactory->newRenderContext();
 });
 

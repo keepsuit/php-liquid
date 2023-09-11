@@ -67,17 +67,18 @@ test('assign score exceeding resource limit', function () {
 });
 
 test('assign score exceeding resource limit from composite object', function () {
-    $factory = TemplateFactory::new();
+    $factory = TemplateFactory::new()
+        ->rethrowExceptions();
 
     $template = parseTemplate("{% assign foo = 'aaaa' | split: '' %}", factory: $factory);
 
     $factory->setResourceLimits(new ResourceLimits(assignScoreLimit: 3));
-    $context = $factory->newRenderContext(rethrowExceptions: true);
+    $context = $factory->newRenderContext();
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
     expect($context->resourceLimits->reached())->toBeTrue();
 
     $factory->setResourceLimits(new ResourceLimits(assignScoreLimit: 5));
-    $context = $factory->newRenderContext(rethrowExceptions: true);
+    $context = $factory->newRenderContext();
     expect($template->render($context))->toBe('');
     expect($context->resourceLimits->reached())->toBeFalse();
     expect($context->resourceLimits->getAssignScore())->toBe(5);

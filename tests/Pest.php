@@ -35,14 +35,14 @@ function renderTemplate(
     bool $renderErrors = false,
     TemplateFactory $factory = new TemplateFactory()
 ): string {
-    $factory->setFilesystem(new StubFileSystem(partials: $partials));
-    $factory->lineNumbers();
+    $factory = $factory->setFilesystem(new StubFileSystem(partials: $partials))
+        ->lineNumbers()
+        ->rethrowExceptions(! $renderErrors);
 
     $template = $factory->parseString($template);
 
     $context = $factory->newRenderContext(
         staticEnvironment: $assigns,
-        rethrowExceptions: ! $renderErrors,
     );
 
     foreach ($registers as $key => $value) {

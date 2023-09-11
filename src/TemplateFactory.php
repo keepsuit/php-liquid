@@ -15,9 +15,9 @@ use Keepsuit\Liquid\Support\TagRegistry;
 
 final class TemplateFactory
 {
-    public readonly TagRegistry $tagRegistry;
+    protected TagRegistry $tagRegistry;
 
-    public readonly FilterRegistry $filterRegistry;
+    protected FilterRegistry $filterRegistry;
 
     protected LiquidFileSystem $fileSystem;
 
@@ -28,6 +28,9 @@ final class TemplateFactory
     protected bool $profile = false;
 
     protected bool $lineNumbers = false;
+
+    protected bool $rethrowExceptions = false;
+    protected bool $strictVariables = false;
 
     public function __construct()
     {
@@ -41,6 +44,55 @@ final class TemplateFactory
     public static function new(): TemplateFactory
     {
         return new self();
+    }
+
+    public function setFilesystem(LiquidFileSystem $fileSystem): TemplateFactory
+    {
+        $this->fileSystem = $fileSystem;
+
+        return $this;
+    }
+
+    public function getFilesystem(): LiquidFileSystem
+    {
+        return $this->fileSystem;
+    }
+
+    public function setResourceLimits(ResourceLimits $resourceLimits): TemplateFactory
+    {
+        $this->resourceLimits = $resourceLimits;
+
+        return $this;
+    }
+
+    public function getResourceLimits(): ResourceLimits
+    {
+        return $this->resourceLimits;
+    }
+
+    public function getTagRegistry(): TagRegistry
+    {
+        return $this->tagRegistry;
+    }
+
+    /**
+     * @return FilterRegistry
+     */
+    public function getFilterRegistry(): FilterRegistry
+    {
+        return $this->filterRegistry;
+    }
+
+    public function setLocale(I18n $locale): TemplateFactory
+    {
+        $this->locale = $locale;
+
+        return $this;
+    }
+
+    public function getLocale(): I18n
+    {
+        return $this->locale;
     }
 
     public function profile(bool $profile = true): TemplateFactory
@@ -57,23 +109,28 @@ final class TemplateFactory
         return $this;
     }
 
-    public function setFilesystem(LiquidFileSystem $fileSystem): TemplateFactory
+    public function rethrowExceptions(bool $rethrowExceptions = true): TemplateFactory
     {
-        $this->fileSystem = $fileSystem;
+        $this->rethrowExceptions = $rethrowExceptions;
 
         return $this;
     }
 
-    public function setResourceLimits(ResourceLimits $resourceLimits): TemplateFactory
+    public function strictVariables(bool $strictVariables = true): TemplateFactory
     {
-        $this->resourceLimits = $resourceLimits;
+        $this->strictVariables = $strictVariables;
 
         return $this;
     }
 
-    public function setLocale(I18n $locale): TemplateFactory
+    /**
+     * Enable/disabled lineNumber, rethrowExceptions and strictVariables.
+     */
+    public function debugMode(bool $debugMode = true): TemplateFactory
     {
-        $this->locale = $locale;
+        $this->lineNumbers = $debugMode;
+        $this->rethrowExceptions = $debugMode;
+        $this->strictVariables = $debugMode;
 
         return $this;
     }
@@ -97,16 +154,14 @@ final class TemplateFactory
         array $outerScope = [],
         /** @var array<string, mixed> $registers */
         array $registers = [],
-        bool $rethrowExceptions = false,
-        bool $strictVariables = false,
     ): Context {
         return new Context(
             environment: $environment,
             staticEnvironment: $staticEnvironment,
             outerScope: $outerScope,
             registers: $registers,
-            rethrowExceptions: $rethrowExceptions,
-            strictVariables: $strictVariables,
+            rethrowExceptions: $this->rethrowExceptions,
+            strictVariables: $this->strictVariables,
             profile: $this->profile,
             filterRegistry: $this->filterRegistry,
             resourceLimits: $this->resourceLimits,
