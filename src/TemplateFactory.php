@@ -30,6 +30,7 @@ final class TemplateFactory
     protected bool $lineNumbers = false;
 
     protected bool $rethrowExceptions = false;
+
     protected bool $strictVariables = false;
 
     public function __construct()
@@ -75,9 +76,6 @@ final class TemplateFactory
         return $this->tagRegistry;
     }
 
-    /**
-     * @return FilterRegistry
-     */
     public function getFilterRegistry(): FilterRegistry
     {
         return $this->filterRegistry;
