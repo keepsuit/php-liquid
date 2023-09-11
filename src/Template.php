@@ -45,9 +45,7 @@ class Template
         $this->profiler = $context->getProfiler();
 
         try {
-            if (! $context->isPartial()) {
-                $context->setPartialsCache($this->partialsCache);
-            }
+            $context->mergePartialsCache($this->partialsCache);
 
             return $this->root->render($context);
         } finally {

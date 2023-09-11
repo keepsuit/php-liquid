@@ -328,6 +328,13 @@ final class Context
         return $this;
     }
 
+    public function mergePartialsCache(array $partialsCache): Context
+    {
+        $this->sharedState->partialsCache = array_merge($this->sharedState->partialsCache, $partialsCache);
+
+        return $this;
+    }
+
     /**
      * @throws StackLevelException
      */
