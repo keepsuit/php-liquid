@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid;
 
 use Keepsuit\Liquid\Contracts\LiquidFileSystem;
+use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Filters\StandardFilters;
@@ -183,7 +184,12 @@ final class TemplateFactory
     {
         $source = $this->fileSystem->readTemplateFile($templateName);
 
-        return Template::parse($this->newParseContext(), $source, $templateName);
+        try {
+            return Template::parse($this->newParseContext(), $source, $templateName);
+        } catch (LiquidException $e) {
+            $e->templateName = $templateName;
+            throw $e;
+        }
     }
 
     /**
