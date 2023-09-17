@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid;
 
-use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Nodes\Document;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Profiler\Profiler;
@@ -26,20 +26,28 @@ class Template
     }
 
     /**
-     * @throws SyntaxException
+     * @throws LiquidException
      */
     public static function parse(ParseContext $parseContext, string $source, string $name = null): Template
     {
-        $tokenizer = $parseContext->newTokenizer($source);
-        $root = Document::parse($parseContext, $tokenizer);
+        try {
+            $tokenizer = $parseContext->newTokenizer($source);
+            $root = Document::parse($parseContext, $tokenizer);
 
-        return new Template(
-            root: $root,
-            name: $name,
-            partialsCache: $parseContext->isPartial() ? [] : $parseContext->getPartialsCache(),
-        );
+            return new Template(
+                root: $root,
+                name: $name,
+                partialsCache: $parseContext->isPartial() ? [] : $parseContext->getPartialsCache(),
+            );
+        } catch (LiquidException $e) {
+            $e->templateName = $e->templateName ?? $name;
+            throw $e;
+        }
     }
 
+    /**
+     * @throws LiquidException
+     */
     public function render(Context $context): string
     {
         $this->profiler = $context->getProfiler();
@@ -48,6 +56,9 @@ class Template
             $context->mergePartialsCache($this->partialsCache);
 
             return $this->root->render($context);
+        } catch (LiquidException $e) {
+            $e->templateName = $e->templateName ?? $this->name;
+            throw $e;
         } finally {
             $this->errors = $context->getErrors();
         }

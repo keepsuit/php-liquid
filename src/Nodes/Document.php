@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid\Nodes;
 
 use Keepsuit\Liquid\Contracts\CanBeRendered;
+use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Parse\BlockParser;
 use Keepsuit\Liquid\Parse\ParseContext;
@@ -17,6 +18,9 @@ class Document implements CanBeRendered
     ) {
     }
 
+    /**
+     * @throws LiquidException
+     */
     public static function parse(ParseContext $parseContext, Tokenizer $tokenizer): Document
     {
         try {
@@ -36,6 +40,9 @@ class Document implements CanBeRendered
         );
     }
 
+    /**
+     * @throws LiquidException
+     */
     public function render(Context $context): string
     {
         if ($context->getProfiler() !== null) {

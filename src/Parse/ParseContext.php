@@ -116,7 +116,7 @@ class ParseContext
     }
 
     /**
-     * @throws Throwable
+     * @throws LiquidException
      */
     public function handleError(Throwable $error): void
     {

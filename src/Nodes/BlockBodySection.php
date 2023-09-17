@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid\Nodes;
 
 use Keepsuit\Liquid\Contracts\CanBeRendered;
+use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
 use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
@@ -69,6 +70,9 @@ class BlockBodySection implements CanBeRendered
         return $this;
     }
 
+    /**
+     * @throws LiquidException
+     */
     public function render(Context $context): string
     {
         $context->resourceLimits->incrementRenderScore(count($this->nodeList));
