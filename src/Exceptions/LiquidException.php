@@ -10,6 +10,16 @@ abstract class LiquidException extends \ErrorException
 
     public ?string $markupContext = null;
 
+    public function setFile(string $file): void
+    {
+        $this->file = $file;
+    }
+
+    public function setLine(int $line): void
+    {
+        $this->line = $line;
+    }
+
     public function toLiquidErrorMessage(): string
     {
         return sprintf(
