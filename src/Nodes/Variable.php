@@ -126,6 +126,10 @@ class Variable implements CanBeEvaluated, CanBeRendered, HasParseTreeVisitorChil
     {
         $output = $context->evaluate($this->name);
 
+        if ($output instanceof \Generator) {
+            $output = iterator_to_array($output);
+        }
+
         foreach ($this->filters as [$filterName, $filterArgs, $filterNamedArgs]) {
             $filterArgs = $this->evaluateFilterExpressions($context, $filterArgs ?? []);
             $filterNamedArgs = $this->evaluateFilterExpressions($context, $filterNamedArgs ?? []);

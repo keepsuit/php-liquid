@@ -20,3 +20,18 @@ test('variable lookup calls to liquid value', function () {
     assertTemplateResult('Yay', '{{ foo }}', ['foo' => new BooleanDrop(true)]);
     assertTemplateResult('YAY', '{{ foo | upcase }}', ['foo' => new BooleanDrop(true)]);
 });
+
+test('generator variable', function () {
+    assertTemplateResult('123', '{{test}}', ['test' => generator()]);
+});
+
+test('generator variable with lookup', function () {
+    assertTemplateResult('1', '{{test.first}}', ['test' => generator()]);
+});
+
+function generator(): Generator
+{
+    yield '1';
+    yield '2';
+    yield '3';
+}
