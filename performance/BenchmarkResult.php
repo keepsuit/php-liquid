@@ -10,6 +10,7 @@ class BenchmarkResult
         public readonly int $runsCount,
         public readonly int $durationNs,
         public readonly int $averageNs,
+        public readonly int $memoryPeakBytes,
         public readonly float $standardDeviation,
         public readonly float $ops,
     ) {
@@ -31,7 +32,17 @@ class BenchmarkResult
         return $this->averageNs / 1e6;
     }
 
-    public static function fromRuns(array $runs, int $durationNs): BenchmarkResult
+    public function memoryPeakKB(): float
+    {
+        return round($this->memoryPeakBytes / 1024, 2);
+    }
+
+    public function memoryPeakMB(): float
+    {
+        return round($this->memoryPeakBytes / 1024 / 1024, 2);
+    }
+
+    public static function fromRuns(array $runs, int $durationNs, int $memoryPeakUsage): BenchmarkResult
     {
         $runsCount = count($runs);
         $averageNs = (int) (array_sum($runs) / $runsCount);
@@ -42,6 +53,7 @@ class BenchmarkResult
             runsCount: $runsCount,
             durationNs: $durationNs,
             averageNs: $averageNs,
+            memoryPeakBytes: $memoryPeakUsage,
             standardDeviation: $standardDeviation,
             ops: $ops,
         );

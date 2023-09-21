@@ -6,18 +6,23 @@ class BenchmarkRunner
 {
     public function run(int $seconds, \Closure $callback): BenchmarkResult
     {
+        gc_collect_cycles();
+        if (function_exists('memory_reset_peak_usage')) {
+            memory_reset_peak_usage();
+        }
+
         $durationNs = $seconds * 1e9;
         $start = hrtime(true);
 
         $runs = [];
         do {
-            gc_collect_cycles();
-
             $runs[] = $this->measure($callback);
             $end = hrtime(true);
         } while (($end - $start) < $durationNs);
 
-        return BenchmarkResult::fromRuns($runs, $end - $start);
+        gc_collect_cycles();
+
+        return BenchmarkResult::fromRuns($runs, $end - $start, memory_get_peak_usage(true));
     }
 
     protected function measure(\Closure $callback): int

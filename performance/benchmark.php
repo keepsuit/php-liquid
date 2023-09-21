@@ -50,6 +50,7 @@ $templateFactory = TemplateFactory::new()
             'error',
             'runs',
             'duration',
+            'memory (peak)',
         ]);
         $output->writeln('Running parse benchmark...');
         outputBenchmarkResult($computeTable, 'parse', $benchmark->run($times, fn () => $profiler->compile()));
@@ -69,5 +70,6 @@ function outputBenchmarkResult(Table $table, string $testName, BenchmarkResult $
         sprintf('(± %.1f%%)', $result->errorPercentage),
         sprintf('%d', $result->runsCount),
         sprintf('%.6f s', $result->durationS()),
+        sprintf('%.2f MB', $result->memoryPeakMB()),
     ]);
 }
