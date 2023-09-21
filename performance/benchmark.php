@@ -54,8 +54,12 @@ $templateFactory = TemplateFactory::new()
         ]);
         $output->writeln('Running parse benchmark...');
         outputBenchmarkResult($computeTable, 'parse', $benchmark->run($times, fn () => $profiler->compile()));
-        $output->writeln('Running render benchmark...');
-        outputBenchmarkResult($computeTable, 'render', $benchmark->run($times, fn () => $profiler->render()));
+        $output->writeln('Running render async benchmark...');
+        outputBenchmarkResult($computeTable, 'render async', $benchmark->run($times, fn () => $profiler->renderAsync()));
+        $output->writeln('Running parse & render async benchmark...');
+        outputBenchmarkResult($computeTable, 'parse & render async', $benchmark->run($times, fn () => $profiler->runAsync()));
+        $output->writeln('Running render sync benchmark...');
+        outputBenchmarkResult($computeTable, 'render sync', $benchmark->run($times, fn () => $profiler->render()));
         $output->writeln('Running parse & render benchmark...');
         outputBenchmarkResult($computeTable, 'parse & render', $benchmark->run($times, fn () => $profiler->run()));
         $computeTable->render();
