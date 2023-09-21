@@ -7,9 +7,12 @@ use Keepsuit\Liquid\Nodes\Document;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Profiler\Profiler;
 use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Support\GeneratorToString;
 
 class Template
 {
+    use GeneratorToString;
+
     /**
      * @var array<\Throwable>
      */
@@ -50,12 +53,21 @@ class Template
      */
     public function render(Context $context): string
     {
+        return $this->generatorToString($this->renderAsync($context));
+    }
+
+    /**
+     * @throws LiquidException
+     * @return \Generator<string>
+     */
+    public function renderAsync(Context $context): \Generator
+    {
         $this->profiler = $context->getProfiler();
 
         try {
             $context->mergePartialsCache($this->partialsCache);
 
-            return $this->root->render($context);
+            yield from $this->root->renderAsync($context);
         } catch (LiquidException $e) {
             $e->templateName = $e->templateName ?? $this->name;
             throw $e;

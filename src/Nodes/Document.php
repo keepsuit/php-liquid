@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Nodes;
 
+use Generator;
 use Keepsuit\Liquid\Contracts\CanBeRendered;
 use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
@@ -9,10 +10,14 @@ use Keepsuit\Liquid\Parse\BlockParser;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Support\GeneratorToString;
 use Keepsuit\Liquid\Tag;
+use Throwable;
 
 class Document implements CanBeRendered
 {
+    use GeneratorToString;
+
     public function __construct(
         protected BlockBodySection $body,
     ) {
@@ -31,7 +36,7 @@ class Document implements CanBeRendered
             }
 
             $parseContext->handleError($exception);
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             $parseContext->handleError($exception);
         }
 
@@ -45,11 +50,33 @@ class Document implements CanBeRendered
      */
     public function render(Context $context): string
     {
+        return $this->generatorToString($this->renderAsync($context));
+    }
+
+    /**
+     * @throws LiquidException
+     * @return Generator<string>
+     */
+    public function renderAsync(Context $context): Generator
+    {
         if ($context->getProfiler() !== null) {
-            return $context->getProfiler()->profile($context->getTemplateName(), fn () => $this->body->render($context));
+            yield $context->getProfiler()->profile($context->getTemplateName(), fn () => $this->renderBody($context));
+            return;
         }
 
-        return $this->body->render($context);
+        yield from $this->renderBody($context);
+    }
+
+    /**
+     * @throws LiquidException
+     * @return Generator<string>
+     */
+    protected function renderBody(Context $context): Generator
+    {
+        foreach ($this->body->renderAsync($context) as $output) {
+            $context->resourceLimits->incrementWriteScore($output);
+            yield $output;
+        }
     }
 
     /**

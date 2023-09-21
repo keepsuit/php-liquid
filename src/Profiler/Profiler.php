@@ -3,9 +3,12 @@
 namespace Keepsuit\Liquid\Profiler;
 
 use Closure;
+use Keepsuit\Liquid\Support\GeneratorToString;
 
 class Profiler
 {
+    use GeneratorToString;
+
     protected array $rootTimings = [];
 
     protected int $totalTime = 0;
@@ -15,12 +18,13 @@ class Profiler
     protected ?Timing $currentTiming = null;
 
     /**
-     * @param  Closure(): string  $renderFunction
+     * @param  Closure(): (string|\Generator<string>)  $renderFunction
      */
     public function profile(?string $templateName, Closure $renderFunction): string
     {
         if ($this->currentTiming != null) {
-            return $renderFunction();
+            $output = $renderFunction();
+            return $output instanceof \Generator ? $this->generatorToString($output) : $output;
         }
 
         try {
@@ -38,7 +42,7 @@ class Profiler
     }
 
     /**
-     * @param  Closure(): string  $renderFunction
+     * @param  Closure(): (string|\Generator<string>)  $renderFunction
      */
     public function profileNode(?string $templateName, Closure $renderFunction, string $code = null, int $lineNumber = null): string
     {

@@ -11,6 +11,8 @@ class ResourceLimits
 
     protected int $assignScore = 0;
 
+    protected int $renderLength = 0;
+
     protected ?int $lastCaptureLength = null;
 
     protected bool $reachedLimit = false;
@@ -55,16 +57,8 @@ class ResourceLimits
      */
     public function incrementWriteScore(string $output): ResourceLimits
     {
-        if (($lastCaptured = $this->lastCaptureLength) !== null) {
-            $captured = strlen($output);
-            $increment = $captured - $lastCaptured;
-            $this->lastCaptureLength = $captured;
-            $this->incrementAssignScore($increment);
-
-            return $this;
-        }
-
-        if ($this->renderLengthLimit !== null && strlen($output) > $this->renderLengthLimit) {
+        $this->renderLength += strlen($output);
+        if ($this->renderLengthLimit !== null && $this->renderLength > $this->renderLengthLimit) {
             $this->throwLimitReachedException();
         }
 

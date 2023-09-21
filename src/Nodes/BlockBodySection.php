@@ -8,11 +8,15 @@ use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
 use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Support\GeneratorToString;
 use Keepsuit\Liquid\Support\Str;
 use Keepsuit\Liquid\Tag;
+use Keepsuit\Liquid\Tags\RenderTag;
 
 class BlockBodySection implements CanBeRendered
 {
+    use GeneratorToString;
+
     public function __construct(
         protected ?BlockBodySectionDelimiter $start = null,
         protected ?BlockBodySectionDelimiter $end = null,
@@ -75,13 +79,20 @@ class BlockBodySection implements CanBeRendered
      */
     public function render(Context $context): string
     {
-        $context->resourceLimits->incrementRenderScore(count($this->nodeList));
+        return $this->generatorToString($this->renderAsync($context));
+    }
 
-        $output = '';
+    /**
+     * @throws LiquidException
+     * @return \Generator<string>
+     */
+    public function renderAsync(Context $context): \Generator
+    {
+        $context->resourceLimits->incrementRenderScore(count($this->nodeList));
 
         foreach ($this->nodeList as $node) {
             if (is_string($node)) {
-                $output .= $node;
+                yield $node;
 
                 continue;
             }
@@ -91,21 +102,17 @@ class BlockBodySection implements CanBeRendered
                     $node->ensureTagIsEnabled($context);
                 }
 
-                $output .= $this->renderNode($context, $node);
+                yield $this->renderNode($context, $node);
             } catch (UndefinedVariableException|UndefinedDropMethodException|UndefinedFilterException $exception) {
                 $context->handleError($exception, $node->lineNumber);
             } catch (\Throwable $exception) {
-                $output .= $context->handleError($exception, $node->lineNumber);
+                yield $context->handleError($exception, $node->lineNumber);
             }
 
             if ($context->hasInterrupt()) {
                 break;
             }
         }
-
-        $context->resourceLimits->incrementWriteScore($output);
-
-        return $output;
     }
 
     protected function renderNode(Context $context, Variable|Tag $node): string
