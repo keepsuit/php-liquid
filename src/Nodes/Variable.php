@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Nodes;
 
+use Generator;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\CanBeRendered;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
@@ -11,9 +12,12 @@ use Keepsuit\Liquid\Parse\Parser;
 use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Arr;
+use Keepsuit\Liquid\Support\GeneratorToString;
 
 class Variable implements CanBeEvaluated, CanBeRendered, HasParseTreeVisitorChildren
 {
+    use GeneratorToString;
+
     /**
      * @throws SyntaxException
      */
@@ -88,33 +92,30 @@ class Variable implements CanBeEvaluated, CanBeRendered, HasParseTreeVisitorChil
 
     public function render(Context $context): string
     {
+        return $this->generatorToString($this->renderAsync($context));
+    }
+
+    /**
+     * @return Generator<string>
+     */
+    public function renderAsync(Context $context): Generator
+    {
         $output = $this->evaluate($context);
 
-        if ($output instanceof CanBeRendered) {
-            return $output->render($context);
+        if ($output instanceof Generator) {
+            yield from $output;
+
+            return;
         }
 
-        if (is_array($output)) {
-            return implode('', $output);
-        }
-
-        if ($output === null) {
-            return '';
-        }
-
-        if (is_bool($output)) {
-            return $output ? 'true' : 'false';
-        }
-
-        if (is_string($output) || is_numeric($output)) {
-            return (string) $output;
-        }
-
-        if (is_object($output) && method_exists($output, '__toString')) {
-            return (string) $output;
-        }
-
-        return '';
+        yield match (true) {
+            $output instanceof CanBeRendered => $output->render($context),
+            is_array($output) => implode('', $output),
+            is_bool($output) => $output ? 'true' : 'false',
+            is_string($output) || is_numeric($output) => (string) $output,
+            is_object($output) && method_exists($output, '__toString') => (string) $output,
+            default => '',
+        };
     }
 
     public function parseTreeVisitorChildren(): array
@@ -126,7 +127,11 @@ class Variable implements CanBeEvaluated, CanBeRendered, HasParseTreeVisitorChil
     {
         $output = $context->evaluate($this->name);
 
-        if ($output instanceof \Generator) {
+        if ($this->filters === []) {
+            return $output;
+        }
+
+        if ($output instanceof Generator) {
             $output = iterator_to_array($output);
         }
 

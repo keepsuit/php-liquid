@@ -57,8 +57,9 @@ class Template
     }
 
     /**
-     * @throws LiquidException
      * @return \Generator<string>
+     *
+     * @throws LiquidException
      */
     public function renderAsync(Context $context): \Generator
     {

@@ -24,6 +24,7 @@ class Profiler
     {
         if ($this->currentTiming != null) {
             $output = $renderFunction();
+
             return $output instanceof \Generator ? $this->generatorToString($output) : $output;
         }
 

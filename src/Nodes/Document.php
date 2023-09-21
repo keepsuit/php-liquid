@@ -54,13 +54,15 @@ class Document implements CanBeRendered
     }
 
     /**
-     * @throws LiquidException
      * @return Generator<string>
+     *
+     * @throws LiquidException
      */
     public function renderAsync(Context $context): Generator
     {
         if ($context->getProfiler() !== null) {
             yield $context->getProfiler()->profile($context->getTemplateName(), fn () => $this->renderBody($context));
+
             return;
         }
 
@@ -68,8 +70,9 @@ class Document implements CanBeRendered
     }
 
     /**
-     * @throws LiquidException
      * @return Generator<string>
+     *
+     * @throws LiquidException
      */
     protected function renderBody(Context $context): Generator
     {

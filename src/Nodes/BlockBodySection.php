@@ -11,7 +11,6 @@ use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\GeneratorToString;
 use Keepsuit\Liquid\Support\Str;
 use Keepsuit\Liquid\Tag;
-use Keepsuit\Liquid\Tags\RenderTag;
 
 class BlockBodySection implements CanBeRendered
 {
@@ -83,8 +82,9 @@ class BlockBodySection implements CanBeRendered
     }
 
     /**
-     * @throws LiquidException
      * @return \Generator<string>
+     *
+     * @throws LiquidException
      */
     public function renderAsync(Context $context): \Generator
     {
@@ -102,7 +102,7 @@ class BlockBodySection implements CanBeRendered
                     $node->ensureTagIsEnabled($context);
                 }
 
-                yield $this->renderNode($context, $node);
+                yield from $this->renderNode($context, $node);
             } catch (UndefinedVariableException|UndefinedDropMethodException|UndefinedFilterException $exception) {
                 $context->handleError($exception, $node->lineNumber);
             } catch (\Throwable $exception) {
@@ -115,18 +115,29 @@ class BlockBodySection implements CanBeRendered
         }
     }
 
-    protected function renderNode(Context $context, Variable|Tag $node): string
+    /**
+     * @return \Generator<string>
+     */
+    protected function renderNode(Context $context, Variable|Tag $node): \Generator
     {
         if ($context->getProfiler() !== null) {
-            return $context->getProfiler()->profileNode(
+            yield $context->getProfiler()->profileNode(
                 templateName: $context->getTemplateName(),
                 renderFunction: fn () => $node->render($context),
                 code: $node->raw(),
                 lineNumber: $node->lineNumber,
             );
+
+            return;
         }
 
-        return $node->render($context);
+        if ($node instanceof Variable) {
+            yield from $node->renderAsync($context);
+
+            return;
+        }
+
+        yield $node->render($context);
     }
 
     public function blank(): bool

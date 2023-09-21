@@ -6,7 +6,6 @@ trait GeneratorToString
 {
     /**
      * @param  \Generator<string>  $generator
-     * @return string
      */
     protected function generatorToString(\Generator $generator): string
     {
