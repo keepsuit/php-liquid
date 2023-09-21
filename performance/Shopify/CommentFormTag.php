@@ -58,6 +58,6 @@ class CommentFormTag extends TagBlock
 
         yield from parent::renderBody($context);
 
-        yield "</form>";
+        yield '</form>';
     }
 }
