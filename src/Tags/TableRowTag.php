@@ -12,11 +12,14 @@ use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Arr;
+use Keepsuit\Liquid\Support\AsyncRenderingTag;
 use Keepsuit\Liquid\TagBlock;
 use Traversable;
 
 class TableRowTag extends TagBlock implements HasParseTreeVisitorChildren
 {
+    use AsyncRenderingTag;
+
     const Syntax = '/(\w+)\s+in\s+('.Regex::QuotedFragment.'+)/';
 
     protected string $variableName;
@@ -50,7 +53,7 @@ class TableRowTag extends TagBlock implements HasParseTreeVisitorChildren
         return $this;
     }
 
-    public function render(Context $context): string
+    public function renderAsync(Context $context): \Generator
     {
         $collection = $context->evaluate($this->collectionName) ?? [];
         $collection = match (true) {
@@ -78,30 +81,28 @@ class TableRowTag extends TagBlock implements HasParseTreeVisitorChildren
             throw new InvalidArgumentException('invalid integer');
         }
 
-        $output = '<tr class="row1">';
+        yield '<tr class="row1">';
 
-        $context->stack(function () use ($collection, $context, $cols, $length, &$output) {
+        yield from $context->stackAsync(function () use ($collection, $context, $cols, $length) {
             $tableRowLoop = new TableRowLoopDrop($length, $cols);
             $context->set('tablerowloop', $tableRowLoop);
 
             foreach ($collection as $item) {
                 $context->set($this->variableName, $item);
 
-                $output .= sprintf('<td class="col%s">', $tableRowLoop->col);
-                $output .= parent::render($context);
-                $output .= '</td>';
+                yield sprintf('<td class="col%s">', $tableRowLoop->col);
+                yield from parent::renderBody($context);
+                yield '</td>';
 
                 if ($tableRowLoop->col_last && ! $tableRowLoop->last) {
-                    $output .= sprintf('</tr><tr class="row%s">', $tableRowLoop->row + 1);
+                    yield sprintf('</tr><tr class="row%s">', $tableRowLoop->row + 1);
                 }
 
                 $tableRowLoop->increment();
             }
         });
 
-        $output .= '</tr>';
-
-        return $output;
+        yield '</tr>';
     }
 
     public function parseTreeVisitorChildren(): array

@@ -113,12 +113,33 @@ final class Context
         $this->push();
 
         try {
-            $result = $closure($this);
+            $output = $closure($this);
+
+            if ($output instanceof \Generator) {
+                throw new StandardException('Use stackAsync() for async operations');
+            }
+
+            return $output;
         } finally {
             $this->pop();
         }
+    }
 
-        return $result;
+    /**
+     * @template TResult
+     *
+     * @param  Closure(Context $context): \Generator<TResult>  $closure
+     * @return \Generator<TResult>
+     */
+    public function stackAsync(Closure $closure): \Generator
+    {
+        $this->push();
+
+        try {
+            yield from $closure($this);
+        } finally {
+            $this->pop();
+        }
     }
 
     public function evaluate(mixed $value): mixed
@@ -376,26 +397,60 @@ final class Context
      *
      * @param  string[]  $tags
      * @param  Closure(Context $context): TResult  $closure
-     * @return \Generator<TResult>
+     * @return TResult
      */
     public function withDisabledTags(array $tags, Closure $closure)
     {
-        foreach ($tags as $tag) {
-            $this->sharedState->disabledTags[$tag] = ($this->sharedState->disabledTags[$tag] ?? 0) + 1;
-        }
+        $this->disableTags($tags);
 
         try {
             $output = $closure($this);
 
             if ($output instanceof \Generator) {
-                yield from $output;
-            } else {
-                yield $output;
+                throw new StandardException('Use withDisabledTagsAsync() for async operations');
             }
+
+            return $output;
         } finally {
-            foreach ($tags as $tag) {
-                $this->sharedState->disabledTags[$tag] = max(0, ($this->sharedState->disabledTags[$tag] ?? 0) - 1);
-            }
+            $this->enableTags($tags);
+        }
+    }
+
+    /**
+     * @template TResult
+     *
+     * @param  string[]  $tags
+     * @param  Closure(Context $context): \Generator<TResult>  $closure
+     * @return \Generator<TResult>
+     */
+    public function withDisabledTagsAsync(array $tags, Closure $closure): \Generator
+    {
+        $this->disableTags($tags);
+
+        try {
+            yield from $closure($this);
+        } finally {
+            $this->enableTags($tags);
+        }
+    }
+
+    /**
+     * @param  array<string>  $tags
+     */
+    protected function disableTags(array $tags): void
+    {
+        foreach ($tags as $tag) {
+            $this->sharedState->disabledTags[$tag] = ($this->sharedState->disabledTags[$tag] ?? 0) + 1;
+        }
+    }
+
+    /**
+     * @param  array<string>  $tags
+     */
+    protected function enableTags(array $tags): void
+    {
+        foreach ($tags as $tag) {
+            $this->sharedState->disabledTags[$tag] = max(0, ($this->sharedState->disabledTags[$tag] ?? 0) - 1);
         }
     }
 

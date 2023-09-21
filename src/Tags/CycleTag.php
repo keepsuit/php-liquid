@@ -9,10 +9,13 @@ use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Arr;
+use Keepsuit\Liquid\Support\AsyncRenderingTag;
 use Keepsuit\Liquid\Tag;
 
 class CycleTag extends Tag implements HasParseTreeVisitorChildren
 {
+    use AsyncRenderingTag;
+
     protected const SimpleSyntax = '/\A'.Regex::QuotedFragment.'+/';
 
     protected const NamedSyntax = '/\A('.Regex::QuotedFragment.')\s*\:\s*(.*)/m';
@@ -43,10 +46,8 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
         return $this;
     }
 
-    public function render(Context $context): string
+    public function renderAsync(Context $context): \Generator
     {
-        $output = '';
-
         $register = $context->getRegister('cycle') ?? [];
         assert(is_array($register));
         $key = $context->evaluate($this->name);
@@ -55,20 +56,16 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
 
         $value = $this->variables[$iteration];
 
-        $value = match (true) {
+        yield match (true) {
             is_array($value) => implode('', $value),
             default => (string) $value,
         };
-
-        $output .= $value;
 
         $iteration += 1;
         $iteration = $iteration >= count($this->variables) ? 0 : $iteration;
 
         $register[$key] = $iteration;
         $context->setRegister('cycle', $register);
-
-        return $output;
     }
 
     public function parseTreeVisitorChildren(): array

@@ -58,9 +58,12 @@ abstract class TagBlock extends Tag
         return $this->generatorToString($this->renderBody($context));
     }
 
+    /**
+     * @return \Generator<string>
+     */
     protected function renderBody(Context $context): \Generator
     {
-        return $context->withDisabledTags($this->disabledTags(), function (Context $context) {
+        return $context->withDisabledTagsAsync($this->disabledTags(), function (Context $context) {
             foreach ($this->bodySections as $bodySection) {
                 yield from $bodySection->renderAsync($context);
             }

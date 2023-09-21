@@ -7,10 +7,13 @@ use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Support\AsyncRenderingTag;
 use Keepsuit\Liquid\TagBlock;
 
 class CommentFormTag extends TagBlock
 {
+    use AsyncRenderingTag;
+
     protected const Syntax = '/('.Regex::VariableSignature.'+)/';
 
     protected string $variableName;
@@ -36,7 +39,7 @@ class CommentFormTag extends TagBlock
         return $this;
     }
 
-    public function render(Context $context): string
+    public function renderAsync(Context $context): \Generator
     {
         $article = $context->get($this->variableName);
         assert(is_array($article));
@@ -51,15 +54,10 @@ class CommentFormTag extends TagBlock
             ]);
         });
 
-        return $this->wrapInForm($article, parent::render($context));
-    }
+        yield "<form id=\"article-{$article['id']}-comment-form\" class=\"comment-form\" method=\"post\" action=\"\">";
 
-    protected function wrapInForm(array $article, string $input): string
-    {
-        return <<<HTML
-        <form id="article-{$article['id']}-comment-form" class="comment-form" method="post" action="">
-        $input
-        </form>
-        HTML;
+        yield from parent::renderBody($context);
+
+        yield "</form>";
     }
 }

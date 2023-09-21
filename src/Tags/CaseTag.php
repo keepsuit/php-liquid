@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Generator;
 use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Condition\ElseCondition;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
@@ -11,10 +12,13 @@ use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Support\AsyncRenderingTag;
 use Keepsuit\Liquid\TagBlock;
 
 class CaseTag extends TagBlock implements HasParseTreeVisitorChildren
 {
+    use AsyncRenderingTag;
+
     protected const Syntax = '/('.Regex::QuotedFragment.')/';
 
     protected const WhenSyntax = '/('.Regex::QuotedFragment.')(?:(?:\s+or\s+|\s*\,\s*)(.*))?/m';
@@ -45,19 +49,21 @@ class CaseTag extends TagBlock implements HasParseTreeVisitorChildren
         return $this;
     }
 
-    public function render(Context $context): string
+    public function renderAsync(Context $context): Generator
     {
         foreach ($this->conditions as $condition) {
             if ($condition->else()) {
-                return $condition->attachment?->render($context) ?? '';
+                yield from $condition->attachment?->renderAsync($context) ?? [];
+
+                return;
             }
 
             if ($condition->evaluate($context)) {
-                return $condition->attachment?->render($context) ?? '';
+                yield from $condition->attachment?->renderAsync($context) ?? [];
+
+                return;
             }
         }
-
-        return '';
     }
 
     public function nodeList(): array

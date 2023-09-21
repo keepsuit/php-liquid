@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Generator;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Drops\ForLoopDrop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
@@ -16,11 +17,14 @@ use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Arr;
+use Keepsuit\Liquid\Support\AsyncRenderingTag;
 use Keepsuit\Liquid\TagBlock;
 use Traversable;
 
 class ForTag extends TagBlock implements HasParseTreeVisitorChildren
 {
+    use AsyncRenderingTag;
+
     const Syntax = '/\A('.Regex::VariableSegment.'+)\s+in\s+('.Regex::QuotedFragment.'+)\s*(reversed)?/';
 
     protected string $variableName;
@@ -64,15 +68,17 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
         return $this;
     }
 
-    public function render(Context $context): string
+    public function renderAsync(Context $context): Generator
     {
         $segment = $this->collectionSegment($context);
 
         if ($segment === []) {
-            return $this->renderElse($context);
+            yield from $this->renderElse($context);
+
+            return;
         }
 
-        return $this->renderSegment($context, $segment);
+        yield from $this->renderSegment($context, $segment);
     }
 
     public function nodeList(): array
@@ -177,13 +183,16 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
         return $segment;
     }
 
-    protected function renderSegment(Context $context, array $segment): string
+    /**
+     * @return Generator<string>
+     */
+    protected function renderSegment(Context $context, array $segment): Generator
     {
         /** @var ForLoopDrop[] $forStack */
         $forStack = $context->getRegister('for_stack') ?? [];
         assert(is_array($forStack));
 
-        return $context->stack(function () use ($context, $segment, $forStack) {
+        return $context->stackAsync(function () use ($context, $segment, $forStack) {
             $loopVars = new ForLoopDrop(
                 name: $this->name,
                 length: count($segment),
@@ -195,10 +204,9 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
 
             try {
                 $context->set('forloop', $loopVars);
-                $output = '';
                 foreach ($segment as $value) {
                     $context->set($this->variableName, $value);
-                    $output .= $this->forBlock->render($context);
+                    yield from $this->forBlock->renderAsync($context);
                     $loopVars->increment();
 
                     $interrupt = $context->popInterrupt();
@@ -213,13 +221,14 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
                 array_pop($forStack);
                 $context->setRegister('for_stack', $forStack);
             }
-
-            return $output;
         });
     }
 
-    protected function renderElse(Context $context): string
+    /**
+     * @return Generator<string>
+     */
+    protected function renderElse(Context $context): Generator
     {
-        return $this->elseBlock?->render($context) ?? '';
+        yield from $this->elseBlock?->renderAsync($context) ?? [];
     }
 }

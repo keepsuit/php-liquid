@@ -7,10 +7,13 @@ use Keepsuit\Liquid\Parse\BlockParser;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Support\AsyncRenderingTag;
 use Keepsuit\Liquid\Tag;
 
 class LiquidTag extends Tag
 {
+    use AsyncRenderingTag;
+
     /**
      * @var BlockBodySection[]
      */
@@ -33,14 +36,10 @@ class LiquidTag extends Tag
         return $this;
     }
 
-    public function render(Context $context): string
+    public function renderAsync(Context $context): \Generator
     {
-        $output = '';
-
         foreach ($this->bodySections as $bodySection) {
-            $output .= $bodySection->render($context);
+            yield from $bodySection->renderAsync($context);
         }
-
-        return $output;
     }
 }
