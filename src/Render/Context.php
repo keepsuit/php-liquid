@@ -376,7 +376,7 @@ final class Context
      *
      * @param  string[]  $tags
      * @param  Closure(Context $context): TResult  $closure
-     * @return TResult
+     * @return \Generator<TResult>
      */
     public function withDisabledTags(array $tags, Closure $closure)
     {
@@ -386,13 +386,17 @@ final class Context
 
         try {
             $output = $closure($this);
+
+            if ($output instanceof \Generator) {
+                yield from $output;
+            } else {
+                yield $output;
+            }
         } finally {
             foreach ($tags as $tag) {
                 $this->sharedState->disabledTags[$tag] = max(0, ($this->sharedState->disabledTags[$tag] ?? 0) - 1);
             }
         }
-
-        return $output;
     }
 
     public function tagDisabled(string $tag): bool

@@ -131,13 +131,7 @@ class BlockBodySection implements CanBeRendered
             return;
         }
 
-        if ($node instanceof Variable) {
-            yield from $node->renderAsync($context);
-
-            return;
-        }
-
-        yield $node->render($context);
+        yield from $node->renderAsync($context);
     }
 
     public function blank(): bool

@@ -108,8 +108,13 @@ class Variable implements CanBeEvaluated, CanBeRendered, HasParseTreeVisitorChil
             return;
         }
 
+        if ($output instanceof CanBeRendered) {
+            yield from $output->renderAsync($context);
+
+            return;
+        }
+
         yield match (true) {
-            $output instanceof CanBeRendered => $output->render($context),
             is_array($output) => implode('', $output),
             is_bool($output) => $output ? 'true' : 'false',
             is_string($output) || is_numeric($output) => (string) $output,

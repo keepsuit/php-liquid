@@ -447,16 +447,16 @@ test('new isolated subcontext inherit filters', function () {
 });
 
 test('disabled specified tags', function () {
-    $this->context->withDisabledTags(['foo', 'bar'], function (Context $context) {
+    iterator_to_array($this->context->withDisabledTags(['foo', 'bar'], function (Context $context) {
         expect($context)
             ->tagDisabled('foo')->toBe(true)
             ->tagDisabled('bar')->toBe(true)
             ->tagDisabled('unknown')->toBe(false);
-    });
+    }));
 });
 
 test('disabled nested tags', function () {
-    $this->context->withDisabledTags(['foo'], function (Context $context) {
+    iterator_to_array($this->context->withDisabledTags(['foo'], function (Context $context) {
         $context->withDisabledTags(['foo'], function (Context $context) {
             expect($context)
                 ->tagDisabled('foo')->toBe(true)
@@ -478,7 +478,7 @@ test('disabled nested tags', function () {
         expect($context)
             ->tagDisabled('foo')->toBe(true)
             ->tagDisabled('bar')->toBe(false);
-    });
+    }));
 });
 
 test('has key will not add an error for missing keys', function () {

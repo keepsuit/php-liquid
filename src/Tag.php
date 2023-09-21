@@ -54,6 +54,14 @@ abstract class Tag implements CanBeRendered
         return '';
     }
 
+    /**
+     * @return \Generator<string>
+     */
+    public function renderAsync(Context $context): \Generator
+    {
+        yield $this->render($context);
+    }
+
     protected function parseExpression(ParseContext $parseContext, string $markup): mixed
     {
         return $parseContext->parseExpression($markup);
