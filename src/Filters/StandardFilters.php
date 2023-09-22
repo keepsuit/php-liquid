@@ -5,7 +5,6 @@ namespace Keepsuit\Liquid\Filters;
 use DateTime;
 use Iterator;
 use Keepsuit\Liquid\Contracts\IsContextAware;
-use Keepsuit\Liquid\Contracts\MapsToLiquid;
 use Keepsuit\Liquid\Drop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Support\Arr;
@@ -686,7 +685,8 @@ class StandardFilters extends FiltersProvider
     protected function mapToLiquid(array|Iterator $input): array
     {
         return Arr::map(Arr::from($input), function (mixed $value) {
-            $value = $value instanceof MapsToLiquid ? $value->toLiquid() : $value;
+            $value = $this->context->normalizeValue($value);
+
             if ($value instanceof IsContextAware) {
                 $value->setContext($this->context);
             }

@@ -171,9 +171,6 @@ final class Context
             return $this->strictVariables ? throw new UndefinedVariableException($key) : null;
         }
 
-        if ($variable instanceof MapsToLiquid) {
-            $variable = $variable->toLiquid();
-        }
         if ($variable instanceof IsContextAware) {
             $variable->setContext($this);
         }
@@ -216,8 +213,17 @@ final class Context
             default => new MissingValue(),
         };
 
+        return $this->normalizeValue($value);
+    }
+
+    public function normalizeValue(mixed $value): mixed
+    {
         if ($value instanceof Closure) {
-            return $this->sharedState->closuresCache[$value] ??= $value($this);
+            return $this->sharedState->computedObjectsCache[$value] ??= $value($this);
+        }
+
+        if ($value instanceof MapsToLiquid) {
+            return $this->sharedState->computedObjectsCache[$value] ??= $value->toLiquid();
         }
 
         return $value;

@@ -2,7 +2,6 @@
 
 namespace Keepsuit\Liquid\Render;
 
-use Closure;
 use Keepsuit\Liquid\Template;
 use WeakMap;
 
@@ -14,9 +13,9 @@ class ContextSharedState
     public array $partialsCache = [];
 
     /**
-     * @var WeakMap<Closure, mixed>
+     * @var WeakMap<object, mixed>
      */
-    public WeakMap $closuresCache;
+    public WeakMap $computedObjectsCache;
 
     public function __construct(
         /** @var array<string, mixed> */
@@ -28,6 +27,6 @@ class ContextSharedState
         /** @var array<string, int> */
         public array $disabledTags = [],
     ) {
-        $this->closuresCache = new WeakMap();
+        $this->computedObjectsCache = new WeakMap();
     }
 }

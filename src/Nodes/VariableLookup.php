@@ -4,8 +4,7 @@ namespace Keepsuit\Liquid\Nodes;
 
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
-use Keepsuit\Liquid\Contracts\MapsToLiquid;
-use Keepsuit\Liquid\Drop;
+use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Parse\Expression;
 use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Render\Context;
@@ -104,11 +103,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
                 default => $context->lookupAndEvaluate($object, $key),
             };
 
-            if ($object instanceof MapsToLiquid) {
-                $object = $object->toLiquid();
-            }
-
-            if ($object instanceof Drop) {
+            if ($object instanceof IsContextAware) {
                 $object->setContext($context);
             }
         }
