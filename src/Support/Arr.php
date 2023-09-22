@@ -4,7 +4,7 @@ namespace Keepsuit\Liquid\Support;
 
 use Closure;
 use InvalidArgumentException;
-use Iterator;
+use Traversable;
 
 class Arr
 {
@@ -101,10 +101,10 @@ class Arr
         return $result;
     }
 
-    public static function from(array|Iterator $array): array
+    public static function from(iterable $array): array
     {
         return match (true) {
-            $array instanceof Iterator => iterator_to_array($array),
+            $array instanceof Traversable => iterator_to_array($array),
             default => $array
         };
     }

@@ -80,7 +80,7 @@ class Drop implements IsContextAware, MapsToLiquid
             (new \ReflectionClass(Drop::class))->getMethods(\ReflectionMethod::IS_PUBLIC)
         );
 
-        if ($this instanceof \Iterator) {
+        if ($this instanceof \Traversable) {
             $blacklist = [...$blacklist, 'current', 'next', 'key', 'valid', 'rewind'];
         }
 

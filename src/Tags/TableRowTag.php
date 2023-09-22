@@ -13,6 +13,7 @@ use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\TagBlock;
+use Traversable;
 
 class TableRowTag extends TagBlock implements HasParseTreeVisitorChildren
 {
@@ -54,7 +55,7 @@ class TableRowTag extends TagBlock implements HasParseTreeVisitorChildren
         $collection = $context->evaluate($this->collectionName) ?? [];
         $collection = match (true) {
             $collection instanceof Range => $collection->toArray(),
-            $collection instanceof \Iterator => iterator_to_array($collection),
+            $collection instanceof Traversable => iterator_to_array($collection),
             is_string($collection) => $collection === '' ? [] : str_split($collection),
             default => $collection
         };

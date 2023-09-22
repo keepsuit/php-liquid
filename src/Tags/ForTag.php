@@ -17,6 +17,7 @@ use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\TagBlock;
+use Traversable;
 
 class ForTag extends TagBlock implements HasParseTreeVisitorChildren
 {
@@ -150,7 +151,8 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
         $collection = $context->evaluate($this->collectionName) ?? [];
         $collection = match (true) {
             $collection instanceof Range => $collection->toArray(),
-            $collection instanceof \Iterator => iterator_to_array($collection),
+            $collection instanceof Traversable => iterator_to_array($collection),
+            is_iterable($collection) => (array) $collection,
             default => $collection,
         };
         assert(is_array($collection));

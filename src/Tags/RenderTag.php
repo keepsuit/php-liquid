@@ -13,6 +13,7 @@ use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\Template;
+use Traversable;
 
 class RenderTag extends Tag implements HasParseTreeVisitorChildren
 {
@@ -71,7 +72,7 @@ class RenderTag extends Tag implements HasParseTreeVisitorChildren
         $variable = $this->variableNameExpression ? $context->evaluate($this->variableNameExpression) : null;
 
         if ($this->isForLoop) {
-            $variable = $variable instanceof \Traversable ? iterator_to_array($variable) : $variable;
+            $variable = $variable instanceof Traversable ? iterator_to_array($variable) : $variable;
             assert(is_array($variable));
 
             $forLoop = new ForLoopDrop($this->templateNameExpression, count($variable));

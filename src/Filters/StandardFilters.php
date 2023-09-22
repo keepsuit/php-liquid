@@ -9,6 +9,7 @@ use Keepsuit\Liquid\Drop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\Str;
+use Traversable;
 
 class StandardFilters extends FiltersProvider
 {
@@ -219,7 +220,7 @@ class StandardFilters extends FiltersProvider
     /**
      * Returns the first item in an array.
      */
-    public function first(array|Iterator $input): mixed
+    public function first(iterable $input): mixed
     {
         $input = $this->mapToLiquid($input);
 
@@ -249,7 +250,7 @@ class StandardFilters extends FiltersProvider
     /**
      * Returns the last item in an array.
      */
-    public function last(array|Iterator $input): mixed
+    public function last(iterable $input): mixed
     {
         $input = $this->mapToLiquid($input);
 
@@ -263,10 +264,10 @@ class StandardFilters extends FiltersProvider
     /**
      * Creates an array of values from a specific property of the items in an array.
      */
-    public function map(array|Drop|Iterator $input, string $property): mixed
+    public function map(iterable|Drop $input, string $property): mixed
     {
         if ($input instanceof Drop) {
-            if ($input instanceof \Traversable) {
+            if ($input instanceof Traversable) {
                 return $this->map(iterator_to_array($input), $property);
             }
 
@@ -552,7 +553,7 @@ class StandardFilters extends FiltersProvider
     /**
      * Returns the sum of all elements in an array.
      */
-    public function sum(array|Iterator $input, string $property = null): int|float
+    public function sum(iterable $input, string $property = null): int|float
     {
         $input = $this->mapToLiquid($input);
 
@@ -654,7 +655,7 @@ class StandardFilters extends FiltersProvider
     /**
      * Filters an array to include only items with a specific property value.
      */
-    public function where(array|Iterator $input, string $property = null, mixed $targetValue = null): array
+    public function where(iterable $input, string $property = null, mixed $targetValue = null): array
     {
         $input = $this->mapToLiquid($input);
 
@@ -682,7 +683,7 @@ class StandardFilters extends FiltersProvider
         return array_values($result);
     }
 
-    protected function mapToLiquid(array|Iterator $input): array
+    protected function mapToLiquid(iterable $input): array
     {
         return Arr::map(Arr::from($input), function (mixed $value) {
             $value = $this->context->normalizeValue($value);
