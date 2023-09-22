@@ -3,7 +3,6 @@
 namespace Keepsuit\Liquid\Filters;
 
 use DateTime;
-use Iterator;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Drop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
