@@ -95,9 +95,9 @@ class Drop implements IsContextAware, MapsToLiquid
             (new \ReflectionClass($this))->getMethods(\ReflectionMethod::IS_PUBLIC)
         );
 
-        return $this->invokableMethods = array_filter(
+        return $this->invokableMethods = array_values(array_filter(
             ['toLiquid', ...array_diff($subClassPublicMethods, $blacklist)],
             fn (?string $name) => $name !== null && ! str_starts_with($name, '__')
-        );
+        ));
     }
 }

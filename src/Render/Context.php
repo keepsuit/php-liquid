@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Render;
 
 use ArithmeticError;
 use Closure;
+use Hoa\Iterator\Map;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Contracts\LiquidFileSystem;
@@ -219,11 +220,16 @@ final class Context
     public function normalizeValue(mixed $value): mixed
     {
         if ($value instanceof Closure) {
-            return $this->sharedState->computedObjectsCache[$value] ??= $value($this);
+            return $this->sharedState->computedObjectsCache[$value] ??= $this->normalizeValue($value($this));
         }
 
         if ($value instanceof MapsToLiquid) {
-            return $this->sharedState->computedObjectsCache[$value] ??= $value->toLiquid();
+            $liquidValue = $value->toLiquid();
+            // Return value if toLiquid() returns itself
+            if ($value === $liquidValue) {
+                return $value;
+            }
+            return $this->sharedState->computedObjectsCache[$value] ??= $this->normalizeValue($liquidValue);
         }
 
         return $value;
@@ -368,7 +374,7 @@ final class Context
     /**
      * @template TResult
      *
-     * @param  string[]  $tags
+     * @param  string[]                            $tags
      * @param  Closure(Context $context): TResult  $closure
      * @return TResult
      */
