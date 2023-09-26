@@ -10,19 +10,15 @@ use Keepsuit\Liquid\Render\Context;
 
 class Template
 {
-    /**
-     * @var array<\Throwable>
-     */
-    protected array $errors = [];
+    protected TemplateSharedState $state;
 
     protected ?Profiler $profiler = null;
 
     public function __construct(
         public readonly Document $root,
         public readonly ?string $name = null,
-        /** @var array<string,Template> */
-        protected array $partialsCache = [],
     ) {
+        $this->state = new TemplateSharedState();
     }
 
     /**
@@ -34,11 +30,17 @@ class Template
             $tokenizer = $parseContext->newTokenizer($source);
             $root = Document::parse($parseContext, $tokenizer);
 
-            return new Template(
+            $template = new Template(
                 root: $root,
                 name: $name,
-                partialsCache: $parseContext->isPartial() ? [] : $parseContext->getPartialsCache(),
             );
+
+            if (! $parseContext->isPartial()) {
+                $template->state->partialsCache = $parseContext->getPartialsCache();
+                $template->state->outputs = $parseContext->getOutputs()->all();
+            }
+
+            return $template;
         } catch (LiquidException $e) {
             $e->templateName = $e->templateName ?? $name;
             throw $e;
@@ -53,32 +55,31 @@ class Template
         $this->profiler = $context->getProfiler();
 
         try {
-            $context->mergePartialsCache($this->partialsCache);
+            $context->mergePartialsCache($this->state->partialsCache);
+            $context->mergeOutputs($this->state->outputs);
 
             return $this->root->render($context);
         } catch (LiquidException $e) {
             $e->templateName = $e->templateName ?? $this->name;
             throw $e;
         } finally {
-            $this->errors = $context->getErrors();
+            $this->state->errors = $context->getErrors();
+            $this->state->outputs = $context->getOutputs()->all();
         }
+    }
+
+    public function getState(): TemplateSharedState
+    {
+        return $this->state;
     }
 
     public function getErrors(): array
     {
-        return $this->errors;
+        return $this->state->errors;
     }
 
     public function getProfiler(): ?Profiler
     {
         return $this->profiler;
-    }
-
-    /**
-     * @return array<string,Template>
-     */
-    public function getPartialsCache(): array
-    {
-        return $this->partialsCache;
     }
 }

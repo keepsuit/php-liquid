@@ -24,6 +24,7 @@ use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\FilterRegistry;
 use Keepsuit\Liquid\Support\I18n;
 use Keepsuit\Liquid\Support\MissingValue;
+use Keepsuit\Liquid\Support\OutputsBag;
 use Keepsuit\Liquid\Template;
 use RuntimeException;
 use Throwable;
@@ -345,6 +346,18 @@ final class Context
         $this->sharedState->partialsCache = array_merge($this->sharedState->partialsCache, $partialsCache);
 
         return $this;
+    }
+
+    public function mergeOutputs(array $outputs): Context
+    {
+        $this->sharedState->outputs->merge($outputs);
+
+        return $this;
+    }
+
+    public function getOutputs(): OutputsBag
+    {
+        return $this->sharedState->outputs;
     }
 
     /**

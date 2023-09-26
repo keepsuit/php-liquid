@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Render;
 
+use Keepsuit\Liquid\Support\OutputsBag;
 use Keepsuit\Liquid\Template;
 use WeakMap;
 
@@ -26,6 +27,7 @@ class ContextSharedState
         public array $errors = [],
         /** @var array<string, int> */
         public array $disabledTags = [],
+        public OutputsBag $outputs = new OutputsBag(),
     ) {
         $this->computedObjectsCache = new WeakMap();
     }
