@@ -30,11 +30,7 @@ class Drop implements IsContextAware, MapsToLiquid
 
     protected function liquidMethodMissing(string $name): mixed
     {
-        if ($this->context->strictVariables) {
-            throw new UndefinedDropMethodException($name);
-        }
-
-        return null;
+        throw new UndefinedDropMethodException($name);
     }
 
     public function __toString(): string
@@ -46,17 +42,13 @@ class Drop implements IsContextAware, MapsToLiquid
     {
         $invokableMethods = $this->getInvokableMethods();
 
-        if ($invokableMethods === []) {
-            return $this->liquidMethodMissing($name);
-        }
+        $possibleNames = [
+            $name,
+            Str::camel($name),
+            Str::snake($name),
+        ];
 
-        $possibleNames = function () use ($name) {
-            yield $name;
-            yield Str::camel($name);
-            yield Str::snake($name);
-        };
-
-        foreach ($possibleNames() as $methodName) {
+        foreach ($possibleNames as $methodName) {
             if (! in_array($methodName, $invokableMethods)) {
                 continue;
             }
@@ -66,7 +58,18 @@ class Drop implements IsContextAware, MapsToLiquid
             }
         }
 
-        return $this->liquidMethodMissing($name);
+        foreach ($possibleNames as $methodName) {
+            try {
+                return $this->liquidMethodMissing($methodName);
+            } catch (UndefinedDropMethodException) {
+            }
+        }
+
+        if ($this->context->strictVariables) {
+            throw new UndefinedDropMethodException($name);
+        }
+
+        return null;
     }
 
     protected function getInvokableMethods(): array
