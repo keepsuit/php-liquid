@@ -144,7 +144,7 @@ final class Context
 
     public function set(string $key, mixed $value): void
     {
-        $this->scopes[0][$key] = $value;
+        Arr::set($this->scopes[0], $key, $value);
     }
 
     public function get(string $key): mixed
