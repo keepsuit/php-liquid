@@ -67,13 +67,13 @@ test('invalid comparison operator', function () {
     expect(fn () => (new Condition(1, '~~', 0))->evaluate($this->context))->toThrow(SyntaxException::class);
 });
 
-test('comparison of int and string', function (mixed $left, string $operator, mixed $right) {
-    expect(fn () => (new Condition($left, $operator, $right))->evaluate($this->context))->toThrow(RuntimeException::class);
+test('comparison of int and string', function (mixed $left, string $operator, mixed $right, bool $result) {
+    expect((new Condition($left, $operator, $right))->evaluate($this->context))->toBe($result);
 })->with([
-    ['1', '>', 0],
-    ['1', '<', 0],
-    ['1', '>=', 0],
-    ['1', '<=', 0],
+    ['1', '>', 0, true],
+    ['1', '<', 0, false],
+    ['1', '>=', 0, true],
+    ['1', '<=', 0, false],
 ]);
 
 test('contains works on arrays', function (mixed $value, bool $result) {
