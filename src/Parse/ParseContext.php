@@ -12,6 +12,7 @@ use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\I18n;
+use Keepsuit\Liquid\Support\OutputsBag;
 use Keepsuit\Liquid\Support\TagRegistry;
 use Keepsuit\Liquid\Template;
 use Throwable;
@@ -33,6 +34,8 @@ class ParseContext
      */
     protected array $partialsCache = [];
 
+    protected OutputsBag $outputs;
+
     public function __construct(
         bool|int $startLineNumber = null,
         public readonly TagRegistry $tagRegistry = new TagRegistry(),
@@ -44,6 +47,8 @@ class ParseContext
             $startLineNumber === true => 1,
             default => null,
         };
+
+        $this->outputs = new OutputsBag();
     }
 
     public function isPartial(): bool
@@ -90,6 +95,11 @@ class ParseContext
     public function getPartialsCache(): array
     {
         return $this->partialsCache;
+    }
+
+    public function getOutputs(): OutputsBag
+    {
+        return $this->outputs;
     }
 
     /**

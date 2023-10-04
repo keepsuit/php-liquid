@@ -42,14 +42,21 @@ enum ConditionOperator
             };
         }
 
-        if (gettype($left) !== gettype($right)) {
+        if (gettype($left) === gettype($right)) {
+            return $this->regularEvaluation($left, $right);
+        }
+
+        if ($this->isNumberOrNumericString($left) && $this->isNumberOrNumericString($right)) {
             return match ($this) {
-                ConditionOperator::Equal, ConditionOperator::NotEqual, ConditionOperator::Contains => $this->regularEvaluation($left, $right),
-                default => $this->throwCompareTypesException($left, $right),
+                ConditionOperator::Contains => $this->evaluateContains((string) $left, (string) $right),
+                default => $this->regularEvaluation($left + 0, $right + 0)
             };
         }
 
-        return $this->regularEvaluation($left, $right);
+        return match ($this) {
+            ConditionOperator::Equal, ConditionOperator::NotEqual, ConditionOperator::Contains => $this->regularEvaluation($left, $right),
+            default => $this->throwCompareTypesException($left, $right),
+        };
     }
 
     protected function regularEvaluation(mixed $left, mixed $right): bool
@@ -105,5 +112,17 @@ enum ConditionOperator
     protected function throwCompareTypesException(mixed $left, mixed $right): void
     {
         throw new \RuntimeException(sprintf('Cannot compare %s with %s', gettype($left), gettype($right)));
+    }
+
+    /**
+     * @phpstan-assert-if-true numeric-string|int|float $value
+     */
+    protected function isNumberOrNumericString(mixed $value): bool
+    {
+        return match (gettype($value)) {
+            'integer', 'double' => true,
+            'string' => is_numeric($value),
+            default => false,
+        };
     }
 }
