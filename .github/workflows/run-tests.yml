@@ -71,7 +71,7 @@ jobs:
           key: php-${{ matrix.php }}-composer
 
       - name: Install dependencies
-        run: composer update --${{ matrix.stability }} --prefer-dist --no-interaction
+        run: composer update --prefer-dist --no-interaction
 
       - name: Run benchmarks
         run: vendor/bin/phpbench run --progress=none --report=aggregate
