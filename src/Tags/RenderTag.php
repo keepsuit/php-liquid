@@ -11,12 +11,15 @@ use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\Support\Arr;
+use Keepsuit\Liquid\Support\AsyncRenderingTag;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\Template;
 use Traversable;
 
 class RenderTag extends Tag implements HasParseTreeVisitorChildren
 {
+    use AsyncRenderingTag;
+
     protected const Syntax = '/('.Regex::QuotedString.'+)(\s+(with|for)\s+('.Regex::QuotedFragment.'+))?(\s+(?:as)\s+('.Regex::VariableSegment.'+))?/';
 
     protected string $templateNameExpression;
@@ -62,7 +65,7 @@ class RenderTag extends Tag implements HasParseTreeVisitorChildren
         });
     }
 
-    public function render(Context $context): string
+    public function renderAsync(Context $context): \Generator
     {
         $partial = $context->loadPartial($this->templateNameExpression);
 
@@ -77,26 +80,25 @@ class RenderTag extends Tag implements HasParseTreeVisitorChildren
 
             $forLoop = new ForLoopDrop($this->templateNameExpression, count($variable));
 
-            $output = '';
             foreach ($variable as $value) {
                 $partialContext = $this->buildPartialContext($partial, $context, [
                     'forloop' => $forLoop,
                     $contextVariableName => $value,
                 ]);
 
-                $output .= $partial->render($partialContext);
+                yield from $partial->renderAsync($partialContext);
 
                 $forLoop->increment();
             }
 
-            return $output;
+            return;
         }
 
         $partialContext = $this->buildPartialContext($partial, $context, [
             $contextVariableName => $variable,
         ]);
 
-        return $partial->render($partialContext);
+        yield from $partial->renderAsync($partialContext);
     }
 
     public function parseTreeVisitorChildren(): array

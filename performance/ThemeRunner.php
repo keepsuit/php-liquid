@@ -60,11 +60,28 @@ class ThemeRunner
         }
     }
 
+    public function renderAsync(): void
+    {
+        $database = [...Database::tables()];
+
+        foreach ($this->compiledTemplates as $compiled) {
+            $compiled->renderAsync($database);
+        }
+    }
+
     public function run(): void
     {
         foreach ($this->tests as $test) {
             $compiled = $test->compile();
             $compiled->render();
+        }
+    }
+
+    public function runAsync(): void
+    {
+        foreach ($this->tests as $test) {
+            $compiled = $test->compile();
+            $compiled->renderAsync();
         }
     }
 

@@ -2,8 +2,12 @@
 
 namespace Keepsuit\Liquid\Profiler;
 
+use Keepsuit\Liquid\Support\GeneratorToString;
+
 class Timing
 {
+    use GeneratorToString;
+
     protected ?int $startTime = null;
 
     protected ?int $totalTime = null;
@@ -55,7 +59,7 @@ class Timing
     }
 
     /**
-     * @param  \Closure(): string  $renderFunction
+     * @param  \Closure(): (string|\Generator<string>)  $renderFunction
      */
     public function measure(\Closure $renderFunction): string
     {
@@ -67,6 +71,8 @@ class Timing
 
         try {
             $output = $renderFunction();
+
+            $output = $output instanceof \Generator ? $this->generatorToString($output) : $output;
         } finally {
             $this->totalTime = hrtime(true) - $this->startTime;
         }

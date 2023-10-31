@@ -25,14 +25,17 @@ class UnlessTag extends IfTag
         return $this;
     }
 
-    public function render(Context $context): string
+    public function renderAsync(Context $context): \Generator
     {
         $result = $this->unlessCondition?->evaluate($context);
+
         if (! $result) {
-            return $this->unlessCondition?->attachment?->render($context) ?? '';
+            yield from $this->unlessCondition?->attachment?->renderAsync($context) ?? [];
+
+            return;
         }
 
-        return parent::render($context);
+        yield from parent::renderAsync($context);
     }
 
     public function parseTreeVisitorChildren(): array

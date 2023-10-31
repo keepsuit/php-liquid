@@ -7,9 +7,12 @@ use Keepsuit\Liquid\Parse\BlockParser;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Support\GeneratorToString;
 
 abstract class TagBlock extends Tag
 {
+    use GeneratorToString;
+
     /**
      * @var array<BlockBodySection>
      */
@@ -52,14 +55,18 @@ abstract class TagBlock extends Tag
 
     public function render(Context $context): string
     {
-        return $context->withDisabledTags($this->disabledTags(), function (Context $context) {
-            $output = '';
+        return $this->generatorToString($this->renderBody($context));
+    }
 
+    /**
+     * @return \Generator<string>
+     */
+    protected function renderBody(Context $context): \Generator
+    {
+        return $context->withDisabledTagsAsync($this->disabledTags(), function (Context $context) {
             foreach ($this->bodySections as $bodySection) {
-                $output .= $bodySection->render($context);
+                yield from $bodySection->renderAsync($context);
             }
-
-            return $output;
         });
     }
 

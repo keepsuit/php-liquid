@@ -7,10 +7,13 @@ use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Support\AsyncRenderingTag;
 use Keepsuit\Liquid\Tag;
 
 class EchoTag extends Tag implements HasParseTreeVisitorChildren
 {
+    use AsyncRenderingTag;
+
     protected Variable $variable;
 
     public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
@@ -37,8 +40,8 @@ class EchoTag extends Tag implements HasParseTreeVisitorChildren
         return [$this->variable];
     }
 
-    public function render(Context $context): string
+    public function renderAsync(Context $context): \Generator
     {
-        return $this->variable->render($context);
+        yield from $this->variable->renderAsync($context);
     }
 }

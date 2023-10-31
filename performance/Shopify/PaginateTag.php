@@ -9,10 +9,13 @@ use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Support\AsyncRenderingTag;
 use Keepsuit\Liquid\TagBlock;
 
 class PaginateTag extends TagBlock
 {
+    use AsyncRenderingTag;
+
     protected const Syntax = '/('.Regex::QuotedFragment.')\s*(by\s*(\d+))?/';
 
     protected string $collectionName;
@@ -46,9 +49,9 @@ class PaginateTag extends TagBlock
         return $this;
     }
 
-    public function render(Context $context): string
+    public function renderAsync(Context $context): \Generator
     {
-        return $context->stack(function (Context $context) {
+        yield from $context->stackAsync(function (Context $context) {
             $currentPage = $context->get('current_page');
 
             $collection = $context->get($this->collectionName);
@@ -90,7 +93,7 @@ class PaginateTag extends TagBlock
 
             $context->set('paginate', $pagination);
 
-            return parent::render($context);
+            yield from parent::renderBody($context);
         });
     }
 

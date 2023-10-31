@@ -37,9 +37,19 @@ class LiquidBench
         $this->themeRunner->render();
     }
 
+    public function benchRenderAsync(): void
+    {
+        $this->themeRunner->renderAsync();
+    }
+
     public function benchParsingAndRendering(): void
     {
         $this->themeRunner->run();
+    }
+
+    public function benchParsingAndRenderingAsync(): void
+    {
+        $this->themeRunner->runAsync();
     }
 
     protected function getThemeRunner(): ThemeRunner

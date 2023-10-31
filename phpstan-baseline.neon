@@ -1,6 +1,11 @@
 parameters:
 	ignoreErrors:
 		-
+			message: "#^Part \\$article\\['id'\\] \\(mixed\\) of encapsed string cannot be cast to string\\.$#"
+			count: 1
+			path: performance/Shopify/CommentFormTag.php
+
+		-
 			message: "#^Parameter \\#3 \\.\\.\\.\\$values of function sprintf expects bool\\|float\\|int\\|string\\|null, mixed given\\.$#"
 			count: 3
 			path: performance/Shopify/CustomFilters.php
@@ -14,6 +19,11 @@ parameters:
 			message: "#^Parameter \\#1 \\$array of static method Keepsuit\\\\Liquid\\\\Support\\\\Arr\\:\\:first\\(\\) expects array, mixed given\\.$#"
 			count: 1
 			path: performance/Shopify/Database.php
+
+		-
+			message: "#^Generator expects value type string, mixed given\\.$#"
+			count: 1
+			path: src/Nodes/Variable.php
 
 		-
 			message: "#^Strict comparison using \\=\\=\\= between false and false will always evaluate to true\\.$#"

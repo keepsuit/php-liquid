@@ -12,10 +12,13 @@ use Keepsuit\Liquid\Parse\Parser;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Support\AsyncRenderingTag;
 use Keepsuit\Liquid\TagBlock;
 
 class IfTag extends TagBlock implements HasParseTreeVisitorChildren
 {
+    use AsyncRenderingTag;
+
     /** @var Condition[] */
     protected array $conditions = [];
 
@@ -38,18 +41,17 @@ class IfTag extends TagBlock implements HasParseTreeVisitorChildren
         return $this;
     }
 
-    public function render(Context $context): string
+    public function renderAsync(Context $context): \Generator
     {
-        $output = '';
         foreach ($this->conditions as $condition) {
             $result = $condition->evaluate($context);
 
             if ($result) {
-                return $condition->attachment?->render($context) ?? '';
+                yield from $condition->attachment?->renderAsync($context) ?? [];
+
+                return;
             }
         }
-
-        return $output;
     }
 
     public function parseTreeVisitorChildren(): array
