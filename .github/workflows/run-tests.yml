@@ -2,8 +2,11 @@ name: Tests
 
 on: [push, pull_request]
 
+env:
+  REQUIRED_PHP_EXTENSIONS: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
+
 jobs:
-  test:
+  tests:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
@@ -12,7 +15,7 @@ jobs:
         php: [8.2, 8.1]
         stability: [prefer-lowest, prefer-stable]
 
-    name: P${{ matrix.php }} - ${{ matrix.stability }} - ${{ matrix.os }}
+    name: Test on P${{ matrix.php }} - ${{ matrix.stability }} - ${{ matrix.os }}
 
     steps:
       - name: Checkout code
@@ -22,8 +25,14 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
+          extensions: ${{ env.REQUIRED_PHP_EXTENSIONS }}
           coverage: none
+
+      - name: "Cache composer dependencies"
+        uses: actions/cache@v3
+        with:
+          path: ~/.composer/cache
+          key: php-${{ matrix.php }}-composer-${{ matrix.os }}-${{ matrix.stability }}
 
       - name: Setup problem matchers
         run: |
@@ -35,3 +44,34 @@ jobs:
 
       - name: Execute tests
         run: vendor/bin/pest
+
+  benchmarks:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: [8.2]
+
+    name: Benchmark on P${{ matrix.php }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: ${{ env.REQUIRED_PHP_EXTENSIONS }}
+          coverage: none
+
+      - name: "Cache composer dependencies"
+        uses: actions/cache@v3
+        with:
+          path: ~/.composer/cache
+          key: php-${{ matrix.php }}-composer
+
+      - name: Install dependencies
+        run: composer update --${{ matrix.stability }} --prefer-dist --no-interaction
+
+      - name: Run benchmarks
+        run: vendor/bin/phpbench run --progress=none --report=aggregate

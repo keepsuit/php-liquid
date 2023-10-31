@@ -22,6 +22,7 @@
         "laravel/pint": "^1.2",
         "pestphp/pest": "^2.6",
         "pestphp/pest-plugin-arch": "^2.0",
+        "phpbench/phpbench": "^1.2",
         "phpstan/phpstan": "^1.10",
         "spatie/invade": "^2.0",
         "spatie/ray": "^1.28",
@@ -46,7 +47,7 @@
         "test-coverage": "vendor/bin/pest --coverage",
         "format": "vendor/bin/pint",
         "lint": "vendor/bin/phpstan analyse",
-        "benchmark": "@php performance/benchmark.php"
+        "benchmark": "vendor/bin/phpbench run --report=aggregate"
     },
     "config": {
         "sort-packages": true,

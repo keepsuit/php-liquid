@@ -16,11 +16,6 @@ parameters:
 			path: performance/Shopify/Database.php
 
 		-
-			message: "#^Comparison operation \"\\>\" between 0 and 0 is always false\\.$#"
-			count: 2
-			path: performance/benchmark.php
-
-		-
 			message: "#^Strict comparison using \\=\\=\\= between false and false will always evaluate to true\\.$#"
 			count: 1
 			path: src/Parse/Parser.php
