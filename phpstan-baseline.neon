@@ -21,11 +21,6 @@ parameters:
 			path: performance/Shopify/Database.php
 
 		-
-			message: "#^Comparison operation \"\\>\" between 0 and 0 is always false\\.$#"
-			count: 2
-			path: performance/benchmark.php
-
-		-
 			message: "#^Generator expects value type string, mixed given\\.$#"
 			count: 1
 			path: src/Nodes/Variable.php
