@@ -6,6 +6,7 @@ use Keepsuit\Liquid\Contracts\CanBeRendered;
 use Keepsuit\Liquid\Contracts\Disableable;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Exceptions\TagDisabledException;
+use Keepsuit\Liquid\Parse\Expression;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Parser;
 use Keepsuit\Liquid\Parse\Tokenizer;
@@ -54,9 +55,9 @@ abstract class Tag implements CanBeRendered
         return '';
     }
 
-    protected function parseExpression(ParseContext $parseContext, string $markup): mixed
+    protected function parseExpression(string $markup): mixed
     {
-        return $parseContext->parseExpression($markup);
+        return Expression::parse($markup);
     }
 
     protected function newParser(string $markup = null): Parser

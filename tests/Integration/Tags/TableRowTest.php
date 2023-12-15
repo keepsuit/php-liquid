@@ -163,17 +163,17 @@ test('tablerow loop drop attributes', function () {
 test('tablerow renders correct error message for invalid parameters', function () {
     assertTemplateResult(
         'Liquid error (line 1): invalid integer',
-        '{% tablerow n in (1...10) limit:true %} {{n}} {% endtablerow %}',
+        '{% tablerow n in (1..10) limit:true %} {{n}} {% endtablerow %}',
         renderErrors: true,
     );
     assertTemplateResult(
         'Liquid error (line 1): invalid integer',
-        '{% tablerow n in (1...10) offset:true %} {{n}} {% endtablerow %}',
+        '{% tablerow n in (1..10) offset:true %} {{n}} {% endtablerow %}',
         renderErrors: true,
     );
     assertTemplateResult(
         'Liquid error (line 1): invalid integer',
-        '{% tablerow n in (1...10) cols:true %} {{n}} {% endtablerow %}',
+        '{% tablerow n in (1..10) cols:true %} {{n}} {% endtablerow %}',
         renderErrors: true,
     );
 });

@@ -8,8 +8,10 @@ use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\BlockBodySection;
 use Keepsuit\Liquid\Parse\ParseContext;
+use Keepsuit\Liquid\Parse\Parser;
 use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
+use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\TagBlock;
 
@@ -32,13 +34,14 @@ class CaseTag extends TagBlock implements HasParseTreeVisitorChildren
     public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
     {
         parent::parse($parseContext, $tokenizer);
+
         $caseSection = array_shift($this->bodySections);
 
-        if (preg_match(self::Syntax, $this->markup, $matches) === 1) {
-            $this->left = $this->parseExpression($parseContext, $matches[1]);
-        } else {
-            throw new SyntaxException($parseContext->locale->translate('errors.syntax.case'));
-        }
+        $parser = $this->newParser();
+        $condition = $parser->expression();
+        $parser->consume(TokenType::EndOfString);
+
+        $this->left = $this->parseExpression($condition);
 
         $this->conditions = array_map(fn (BlockBodySection $block) => $this->parseBodySection($parseContext, $block), $this->bodySections);
 
@@ -75,7 +78,7 @@ class CaseTag extends TagBlock implements HasParseTreeVisitorChildren
         assert($section->startDelimiter() !== null);
 
         $condition = match ($section->startDelimiter()->tag) {
-            'when' => $this->recordWhenCondition($parseContext, $section->startDelimiter()->markup),
+            'when' => $this->recordWhenCondition($parseContext, $this->newParser($section->startDelimiter()->markup)),
             'else' => $this->recordElseCondition($parseContext, $section->startDelimiter()->markup),
             default => SyntaxException::unknownTag($parseContext, $section->startDelimiter()->tag, $section->startDelimiter()->markup),
         };
@@ -90,16 +93,14 @@ class CaseTag extends TagBlock implements HasParseTreeVisitorChildren
         return $condition;
     }
 
-    protected function recordWhenCondition(ParseContext $parseContext, string $markup): Condition
+    protected function recordWhenCondition(ParseContext $parseContext, Parser $parser): Condition
     {
-        if (preg_match(self::WhenSyntax, $markup, $matches) !== 1) {
-            throw new SyntaxException($parseContext->locale->translate('errors.syntax.case_invalid_when'));
-        }
+        $expression = $parser->expression();
 
-        $condition = new Condition($this->left, '==', $this->parseExpression($parseContext, $matches[1]));
+        $condition = new Condition($this->left, '==', $this->parseExpression($expression));
 
-        if ($matches[2] ?? false) {
-            $condition->or($this->recordWhenCondition($parseContext, $matches[2]));
+        while ($parser->idOrFalse('or') || $parser->consumeOrFalse(TokenType::Comma)) {
+            $condition->or($this->recordWhenCondition($parseContext, $parser));
         }
 
         return $condition;

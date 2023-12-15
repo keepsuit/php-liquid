@@ -11,8 +11,6 @@ use Keepsuit\Liquid\TagBlock;
 
 class RawTag extends TagBlock
 {
-    const MarkupSyntax = '/\A\s*\z/';
-
     const FullTokenPossiblyInvalid = '/\A(.*)'.Regex::TagStart.Regex::WhitespaceControl.'?\s*(\w+)\s*(.*)?'.Regex::WhitespaceControl.'?'.Regex::TagEnd.'\z/m';
 
     protected string $body;
@@ -24,7 +22,7 @@ class RawTag extends TagBlock
 
     public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
     {
-        if (preg_match(self::MarkupSyntax, $this->markup, $matches) !== 1) {
+        if (trim($this->markup) !== '') {
             throw new SyntaxException($parseContext->locale->translate('errors.syntax.tag_unexpected_args', ['tag' => static::tagName()]));
         }
 

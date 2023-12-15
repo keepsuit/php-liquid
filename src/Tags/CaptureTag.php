@@ -4,25 +4,24 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
+use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\Context;
 use Keepsuit\Liquid\TagBlock;
 
 class CaptureTag extends TagBlock
 {
-    protected const Syntax = '/('.Regex::VariableSignature.'+)/';
-
     protected string $to;
 
     public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
     {
         parent::parse($parseContext, $tokenizer);
 
-        if (preg_match(static::Syntax, $this->markup, $matches)) {
-            $this->to = $matches[1];
-        } else {
-            throw new SyntaxException($parseContext->locale->translate('errors.syntax.capture'));
+        try {
+            $parser = $this->newParser();
+            $this->to = $parser->consume(TokenType::Identifier);
+        } catch (SyntaxException $exception) {
+            throw new SyntaxException($parseContext->locale->translate('errors.syntax.capture'), previous: $exception);
         }
 
         return $this;

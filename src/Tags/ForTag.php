@@ -11,7 +11,6 @@ use Keepsuit\Liquid\Nodes\BlockBodySection;
 use Keepsuit\Liquid\Nodes\Range;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Parser;
-use Keepsuit\Liquid\Parse\Regex;
 use Keepsuit\Liquid\Parse\Tokenizer;
 use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\Context;
@@ -21,8 +20,6 @@ use Traversable;
 
 class ForTag extends TagBlock implements HasParseTreeVisitorChildren
 {
-    const Syntax = '/\A('.Regex::VariableSegment.'+)\s+in\s+('.Regex::QuotedFragment.'+)\s*(reversed)?/';
-
     protected string $variableName;
 
     protected mixed $collectionName;
@@ -101,7 +98,7 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
         }
 
         $collectionNameMarkup = $parser->expression();
-        $this->collectionName = $this->parseExpression($parseContext, $collectionNameMarkup);
+        $this->collectionName = $this->parseExpression($collectionNameMarkup);
 
         $this->name = sprintf('%s-%s', $this->variableName, $collectionNameMarkup);
         $this->reversed = $parser->idOrFalse('reversed') !== false;
@@ -126,13 +123,13 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
     protected function setAttribute(ParseContext $parseContext, string $attribute, string $expression): void
     {
         if ($attribute === 'offset') {
-            $this->from = $expression === 'continue' ? 'continue' : $this->parseExpression($parseContext, $expression);
+            $this->from = $expression === 'continue' ? 'continue' : $this->parseExpression($expression);
 
             return;
         }
 
         if ($attribute === 'limit') {
-            $this->limit = $this->parseExpression($parseContext, $expression);
+            $this->limit = $this->parseExpression($expression);
 
             return;
         }

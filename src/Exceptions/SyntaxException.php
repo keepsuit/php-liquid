@@ -70,6 +70,15 @@ class SyntaxException extends LiquidException
         ));
     }
 
+    public static function unexpectedIdentifier(string $expected, string $given): SyntaxException
+    {
+        return new SyntaxException(sprintf(
+            'Expected %s, got %s',
+            $expected,
+            $given
+        ));
+    }
+
     public static function invalidExpression(string $expression): SyntaxException
     {
         return new SyntaxException(sprintf('%s is not a valid expression', $expression));
