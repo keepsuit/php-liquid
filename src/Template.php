@@ -24,7 +24,7 @@ class Template
     /**
      * @throws LiquidException
      */
-    public static function parse(ParseContext $parseContext, string $source, string $name = null): Template
+    public static function parse(ParseContext $parseContext, string $source, ?string $name = null): Template
     {
         try {
             $tokenizer = $parseContext->newTokenizer($source);

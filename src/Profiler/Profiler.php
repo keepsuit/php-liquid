@@ -40,7 +40,7 @@ class Profiler
     /**
      * @param  Closure(): string  $renderFunction
      */
-    public function profileNode(?string $templateName, Closure $renderFunction, string $code = null, int $lineNumber = null): string
+    public function profileNode(?string $templateName, Closure $renderFunction, ?string $code = null, ?int $lineNumber = null): string
     {
         $timing = new Timing(
             templateName: $templateName,

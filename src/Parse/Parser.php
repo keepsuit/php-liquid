@@ -35,7 +35,7 @@ class Parser
      *
      * @throws SyntaxException
      */
-    public function consume(TokenType $type = null): string
+    public function consume(?TokenType $type = null): string
     {
         $token = $this->tokens[$this->pointer];
 
@@ -126,7 +126,7 @@ class Parser
     /**
      * @return array<string, string>
      */
-    public function attributes(TokenType $separator = null): array
+    public function attributes(?TokenType $separator = null): array
     {
         $attributes = [];
 

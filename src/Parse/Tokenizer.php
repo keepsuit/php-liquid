@@ -17,7 +17,7 @@ class Tokenizer
 
     public function __construct(
         protected string $source,
-        int|bool $startLineNumber = null,
+        int|bool|null $startLineNumber = null,
         public readonly bool $forLiquidTag = false
     ) {
         $this->tokens = $this->tokenize();

@@ -10,7 +10,7 @@ class I18n
 
     protected ?array $locale = null;
 
-    public function __construct(string $path = null)
+    public function __construct(?string $path = null)
     {
         $this->path = $path ?? __DIR__.'/../../locales/en.yml';
     }

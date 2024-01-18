@@ -79,7 +79,7 @@ class Str
     /**
      * Returns the portion of the string specified by the start and length parameters.
      */
-    public static function substr(string $string, int $start, int $length = null): string
+    public static function substr(string $string, int $start, ?int $length = null): string
     {
         return mb_substr($string, $start, $length);
     }

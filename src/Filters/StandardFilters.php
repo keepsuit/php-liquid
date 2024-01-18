@@ -85,7 +85,7 @@ class StandardFilters extends FiltersProvider
     /**
      * Removes any `nil` items from an array.
      */
-    public function compact(array $input, string $property = null): array
+    public function compact(array $input, ?string $property = null): array
     {
         return Arr::compact($this->mapToLiquid($input), $property);
     }
@@ -129,7 +129,7 @@ class StandardFilters extends FiltersProvider
      *   %Z - Time zone name
      *   %% - Literal ``%'' character
      */
-    public function date(DateTime|string|int|null $input, string $format = null): DateTime|string|int|null
+    public function date(DateTime|string|int|null $input, ?string $format = null): DateTime|string|int|null
     {
         if ($input === null || $input === '') {
             return $input;
@@ -426,7 +426,7 @@ class StandardFilters extends FiltersProvider
     /**
      * Sorts the items in an array in case-sensitive alphabetical, or numerical, order.
      */
-    public function sort(mixed $input, string $property = null): array
+    public function sort(mixed $input, ?string $property = null): array
     {
         $input = match (true) {
             is_array($input) && ! array_is_list($input) => [$input],
@@ -459,7 +459,7 @@ class StandardFilters extends FiltersProvider
     /**
      * Sorts the items in an array in case-insensitive alphabetical order.
      */
-    public function sortNatural(mixed $input, string $property = null): array
+    public function sortNatural(mixed $input, ?string $property = null): array
     {
         $input = match (true) {
             is_array($input) && ! array_is_list($input) => [$input],
@@ -552,7 +552,7 @@ class StandardFilters extends FiltersProvider
     /**
      * Returns the sum of all elements in an array.
      */
-    public function sum(iterable $input, string $property = null): int|float
+    public function sum(iterable $input, ?string $property = null): int|float
     {
         $input = $this->mapToLiquid($input);
 
@@ -621,7 +621,7 @@ class StandardFilters extends FiltersProvider
     /**
      * Removes any duplicate items in an array.
      */
-    public function uniq(array $input, string $property = null): array
+    public function uniq(array $input, ?string $property = null): array
     {
         return Arr::unique($this->mapToLiquid($input), $property);
     }
@@ -654,7 +654,7 @@ class StandardFilters extends FiltersProvider
     /**
      * Filters an array to include only items with a specific property value.
      */
-    public function where(iterable $input, string $property = null, mixed $targetValue = null): array
+    public function where(iterable $input, ?string $property = null, mixed $targetValue = null): array
     {
         $input = $this->mapToLiquid($input);
 

@@ -26,7 +26,7 @@ class Variable implements CanBeEvaluated, CanBeRendered, HasParseTreeVisitorChil
     ) {
     }
 
-    public static function fromMarkup(string $markup, int $lineNumber = null): Variable
+    public static function fromMarkup(string $markup, ?int $lineNumber = null): Variable
     {
         try {
             $variable = static::fromParser(new Parser($markup), $lineNumber);
@@ -40,7 +40,7 @@ class Variable implements CanBeEvaluated, CanBeRendered, HasParseTreeVisitorChil
         return $variable;
     }
 
-    public static function fromParser(Parser $parser, int $lineNumber = null): Variable
+    public static function fromParser(Parser $parser, ?int $lineNumber = null): Variable
     {
         if ($parser->look(TokenType::EndOfString)) {
             return new Variable(

@@ -13,7 +13,7 @@ class IteratorDrop extends Drop implements \Iterator
 
     protected array $data;
 
-    public function __construct(array $data = null)
+    public function __construct(?array $data = null)
     {
         $this->data = $data ?? [
             ['foo' => 1, 'bar' => 2],

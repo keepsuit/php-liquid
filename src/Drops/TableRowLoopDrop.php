@@ -5,18 +5,18 @@ namespace Keepsuit\Liquid\Drops;
 use Keepsuit\Liquid\Drop;
 
 /**
- * @property int  $col          The 1-based index of the current column.
- * @property int  $col0         The 0-based index of the current column.
- * @property bool $col_first    Returns true if the current column is the first in the row. Returns false if not.
- * @property bool $col_last     Returns true if the current column is the last in the row. Returns false if not.
- * @property bool $first        Returns true if the current iteration is the first. Returns false if not.
- * @property int  $index        The 1-based index of the current iteration.
- * @property int  $index0       The 0-based index of the current iteration.
- * @property bool $last         Returns true if the current iteration is the last. Returns false if not.
- * @property int  $length       The total number of iterations in the loop.
- * @property int  $rindex       The 1-based index of the current iteration, in reverse order.
- * @property int  $rindex0      The 0-based index of the current iteration, in reverse order.
- * @property int  $row          The 1-based index of current row.
+ * @property int $col The 1-based index of the current column.
+ * @property int $col0 The 0-based index of the current column.
+ * @property bool $col_first Returns true if the current column is the first in the row. Returns false if not.
+ * @property bool $col_last Returns true if the current column is the last in the row. Returns false if not.
+ * @property bool $first Returns true if the current iteration is the first. Returns false if not.
+ * @property int $index The 1-based index of the current iteration.
+ * @property int $index0 The 0-based index of the current iteration.
+ * @property bool $last Returns true if the current iteration is the last. Returns false if not.
+ * @property int $length The total number of iterations in the loop.
+ * @property int $rindex The 1-based index of the current iteration, in reverse order.
+ * @property int $rindex0 The 0-based index of the current iteration, in reverse order.
+ * @property int $row The 1-based index of current row.
  */
 class TableRowLoopDrop extends Drop
 {

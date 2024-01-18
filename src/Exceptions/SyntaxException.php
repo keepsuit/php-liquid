@@ -40,7 +40,7 @@ class SyntaxException extends LiquidException
         ]));
     }
 
-    public static function unknownTag(ParseContext $parseContext, string $tagName, string $blockTagName, string $blockDelimiter = null): SyntaxException
+    public static function unknownTag(ParseContext $parseContext, string $tagName, string $blockTagName, ?string $blockDelimiter = null): SyntaxException
     {
         $exception = match (true) {
             $tagName === 'else' => new SyntaxException($parseContext->locale->translate('errors.syntax.unexpected_else', [

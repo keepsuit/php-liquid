@@ -289,7 +289,7 @@ final class Context
     /**
      * @throws Throwable
      */
-    public function handleError(Throwable $error, int $lineNumber = null): string
+    public function handleError(Throwable $error, ?int $lineNumber = null): string
     {
         $error = match (true) {
             $error instanceof ResourceLimitException => throw $error,

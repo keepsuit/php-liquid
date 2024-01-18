@@ -37,7 +37,7 @@ class ParseContext
     protected OutputsBag $outputs;
 
     public function __construct(
-        bool|int $startLineNumber = null,
+        bool|int|null $startLineNumber = null,
         public readonly TagRegistry $tagRegistry = new TagRegistry(),
         public readonly LiquidFileSystem $fileSystem = new BlankFileSystem(),
         public readonly I18n $locale = new I18n(),

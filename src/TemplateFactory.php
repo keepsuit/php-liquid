@@ -171,7 +171,7 @@ final class TemplateFactory
     /**
      * @throws SyntaxException
      */
-    public function parseString(string $source, string $name = null): Template
+    public function parseString(string $source, ?string $name = null): Template
     {
         return Template::parse($this->newParseContext(), $source, $name);
     }

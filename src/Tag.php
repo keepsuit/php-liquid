@@ -59,7 +59,7 @@ abstract class Tag implements CanBeRendered
         return $parseContext->parseExpression($markup);
     }
 
-    protected function newParser(string $markup = null): Parser
+    protected function newParser(?string $markup = null): Parser
     {
         return new Parser($markup ?? $this->markup);
     }

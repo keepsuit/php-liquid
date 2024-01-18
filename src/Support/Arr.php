@@ -8,7 +8,7 @@ use Traversable;
 
 class Arr
 {
-    public static function first(array $array, Closure $callback = null, mixed $default = null): mixed
+    public static function first(array $array, ?Closure $callback = null, mixed $default = null): mixed
     {
         if (is_null($callback)) {
             if (empty($array)) {
@@ -81,7 +81,7 @@ class Arr
         return $result;
     }
 
-    public static function compact(array $array, Closure|string $callbackOrProperty = null): array
+    public static function compact(array $array, Closure|string|null $callbackOrProperty = null): array
     {
         $filterCallback = match (true) {
             $callbackOrProperty === null => fn (mixed $item) => $item !== null,
@@ -92,7 +92,7 @@ class Arr
         return array_values(Arr::filter($array, $filterCallback));
     }
 
-    public static function unique(array $array, Closure|string $callbackOrProperty = null): array
+    public static function unique(array $array, Closure|string|null $callbackOrProperty = null): array
     {
         $result = array_unique($callbackOrProperty === null ? [...$array] : Arr::map($array, $callbackOrProperty));
 
