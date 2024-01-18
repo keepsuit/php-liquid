@@ -58,10 +58,6 @@ class I18n
 
     protected function getLocale(): array
     {
-        if (! extension_loaded('yaml')) {
-            throw new \RuntimeException('yaml extension is required');
-        }
-
         if ($this->locale === null) {
             $this->locale = YamlParser::parseFile($this->path);
         }
