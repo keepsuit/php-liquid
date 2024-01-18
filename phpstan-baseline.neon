@@ -11,16 +11,6 @@ parameters:
 			path: performance/Shopify/Database.php
 
 		-
-			message: "#^Parameter \\#1 \\$array of static method Keepsuit\\\\Liquid\\\\Support\\\\Arr\\:\\:first\\(\\) expects array, mixed given\\.$#"
-			count: 1
-			path: performance/Shopify/Database.php
-
-		-
-			message: "#^Strict comparison using \\=\\=\\= between false and false will always evaluate to true\\.$#"
-			count: 1
-			path: src/Parse/Parser.php
-
-		-
 			message: "#^Strict comparison using \\!\\=\\= between null and null will always evaluate to false\\.$#"
 			count: 1
 			path: src/Profiler/Profiler.php

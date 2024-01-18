@@ -22,12 +22,17 @@ class Parser
         $this->pointer = 0;
     }
 
+    /**
+     * @phpstan-impure
+     */
     public function jump(int $int): void
     {
         $this->pointer = $int;
     }
 
     /**
+     * @phpstan-impure
+     *
      * @throws SyntaxException
      */
     public function consume(TokenType $type = null): string
@@ -53,6 +58,8 @@ class Parser
     }
 
     /**
+     * @phpstan-impure
+     *
      * @throws SyntaxException
      */
     public function id(string $identifier): string|false
