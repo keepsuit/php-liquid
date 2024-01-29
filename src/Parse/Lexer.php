@@ -184,13 +184,13 @@ class Lexer
             $this->moveCursor($matches[0]);
         }
 
+        $this->ensureStreamNotEnded();
+
         if ($this->source[$this->cursor] === '#') {
             $this->lexInlineComment();
 
             return;
         }
-
-        $this->ensureStreamNotEnded();
 
         $token = match (true) {
             $this->cursor + 1 < $this->end && $this->source[$this->cursor] === '.' && $this->source[$this->cursor + 1] === '.' => [TokenType::DotDot, '..'],

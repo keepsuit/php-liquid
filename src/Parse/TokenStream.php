@@ -125,7 +125,7 @@ class TokenStream
 
     public function current(): ?Token
     {
-        return $this->tokens[$this->cursor];
+        return $this->tokens[$this->cursor] ?? null;
     }
 
     public function isEnd(): bool

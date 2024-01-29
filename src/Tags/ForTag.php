@@ -146,7 +146,6 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
 
         $limitValue = $context->evaluate($this->limit);
         $length = $limitValue === null ? null : (is_numeric($limitValue) ? (int) $limitValue : throw new InvalidArgumentException('Invalid integer'));
-
         $segment = array_slice($collection, $offset, $length);
         $segment = $this->reversed ? array_reverse($segment) : $segment;
 
