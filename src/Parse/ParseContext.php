@@ -12,7 +12,6 @@ use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Nodes\BodyNode;
-use Keepsuit\Liquid\Support\I18n;
 use Keepsuit\Liquid\Support\OutputsBag;
 use Keepsuit\Liquid\Support\PartialsCache;
 use Keepsuit\Liquid\Support\TagRegistry;
@@ -40,7 +39,6 @@ class ParseContext
     public function __construct(
         public readonly TagRegistry $tagRegistry = new TagRegistry(),
         public readonly LiquidFileSystem $fileSystem = new BlankFileSystem(),
-        public readonly I18n $locale = new I18n(),
     ) {
         $this->lineNumber = 1;
         $this->outputs = new OutputsBag();
@@ -76,7 +74,6 @@ class ParseContext
         $partialParseContext = new ParseContext(
             tagRegistry: $this->tagRegistry,
             fileSystem: $this->fileSystem,
-            locale: $this->locale,
         );
         $partialParseContext->partial = true;
         $partialParseContext->depth = $this->depth;
@@ -119,7 +116,7 @@ class ParseContext
     public function nested(Closure $callback)
     {
         if ($this->depth >= self::MAX_DEPTH) {
-            throw new StackLevelException($this->locale->translate('errors.stack.nesting_too_deep'));
+            throw StackLevelException::nestingTooDeep();
         }
 
         $this->depth += 1;

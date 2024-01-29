@@ -215,8 +215,8 @@ class Lexer
     {
         if ($this->cursor >= $this->end) {
             $exception = match ($this->state) {
-                LexerState::Variable => SyntaxException::unclosedVariable(),
-                LexerState::Block => SyntaxException::unclosedBlock(),
+                LexerState::Variable => SyntaxException::missingVariableTerminator(),
+                LexerState::Block => SyntaxException::missingTagTerminator(),
                 default => SyntaxException::unexpectedEndOfTemplate(),
             };
 
@@ -231,7 +231,7 @@ class Lexer
     protected function lexRawData(): void
     {
         if (preg_match(LexerOptions::blockRawDataRegex(), $this->source, $matches, flags: PREG_OFFSET_CAPTURE, offset: $this->cursor) !== 1) {
-            throw SyntaxException::tagNeverClosed('raw', $this->parseContext);
+            throw SyntaxException::tagBlockNeverClosed('raw');
         }
 
         $text = substr($this->source, $this->cursor, $matches[0][1] - $this->cursor);
@@ -250,7 +250,7 @@ class Lexer
     protected function lexComment(): void
     {
         if (preg_match(LexerOptions::blockCommentDataRegex(), $this->source, $matches, flags: PREG_OFFSET_CAPTURE, offset: $this->cursor) !== 1) {
-            throw SyntaxException::tagNeverClosed('comment', $this->parseContext);
+            throw SyntaxException::tagBlockNeverClosed('comment');
         }
 
         $text = substr($this->source, $this->cursor, $matches[0][1] - $this->cursor);
@@ -261,7 +261,7 @@ class Lexer
     protected function lexInlineComment(): void
     {
         if (preg_match(LexerOptions::inlineCommentDataRegex(), $this->source, $matches, flags: PREG_OFFSET_CAPTURE, offset: $this->cursor) !== 1) {
-            throw SyntaxException::tagNeverClosed('#', $this->parseContext);
+            throw SyntaxException::tagBlockNeverClosed('#');
         }
 
         $text = substr($this->source, $this->cursor, $matches[0][1] - $this->cursor);

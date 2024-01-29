@@ -3,7 +3,6 @@
 namespace Keepsuit\Liquid\Exceptions;
 
 use Keepsuit\Liquid\Parse\LexerOptions;
-use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\Token;
 use Keepsuit\Liquid\Parse\TokenType;
 
@@ -11,50 +10,26 @@ class SyntaxException extends LiquidException
 {
     public ?string $tagName = null;
 
-    public static function missingTagTerminator(string $token, ParseContext $parseContext): self
+    public static function missingTagTerminator(): self
     {
-        return new SyntaxException($parseContext->locale->translate('errors.syntax.tag_termination', [
-            'token' => $token,
-            'regexp' => LexerOptions::TagBlockEnd->value,
-        ]));
+        return new SyntaxException(sprintf('Tag was not properly terminated with: %s', LexerOptions::TagBlockEnd->value));
     }
 
-    public static function tagNeverClosed(?string $tagName, ParseContext $parseContext): SyntaxException
+    public static function tagBlockNeverClosed(?string $tagName): SyntaxException
     {
-        return new SyntaxException($parseContext->locale->translate('errors.syntax.tag_never_closed', [
-            'block_name' => $tagName,
-        ]));
+        return new SyntaxException(sprintf("'%s' tag was never closed", $tagName));
     }
 
-    public static function missingVariableTerminator(string $token, ParseContext $parseContext): SyntaxException
+    public static function missingVariableTerminator(): SyntaxException
     {
-        return new SyntaxException($parseContext->locale->translate('errors.syntax.variable_termination', [
-            'token' => $token,
-            'regexp' => LexerOptions::TagVariableEnd->value,
-        ]));
+        return new SyntaxException(sprintf('Variable was not properly terminated with: %s', LexerOptions::TagVariableEnd->value));
     }
 
-    public static function unexpectedOuterTag(ParseContext $parseContext, string $tagName): SyntaxException
-    {
-        return new SyntaxException($parseContext->locale->translate('errors.syntax.unexpected_outer_tag', [
-            'tag' => $tagName,
-        ]));
-    }
-
-    public static function unknownTag(ParseContext $parseContext, string $tagName, string $blockTagName, ?string $blockDelimiter = null): SyntaxException
+    public static function unknownTag(string $tagName, ?string $blockTagName = null): SyntaxException
     {
         $exception = match (true) {
-            $tagName === 'else' || $tagName === 'end' => $blockTagName === ''
-                ? static::unexpectedOuterTag($parseContext, $tagName)
-                : new SyntaxException($parseContext->locale->translate('errors.syntax.unexpected_else', ['block_name' => $blockTagName])),
-            str_starts_with($tagName, 'end') && $blockTagName !== '' => new SyntaxException($parseContext->locale->translate('errors.syntax.invalid_delimiter', [
-                'tag' => $tagName,
-                'block_name' => $blockTagName,
-                'block_delimiter' => $blockDelimiter ?? 'end'.$blockTagName,
-            ])),
-            default => new SyntaxException($parseContext->locale->translate('errors.syntax.unknown_tag', [
-                'tag' => $tagName,
-            ])),
+            $blockTagName !== null && str_starts_with($tagName, 'end') => new SyntaxException(sprintf("'%s' is not a valid delimiter for %s tag. use end%s", $tagName, $blockTagName, $blockTagName)),
+            default => new SyntaxException(sprintf("Unknown tag '%s'", $tagName)),
         };
 
         $exception->tagName = $tagName;
@@ -102,16 +77,6 @@ class SyntaxException extends LiquidException
             $token->type->toString(),
             $token->data,
         ));
-    }
-
-    public static function unclosedVariable(): SyntaxException
-    {
-        return new SyntaxException('Unclosed variable');
-    }
-
-    public static function unclosedBlock(): SyntaxException
-    {
-        return new SyntaxException('Unclosed block');
     }
 
     protected function messagePrefix(): string

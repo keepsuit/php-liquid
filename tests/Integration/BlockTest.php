@@ -8,7 +8,7 @@ beforeEach(function () {
 
 test('unexpected end tag', function () {
     expect(fn () => renderTemplate('{% if true %}{% endunless %}'))
-        ->toThrow(SyntaxException::class, "'endunless' is not a valid delimiter for if tags. use endif");
+        ->toThrow(SyntaxException::class, "'endunless' is not a valid delimiter for if tag. use endif");
 });
 
 test('with custom tag block', function () {

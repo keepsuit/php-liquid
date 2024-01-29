@@ -49,7 +49,7 @@ class LiquidTag extends Tag
         $tagClass = $context->getParseContext()->tagRegistry->get($tagName) ?? null;
 
         if ($tagClass === null || ! class_exists($tagClass)) {
-            throw SyntaxException::unknownTag($context->getParseContext(), $tagName, '');
+            throw SyntaxException::unknownTag($tagName);
         }
 
         $tag = (new $tagClass())->setLineNumber($currentToken->lineNumber);
@@ -78,7 +78,7 @@ class LiquidTag extends Tag
                 try {
                     $currentTagName = $tokens->consume(TokenType::Identifier)->data;
                 } catch (SyntaxException $e) {
-                    throw SyntaxException::tagNeverClosed($tag::tagName(), $tagParseContext->getParseContext());
+                    throw SyntaxException::tagBlockNeverClosed($tag::tagName());
                 }
                 $tokens->jump(-1);
             } while ($currentTagName !== $tag::blockDelimiter());
@@ -111,7 +111,7 @@ class LiquidTag extends Tag
         if (! $context->params->current()) {
             $context->getParseContext()->lineNumber++;
 
-            throw SyntaxException::tagNeverClosed($currentTag, $context->getParseContext());
+            throw SyntaxException::tagBlockNeverClosed($currentTag);
         }
 
         return $context->params->current();

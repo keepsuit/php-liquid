@@ -12,6 +12,8 @@ use Keepsuit\Liquid\Tag;
 
 class CycleTag extends Tag implements HasParseTreeVisitorChildren
 {
+    protected const SYNTAX_ERROR = "Syntax Error in 'cycle' - Valid syntax: cycle [name :] var [, var2, var3 ...]";
+
     /**
      * @var (string|int|float)[]
      */
@@ -31,13 +33,13 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
 
         if ($context->params->look(TokenType::Colon, 1)) {
             if (! in_array($context->params->current()?->type, [TokenType::String, TokenType::Number, TokenType::Identifier])) {
-                throw new SyntaxException($context->getParseContext()->locale->translate('errors.syntax.cycle'));
+                throw new SyntaxException(self::SYNTAX_ERROR);
             }
 
             $name = $context->params->expression();
             $this->name = match (true) {
                 is_string($name), is_numeric($name), $name instanceof VariableLookup => (string) $name,
-                default => throw new SyntaxException($context->getParseContext()->locale->translate('errors.syntax.cycle')),
+                default => throw new SyntaxException(self::SYNTAX_ERROR),
             };
 
             $context->params->consume(TokenType::Colon);
@@ -45,13 +47,13 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
 
         do {
             if (! in_array($context->params->current()?->type, [TokenType::String, TokenType::Number])) {
-                throw new SyntaxException($context->getParseContext()->locale->translate('errors.syntax.cycle'));
+                throw new SyntaxException(self::SYNTAX_ERROR);
             }
 
             $variable = $context->params->expression();
             $this->variables[] = match (true) {
                 is_string($variable), is_numeric($variable) => $variable,
-                default => throw new SyntaxException($context->getParseContext()->locale->translate('errors.syntax.cycle')),
+                default => throw new SyntaxException(self::SYNTAX_ERROR),
             };
         } while ($context->params->consumeOrFalse(TokenType::Comma));
 

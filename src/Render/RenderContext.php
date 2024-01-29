@@ -22,7 +22,6 @@ use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Profiler\Profiler;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\FilterRegistry;
-use Keepsuit\Liquid\Support\I18n;
 use Keepsuit\Liquid\Support\MissingValue;
 use Keepsuit\Liquid\Support\OutputsBag;
 use Keepsuit\Liquid\Template;
@@ -70,7 +69,6 @@ final class RenderContext
         protected FilterRegistry $filterRegistry = new FilterRegistry(),
         public readonly ResourceLimits $resourceLimits = new ResourceLimits(),
         public readonly LiquidFileSystem $fileSystem = new BlankFileSystem(),
-        public readonly I18n $locale = new I18n(),
     ) {
         $this->scopes = [$this->outerScope];
 
@@ -328,7 +326,7 @@ final class RenderContext
     public function loadPartial(string $templateName): Template
     {
         if (! Arr::has($this->sharedState->partialsCache, $templateName)) {
-            throw new StandardException($this->locale->translate('errors.runtime.partial_not_loaded', ['partial' => $templateName]));
+            throw new StandardException(sprintf("The partial '%s' has not be loaded during parsing", $templateName));
         }
 
         return $this->sharedState->partialsCache[$templateName];
@@ -373,7 +371,6 @@ final class RenderContext
             filterRegistry: $this->filterRegistry,
             resourceLimits: $this->resourceLimits,
             fileSystem: $this->fileSystem,
-            locale: $this->locale,
         );
         $subContext->baseScopeDepth = $this->baseScopeDepth + 1;
         $subContext->sharedState = $this->sharedState;
@@ -419,7 +416,7 @@ final class RenderContext
     protected function checkOverflow(): void
     {
         if ($this->baseScopeDepth + count($this->scopes) > ParseContext::MAX_DEPTH) {
-            throw new StackLevelException($this->locale->translate('errors.stack.nesting_too_deep'));
+            throw StackLevelException::nestingTooDeep();
         }
     }
 }

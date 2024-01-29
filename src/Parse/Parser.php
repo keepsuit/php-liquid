@@ -106,9 +106,9 @@ class Parser
         $tagClass = $this->parseContext->tagRegistry->get($tagName) ?? null;
 
         if ($tagClass === null || ! class_exists($tagClass)) {
-            $blockTagName = $this->currentBlockScope() ? $this->currentBlockScope()::tagName() : '';
+            $blockTagName = $this->currentBlockScope() ? $this->currentBlockScope()::tagName() : null;
 
-            throw SyntaxException::unknownTag($this->parseContext, $tagName, $blockTagName);
+            throw SyntaxException::unknownTag($tagName, $blockTagName);
         }
 
         $tag = (new $tagClass())->setLineNumber($currentToken?->lineNumber);
@@ -129,7 +129,7 @@ class Parser
                 try {
                     $currentTagName = $this->tokenStream->consume(TokenType::Identifier)->data;
                 } catch (SyntaxException $e) {
-                    throw SyntaxException::tagNeverClosed($tag::tagName(), $tagParseContext->getParseContext());
+                    throw SyntaxException::tagBlockNeverClosed($tag::tagName());
                 }
             } while ($currentTagName !== $tag::blockDelimiter());
 

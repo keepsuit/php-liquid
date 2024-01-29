@@ -14,14 +14,14 @@ test('throw exception on single close bracket', function () {
 
 test('throw exception on label and no close bracket', function () {
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Unclosed variable',
+        'Liquid syntax error (line 1): Variable was not properly terminated with: }}',
         'TEST {{ '
     );
 });
 
 test('throw exception on label and no close bracket percent', function () {
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Unclosed block',
+        'Liquid syntax error (line 1): Tag was not properly terminated with: %}',
         'TEST {% '
     );
 });
@@ -58,7 +58,7 @@ test('unexpected characters', function () {
 
 test('throw exception on invalid tag delimiter', function () {
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Unexpected outer \'end\' tag',
+        'Liquid syntax error (line 1): Unknown tag \'end\'',
         '{% end %}'
     );
 });

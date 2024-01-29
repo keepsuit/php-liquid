@@ -213,7 +213,7 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
         };
 
         if (! $context->params->idOrFalse('in')) {
-            throw new SyntaxException($context->getParseContext()->locale->translate('errors.syntax.for_invalid_in'));
+            throw new SyntaxException("For loops require an 'in' clause");
         }
 
         $collection = $context->params->expression();
@@ -231,7 +231,7 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
             $attribute = $context->params->idOrFalse('limit') ?: $context->params->idOrFalse('offset');
 
             if (! $attribute) {
-                throw new SyntaxException($context->getParseContext()->locale->translate('errors.syntax.for_invalid_attribute'));
+                throw new SyntaxException('Invalid attribute in for loop. Valid attributes are limit and offset');
             }
 
             $context->params->consume(TokenType::Colon);

@@ -11,6 +11,8 @@ use Keepsuit\Liquid\TagBlock;
 
 class CaptureTag extends TagBlock
 {
+    protected const SYNTAX_ERROR = "Syntax Error in 'capture' - Valid syntax: capture [var]";
+
     protected string $to;
 
     protected BodyNode $body;
@@ -24,7 +26,7 @@ class CaptureTag extends TagBlock
         $to = $context->params->expression();
         $this->to = match (true) {
             is_string($to), $to instanceof VariableLookup => (string) $to,
-            default => throw new SyntaxException($context->getParseContext()->locale->translate('errors.syntax.capture')),
+            default => throw new SyntaxException(self::SYNTAX_ERROR),
         };
 
         $context->params->assertEnd();

@@ -145,10 +145,10 @@ test('text', function () {
 
 test('unclosed expression', function () {
     expect(fn () => tokenize('{{ hi'))
-        ->toThrow(SyntaxException::class, 'Unclosed variable');
+        ->toThrow(SyntaxException::class, 'Variable was not properly terminated with: }}');
 
     expect(fn () => tokenize('{% if'))
-        ->toThrow(SyntaxException::class, 'Unclosed block');
+        ->toThrow(SyntaxException::class, 'Tag was not properly terminated with: %}');
 });
 
 test('full source', function () {

@@ -23,16 +23,6 @@ abstract class Tag extends Node
         return false;
     }
 
-    //    public function disabledTags(): array
-    //    {
-    //        return [];
-    //    }
-
-    //    public function raw(): string
-    //    {
-    //        return sprintf('%s %s', static::tagName(), $this->markup);
-    //    }
-
     /**
      * @throws SyntaxException
      */
@@ -40,6 +30,9 @@ abstract class Tag extends Node
 
     abstract public function render(RenderContext $context): string;
 
+    /**
+     * @throws TagDisabledException
+     */
     public function ensureTagIsEnabled(RenderContext $context): void
     {
         if (! $this instanceof Disableable) {
@@ -50,6 +43,6 @@ abstract class Tag extends Node
             return;
         }
 
-        throw new TagDisabledException(static::tagName(), $context->locale);
+        throw new TagDisabledException(static::tagName());
     }
 }
