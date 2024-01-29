@@ -2,55 +2,55 @@
 
 namespace Keepsuit\Liquid\Tags;
 
-use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Drops\TableRowLoopDrop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
-use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Nodes\Range;
-use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Regex;
-use Keepsuit\Liquid\Parse\Tokenizer;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Parse\TokenType;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\TagBlock;
 use Traversable;
 
-class TableRowTag extends TagBlock implements HasParseTreeVisitorChildren
+class TableRowTag extends TagBlock
 {
-    const Syntax = '/(\w+)\s+in\s+('.Regex::QuotedFragment.'+)/';
-
     protected string $variableName;
 
     protected mixed $collectionName;
 
     protected array $attributes = [];
 
+    protected BodyNode $body;
+
     public static function tagName(): string
     {
         return 'tablerow';
     }
 
-    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
+    public function parse(TagParseContext $context): static
     {
-        parent::parse($parseContext, $tokenizer);
+        assert($context->body !== null);
 
-        if (! preg_match(self::Syntax, $this->markup, $matches)) {
-            throw new SyntaxException($parseContext->locale->translate('errors.syntax.table_row'));
+        $this->body = $context->body;
+
+        $this->variableName = $context->params->consume(TokenType::Identifier)->data;
+        $context->params->id('in');
+        $this->collectionName = $context->params->expression();
+
+        while ($context->params->look(TokenType::Identifier)) {
+            $attribute = $context->params->consume(TokenType::Identifier)->data;
+            $context->params->consume(TokenType::Colon);
+            $value = $context->params->expression();
+            $this->attributes[$attribute] = $value;
         }
 
-        $this->variableName = $matches[1];
-        $this->collectionName = $this->parseExpression($parseContext, $matches[2]);
-
-        preg_match_all(sprintf('/%s/', Regex::TagAttributes), $this->markup, $attributeMatches, PREG_SET_ORDER);
-
-        foreach ($attributeMatches as $matches) {
-            $this->attributes[$matches[1]] = $this->parseExpression($parseContext, $matches[2]);
-        }
+        $context->params->assertEnd();
 
         return $this;
     }
 
-    public function render(Context $context): string
+    public function render(RenderContext $context): string
     {
         $collection = $context->evaluate($this->collectionName) ?? [];
         $collection = match (true) {
@@ -88,7 +88,7 @@ class TableRowTag extends TagBlock implements HasParseTreeVisitorChildren
                 $context->set($this->variableName, $item);
 
                 $output .= sprintf('<td class="col%s">', $tableRowLoop->col);
-                $output .= parent::render($context);
+                $output .= $this->body->render($context);
                 $output .= '</td>';
 
                 if ($tableRowLoop->col_last && ! $tableRowLoop->last) {
@@ -106,10 +106,10 @@ class TableRowTag extends TagBlock implements HasParseTreeVisitorChildren
 
     public function parseTreeVisitorChildren(): array
     {
-        return [
-            ...$this->nodeList(),
+        return Arr::compact([
+            $this->body,
             ...$this->attributes,
             $this->collectionName,
-        ];
+        ]);
     }
 }

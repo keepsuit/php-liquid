@@ -60,7 +60,7 @@ test('liquid tag errors', function () {
         LIQUID
     );
 
-    assertMatchSyntaxError("Liquid syntax error (line 2): Unknown tag '!!! the guards are vigilant'", <<<'LIQUID'
+    assertMatchSyntaxError('Liquid syntax error (line 2): Unexpected character !', <<<'LIQUID'
         {%- liquid
             !!! the guards are vigilant
         -%}
@@ -103,7 +103,7 @@ test('cannot open blocks living past a liquid tag', function () {
 });
 
 test('cannot close blocks created before a liquid tag', function () {
-    assertMatchSyntaxError("Liquid syntax error (line 3): 'endif' is not a valid delimiter for liquid tags. use %}", <<<'LIQUID'
+    assertMatchSyntaxError("Liquid syntax error (line 3): Unknown tag 'endif'", <<<'LIQUID'
     {%- if true -%}
     42
     {%- liquid endif -%}
@@ -146,7 +146,7 @@ test('nested liquid is not skipped if used in non tag position', function () {
 });
 
 test('nested liquid with unclosed if tag', function () {
-    assertMatchSyntaxError("Liquid syntax error (line 2): 'if' tag was never closed", <<<'LIQUID'
+    assertMatchSyntaxError("Liquid syntax error (line 3): 'if' tag was never closed", <<<'LIQUID'
     {%- liquid
         liquid if true
           echo "good"

@@ -4,7 +4,7 @@ use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Exceptions\StandardException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\TemplateFactory;
 use Keepsuit\Liquid\Tests\Stubs\ErrorDrop;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
@@ -44,8 +44,8 @@ test('template parsed with line numbers renders them in errors', function () {
 test('standard error', function () {
     $template = parseTemplate(' {{ errors.standard_error }} ', lineNumbers: false);
 
-    expect($template->render(new Context(staticEnvironment: ['errors' => new ErrorDrop()])))
-        ->toBe(' Liquid error: Standard error ');
+    expect($template->render(new RenderContext(staticEnvironment: ['errors' => new ErrorDrop()])))
+        ->toBe(' Liquid error (line 1): Standard error ');
 
     expect($template->getErrors())->toHaveCount(1);
     expect($template->getErrors()[0])->toBeInstanceOf(StandardException::class);
@@ -54,8 +54,8 @@ test('standard error', function () {
 test('syntax error', function () {
     $template = parseTemplate(' {{ errors.syntax_error }} ', lineNumbers: false);
 
-    expect($template->render(new Context(staticEnvironment: ['errors' => new ErrorDrop()])))
-        ->toBe(' Liquid syntax error: Syntax error ');
+    expect($template->render(new RenderContext(staticEnvironment: ['errors' => new ErrorDrop()])))
+        ->toBe(' Liquid syntax error (line 1): Syntax error ');
 
     expect($template->getErrors())->toHaveCount(1);
     expect($template->getErrors()[0])->toBeInstanceOf(SyntaxException::class);
@@ -64,8 +64,8 @@ test('syntax error', function () {
 test('argument error', function () {
     $template = parseTemplate(' {{ errors.argument_error }} ', lineNumbers: false);
 
-    expect($template->render(new Context(staticEnvironment: ['errors' => new ErrorDrop()])))
-        ->toBe(' Liquid error: Argument error ');
+    expect($template->render(new RenderContext(staticEnvironment: ['errors' => new ErrorDrop()])))
+        ->toBe(' Liquid error (line 1): Argument error ');
 
     expect($template->getErrors())->toHaveCount(1);
     expect($template->getErrors()[0])->toBeInstanceOf(\Keepsuit\Liquid\Exceptions\InvalidArgumentException::class);
@@ -84,7 +84,7 @@ test('unrecognized operator', function () {
 
 test('with line numbers adds numbers to parser errors', function () {
     assertMatchSyntaxError(
-        "Liquid syntax error (line 3): Unknown tag '{% \"cat\" | foobar %}'",
+        'Liquid syntax error (line 3): A block must start with a tag name.',
         <<<'LIQUID'
         foobar
 
@@ -97,7 +97,7 @@ test('with line numbers adds numbers to parser errors', function () {
 
 test('with line numbers adds numbers to parser errors with whitespace trim', function () {
     assertMatchSyntaxError(
-        "Liquid syntax error (line 3): Unknown tag '{%- \"cat\" | foobar -%}'",
+        'Liquid syntax error (line 3): A block must start with a tag name.',
         <<<'LIQUID'
         foobar
 
@@ -124,7 +124,7 @@ test('parsing strict with line numbers adds numbers to lexer errors', function (
         );
     } catch (SyntaxException $exception) {
         expect($exception->toLiquidErrorMessage())
-            ->toBe('Liquid syntax error (line 4): Unexpected character ! in "1 =! 2"');
+            ->toBe('Liquid syntax error (line 4): Unexpected character !');
 
         return;
     }
@@ -149,12 +149,12 @@ test('syntax errors in nested blocks have correct line number', function () {
 
 test('strict error messages', function () {
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Unexpected character ! in "1 =! 2"',
+        'Liquid syntax error (line 1): Unexpected character !',
         ' {% if 1 =! 2 %}ok{% endif %} ',
     );
 
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Unexpected character % in "{{%%%}}"',
+        'Liquid syntax error (line 1): Unexpected character %',
         '{{%%%}}',
     );
 });
@@ -162,7 +162,7 @@ test('strict error messages', function () {
 test('default exception renderer with internal error', function () {
     $template = parseTemplate('This is a runtime error: {{ errors.runtime_error }}', lineNumbers: true);
 
-    $output = $template->render(new Context(staticEnvironment: ['errors' => new ErrorDrop()]));
+    $output = $template->render(new RenderContext(staticEnvironment: ['errors' => new ErrorDrop()]));
 
     expect($output)->toBe('This is a runtime error: Liquid error (line 1): Internal exception');
     expect($template->getErrors())

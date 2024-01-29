@@ -20,13 +20,3 @@ test('with custom tag block', function () {
         factory: $this->templateFactory
     );
 });
-
-test('custom tag block have a default render method', function () {
-    $this->templateFactory->registerTag(\Keepsuit\Liquid\Tests\Stubs\TestTagBlockTag::class);
-
-    assertTemplateResult(
-        ' bla ',
-        '{% testblock %} bla {% endtestblock %}',
-        factory: $this->templateFactory
-    );
-});

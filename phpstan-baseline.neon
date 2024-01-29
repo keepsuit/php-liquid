@@ -16,11 +16,6 @@ parameters:
 			path: src/Profiler/Profiler.php
 
 		-
-			message: "#^Access to protected property Spatie\\\\Invade\\\\Invader\\<Keepsuit\\\\Liquid\\\\Render\\\\Context\\>\\:\\:\\$scopes\\.$#"
-			count: 2
-			path: tests/Stubs/ContextDrop.php
-
-		-
 			message: "#^Method Keepsuit\\\\Liquid\\\\Tests\\\\Stubs\\\\ContextDrop\\:\\:loopPos\\(\\) should return int\\|null but returns mixed\\.$#"
 			count: 1
 			path: tests/Stubs/ContextDrop.php

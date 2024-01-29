@@ -2,8 +2,12 @@
 
 namespace Keepsuit\Liquid\Profiler;
 
+use Keepsuit\Liquid\Nodes\Node;
+
 class Timing
 {
+    public readonly ?int $lineNumber;
+
     protected ?int $startTime = null;
 
     protected ?int $totalTime = null;
@@ -16,10 +20,10 @@ class Timing
     protected array $children = [];
 
     public function __construct(
+        public readonly Node $node,
         public readonly ?string $templateName = null,
-        public readonly ?string $code = null,
-        public readonly ?int $lineNumber = null,
     ) {
+        $this->lineNumber = $node->lineNumber();
     }
 
     public function getTotalTime(): int
@@ -63,12 +67,12 @@ class Timing
             throw new \RuntimeException('Timing::measure() called while already measuring');
         }
 
-        $this->startTime = hrtime(true);
+        $this->startTime = $this->time();
 
         try {
             $output = $renderFunction();
         } finally {
-            $this->totalTime = hrtime(true) - $this->startTime;
+            $this->totalTime = $this->time() - $this->startTime;
         }
 
         return $output;
@@ -77,5 +81,13 @@ class Timing
     public function addChild(Timing $timing): void
     {
         $this->children[] = $timing;
+    }
+
+    protected function time(): int
+    {
+        $time = \Safe\hrtime(true);
+        assert(is_int($time));
+
+        return $time;
     }
 }

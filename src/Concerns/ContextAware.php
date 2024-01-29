@@ -2,13 +2,13 @@
 
 namespace Keepsuit\Liquid\Concerns;
 
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Render\RenderContext;
 
 trait ContextAware
 {
-    protected Context $context;
+    protected RenderContext $context;
 
-    public function setContext(Context $context): void
+    public function setContext(RenderContext $context): void
     {
         $this->context = $context;
     }

@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\Condition;
 
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Render\RenderContext;
 
 class ElseCondition extends Condition
 {
@@ -16,7 +16,7 @@ class ElseCondition extends Condition
         return true;
     }
 
-    public function evaluate(Context $context): bool
+    public function evaluate(RenderContext $context): bool
     {
         return true;
     }

@@ -3,45 +3,49 @@
 namespace Keepsuit\Liquid\Performance\Shopify;
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Regex;
-use Keepsuit\Liquid\Parse\Tokenizer;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Nodes\BodyNode;
+use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Nodes\VariableLookup;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\TagBlock;
 
 class CommentFormTag extends TagBlock
 {
-    protected const Syntax = '/('.Regex::VariableSignature.'+)/';
-
     protected string $variableName;
 
     protected array $attributes;
+
+    protected BodyNode $body;
 
     public static function tagName(): string
     {
         return 'form';
     }
 
-    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
+    public function parse(TagParseContext $context): static
     {
-        parent::parse($parseContext, $tokenizer);
+        assert($context->body !== null);
+        $this->body = $context->body;
 
-        if (preg_match(self::Syntax, $this->markup, $matches)) {
-            $this->variableName = $matches[1];
-            $this->attributes = [];
-        } else {
-            throw new SyntaxException("Syntax Error in 'comment_form' - Valid syntax: comment_form [article]");
-        }
+        $variableName = $context->params->expression();
+        $this->variableName = match (true) {
+            $variableName instanceof VariableLookup, is_string($variableName) => (string) $variableName,
+            default => throw new SyntaxException('Invalid variable name'),
+        };
+
+        $this->attributes = [];
+
+        $context->params->assertEnd();
 
         return $this;
     }
 
-    public function render(Context $context): string
+    public function render(RenderContext $context): string
     {
         $article = $context->get($this->variableName);
         assert(is_array($article));
 
-        $context->stack(function (Context $context) {
+        $context->stack(function (RenderContext $context) {
             $context->set('form', [
                 'posted_successfully?' => $context->getRegister('posted_successfully'),
                 'errors' => $context->get('comment.errors'),
@@ -51,7 +55,7 @@ class CommentFormTag extends TagBlock
             ]);
         });
 
-        return $this->wrapInForm($article, parent::render($context));
+        return $this->wrapInForm($article, $this->body->render($context));
     }
 
     protected function wrapInForm(array $article, string $input): string

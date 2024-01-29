@@ -7,7 +7,7 @@ use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Filters\StandardFilters;
 use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Render\ResourceLimits;
 use Keepsuit\Liquid\Support\FilterRegistry;
 use Keepsuit\Liquid\Support\I18n;
@@ -136,7 +136,6 @@ final class TemplateFactory
     public function newParseContext(): ParseContext
     {
         return new ParseContext(
-            startLineNumber: $this->lineNumbers || $this->profile,
             tagRegistry: $this->tagRegistry,
             fileSystem: $this->fileSystem,
             locale: $this->locale,
@@ -152,8 +151,8 @@ final class TemplateFactory
         array $outerScope = [],
         /** @var array<string, mixed> $registers */
         array $registers = [],
-    ): Context {
-        return new Context(
+    ): RenderContext {
+        return new RenderContext(
             environment: $environment,
             staticEnvironment: $staticEnvironment,
             outerScope: $outerScope,
@@ -213,7 +212,6 @@ final class TemplateFactory
             ->register(Tags\BreakTag::class)
             ->register(Tags\CaptureTag::class)
             ->register(Tags\CaseTag::class)
-            ->register(Tags\CommentTag::class)
             ->register(Tags\ContinueTag::class)
             ->register(Tags\CycleTag::class)
             ->register(Tags\DecrementTag::class)
@@ -222,9 +220,7 @@ final class TemplateFactory
             ->register(Tags\IfChanged::class)
             ->register(Tags\IfTag::class)
             ->register(Tags\IncrementTag::class)
-            ->register(Tags\InlineCommentTag::class)
             ->register(Tags\LiquidTag::class)
-            ->register(Tags\RawTag::class)
             ->register(Tags\RenderTag::class)
             ->register(Tags\TableRowTag::class)
             ->register(Tags\UnlessTag::class);

@@ -4,12 +4,25 @@ namespace Keepsuit\Liquid\Parse;
 
 enum TokenType
 {
+    /**
+     * Tag tokens
+     */
+    case TextData;
+    case RawData;
+    case VariableStart;
+    case VariableEnd;
+    case BlockStart;
+    case BlockEnd;
+    //    case EndOfFile;
+
+    /**
+     * Expression tokens
+     */
     case String;
     case Number;
     case Identifier;
     case Comparison;
     case DotDot;
-    case EndOfString;
     case Pipe;
     case Dot;
     case Colon;
@@ -29,19 +42,24 @@ enum TokenType
             self::Number => 'Number',
             self::Identifier => 'Identifier',
             self::Comparison => 'Comparison',
-            self::DotDot => 'DotDot',
-            self::EndOfString => 'EndOfString',
-            self::Pipe => 'Pipe',
-            self::Dot => 'Dot',
-            self::Colon => 'Colon',
-            self::Comma => 'Comma',
-            self::OpenSquare => 'OpenSquare',
-            self::CloseSquare => 'CloseSquare',
-            self::OpenRound => 'OpenRound',
-            self::CloseRound => 'CloseRound',
-            self::QuestionMark => 'QuestionMark',
-            self::Dash => 'Dash',
-            self::Equals => 'Equals',
+            self::DotDot => '..',
+            self::Pipe => '|',
+            self::Dot => '.',
+            self::Colon => ':',
+            self::Comma => ',',
+            self::OpenSquare => '[',
+            self::CloseSquare => ']',
+            self::OpenRound => '(',
+            self::CloseRound => ')',
+            self::QuestionMark => '?',
+            self::Dash => '-',
+            self::Equals => '==',
+            self::VariableStart => '{{',
+            self::VariableEnd => '}}',
+            self::BlockStart => '{%',
+            self::BlockEnd => '%}',
+            self::TextData => 'Text',
+            self::RawData => 'Raw',
         };
     }
 }

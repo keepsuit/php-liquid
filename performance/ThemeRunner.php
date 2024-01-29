@@ -21,7 +21,7 @@ class ThemeRunner
     public function __construct(
         protected TemplateFactory $templateFactory
     ) {
-        $files = glob(__DIR__.'/tests/**/*.liquid') ?: [];
+        $files = \Safe\glob(__DIR__.'/tests/**/*.liquid');
 
         $this->tests = Arr::compact(Arr::map($files, function (string $path) {
             if (basename($path) === 'theme.liquid') {
@@ -33,8 +33,8 @@ class ThemeRunner
             return new ThemeTestTemplate(
                 factory: $this->templateFactory,
                 templateName: $path,
-                liquid: file_get_contents($path) ?: '',
-                layoutLiquid: file_exists($themePath) ? (file_get_contents($themePath) ?: '') : null,
+                liquid: \Safe\file_get_contents($path) ?: '',
+                layoutLiquid: file_exists($themePath) ? (\Safe\file_get_contents($themePath) ?: '') : null,
             );
         }));
 

@@ -5,8 +5,7 @@ namespace Keepsuit\Liquid\Nodes;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parse\Expression;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Render\RenderContext;
 
 class RangeLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 {
@@ -16,20 +15,12 @@ class RangeLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
     ) {
     }
 
-    public static function parse(string $startMarkup, string $endMarkup): static
-    {
-        $startObject = Expression::parse($startMarkup);
-        $endObject = Expression::parse($endMarkup);
-
-        return new static($startObject, $endObject);
-    }
-
     public function parseTreeVisitorChildren(): array
     {
         return [$this->start, $this->end];
     }
 
-    public function evaluate(Context $context): mixed
+    public function evaluate(RenderContext $context): mixed
     {
         $start = $this->toInteger($context->evaluate($this->start));
         $end = $this->toInteger($context->evaluate($this->end));
@@ -51,5 +42,16 @@ class RangeLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
                 default => gettype($value),
             })),
         };
+    }
+
+    public function toString(): string
+    {
+        // @phpstan-ignore-next-line
+        return sprintf('(%s..%s)', $this->start, $this->end);
+    }
+
+    public function __toString(): string
+    {
+        return $this->toString();
     }
 }

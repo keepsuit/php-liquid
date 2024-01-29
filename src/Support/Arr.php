@@ -145,7 +145,7 @@ class Arr
             $callbackOrProperty instanceof Closure => $callbackOrProperty($value, $key),
             is_array($value) && ! ($value !== [] && array_is_list($value)) => $value[$callbackOrProperty] ?? null,
             is_object($value) => $value->$callbackOrProperty ?? null,
-            default => throw new InvalidArgumentException(sprintf('Cannot get value %s from array or object %s', $callbackOrProperty, json_encode($value)))
+            default => throw new InvalidArgumentException(sprintf('Cannot get value %s from array or object %s', $callbackOrProperty, \Safe\json_encode($value)))
         };
 
         return $response instanceof Closure ? $response() : $response;

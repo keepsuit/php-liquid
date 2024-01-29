@@ -4,46 +4,65 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Regex;
-use Keepsuit\Liquid\Parse\Tokenizer;
-use Keepsuit\Liquid\Render\Context;
-use Keepsuit\Liquid\Support\Arr;
+use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Nodes\VariableLookup;
+use Keepsuit\Liquid\Parse\TokenType;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tag;
 
 class CycleTag extends Tag implements HasParseTreeVisitorChildren
 {
-    protected const SimpleSyntax = '/\A'.Regex::QuotedFragment.'+/';
-
-    protected const NamedSyntax = '/\A('.Regex::QuotedFragment.')\s*\:\s*(.*)/m';
-
+    /**
+     * @var (string|int|float)[]
+     */
     protected array $variables = [];
 
-    protected mixed $name;
+    protected ?string $name = null;
 
     public static function tagName(): string
     {
         return 'cycle';
     }
 
-    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
+    public function parse(TagParseContext $context): static
     {
-        parent::parse($parseContext, $tokenizer);
+        $this->name = null;
+        $this->variables = [];
 
-        if (preg_match(static::NamedSyntax, $this->markup, $matches)) {
-            $this->variables = $this->parseVariablesFromString($parseContext, $matches[2]);
-            $this->name = $this->parseExpression($parseContext, $matches[1]);
-        } elseif (preg_match(static::SimpleSyntax, $this->markup, $matches)) {
-            $this->variables = $this->parseVariablesFromString($parseContext, $this->markup);
-            $this->name = json_encode($this->variables);
-        } else {
-            throw new SyntaxException($parseContext->locale->translate('errors.syntax.cycle'));
+        if ($context->params->look(TokenType::Colon, 1)) {
+            if (! in_array($context->params->current()?->type, [TokenType::String, TokenType::Number, TokenType::Identifier])) {
+                throw new SyntaxException($context->getParseContext()->locale->translate('errors.syntax.cycle'));
+            }
+
+            $name = $context->params->expression();
+            $this->name = match (true) {
+                is_string($name), is_numeric($name), $name instanceof VariableLookup => (string) $name,
+                default => throw new SyntaxException($context->getParseContext()->locale->translate('errors.syntax.cycle')),
+            };
+
+            $context->params->consume(TokenType::Colon);
+        }
+
+        do {
+            if (! in_array($context->params->current()?->type, [TokenType::String, TokenType::Number])) {
+                throw new SyntaxException($context->getParseContext()->locale->translate('errors.syntax.cycle'));
+            }
+
+            $variable = $context->params->expression();
+            $this->variables[] = match (true) {
+                is_string($variable), is_numeric($variable) => $variable,
+                default => throw new SyntaxException($context->getParseContext()->locale->translate('errors.syntax.cycle')),
+            };
+        } while ($context->params->consumeOrFalse(TokenType::Comma));
+
+        if ($this->name === null) {
+            $this->name = \Safe\json_encode($this->variables);
         }
 
         return $this;
     }
 
-    public function render(Context $context): string
+    public function render(RenderContext $context): string
     {
         $output = '';
 
@@ -74,19 +93,5 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
     public function parseTreeVisitorChildren(): array
     {
         return $this->variables;
-    }
-
-    protected function parseVariablesFromString(ParseContext $parseContext, string $markup): array
-    {
-        $variables = explode(',', $markup);
-
-        $variables = array_map(
-            fn (string $var) => preg_match('/\s*('.Regex::QuotedFragment.')\s*/', $var, $matches)
-                ? $this->parseExpression($parseContext, $matches[1])
-                : null,
-            $variables
-        );
-
-        return Arr::compact($variables);
     }
 }

@@ -5,83 +5,78 @@ namespace Keepsuit\Liquid\Nodes;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Contracts\IsContextAware;
-use Keepsuit\Liquid\Parse\Expression;
-use Keepsuit\Liquid\Parse\Regex;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Parse\LexerOptions;
+use Keepsuit\Liquid\Render\RenderContext;
+use Keepsuit\Liquid\Support\Str;
 
 class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 {
     const FILTER_METHODS = ['size', 'first', 'last'];
 
-    public readonly mixed $name;
-
-    /**
-     * @var string[]
-     */
-    public readonly array $lookups;
-
     /**
      * @var int[]
      */
-    protected array $lookupFilters = [];
+    public readonly array $lookupFilters;
 
     public function __construct(
-        protected string $markup
+        public readonly string $name,
+        /** @var string[] */
+        public readonly array $lookups = [],
     ) {
-        $lookups = static::markupLookup($markup);
-
-        $this->name = static::parseVariableName(array_shift($lookups));
-
-        $newLookups = [];
-        foreach ($lookups as $i => $lookup) {
+        $lookupFilters = [];
+        foreach ($this->lookups as $i => $lookup) {
             if (in_array($lookup, self::FILTER_METHODS)) {
-                $this->lookupFilters[] = $i;
+                $lookupFilters[] = $i;
             }
-
-            $newLookups[$i] = self::parseVariableName($lookup);
         }
-        $this->lookups = $newLookups;
+        $this->lookupFilters = $lookupFilters;
     }
 
-    protected static function markupLookup(string $markup): array
+    public static function fromMarkup(string $markup): VariableLookup
     {
-        if (preg_match_all(sprintf('/%s/', Regex::VariableParser), $markup, $matches) === false) {
-            return [];
+        $variable = Str::beforeFirst($markup, ['.', '[']);
+
+        $lookupsString = substr($markup, strlen($variable));
+
+        if ($lookupsString === '') {
+            return new VariableLookup($variable);
         }
 
-        return $matches[0];
+        $count = \Safe\preg_match_all(LexerOptions::variableLookupRegex(), $lookupsString, $matches);
+
+        if ($count === 0) {
+            throw new SyntaxException('Invalid variable lookup: '.$lookupsString);
+        }
+
+        $lookups = [];
+        foreach (range(0, $count - 1) as $i) {
+            $lookups[] = $matches[1][$i] ?: $matches[2][$i] ?: $matches[3][$i] ?: $matches[4][$i];
+        }
+
+        return new VariableLookup($variable, $lookups);
     }
 
-    protected static function parseVariableName(?string $name): mixed
+    public function toString(): string
     {
-        return match (true) {
-            $name === null => null,
-            static::isWrappedInSquareBrackets($name) => Expression::parse(substr($name, 1, -1)),
-            default => $name,
-        };
-    }
+        if ($this->lookups === []) {
+            return $this->name;
+        }
 
-    protected static function isWrappedInSquareBrackets(string $name): bool
-    {
-        return str_starts_with($name, '[') && str_ends_with($name, ']');
+        return sprintf('%s.%s', $this->name, implode('.', $this->lookups));
     }
 
     public function __toString(): string
     {
-        if (! is_string($this->name)) {
-            // TODO: Implement VariableLookup Serialization.
-            throw new \RuntimeException('VariableLookup Serialization is not supported yet.');
-        }
-
-        return $this->name;
+        return $this->toString();
     }
 
     public function parseTreeVisitorChildren(): array
     {
-        return $this->lookups;
+        return [$this->name, ...$this->lookups];
     }
 
-    public function evaluate(Context $context): mixed
+    public function evaluate(RenderContext $context): mixed
     {
         $name = $context->evaluate($this->name);
         assert(is_string($name));
@@ -111,7 +106,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
         return $object;
     }
 
-    protected function applyFilter(Context $context, mixed $object, string $filter): mixed
+    protected function applyFilter(RenderContext $context, mixed $object, string $filter): mixed
     {
         return match ($filter) {
             'size' => $context->applyFilter('size', $object),

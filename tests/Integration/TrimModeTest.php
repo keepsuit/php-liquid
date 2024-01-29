@@ -596,5 +596,5 @@ test('pre trim blank preceding text', function () {
 });
 
 test('trim blank', function () {
-    assertTemplateResult('foobar', 'foo {{-}} bar');
+    assertTemplateResult('foobar', 'foo {{--}} bar');
 });

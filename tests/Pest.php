@@ -1,6 +1,8 @@
 <?php
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Parse\ParseContext;
+use Keepsuit\Liquid\Parse\TokenStream;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\TemplateFactory;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
@@ -88,4 +90,14 @@ function assertMatchSyntaxError(
     }
 
     throw new ExpectationFailedException('Syntax Exception not thrown.');
+}
+
+function tokenize(string $source): TokenStream
+{
+    return (new ParseContext())->tokenize($source);
+}
+
+function parse(string|TokenStream $source)
+{
+    return (new ParseContext())->parse($source instanceof TokenStream ? $source : tokenize($source));
 }

@@ -2,9 +2,9 @@
 
 namespace Keepsuit\Liquid\Contracts;
 
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Render\RenderContext;
 
 interface CanBeEvaluated
 {
-    public function evaluate(Context $context): mixed;
+    public function evaluate(RenderContext $context): mixed;
 }

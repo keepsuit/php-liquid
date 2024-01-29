@@ -4,18 +4,20 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Nodes\TagParseContext;
 use Keepsuit\Liquid\Nodes\Variable;
-use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Regex;
-use Keepsuit\Liquid\Parse\Tokenizer;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Nodes\VariableLookup;
+use Keepsuit\Liquid\Parse\ExpressionParser;
+use Keepsuit\Liquid\Parse\TokenType;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Tag;
 
+/**
+ * @phpstan-import-type Expression from ExpressionParser
+ */
 class AssignTag extends Tag implements HasParseTreeVisitorChildren
 {
-    const Syntax = '/('.Regex::VariableSignature.')\s*=\s*(.*)\s*/m';
-
     protected string $to;
 
     protected Variable $from;
@@ -25,21 +27,28 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
         return 'assign';
     }
 
-    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
+    public function parse(TagParseContext $context): static
     {
-        parent::parse($parseContext, $tokenizer);
+        try {
+            $to = $context->params->expression();
+            $this->to = match (true) {
+                $to instanceof VariableLookup, is_string($to) => (string) $to,
+                default => throw new SyntaxException($context->getParseContext()->locale->translate('errors.syntax.assign')),
+            };
 
-        if (preg_match(static::Syntax, $this->markup, $matches)) {
-            $this->to = $matches[1];
-            $this->from = Variable::fromMarkup($matches[2], $parseContext->lineNumber);
-        } else {
-            throw new SyntaxException($parseContext->locale->translate('errors.syntax.assign'));
+            $context->params->consume(TokenType::Equals);
+
+            $this->from = $context->params->variable();
+
+            $context->params->assertEnd();
+        } catch (SyntaxException $e) {
+            throw new SyntaxException($context->getParseContext()->locale->translate('errors.syntax.assign'));
         }
 
         return $this;
     }
 
-    public function render(Context $context): string
+    public function render(RenderContext $context): string
     {
         $value = $this->from->evaluate($context);
 

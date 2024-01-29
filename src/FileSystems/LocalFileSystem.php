@@ -17,9 +17,9 @@ class LocalFileSystem implements LiquidFileSystem
     {
         $fullPath = $this->fullPath($templateName);
 
-        $content = file_get_contents($fullPath);
-
-        if ($content === false) {
+        try {
+            $content = \Safe\file_get_contents($fullPath);
+        } catch (\Safe\Exceptions\FilesystemException $e) {
             throw new FileSystemException("Template file '$fullPath' not found");
         }
 
@@ -28,7 +28,7 @@ class LocalFileSystem implements LiquidFileSystem
 
     public function fullPath(string $templatePath): string
     {
-        if (! preg_match('/\A[^.\/][a-zA-Z0-9_\/]+\z/', $templatePath)) {
+        if (\Safe\preg_match('/\A[^.\/][a-zA-Z0-9_\/]+\z/', $templatePath) === 0) {
             throw new FileSystemException("Illegal template name '$templatePath'");
         }
 

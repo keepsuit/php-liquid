@@ -2,7 +2,9 @@
 
 namespace Keepsuit\Liquid\Profiler;
 
-use Closure;
+use Keepsuit\Liquid\Nodes\Node;
+use Keepsuit\Liquid\Nodes\Text;
+use Keepsuit\Liquid\Render\RenderContext;
 
 class Profiler
 {
@@ -14,19 +16,16 @@ class Profiler
 
     protected ?Timing $currentTiming = null;
 
-    /**
-     * @param  Closure(): string  $renderFunction
-     */
-    public function profile(?string $templateName, Closure $renderFunction): string
+    public function profile(Node $node, RenderContext $context, ?string $templateName): string
     {
         if ($this->currentTiming != null) {
-            return $renderFunction();
+            return $node->render($context);
         }
 
         try {
             $this->currentRootTiming = null;
 
-            return $this->profileNode($templateName, $renderFunction);
+            return $this->profileNode($node, $context, $templateName);
         } finally {
             $this->currentTiming = null;
 
@@ -37,15 +36,15 @@ class Profiler
         }
     }
 
-    /**
-     * @param  Closure(): string  $renderFunction
-     */
-    public function profileNode(?string $templateName, Closure $renderFunction, ?string $code = null, ?int $lineNumber = null): string
+    public function profileNode(Node $node, RenderContext $context, ?string $templateName): string
     {
+        if ($node instanceof Text) {
+            return $node->render($context);
+        }
+
         $timing = new Timing(
+            $node,
             templateName: $templateName,
-            code: $code,
-            lineNumber: $lineNumber,
         );
 
         $this->currentRootTiming ??= $timing;
@@ -53,7 +52,7 @@ class Profiler
         $parentTiming = $this->currentTiming;
         $this->currentTiming = $timing;
 
-        $output = $timing->measure($renderFunction);
+        $output = $timing->measure(fn () => $node->render($context));
 
         $parentTiming?->addChild($timing);
         $this->currentTiming = $parentTiming;

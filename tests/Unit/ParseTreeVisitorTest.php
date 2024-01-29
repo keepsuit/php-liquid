@@ -115,7 +115,10 @@ test('tablerow body', function () {
 });
 
 test('cycle', function () {
-    expect(visit('{% cycle test %}'))->toBe(['test']);
+    $traversal = traversal('{% cycle "test" %}')
+        ->addCallbackFor('string', fn (string $node) => [$node, null]);
+
+    expect(Arr::compact(Arr::flatten($traversal->visit())))->toBe(['test']);
 });
 
 test('assign', function () {
@@ -136,9 +139,9 @@ test('preserve tree structure', function () {
             [
                 null,
                 [
-                    [null, [[null, [['other', []]]]]],
-                    ['test', []],
-                    ['xs', []],
+                    [null, [[null, [['other', [[null, []]]]]]]],
+                    ['test', [[null, []]]],
+                    ['xs', [[null, []]]],
                 ],
             ],
         ]);

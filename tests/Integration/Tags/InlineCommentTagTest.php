@@ -29,6 +29,18 @@ test('liquid inline comment returns nothing', function () {
 
 test('inline comment can be written on multiple lines', function () {
     assertTemplateResult('', <<<'LIQUID'
+        {%
+            ###############################
+            # This is a comment
+            # across multiple lines
+            ###############################
+        %}
+        LIQUID
+    );
+});
+
+test('inline comment can be written on multiple lines inside liquid tag', function () {
+    assertTemplateResult('', <<<'LIQUID'
         {%- liquid
             ######################################
             # We support comments like this too. #
@@ -39,5 +51,5 @@ test('inline comment can be written on multiple lines', function () {
 });
 
 test('inline comment does not support nested tags', function () {
-    assertTemplateResult(' -%}', "{%- # {% echo 'hello world' %} -%}");
+    assertMatchSyntaxError('Liquid syntax error (line 1): Unexpected token type: %}', "{%- # {% echo 'hello world' %} -%}");
 });

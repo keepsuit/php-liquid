@@ -2,7 +2,7 @@
 
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tests\Stubs\ErrorDrop;
 use Keepsuit\Liquid\Tests\Stubs\LoaderDrop;
 use Keepsuit\Liquid\Tests\Stubs\ThingWithValue;
@@ -365,7 +365,7 @@ test('iterate drop with limit applied', function () {
 });
 
 test('for cleans up registers', function () {
-    $context = new Context(rethrowExceptions: true, staticEnvironment: ['drop' => new ErrorDrop()]);
+    $context = new RenderContext(rethrowExceptions: true, staticEnvironment: ['drop' => new ErrorDrop()]);
 
     expect(fn () => parseTemplate('{% for i in (1..2) %}{{ drop.standard_error }}{% endfor %}')->render($context))->toThrow(\Keepsuit\Liquid\Exceptions\StandardException::class);
 

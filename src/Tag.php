@@ -2,23 +2,15 @@
 
 namespace Keepsuit\Liquid;
 
-use Keepsuit\Liquid\Contracts\CanBeRendered;
 use Keepsuit\Liquid\Contracts\Disableable;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Exceptions\TagDisabledException;
-use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Parser;
-use Keepsuit\Liquid\Parse\Tokenizer;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Nodes\Node;
+use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Render\RenderContext;
 
-abstract class Tag implements CanBeRendered
+abstract class Tag extends Node
 {
-    final public function __construct(
-        protected string $markup,
-        public readonly ?int $lineNumber = null
-    ) {
-    }
-
     abstract public static function tagName(): string;
 
     public function name(): string
@@ -31,40 +23,24 @@ abstract class Tag implements CanBeRendered
         return false;
     }
 
-    public function disabledTags(): array
-    {
-        return [];
-    }
+    //    public function disabledTags(): array
+    //    {
+    //        return [];
+    //    }
 
-    public function raw(): string
-    {
-        return sprintf('%s %s', static::tagName(), $this->markup);
-    }
+    //    public function raw(): string
+    //    {
+    //        return sprintf('%s %s', static::tagName(), $this->markup);
+    //    }
 
     /**
      * @throws SyntaxException
      */
-    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
-    {
-        return $this;
-    }
+    abstract public function parse(TagParseContext $context): static;
 
-    public function render(Context $context): string
-    {
-        return '';
-    }
+    abstract public function render(RenderContext $context): string;
 
-    protected function parseExpression(ParseContext $parseContext, string $markup): mixed
-    {
-        return $parseContext->parseExpression($markup);
-    }
-
-    protected function newParser(?string $markup = null): Parser
-    {
-        return new Parser($markup ?? $this->markup);
-    }
-
-    public function ensureTagIsEnabled(Context $context): void
+    public function ensureTagIsEnabled(RenderContext $context): void
     {
         if (! $this instanceof Disableable) {
             return;

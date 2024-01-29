@@ -2,8 +2,9 @@
 
 namespace Keepsuit\Liquid\Exceptions;
 
+use Keepsuit\Liquid\Parse\LexerOptions;
 use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Regex;
+use Keepsuit\Liquid\Parse\Token;
 use Keepsuit\Liquid\Parse\TokenType;
 
 class SyntaxException extends LiquidException
@@ -14,7 +15,7 @@ class SyntaxException extends LiquidException
     {
         return new SyntaxException($parseContext->locale->translate('errors.syntax.tag_termination', [
             'token' => $token,
-            'regexp' => stripslashes(Regex::TagEnd),
+            'regexp' => LexerOptions::TagBlockEnd->value,
         ]));
     }
 
@@ -29,7 +30,7 @@ class SyntaxException extends LiquidException
     {
         return new SyntaxException($parseContext->locale->translate('errors.syntax.variable_termination', [
             'token' => $token,
-            'regexp' => stripcslashes(Regex::VariableEnd),
+            'regexp' => LexerOptions::TagVariableEnd->value,
         ]));
     }
 
@@ -43,9 +44,9 @@ class SyntaxException extends LiquidException
     public static function unknownTag(ParseContext $parseContext, string $tagName, string $blockTagName, ?string $blockDelimiter = null): SyntaxException
     {
         $exception = match (true) {
-            $tagName === 'else' => new SyntaxException($parseContext->locale->translate('errors.syntax.unexpected_else', [
-                'block_name' => $blockTagName,
-            ])),
+            $tagName === 'else' || $tagName === 'end' => $blockTagName === ''
+                ? static::unexpectedOuterTag($parseContext, $tagName)
+                : new SyntaxException($parseContext->locale->translate('errors.syntax.unexpected_else', ['block_name' => $blockTagName])),
             str_starts_with($tagName, 'end') && $blockTagName !== '' => new SyntaxException($parseContext->locale->translate('errors.syntax.invalid_delimiter', [
                 'tag' => $tagName,
                 'block_name' => $blockTagName,
@@ -70,6 +71,15 @@ class SyntaxException extends LiquidException
         ));
     }
 
+    public static function unexpectedIdentifier(string $expected, string $given): SyntaxException
+    {
+        return new SyntaxException(sprintf(
+            'Expected identifier %s, got %s',
+            $expected,
+            $given
+        ));
+    }
+
     public static function invalidExpression(string $expression): SyntaxException
     {
         return new SyntaxException(sprintf('%s is not a valid expression', $expression));
@@ -78,6 +88,30 @@ class SyntaxException extends LiquidException
     public static function unexpectedCharacter(string $character): SyntaxException
     {
         return new SyntaxException(sprintf('Unexpected character %s', $character));
+    }
+
+    public static function unexpectedEndOfTemplate(): SyntaxException
+    {
+        return new SyntaxException('Unexpected end of template');
+    }
+
+    public static function unexpectedToken(Token $token): SyntaxException
+    {
+        return new SyntaxException(sprintf(
+            'Unexpected token %s: "%s"',
+            $token->type->toString(),
+            $token->data,
+        ));
+    }
+
+    public static function unclosedVariable(): SyntaxException
+    {
+        return new SyntaxException('Unclosed variable');
+    }
+
+    public static function unclosedBlock(): SyntaxException
+    {
+        return new SyntaxException('Unclosed block');
     }
 
     protected function messagePrefix(): string

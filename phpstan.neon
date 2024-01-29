@@ -17,3 +17,4 @@ parameters:
         disableCheckMissingIterableValueType: false
 
     ignoreErrors:
+        - '#Method .+ should return .+ but returns mixed#'

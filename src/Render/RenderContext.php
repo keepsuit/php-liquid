@@ -17,7 +17,7 @@ use Keepsuit\Liquid\Exceptions\StandardException;
 use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Interrupts\Interrupt;
-use Keepsuit\Liquid\Parse\Expression;
+use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Profiler\Profiler;
 use Keepsuit\Liquid\Support\Arr;
@@ -29,7 +29,7 @@ use Keepsuit\Liquid\Template;
 use RuntimeException;
 use Throwable;
 
-final class Context
+final class RenderContext
 {
     protected int $baseScopeDepth = 0;
 
@@ -106,7 +106,7 @@ final class Context
     /**
      * @template TResult
      *
-     * @param  Closure(Context $context): TResult  $closure
+     * @param  Closure(RenderContext $context): TResult  $closure
      * @return TResult
      */
     public function stack(Closure $closure)
@@ -149,7 +149,7 @@ final class Context
 
     public function get(string $key): mixed
     {
-        return $this->evaluate(Expression::parse($key));
+        return $this->evaluate(VariableLookup::fromMarkup($key));
     }
 
     public function has(string $key): bool
@@ -334,21 +334,21 @@ final class Context
         return $this->sharedState->partialsCache[$templateName];
     }
 
-    public function setPartialsCache(array $partialsCache): Context
+    public function setPartialsCache(array $partialsCache): RenderContext
     {
         $this->sharedState->partialsCache = $partialsCache;
 
         return $this;
     }
 
-    public function mergePartialsCache(array $partialsCache): Context
+    public function mergePartialsCache(array $partialsCache): RenderContext
     {
         $this->sharedState->partialsCache = array_merge($this->sharedState->partialsCache, $partialsCache);
 
         return $this;
     }
 
-    public function mergeOutputs(array $outputs): Context
+    public function mergeOutputs(array $outputs): RenderContext
     {
         $this->sharedState->outputs->merge($outputs);
 
@@ -363,11 +363,11 @@ final class Context
     /**
      * @throws StackLevelException
      */
-    public function newIsolatedSubContext(?string $templateName): Context
+    public function newIsolatedSubContext(?string $templateName): RenderContext
     {
         $this->checkOverflow();
 
-        $subContext = new Context(
+        $subContext = new RenderContext(
             rethrowExceptions: $this->rethrowExceptions,
             strictVariables: $this->strictVariables,
             filterRegistry: $this->filterRegistry,
@@ -388,7 +388,7 @@ final class Context
      * @template TResult
      *
      * @param  string[]  $tags
-     * @param  Closure(Context $context): TResult  $closure
+     * @param  Closure(RenderContext $context): TResult  $closure
      * @return TResult
      */
     public function withDisabledTags(array $tags, Closure $closure)
