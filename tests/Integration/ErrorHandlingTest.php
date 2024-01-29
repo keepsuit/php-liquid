@@ -42,7 +42,7 @@ test('template parsed with line numbers renders them in errors', function () {
 });
 
 test('standard error', function () {
-    $template = parseTemplate(' {{ errors.standard_error }} ', lineNumbers: false);
+    $template = parseTemplate(' {{ errors.standard_error }} ');
 
     expect($template->render(new RenderContext(staticEnvironment: ['errors' => new ErrorDrop()])))
         ->toBe(' Liquid error (line 1): Standard error ');
@@ -52,7 +52,7 @@ test('standard error', function () {
 });
 
 test('syntax error', function () {
-    $template = parseTemplate(' {{ errors.syntax_error }} ', lineNumbers: false);
+    $template = parseTemplate(' {{ errors.syntax_error }} ');
 
     expect($template->render(new RenderContext(staticEnvironment: ['errors' => new ErrorDrop()])))
         ->toBe(' Liquid syntax error (line 1): Syntax error ');
@@ -62,7 +62,7 @@ test('syntax error', function () {
 });
 
 test('argument error', function () {
-    $template = parseTemplate(' {{ errors.argument_error }} ', lineNumbers: false);
+    $template = parseTemplate(' {{ errors.argument_error }} ');
 
     expect($template->render(new RenderContext(staticEnvironment: ['errors' => new ErrorDrop()])))
         ->toBe(' Liquid error (line 1): Argument error ');
@@ -120,7 +120,6 @@ test('parsing strict with line numbers adds numbers to lexer errors', function (
         bla
 
         LIQUID,
-            lineNumbers: true
         );
     } catch (SyntaxException $exception) {
         expect($exception->toLiquidErrorMessage())
@@ -160,7 +159,7 @@ test('strict error messages', function () {
 });
 
 test('default exception renderer with internal error', function () {
-    $template = parseTemplate('This is a runtime error: {{ errors.runtime_error }}', lineNumbers: true);
+    $template = parseTemplate('This is a runtime error: {{ errors.runtime_error }}');
 
     $output = $template->render(new RenderContext(staticEnvironment: ['errors' => new ErrorDrop()]));
 

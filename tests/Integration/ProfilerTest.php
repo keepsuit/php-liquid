@@ -81,7 +81,7 @@ test('profile rendering time', function () {
 
 test('profiling multiple renders', function () {
     $context = new RenderContext(profile: true, fileSystem: new ProfilingFileSystem());
-    $template = parseTemplate('{% sleep 0.001 %}', lineNumbers: true, factory: $this->templateFactory);
+    $template = parseTemplate('{% sleep 0.001 %}', factory: $this->templateFactory);
 
     invade($context)->templateName = 'index';
     $template->render($context);

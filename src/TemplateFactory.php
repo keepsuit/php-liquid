@@ -24,8 +24,6 @@ final class TemplateFactory
 
     protected bool $profile = false;
 
-    protected bool $lineNumbers = false;
-
     protected bool $rethrowExceptions = false;
 
     protected bool $strictVariables = false;
@@ -84,13 +82,6 @@ final class TemplateFactory
         return $this;
     }
 
-    public function lineNumbers(bool $lineNumbers = true): TemplateFactory
-    {
-        $this->lineNumbers = $lineNumbers;
-
-        return $this;
-    }
-
     public function rethrowExceptions(bool $rethrowExceptions = true): TemplateFactory
     {
         $this->rethrowExceptions = $rethrowExceptions;
@@ -110,7 +101,6 @@ final class TemplateFactory
      */
     public function debugMode(bool $debugMode = true): TemplateFactory
     {
-        $this->lineNumbers = $debugMode;
         $this->rethrowExceptions = $debugMode;
         $this->strictVariables = $debugMode;
 

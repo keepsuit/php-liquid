@@ -18,11 +18,9 @@ function fixture(string $path): string
  */
 function parseTemplate(
     string $source,
-    bool $lineNumbers = true,
     TemplateFactory $factory = new TemplateFactory(),
 ): Template {
     return $factory
-        ->lineNumbers($lineNumbers)
         ->parseString($source);
 }
 
@@ -38,7 +36,6 @@ function renderTemplate(
     TemplateFactory $factory = new TemplateFactory()
 ): string {
     $factory = $factory->setFilesystem(new StubFileSystem(partials: $partials))
-        ->lineNumbers()
         ->rethrowExceptions(! $renderErrors);
 
     $template = $factory->parseString($template);
