@@ -16,6 +16,6 @@ class TranslationException extends LiquidException
 
     public static function interpolationFailed(string $translation, array $vars): TranslationException
     {
-        return new TranslationException(sprintf("Interpolation failed for translation: '%s' with vars: %s", $translation, \Safe\json_encode($vars)));
+        return new TranslationException(sprintf("Interpolation failed for translation: '%s' with vars: %s", $translation, json_encode($vars)));
     }
 }

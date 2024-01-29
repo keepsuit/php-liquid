@@ -8,8 +8,6 @@ use Keepsuit\Liquid\Drop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\Str;
-use Safe\Exceptions\MbstringException;
-use Safe\Exceptions\UrlException;
 use Traversable;
 
 class StandardFilters extends FiltersProvider
@@ -59,9 +57,9 @@ class StandardFilters extends FiltersProvider
      */
     public function base64Decode(?string $input): string
     {
-        try {
-            $decoded = \Safe\base64_decode($input ?? '', true);
-        } catch (UrlException $e) {
+        $decoded = base64_decode($input ?? '', true);
+
+        if ($decoded === false) {
             throw new InvalidArgumentException('Invalid base64 string provided to base64_decode filter');
         }
 
@@ -142,11 +140,11 @@ class StandardFilters extends FiltersProvider
         }
 
         if (is_numeric($input)) {
-            $input = \Safe\date('Y-m-d H:i:s', (int) $input);
+            $input = date('Y-m-d H:i:s', (int) $input);
         }
 
         if (is_string($input)) {
-            $input = new \Safe\DateTime($input);
+            $input = new DateTime($input);
         }
 
         $dateFormat = str_replace(
@@ -312,7 +310,7 @@ class StandardFilters extends FiltersProvider
      */
     public function newlineToBr(?string $input): string
     {
-        return \Safe\preg_replace('/\r?\n/', "<br />\n", $input ?? '');
+        return preg_replace('/\r?\n/', "<br />\n", $input ?? '') ?? $input ?? '';
     }
 
     /**
@@ -540,7 +538,7 @@ class StandardFilters extends FiltersProvider
         $STRIP_HTML_TAGS = '/<[\S\s]*?>/m';
         $STRIP_HTLM_BLOCKS = '/((<script.*?<\/script>)|(<!--.*?-->)|(<style.*?<\/style>))/m';
 
-        return \Safe\preg_replace([$STRIP_HTLM_BLOCKS, $STRIP_HTML_TAGS], '', $input ?? '');
+        return preg_replace([$STRIP_HTLM_BLOCKS, $STRIP_HTML_TAGS], '', $input ?? '') ?? $input ?? '';
     }
 
     /**
@@ -548,7 +546,7 @@ class StandardFilters extends FiltersProvider
      */
     public function stripNewlines(?string $input): string
     {
-        return \Safe\preg_replace('/\r?\n/', '', $input ?? '');
+        return preg_replace('/\r?\n/', '', $input ?? '') ?? $input ?? '';
     }
 
     /**
@@ -605,9 +603,9 @@ class StandardFilters extends FiltersProvider
 
         $words = max(1, $words);
 
-        try {
-            $wordlist = \Safe\mb_split('\s+', $input, $words + 1);
-        } catch (MbstringException $e) {
+        $wordlist = mb_split('\s+', $input, $words + 1);
+
+        if ($wordlist === false) {
             return $input;
         }
 

@@ -43,7 +43,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
             return new VariableLookup($variable);
         }
 
-        $count = \Safe\preg_match_all(LexerOptions::variableLookupRegex(), $lookupsString, $matches);
+        $count = preg_match_all(LexerOptions::variableLookupRegex(), $lookupsString, $matches);
 
         if ($count === 0) {
             throw new SyntaxException('Invalid variable lookup: '.$lookupsString);

@@ -56,7 +56,7 @@ class Lexer
 
         $this->parseContext->lineNumber = 1;
 
-        \Safe\preg_match_all(LexerOptions::tokenStartRegex(), $this->source, $matches, PREG_OFFSET_CAPTURE);
+        preg_match_all(LexerOptions::tokenStartRegex(), $this->source, $matches, PREG_OFFSET_CAPTURE);
         $this->positions = $matches;
         $this->position = -1;
 
@@ -110,14 +110,14 @@ class Lexer
         switch ($this->positions[1][$this->position][0]) {
             case LexerOptions::TagBlockStart->value:
                 // {% raw %}
-                if (\Safe\preg_match(LexerOptions::blockRawStartRegex(), $this->source, $matches, offset: $this->cursor) === 1) {
+                if (preg_match(LexerOptions::blockRawStartRegex(), $this->source, $matches, offset: $this->cursor) === 1) {
                     $this->moveCursor($matches[0]);
                     $this->lexRawData();
                     break;
                 }
 
                 // {% comment %}
-                if (\Safe\preg_match(LexerOptions::blockCommentStartRegex(), $this->source, $matches, offset: $this->cursor) === 1) {
+                if (preg_match(LexerOptions::blockCommentStartRegex(), $this->source, $matches, offset: $this->cursor) === 1) {
                     $this->moveCursor($matches[0]);
                     $this->lexComment();
                     break;
@@ -140,14 +140,14 @@ class Lexer
      */
     protected function lexVariable(): void
     {
-        if (\Safe\preg_match(LexerOptions::variableEndRegex(), $this->source, $matches, offset: $this->cursor) === 1) {
+        if (preg_match(LexerOptions::variableEndRegex(), $this->source, $matches, offset: $this->cursor) === 1) {
             $this->pushToken(TokenType::VariableEnd);
             $this->moveCursor($matches[0]);
             $this->popState();
 
             // trim?
             if (trim($matches[0])[0] === LexerOptions::WhitespaceTrim->value) {
-                \Safe\preg_match('/\s+/A', $this->source, $matches, offset: $this->cursor);
+                preg_match('/\s+/A', $this->source, $matches, offset: $this->cursor);
                 $this->moveCursor($matches[0] ?? '');
             }
         } else {
@@ -160,14 +160,14 @@ class Lexer
      */
     protected function lexBlock(): void
     {
-        if (\Safe\preg_match(LexerOptions::blockEndRegex(), $this->source, $matches, offset: $this->cursor) === 1) {
+        if (preg_match(LexerOptions::blockEndRegex(), $this->source, $matches, offset: $this->cursor) === 1) {
             $this->pushToken(TokenType::BlockEnd);
             $this->moveCursor($matches[0]);
             $this->popState();
 
             // trim?
             if (trim($matches[0])[0] === LexerOptions::WhitespaceTrim->value) {
-                \Safe\preg_match('/\s+/A', $this->source, $matches, offset: $this->cursor);
+                preg_match('/\s+/A', $this->source, $matches, offset: $this->cursor);
                 $this->moveCursor($matches[0] ?? '');
             }
         } else {
@@ -180,7 +180,7 @@ class Lexer
      */
     protected function lexExpression(): void
     {
-        if (\Safe\preg_match('/\s+/A', $this->source, $matches, offset: $this->cursor) === 1) {
+        if (preg_match('/\s+/A', $this->source, $matches, offset: $this->cursor) === 1) {
             $this->moveCursor($matches[0]);
         }
 
@@ -194,10 +194,10 @@ class Lexer
 
         $token = match (true) {
             $this->cursor + 1 < $this->end && $this->source[$this->cursor] === '.' && $this->source[$this->cursor + 1] === '.' => [TokenType::DotDot, '..'],
-            \Safe\preg_match(LexerOptions::comparisonOperatorRegex(), $this->source, $matches, offset: $this->cursor) === 1 => [TokenType::Comparison, $matches[0]],
-            \Safe\preg_match(LexerOptions::identifierRegex(), $this->source, $matches, offset: $this->cursor) === 1 => [TokenType::Identifier, $matches[0]],
-            \Safe\preg_match(LexerOptions::stringLiteralRegex(), $this->source, $matches, offset: $this->cursor) === 1 => [TokenType::String, $matches[0]],
-            \Safe\preg_match(LexerOptions::numberLiteralRegex(), $this->source, $matches, offset: $this->cursor) === 1 => [TokenType::Number, $matches[0]],
+            preg_match(LexerOptions::comparisonOperatorRegex(), $this->source, $matches, offset: $this->cursor) === 1 => [TokenType::Comparison, $matches[0]],
+            preg_match(LexerOptions::identifierRegex(), $this->source, $matches, offset: $this->cursor) === 1 => [TokenType::Identifier, $matches[0]],
+            preg_match(LexerOptions::stringLiteralRegex(), $this->source, $matches, offset: $this->cursor) === 1 => [TokenType::String, $matches[0]],
+            preg_match(LexerOptions::numberLiteralRegex(), $this->source, $matches, offset: $this->cursor) === 1 => [TokenType::Number, $matches[0]],
             array_key_exists($this->source[$this->cursor], LexerOptions::specialCharacters()) => [LexerOptions::specialCharacters()[$this->source[$this->cursor]], $this->source[$this->cursor]],
             default => throw SyntaxException::unexpectedCharacter($this->source[$this->cursor]),
         };
@@ -230,7 +230,7 @@ class Lexer
 
     protected function lexRawData(): void
     {
-        if (\Safe\preg_match(LexerOptions::blockRawDataRegex(), $this->source, $matches, flags: PREG_OFFSET_CAPTURE, offset: $this->cursor) !== 1) {
+        if (preg_match(LexerOptions::blockRawDataRegex(), $this->source, $matches, flags: PREG_OFFSET_CAPTURE, offset: $this->cursor) !== 1) {
             throw SyntaxException::tagNeverClosed('raw', $this->parseContext);
         }
 
@@ -240,7 +240,7 @@ class Lexer
 
         // trim?
         if (isset($matches[2][0])) {
-            \Safe\preg_match('/\s+/A', $this->source, $matches2, offset: $this->cursor);
+            preg_match('/\s+/A', $this->source, $matches2, offset: $this->cursor);
             $this->moveCursor($matches2[0] ?? '');
         }
 
@@ -249,7 +249,7 @@ class Lexer
 
     protected function lexComment(): void
     {
-        if (\Safe\preg_match(LexerOptions::blockCommentDataRegex(), $this->source, $matches, flags: PREG_OFFSET_CAPTURE, offset: $this->cursor) !== 1) {
+        if (preg_match(LexerOptions::blockCommentDataRegex(), $this->source, $matches, flags: PREG_OFFSET_CAPTURE, offset: $this->cursor) !== 1) {
             throw SyntaxException::tagNeverClosed('comment', $this->parseContext);
         }
 
@@ -260,7 +260,7 @@ class Lexer
 
     protected function lexInlineComment(): void
     {
-        if (\Safe\preg_match(LexerOptions::inlineCommentDataRegex(), $this->source, $matches, flags: PREG_OFFSET_CAPTURE, offset: $this->cursor) !== 1) {
+        if (preg_match(LexerOptions::inlineCommentDataRegex(), $this->source, $matches, flags: PREG_OFFSET_CAPTURE, offset: $this->cursor) !== 1) {
             throw SyntaxException::tagNeverClosed('#', $this->parseContext);
         }
 
@@ -281,7 +281,7 @@ class Lexer
         }
 
         if ($matches[1][0] === LexerOptions::WhitespaceTrim->value) {
-            \Safe\preg_match('/\s+/A', $this->source, $matches2, offset: $this->cursor);
+            preg_match('/\s+/A', $this->source, $matches2, offset: $this->cursor);
             $this->moveCursor($matches2[0] ?? '');
         }
     }

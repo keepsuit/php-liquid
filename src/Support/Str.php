@@ -22,9 +22,15 @@ class Str
         }
 
         if (! ctype_lower($value)) {
-            $value = \Safe\preg_replace('/\s+/u', '', ucwords($value));
+            if (($value = preg_replace('/\s+/u', '', ucwords($value))) === null) {
+                return $key;
+            }
 
-            $value = static::lower(\Safe\preg_replace('/(.)(?=[A-Z])/u', '$1'.$delimiter, $value));
+            if (($value = preg_replace('/(.)(?=[A-Z])/u', '$1'.$delimiter, $value)) === null) {
+                return $key;
+            }
+
+            $value = static::lower($value);
         }
 
         return static::$snakeCache[$key][$delimiter] = $value;

@@ -56,7 +56,7 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
         } while ($context->params->consumeOrFalse(TokenType::Comma));
 
         if ($this->name === null) {
-            $this->name = \Safe\json_encode($this->variables);
+            $this->name = json_encode($this->variables, JSON_THROW_ON_ERROR);
         }
 
         return $this;

@@ -85,7 +85,7 @@ class Timing
 
     protected function time(): int
     {
-        $time = \Safe\hrtime(true);
+        $time = hrtime(true);
         assert(is_int($time));
 
         return $time;
