@@ -28,8 +28,7 @@ class Template
     public static function parse(ParseContext $parseContext, string $source, ?string $name = null): Template
     {
         try {
-            $tokenStream = $parseContext->tokenize($source);
-            $root = $parseContext->parse($tokenStream);
+            $root = $parseContext->parse($parseContext->tokenize($source));
 
             $template = new Template(
                 root: new Document($root),

@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\Parse;
 
-class Token
+final class Token
 {
     public function __construct(
         public readonly TokenType $type,

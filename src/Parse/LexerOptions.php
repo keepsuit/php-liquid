@@ -156,22 +156,22 @@ enum LexerOptions: string
 
     public static function comparisonOperatorRegex(): string
     {
-        return '{(==|!=|<>|<=?|>=?|contains(?=\s))}As';
+        return '{\G(==|!=|<>|<=?|>=?|contains(?=\s))}As';
     }
 
     public static function stringLiteralRegex(): string
     {
-        return '{("[^"]*")|(\'[^\']*\')}As';
+        return '{\G("[^"]*")|(\'[^\']*\')}As';
     }
 
     public static function numberLiteralRegex(): string
     {
-        return '{-?\d+(?:\.\d+)?}As';
+        return '{\G-?\d+(?:\.\d+)?}As';
     }
 
     public static function identifierRegex(): string
     {
-        return "{[a-zA-Z_](?:\w|-\w)*\??}As";
+        return "{\G[a-zA-Z_](?:\w|-\w)*\??}As";
     }
 
     public static function variableLookupRegex(): string
