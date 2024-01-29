@@ -18,6 +18,21 @@ test('liquid tag', function () {
     -%}
     LIQUID, assigns: ['array' => [1, 2, 3]]);
 
+    assertTemplateResult('2', <<<'LIQUID'
+    {%- liquid
+        case value
+            when 1
+                echo 1
+            when 2
+                echo 2
+            when 3
+                echo 3
+            else
+                echo "else"
+        endcase
+    -%}
+    LIQUID, assigns: ['value' => 2]);
+
     assertTemplateResult('4 8 12 6', <<<'LIQUID'
     {%- liquid
         for value in array

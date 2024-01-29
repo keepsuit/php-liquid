@@ -28,6 +28,8 @@ class LiquidTag extends Tag
             $this->body->pushChild($this->parseLine($context));
         }
 
+        $context->params->assertEnd();
+
         return $this;
     }
 
@@ -76,14 +78,12 @@ class LiquidTag extends Tag
                 $tag->parse($tagParseContext);
 
                 try {
-                    $currentTagName = $tokens->consume(TokenType::Identifier)->data;
+                    $currentToken = $tokens->consume(TokenType::Identifier);
+                    $currentTagName = $currentToken->data;
                 } catch (SyntaxException $e) {
                     throw SyntaxException::tagBlockNeverClosed($tag::tagName());
                 }
-                $tokens->jump(-1);
             } while ($currentTagName !== $tag::blockDelimiter());
-
-            $tokens->consume(TokenType::Identifier);
 
             return $tag;
         }
