@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Nodes;
 
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\CanBeRendered;
+use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Parse\ExpressionParser;
 use Keepsuit\Liquid\Render\RenderContext;
@@ -12,7 +13,7 @@ use Keepsuit\Liquid\Support\Arr;
 /**
  * @phpstan-import-type Expression from ExpressionParser
  */
-class Variable extends Node implements CanBeEvaluated, HasParseTreeVisitorChildren
+class Variable extends Node implements CanBeEvaluated, CanBeStreamed, HasParseTreeVisitorChildren
 {
     public function __construct(
         /** @var Expression $name */
@@ -30,27 +31,40 @@ class Variable extends Node implements CanBeEvaluated, HasParseTreeVisitorChildr
             return $output->render($context);
         }
 
-        if (is_array($output)) {
-            return implode('', $output);
+        return $this->renderOutput($output);
+    }
+
+    public function stream(RenderContext $context): \Generator
+    {
+        if ($this->filters !== []) {
+            yield $this->render($context);
+
+            return;
         }
 
-        if ($output === null) {
-            return '';
+        $output = $this->evaluate($context);
+
+        if ($output instanceof CanBeStreamed) {
+            yield from $output->stream($context);
+
+            return;
         }
 
-        if (is_bool($output)) {
-            return $output ? 'true' : 'false';
+        if ($output instanceof CanBeRendered) {
+            yield $output->render($context);
+
+            return;
         }
 
-        if (is_string($output) || is_numeric($output)) {
-            return (string) $output;
+        if ($output instanceof \Generator) {
+            foreach ($output as $chunk) {
+                yield $this->renderOutput($chunk);
+            }
+
+            return;
         }
 
-        if (is_object($output) && method_exists($output, '__toString')) {
-            return (string) $output;
-        }
-
-        return '';
+        yield $this->renderOutput($output);
     }
 
     public function parseTreeVisitorChildren(): array
@@ -61,6 +75,10 @@ class Variable extends Node implements CanBeEvaluated, HasParseTreeVisitorChildr
     public function evaluate(RenderContext $context): mixed
     {
         $output = $context->evaluate($this->name);
+
+        if ($this->filters === []) {
+            return $output;
+        }
 
         if ($output instanceof \Generator) {
             $output = iterator_to_array($output);
@@ -73,6 +91,39 @@ class Variable extends Node implements CanBeEvaluated, HasParseTreeVisitorChildr
         }
 
         return $output;
+    }
+
+    protected function renderOutput(mixed $output): string
+    {
+        if (is_string($output)) {
+            return $output;
+        }
+
+        if ($output === null) {
+            return '';
+        }
+
+        if (is_bool($output)) {
+            return $output ? 'true' : 'false';
+        }
+
+        if (is_numeric($output)) {
+            return (string) $output;
+        }
+
+        if ($output instanceof \Generator) {
+            $output = iterator_to_array($output);
+        }
+
+        if (is_array($output)) {
+            return implode('', $output);
+        }
+
+        if (is_object($output) && method_exists($output, '__toString')) {
+            return (string) $output;
+        }
+
+        return '';
     }
 
     protected static function evaluateFilterExpressions(RenderContext $context, array $filterArgs): array

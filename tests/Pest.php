@@ -24,6 +24,22 @@ function parseTemplate(
         ->parseString($source);
 }
 
+function buildRenderContext(
+    array $assigns = [],
+    array $registers = [],
+    TemplateFactory $factory = new TemplateFactory()
+) {
+    $context = $factory->newRenderContext(
+        staticEnvironment: $assigns,
+    );
+
+    foreach ($registers as $key => $value) {
+        $context->setRegister($key, $value);
+    }
+
+    return $context;
+}
+
 /**
  * @throws SyntaxException
  */
@@ -35,20 +51,47 @@ function renderTemplate(
     bool $renderErrors = false,
     TemplateFactory $factory = new TemplateFactory()
 ): string {
-    $factory = $factory->setFilesystem(new StubFileSystem(partials: $partials))
+    $factory = $factory
+        ->setFilesystem(new StubFileSystem(partials: $partials))
         ->rethrowExceptions(! $renderErrors);
 
     $template = $factory->parseString($template);
 
-    $context = $factory->newRenderContext(
-        staticEnvironment: $assigns,
+    $context = buildRenderContext(
+        assigns: $assigns,
+        registers: $registers,
+        factory: $factory,
     );
 
-    foreach ($registers as $key => $value) {
-        $context->setRegister($key, $value);
-    }
-
     return $template->render($context);
+}
+
+/**
+ * @return Generator<string>
+ *
+ * @throws SyntaxException
+ */
+function streamTemplate(
+    string $template,
+    array $assigns = [],
+    array $registers = [],
+    array $partials = [],
+    bool $renderErrors = false,
+    TemplateFactory $factory = new TemplateFactory()
+): Generator {
+    $factory = $factory
+        ->setFilesystem(new StubFileSystem(partials: $partials))
+        ->rethrowExceptions(! $renderErrors);
+
+    $template = $factory->parseString($template);
+
+    $context = buildRenderContext(
+        assigns: $assigns,
+        registers: $registers,
+        factory: $factory,
+    );
+
+    return $template->stream($context);
 }
 
 function assertTemplateResult(
