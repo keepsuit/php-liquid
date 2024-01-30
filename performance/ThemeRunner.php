@@ -64,11 +64,32 @@ class ThemeRunner
         }
     }
 
+    public function stream(): void
+    {
+        $database = [...Database::tables()];
+
+        foreach ($this->compiledTemplates as $compiled) {
+            $compiled->stream($database);
+        }
+    }
+
     public function run(): void
     {
+        $database = [...Database::tables()];
+
         foreach ($this->tests as $test) {
             $compiled = $test->compile();
-            $compiled->render();
+            $compiled->render($database);
+        }
+    }
+
+    public function runStreaming(): void
+    {
+        $database = [...Database::tables()];
+
+        foreach ($this->tests as $test) {
+            $compiled = $test->compile();
+            $compiled->stream($database);
         }
     }
 
