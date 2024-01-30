@@ -6,7 +6,27 @@ parameters:
 			path: performance/Shopify/CustomFilters.php
 
 		-
+			message: "#^Argument of an invalid type mixed supplied for foreach, only iterables are supported\\.$#"
+			count: 1
+			path: performance/Shopify/Database.php
+
+		-
 			message: "#^Cannot access offset 'articles' on mixed\\.$#"
+			count: 1
+			path: performance/Shopify/Database.php
+
+		-
+			message: "#^Cannot access offset 'collections' on mixed\\.$#"
+			count: 1
+			path: performance/Shopify/Database.php
+
+		-
+			message: "#^Cannot access offset 'id' on mixed\\.$#"
+			count: 1
+			path: performance/Shopify/Database.php
+
+		-
+			message: "#^Parameter \\#1 \\$array of static method Keepsuit\\\\Liquid\\\\Support\\\\Arr\\:\\:first\\(\\) expects array, mixed given\\.$#"
 			count: 1
 			path: performance/Shopify/Database.php
 
@@ -14,11 +34,6 @@ parameters:
 			message: "#^Strict comparison using \\!\\=\\= between null and null will always evaluate to false\\.$#"
 			count: 1
 			path: src/Profiler/Profiler.php
-
-		-
-			message: "#^Method Keepsuit\\\\Liquid\\\\Tests\\\\Stubs\\\\ContextDrop\\:\\:loopPos\\(\\) should return int\\|null but returns mixed\\.$#"
-			count: 1
-			path: tests/Stubs/ContextDrop.php
 
 		-
 			message: "#^Parameter \\#3 \\.\\.\\.\\$values of function sprintf expects bool\\|float\\|int\\|string\\|null, mixed given\\.$#"
