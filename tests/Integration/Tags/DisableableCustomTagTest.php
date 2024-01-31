@@ -73,11 +73,6 @@ class DisableCustomTag extends TagBlock
         return 'disable';
     }
 
-    //    public function disabledTags(): array
-    //    {
-    //        return ['custom'];
-    //    }
-
     public function parse(TagParseContext $context): static
     {
         $this->body = $context->body;
@@ -99,11 +94,6 @@ class DisableBothTag extends TagBlock
     {
         return 'disable';
     }
-
-    //    public function disabledTags(): array
-    //    {
-    //        return ['custom', 'custom2'];
-    //    }
 
     public function parse(TagParseContext $context): static
     {

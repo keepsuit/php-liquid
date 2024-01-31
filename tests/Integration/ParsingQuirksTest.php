@@ -66,9 +66,3 @@ test('throw exception on invalid tag delimiter', function () {
 test('blank variable markup', function () {
     assertTemplateResult('', '{{}}');
 });
-
-test('lookup on var with literal name', function () {
-    $assigns = ['blank' => ['x' => 'result']];
-    assertTemplateResult('result', '{{ blank.x }}', $assigns);
-    assertTemplateResult('result', "{{ blank['x'] }}", $assigns);
-})->skip('var with literal name is not supported');
