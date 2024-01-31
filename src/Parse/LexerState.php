@@ -2,6 +2,9 @@
 
 namespace Keepsuit\Liquid\Parse;
 
+/**
+ * @internal
+ */
 enum LexerState
 {
     case Data;

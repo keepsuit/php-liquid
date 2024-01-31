@@ -2,6 +2,9 @@
 
 namespace Keepsuit\Liquid\Support;
 
+/**
+ * @internal
+ */
 class Str
 {
     protected static array $snakeCache = [];

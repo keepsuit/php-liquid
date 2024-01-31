@@ -2,6 +2,9 @@
 
 namespace Keepsuit\Liquid\Parse;
 
+/**
+ * @internal
+ */
 enum LexerOptions: string
 {
     case TagVariableStart = '{{';

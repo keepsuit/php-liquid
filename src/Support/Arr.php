@@ -6,6 +6,9 @@ use Closure;
 use InvalidArgumentException;
 use Traversable;
 
+/**
+ * @internal
+ */
 class Arr
 {
     public static function first(array $array, ?Closure $callback = null, mixed $default = null): mixed
