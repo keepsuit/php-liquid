@@ -8,7 +8,6 @@ use Keepsuit\Liquid\Performance\Shopify\PaginateTag;
 use Keepsuit\Liquid\Performance\ThemeRunner;
 use Keepsuit\Liquid\TemplateFactory;
 use PhpBench\Attributes\BeforeMethods;
-use PhpBench\Attributes\Groups;
 use PhpBench\Attributes\Iterations;
 use PhpBench\Attributes\OutputMode;
 use PhpBench\Attributes\OutputTimeUnit;
