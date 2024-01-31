@@ -2,6 +2,32 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.4.0 - 2024-01-31
+
+### Breaking changes
+
+* Lexer and Parser were rewritten from scratch so custom tags needs to be updated.
+* Removed line numbers settings since they are always tracked now.
+* Removed raw markup from nodes.
+* Removed `I18n` locale provider (it was only used for exception messages, now they are always in english).
+* Renamed `Context` to `RenderContext`.
+* Removed `outerScope` initialization in `RenderContext`
+* Removed the starting `_` in `LocalFileSystem` pattern for searching liquid files.
+* Support dot syntax in `LocalFileSystem` resolver (`dir.template` become `dir/template.liquid`)
+* Introduced `PartialsCache` and `OutputsBag` used to shared state between parsing and rendering (for compiled child templates and general outputs)
+* Added experimental template streaming support (with generators)
+
+### What's Changed
+
+* Bump actions/checkout from 3 to 4 by @dependabot in https://github.com/keepsuit/php-liquid/pull/5
+* Bump stefanzweifel/git-auto-commit-action from 4 to 5 by @dependabot in https://github.com/keepsuit/php-liquid/pull/7
+* Bump aglipanci/laravel-pint-action from 2.3.0 to 2.3.1 by @dependabot in https://github.com/keepsuit/php-liquid/pull/8
+* Bump actions/cache from 3 to 4 by @dependabot in https://github.com/keepsuit/php-liquid/pull/9
+* Refactoring by @cappuc in https://github.com/keepsuit/php-liquid/pull/10
+* Streaming by @cappuc in https://github.com/keepsuit/php-liquid/pull/11
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.3.2...v0.4.0
+
 ## v0.3.2 - 2023-09-04
 
 ### What's changed
