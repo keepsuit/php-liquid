@@ -28,9 +28,15 @@ class LocalFileSystem implements LiquidFileSystem
 
     public function fullPath(string $templatePath): string
     {
-        if (preg_match('/\A[^.\/][a-zA-Z0-9_\/]+\z/', $templatePath) === 0) {
+        if (preg_match('{^[a-zA-Z0-9_/.]+$}s', $templatePath) === 0) {
             throw new FileSystemException("Illegal template name '$templatePath'");
         }
+
+        if (str_starts_with($templatePath, '/') || str_starts_with($templatePath, '.')) {
+            throw new FileSystemException("Illegal template name '$templatePath'");
+        }
+
+        $templatePath = preg_replace('/\./', '/', $templatePath);
 
         $path = match (true) {
             str_contains($templatePath, '/') => sprintf('%s/%s', dirname($templatePath), sprintf($this->pattern, basename($templatePath))),
