@@ -51,7 +51,7 @@
         "format": "vendor/bin/pint",
         "lint": "vendor/bin/phpstan analyse",
         "benchmark": "vendor/bin/phpbench run --report=aggregate",
-        "profile": "vendor/bin/phpbench xdebug:profile --group=profile"
+        "profile": "vendor/bin/phpbench xdebug:profile"
     },
     "config": {
         "sort-packages": true,

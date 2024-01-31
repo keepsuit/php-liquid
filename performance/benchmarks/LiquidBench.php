@@ -38,7 +38,6 @@ class LiquidBench
         $this->themeRunner->render();
     }
 
-    #[Groups(['profile'])]
     public function benchParsingAndRendering(): void
     {
         $this->themeRunner->run();
