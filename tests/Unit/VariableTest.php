@@ -158,11 +158,6 @@ test('string filter argument parsing', function () {
         ->toThrow(SyntaxException::class);
 });
 
-test('output raw source of variable', function () {
-    expect(createVariable(' name_of_variable | upcase '))
-        ->raw()->toBe(' name_of_variable | upcase ');
-})->skip('raw output not implemented');
-
 test('variable lookup interface', function () {
     $variable = createVariable('a.b.c');
 

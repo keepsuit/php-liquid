@@ -13,7 +13,6 @@ enum TokenType
     case VariableEnd;
     case BlockStart;
     case BlockEnd;
-    //    case EndOfFile;
 
     /**
      * Expression tokens

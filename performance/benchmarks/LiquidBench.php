@@ -8,7 +8,6 @@ use Keepsuit\Liquid\Performance\Shopify\PaginateTag;
 use Keepsuit\Liquid\Performance\ThemeRunner;
 use Keepsuit\Liquid\TemplateFactory;
 use PhpBench\Attributes\BeforeMethods;
-use PhpBench\Attributes\Groups;
 use PhpBench\Attributes\Iterations;
 use PhpBench\Attributes\OutputMode;
 use PhpBench\Attributes\OutputTimeUnit;
@@ -43,13 +42,11 @@ class LiquidBench
         $this->themeRunner->stream();
     }
 
-    #[Groups(['profile'])]
     public function benchParsingAndRendering(): void
     {
         $this->themeRunner->run();
     }
 
-    #[Groups(['profile'])]
     public function benchParsingAndStreaming(): void
     {
         $this->themeRunner->runStreaming();

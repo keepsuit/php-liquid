@@ -3,7 +3,7 @@
 namespace Keepsuit\Liquid\Performance\Shopify;
 
 use Keepsuit\Liquid\Support\Arr;
-use Keepsuit\Liquid\Support\YamlParser;
+use Symfony\Component\Yaml\Yaml;
 
 class Database
 {
@@ -17,7 +17,7 @@ class Database
             return static::$tables;
         }
 
-        $database = YamlParser::parseFile(static::DATABASE_FILE_PATH);
+        $database = (array) Yaml::parseFile(static::DATABASE_FILE_PATH);
 
         foreach ($database['products'] as $product) {
             $collections = array_filter(

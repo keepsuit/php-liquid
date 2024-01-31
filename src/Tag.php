@@ -13,22 +13,17 @@ abstract class Tag extends Node
 {
     abstract public static function tagName(): string;
 
-    public function name(): string
-    {
-        return static::class;
-    }
-
-    public function blank(): bool
-    {
-        return false;
-    }
-
     /**
      * @throws SyntaxException
      */
     abstract public function parse(TagParseContext $context): static;
 
     abstract public function render(RenderContext $context): string;
+
+    public function blank(): bool
+    {
+        return false;
+    }
 
     /**
      * @throws TagDisabledException

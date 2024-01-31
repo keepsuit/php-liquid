@@ -227,7 +227,11 @@ class StandardFilters extends FiltersProvider
             return null;
         }
 
-        return $input[0];
+        if (! array_is_list($input)) {
+            return null;
+        }
+
+        return $input[0] ?? null;
     }
 
     /**

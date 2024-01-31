@@ -22,7 +22,7 @@ class ContextSharedState
         /** @var array<string, mixed> */
         public array $staticEnvironment = [],
         /** @var array<string, mixed> */
-        public array $staticRegisters = [],
+        public array $registers = [],
         /** @var array<\Throwable> */
         public array $errors = [],
         /** @var array<string, int> */

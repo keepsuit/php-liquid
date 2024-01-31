@@ -174,11 +174,6 @@ test('access hashes with hash notation', function () {
     assertTemplateResult('element151cm', '{{ product["variants"].last["title"] }}', $assigns);
 });
 
-test('access variable with hash notation', function () {
-    assertTemplateResult('baz', '{{ ["foo"] }}', ['foo' => 'baz']);
-    assertTemplateResult('baz', '{{ [bar] }}', ['foo' => 'baz', 'bar' => 'foo']);
-})->skip('not implemented');
-
 test('access hashes with hash access variables', function () {
     $assigns = [
         'var' => 'tags',
@@ -190,13 +185,13 @@ test('access hashes with hash access variables', function () {
     assertTemplateResult('freestyle', '{{ products[nested.var].last }}', $assigns);
 });
 
-test('hash notation only for hash access', function () {
-    $assigns = ['array' => [1, 2, 3, 4, 5]];
+test('hash notation for lookup filters', function () {
+    assertTemplateResult('1', '{{ value.first }}', ['value' => [1, 2, 3, 4, 5]]);
+    assertTemplateResult('1', '{{ value["first"] }}', ['value' => [1, 2, 3, 4, 5]]);
 
-    assertTemplateResult('1', '{{ array.first }}', $assigns);
-    assertTemplateResult('pass', '{% if array["first"] == nil %}pass{% endif %}', $assigns);
-    assertTemplateResult('Hello', '{{ hash["first"] }}', ['hash' => ['first' => 'Hello']]);
-})->skip('it works both ways');
+    assertTemplateResult('Hello', '{{ value["first"] }}', ['value' => ['first' => 'Hello']]);
+    assertTemplateResult('', '{{ value["first"] }}', ['value' => ['key' => 'value']]);
+});
 
 test('first can appear in middle of call chain', function () {
     $assigns = ['product' => ['variants' => [['title' => 'draft151cm'], ['title' => 'element151cm']]]];

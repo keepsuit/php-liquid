@@ -9,7 +9,7 @@ class LocalFileSystem implements LiquidFileSystem
 {
     public function __construct(
         protected string $root,
-        protected string $pattern = '_%s.liquid'
+        protected string $pattern = '%s.liquid'
     ) {
     }
 
