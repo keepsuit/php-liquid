@@ -3,27 +3,33 @@
 namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Regex;
-use Keepsuit\Liquid\Parse\Tokenizer;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Nodes\BodyNode;
+use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Nodes\VariableLookup;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\TagBlock;
 
 class CaptureTag extends TagBlock
 {
-    protected const Syntax = '/('.Regex::VariableSignature.'+)/';
+    protected const SYNTAX_ERROR = "Syntax Error in 'capture' - Valid syntax: capture [var]";
 
     protected string $to;
 
-    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
-    {
-        parent::parse($parseContext, $tokenizer);
+    protected BodyNode $body;
 
-        if (preg_match(static::Syntax, $this->markup, $matches)) {
-            $this->to = $matches[1];
-        } else {
-            throw new SyntaxException($parseContext->locale->translate('errors.syntax.capture'));
-        }
+    public function parse(TagParseContext $context): static
+    {
+        assert($context->body !== null);
+
+        $this->body = $context->body;
+
+        $to = $context->params->expression();
+        $this->to = match (true) {
+            is_string($to), $to instanceof VariableLookup => (string) $to,
+            default => throw new SyntaxException(self::SYNTAX_ERROR),
+        };
+
+        $context->params->assertEnd();
 
         return $this;
     }
@@ -38,14 +44,21 @@ class CaptureTag extends TagBlock
         return true;
     }
 
-    public function render(Context $context): string
+    public function render(RenderContext $context): string
     {
         $context->resourceLimits->withCapture(function () use ($context) {
-            $captureValue = parent::render($context);
+            $captureValue = $this->body->render($context);
 
             $context->setToActiveScope($this->to, $captureValue);
         });
 
         return '';
+    }
+
+    public function parseTreeVisitorChildren(): array
+    {
+        return [
+            $this->body,
+        ];
     }
 }

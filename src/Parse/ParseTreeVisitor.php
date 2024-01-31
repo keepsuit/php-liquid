@@ -4,6 +4,8 @@ namespace Keepsuit\Liquid\Parse;
 
 use Closure;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
+use Keepsuit\Liquid\Nodes\Document;
+use Keepsuit\Liquid\Nodes\Node;
 
 class ParseTreeVisitor
 {
@@ -43,12 +45,20 @@ class ParseTreeVisitor
             return $this->node->parseTreeVisitorChildren();
         }
 
-        return is_object($this->node) && method_exists($this->node, 'nodeList') ? $this->node->nodeList() : [];
+        if ($this->node instanceof Node) {
+            return $this->node->children();
+        }
+
+        if ($this->node instanceof Document) {
+            return $this->node->children();
+        }
+
+        return [];
     }
 
     protected function getCallbackFor(mixed $nodeType): ?Closure
     {
-        $key = is_object($nodeType) ? get_class($nodeType) : $nodeType;
+        $key = is_object($nodeType) ? get_class($nodeType) : gettype($nodeType);
 
         return $this->callbacks[$key] ?? null;
     }

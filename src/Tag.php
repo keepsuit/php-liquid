@@ -2,69 +2,33 @@
 
 namespace Keepsuit\Liquid;
 
-use Keepsuit\Liquid\Contracts\CanBeRendered;
 use Keepsuit\Liquid\Contracts\Disableable;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Exceptions\TagDisabledException;
-use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Parser;
-use Keepsuit\Liquid\Parse\Tokenizer;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Nodes\Node;
+use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Render\RenderContext;
 
-abstract class Tag implements CanBeRendered
+abstract class Tag extends Node
 {
-    final public function __construct(
-        protected string $markup,
-        public readonly ?int $lineNumber = null
-    ) {
-    }
-
     abstract public static function tagName(): string;
 
-    public function name(): string
-    {
-        return static::class;
-    }
+    /**
+     * @throws SyntaxException
+     */
+    abstract public function parse(TagParseContext $context): static;
+
+    abstract public function render(RenderContext $context): string;
 
     public function blank(): bool
     {
         return false;
     }
 
-    public function disabledTags(): array
-    {
-        return [];
-    }
-
-    public function raw(): string
-    {
-        return sprintf('%s %s', static::tagName(), $this->markup);
-    }
-
     /**
-     * @throws SyntaxException
+     * @throws TagDisabledException
      */
-    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
-    {
-        return $this;
-    }
-
-    public function render(Context $context): string
-    {
-        return '';
-    }
-
-    protected function parseExpression(ParseContext $parseContext, string $markup): mixed
-    {
-        return $parseContext->parseExpression($markup);
-    }
-
-    protected function newParser(?string $markup = null): Parser
-    {
-        return new Parser($markup ?? $this->markup);
-    }
-
-    public function ensureTagIsEnabled(Context $context): void
+    public function ensureTagIsEnabled(RenderContext $context): void
     {
         if (! $this instanceof Disableable) {
             return;
@@ -74,6 +38,6 @@ abstract class Tag implements CanBeRendered
             return;
         }
 
-        throw new TagDisabledException(static::tagName(), $context->locale);
+        throw new TagDisabledException(static::tagName());
     }
 }

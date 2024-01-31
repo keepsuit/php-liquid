@@ -7,10 +7,9 @@ use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Filters\StandardFilters;
 use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Render\ResourceLimits;
 use Keepsuit\Liquid\Support\FilterRegistry;
-use Keepsuit\Liquid\Support\I18n;
 use Keepsuit\Liquid\Support\TagRegistry;
 
 final class TemplateFactory
@@ -23,11 +22,7 @@ final class TemplateFactory
 
     protected ResourceLimits $resourceLimits;
 
-    protected I18n $locale;
-
     protected bool $profile = false;
-
-    protected bool $lineNumbers = false;
 
     protected bool $rethrowExceptions = false;
 
@@ -39,7 +34,6 @@ final class TemplateFactory
         $this->filterRegistry = $this->buildFilterRegistry();
         $this->fileSystem = new BlankFileSystem();
         $this->resourceLimits = new ResourceLimits();
-        $this->locale = new I18n();
     }
 
     public static function new(): TemplateFactory
@@ -81,28 +75,9 @@ final class TemplateFactory
         return $this->filterRegistry;
     }
 
-    public function setLocale(I18n $locale): TemplateFactory
-    {
-        $this->locale = $locale;
-
-        return $this;
-    }
-
-    public function getLocale(): I18n
-    {
-        return $this->locale;
-    }
-
     public function profile(bool $profile = true): TemplateFactory
     {
         $this->profile = $profile;
-
-        return $this;
-    }
-
-    public function lineNumbers(bool $lineNumbers = true): TemplateFactory
-    {
-        $this->lineNumbers = $lineNumbers;
 
         return $this;
     }
@@ -126,7 +101,6 @@ final class TemplateFactory
      */
     public function debugMode(bool $debugMode = true): TemplateFactory
     {
-        $this->lineNumbers = $debugMode;
         $this->rethrowExceptions = $debugMode;
         $this->strictVariables = $debugMode;
 
@@ -136,27 +110,36 @@ final class TemplateFactory
     public function newParseContext(): ParseContext
     {
         return new ParseContext(
-            startLineNumber: $this->lineNumbers || $this->profile,
             tagRegistry: $this->tagRegistry,
             fileSystem: $this->fileSystem,
-            locale: $this->locale,
         );
     }
 
     public function newRenderContext(
-        /** @var array<string, mixed> $environment */
+        /**
+         * Environment variables only available in the current context
+         *
+         * @var array<string, mixed> $environment
+         */
         array $environment = [],
-        /** @var array<string, mixed> $staticEnvironment */
+        /**
+         * Environment variables that are shared with all sub-contexts
+         *
+         * @var array<string, mixed> $staticEnvironment
+         */
         array $staticEnvironment = [],
-        /** @var array<string, mixed> $outerScope */
-        array $outerScope = [],
-        /** @var array<string, mixed> $registers */
+        /**
+         * Registers allows to provide/export data or utilities inside tags
+         * Registers are not accessible as variables.
+         * Registers are shared with all sub-contexts
+         *
+         * @var array<string, mixed> $registers
+         */
         array $registers = [],
-    ): Context {
-        return new Context(
+    ): RenderContext {
+        return new RenderContext(
             environment: $environment,
             staticEnvironment: $staticEnvironment,
-            outerScope: $outerScope,
             registers: $registers,
             rethrowExceptions: $this->rethrowExceptions,
             strictVariables: $this->strictVariables,
@@ -164,7 +147,6 @@ final class TemplateFactory
             filterRegistry: $this->filterRegistry,
             resourceLimits: $this->resourceLimits,
             fileSystem: $this->fileSystem,
-            locale: $this->locale,
         );
     }
 
@@ -213,7 +195,6 @@ final class TemplateFactory
             ->register(Tags\BreakTag::class)
             ->register(Tags\CaptureTag::class)
             ->register(Tags\CaseTag::class)
-            ->register(Tags\CommentTag::class)
             ->register(Tags\ContinueTag::class)
             ->register(Tags\CycleTag::class)
             ->register(Tags\DecrementTag::class)
@@ -222,9 +203,7 @@ final class TemplateFactory
             ->register(Tags\IfChanged::class)
             ->register(Tags\IfTag::class)
             ->register(Tags\IncrementTag::class)
-            ->register(Tags\InlineCommentTag::class)
             ->register(Tags\LiquidTag::class)
-            ->register(Tags\RawTag::class)
             ->register(Tags\RenderTag::class)
             ->register(Tags\TableRowTag::class)
             ->register(Tags\UnlessTag::class);

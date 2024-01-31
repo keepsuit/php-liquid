@@ -2,9 +2,10 @@
 
 namespace Keepsuit\Liquid\Tags;
 
-use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Tokenizer;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Nodes\VariableLookup;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tag;
 
 class IncrementTag extends Tag
@@ -16,16 +17,20 @@ class IncrementTag extends Tag
         return 'increment';
     }
 
-    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
+    public function parse(TagParseContext $context): static
     {
-        parent::parse($parseContext, $tokenizer);
+        $variableName = $context->params->expression();
+        $this->variableName = match (true) {
+            $variableName instanceof VariableLookup || is_string($variableName) => (string) $variableName,
+            default => throw new SyntaxException('Invalid variable name'),
+        };
 
-        $this->variableName = trim($this->markup);
+        $context->params->assertEnd();
 
         return $this;
     }
 
-    public function render(Context $context): string
+    public function render(RenderContext $context): string
     {
         $counter = $context->getEnvironment($this->variableName) ?? -1;
         $counter += 1;

@@ -3,8 +3,8 @@
 namespace Keepsuit\Liquid\Condition;
 
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
-use Keepsuit\Liquid\Nodes\BlockBodySection;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Nodes\BodyNode;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
 
 class Condition implements HasParseTreeVisitorChildren
@@ -18,7 +18,7 @@ class Condition implements HasParseTreeVisitorChildren
 
     protected ?Condition $childCondition = null;
 
-    public ?BlockBodySection $attachment = null;
+    public ?BodyNode $body = null;
 
     public function __construct(
         protected mixed $left = null,
@@ -58,9 +58,9 @@ class Condition implements HasParseTreeVisitorChildren
         return $childCondition;
     }
 
-    public function attach(?BlockBodySection $attachment): Condition
+    public function body(?BodyNode $body): Condition
     {
-        $this->attachment = $attachment;
+        $this->body = $body;
 
         return $this;
     }
@@ -70,7 +70,7 @@ class Condition implements HasParseTreeVisitorChildren
         return false;
     }
 
-    public function evaluate(Context $context): bool
+    public function evaluate(RenderContext $context): bool
     {
         $result = $this->interpretCondition($this->left, $this->right, $this->operator, $context);
 
@@ -91,11 +91,11 @@ class Condition implements HasParseTreeVisitorChildren
             $this->left,
             $this->right,
             $this->childCondition,
-            $this->attachment,
+            $this->body,
         ]);
     }
 
-    protected function interpretCondition(mixed $left, mixed $right, ?string $operator, Context $context): bool
+    protected function interpretCondition(mixed $left, mixed $right, ?string $operator, RenderContext $context): bool
     {
         if ($operator === null) {
             $result = $context->evaluate($left);

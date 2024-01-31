@@ -2,12 +2,9 @@
 
 namespace Keepsuit\Liquid\Tags;
 
-use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Tokenizer;
-use Keepsuit\Liquid\Render\Context;
-use Keepsuit\Liquid\Tag;
+use Keepsuit\Liquid\Render\RenderContext;
 
-class DecrementTag extends Tag
+class DecrementTag extends IncrementTag
 {
     protected string $variableName;
 
@@ -16,16 +13,7 @@ class DecrementTag extends Tag
         return 'decrement';
     }
 
-    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
-    {
-        parent::parse($parseContext, $tokenizer);
-
-        $this->variableName = trim($this->markup);
-
-        return $this;
-    }
-
-    public function render(Context $context): string
+    public function render(RenderContext $context): string
     {
         $counter = $context->getEnvironment($this->variableName) ?? 0;
         $counter -= 1;

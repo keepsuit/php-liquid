@@ -2,10 +2,10 @@
 
 namespace Keepsuit\Liquid\Nodes;
 
-use Keepsuit\Liquid\Contracts\CanBeRendered;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
+use Keepsuit\Liquid\Render\RenderContext;
 
-class Range implements CanBeRendered
+class Range extends Node implements HasParseTreeVisitorChildren
 {
     public function __construct(
         public readonly int $start,
@@ -13,7 +13,7 @@ class Range implements CanBeRendered
     ) {
     }
 
-    public function render(Context $context): string
+    public function render(RenderContext $context): string
     {
         return sprintf('%d..%d', $this->start, $this->end);
     }
@@ -21,5 +21,10 @@ class Range implements CanBeRendered
     public function toArray(): array
     {
         return range($this->start, $this->end);
+    }
+
+    public function parseTreeVisitorChildren(): array
+    {
+        return [$this->start, $this->end];
     }
 }

@@ -9,10 +9,11 @@ use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
+use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
-use Keepsuit\Liquid\Support\Arr;
-use Keepsuit\Liquid\Support\I18n;
+use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Support\OutputsBag;
+use Keepsuit\Liquid\Support\PartialsCache;
 use Keepsuit\Liquid\Support\TagRegistry;
 use Keepsuit\Liquid\Template;
 use Throwable;
@@ -21,34 +22,29 @@ class ParseContext
 {
     const MAX_DEPTH = 100;
 
-    public ?int $lineNumber = null;
-
-    public bool $trimWhitespace = false;
+    public int $lineNumber;
 
     public int $depth = 0;
 
     protected bool $partial = false;
 
-    /**
-     * @var array<string,Template>
-     */
-    protected array $partialsCache = [];
+    protected PartialsCache $partialsCache;
 
     protected OutputsBag $outputs;
 
+    protected Lexer $lexer;
+
+    protected Parser $parser;
+
     public function __construct(
-        bool|int|null $startLineNumber = null,
         public readonly TagRegistry $tagRegistry = new TagRegistry(),
         public readonly LiquidFileSystem $fileSystem = new BlankFileSystem(),
-        public readonly I18n $locale = new I18n(),
     ) {
-        $this->lineNumber = match (true) {
-            is_int($startLineNumber) => $startLineNumber,
-            $startLineNumber === true => 1,
-            default => null,
-        };
-
+        $this->lineNumber = 1;
         $this->outputs = new OutputsBag();
+        $this->partialsCache = new PartialsCache();
+        $this->lexer = new Lexer($this);
+        $this->parser = new Parser($this);
     }
 
     public function isPartial(): bool
@@ -56,43 +52,50 @@ class ParseContext
         return $this->partial;
     }
 
-    public function newTokenizer(string $markup, bool $forLiquidTag = false): Tokenizer
+    /**
+     * @throws SyntaxException
+     */
+    public function tokenize(string $markup): TokenStream
     {
-        return new Tokenizer($markup, startLineNumber: $this->lineNumber, forLiquidTag: $forLiquidTag);
+        return $this->lexer->tokenize($markup);
     }
 
-    public function parseExpression(string $markup): mixed
+    public function parse(TokenStream $tokenStream): BodyNode
     {
-        return Expression::parse($markup);
+        return $this->parser->parse($tokenStream);
     }
 
     public function loadPartial(string $templateName): Template
     {
-        if (Arr::has($this->partialsCache, $templateName)) {
-            return $this->partialsCache[$templateName];
+        if ($cache = $this->partialsCache->get($templateName)) {
+            return $cache;
         }
 
-        $oldLineNumber = $this->lineNumber;
-        $this->partial = true;
-        $this->lineNumber = $this->lineNumber !== null ? 1 : null;
+        $partialParseContext = new ParseContext(
+            tagRegistry: $this->tagRegistry,
+            fileSystem: $this->fileSystem,
+        );
+        $partialParseContext->partial = true;
+        $partialParseContext->depth = $this->depth;
+        $partialParseContext->outputs = $this->outputs;
+        $partialParseContext->partialsCache = $this->partialsCache;
 
         try {
             $source = $this->fileSystem->readTemplateFile($templateName);
-            $template = Template::parse($this, $source, $templateName);
-            $this->partialsCache[$templateName] = $template;
+
+            $template = Template::parse($partialParseContext, $source, $templateName);
+
+            $this->partialsCache->set($templateName, $template);
 
             return $template;
         } catch (LiquidException $exception) {
             $exception->templateName = $templateName;
 
             throw $exception;
-        } finally {
-            $this->partial = false;
-            $this->lineNumber = $oldLineNumber;
         }
     }
 
-    public function getPartialsCache(): array
+    public function getPartialsCache(): PartialsCache
     {
         return $this->partialsCache;
     }
@@ -113,7 +116,7 @@ class ParseContext
     public function nested(Closure $callback)
     {
         if ($this->depth >= self::MAX_DEPTH) {
-            throw new StackLevelException($this->locale->translate('errors.stack.nesting_too_deep'));
+            throw StackLevelException::nestingTooDeep();
         }
 
         $this->depth += 1;

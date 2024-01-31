@@ -5,7 +5,7 @@ namespace Keepsuit\Liquid\Support;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Render\RenderContext;
 
 class FilterRegistry
 {
@@ -29,7 +29,7 @@ class FilterRegistry
                 continue;
             }
 
-            $this->filters[Str::snake($method->getName())] = function (Context $context, ...$args) use ($filterClass, $method) {
+            $this->filters[Str::snake($method->getName())] = function (RenderContext $context, ...$args) use ($filterClass, $method) {
                 $filterClassInstance = new $filterClass();
 
                 if ($filterClassInstance instanceof IsContextAware) {
@@ -46,7 +46,7 @@ class FilterRegistry
     /**
      * @throws UndefinedFilterException
      */
-    public function invoke(Context $context, string $filterName, mixed $value, mixed ...$args): mixed
+    public function invoke(RenderContext $context, string $filterName, mixed $value, mixed ...$args): mixed
     {
         $filter = $this->filters[$filterName] ?? null;
 

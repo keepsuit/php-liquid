@@ -9,7 +9,7 @@ class LocalFileSystem implements LiquidFileSystem
 {
     public function __construct(
         protected string $root,
-        protected string $pattern = '_%s.liquid'
+        protected string $pattern = '%s.liquid'
     ) {
     }
 
@@ -28,7 +28,7 @@ class LocalFileSystem implements LiquidFileSystem
 
     public function fullPath(string $templatePath): string
     {
-        if (! preg_match('/\A[^.\/][a-zA-Z0-9_\/]+\z/', $templatePath)) {
+        if (preg_match('/\A[^.\/][a-zA-Z0-9_\/]+\z/', $templatePath) === 0) {
             throw new FileSystemException("Illegal template name '$templatePath'");
         }
 

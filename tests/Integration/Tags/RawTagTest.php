@@ -27,6 +27,6 @@ test('open tag in raw', function () {
 
 test('invalid  raw', function () {
     assertMatchSyntaxError('Liquid syntax error (line 1): \'raw\' tag was never closed', '{% raw %} foo');
-    assertMatchSyntaxError('Liquid syntax error (line 1): Syntax Error in \'raw\' - Valid syntax: raw', '{% raw } foo {% endraw %}');
-    assertMatchSyntaxError('Liquid syntax error (line 1): Syntax Error in \'raw\' - Valid syntax: raw', '{% raw } foo %}{% endraw %}');
+    assertMatchSyntaxError('Liquid syntax error (line 1): Unexpected character }', '{% raw } foo {% endraw %}');
+    assertMatchSyntaxError('Liquid syntax error (line 1): Unexpected character }', '{% raw } foo %}{% endraw %}');
 });

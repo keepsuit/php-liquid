@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\Performance;
 
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\TemplateFactory;
 
@@ -33,7 +33,7 @@ class CompiledThemeTestTemplate
         }
     }
 
-    protected function buildContext(array $assigns = []): Context
+    protected function buildContext(array $assigns = []): RenderContext
     {
         return $this->factory->newRenderContext(
             staticEnvironment: $assigns,

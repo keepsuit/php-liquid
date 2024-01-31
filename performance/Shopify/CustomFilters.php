@@ -168,7 +168,7 @@ class CustomFilters extends FiltersProvider
 
     public function productImgUrl(string $url, string $style = 'small'): string
     {
-        if (! preg_match('/\Aproducts\/([\w\-_]+)\.(\w{2,4})/', $url, $matches)) {
+        if (preg_match('/\Aproducts\/([\w\-_]+)\.(\w{2,4})/', $url, $matches) === 0) {
             throw new InvalidArgumentException('filter "size" can only be called on product images');
         }
 
@@ -215,7 +215,7 @@ class CustomFilters extends FiltersProvider
         $result = $input;
         $result = strtolower($result);
         $result = str_replace(['\'', '"', '()', '[]'], '', $result);
-        $result = preg_replace('/\W+/', '-', $result) ?? '';
+        $result = preg_replace('/\W+/', '-', $result) ?? $result;
 
         return trim($result, '-');
     }

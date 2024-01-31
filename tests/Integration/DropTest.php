@@ -1,6 +1,6 @@
 <?php
 
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tests\Stubs\ContextDrop;
 use Keepsuit\Liquid\Tests\Stubs\EnumerableDrop;
 use Keepsuit\Liquid\Tests\Stubs\ProductDrop;
@@ -71,9 +71,9 @@ test('scope', function () {
 });
 
 test('scope through closure', function () {
-    expect(renderTemplate('{{ s }}', ['context' => new ContextDrop(), 's' => fn (Context $context) => $context->get('context.scopes')]))->toBe('1');
-    expect(renderTemplate('{%for i in dummy%}{{ s }}{%endfor%}', ['context' => new ContextDrop(), 's' => fn (Context $context) => $context->get('context.scopes'), 'dummy' => [1]]))->toBe('2');
-    expect(renderTemplate('{%for i in dummy%}{%for i in dummy%}{{ s }}{%endfor%}{%endfor%}', ['context' => new ContextDrop(), 's' => fn (Context $context) => $context->get('context.scopes'), 'dummy' => [1]]))->toBe('3');
+    expect(renderTemplate('{{ s }}', ['context' => new ContextDrop(), 's' => fn (RenderContext $context) => $context->get('context.scopes')]))->toBe('1');
+    expect(renderTemplate('{%for i in dummy%}{{ s }}{%endfor%}', ['context' => new ContextDrop(), 's' => fn (RenderContext $context) => $context->get('context.scopes'), 'dummy' => [1]]))->toBe('2');
+    expect(renderTemplate('{%for i in dummy%}{%for i in dummy%}{{ s }}{%endfor%}{%endfor%}', ['context' => new ContextDrop(), 's' => fn (RenderContext $context) => $context->get('context.scopes'), 'dummy' => [1]]))->toBe('3');
 });
 
 test('scope with assign', function () {

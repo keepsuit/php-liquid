@@ -2,13 +2,13 @@
 
 use Keepsuit\Liquid\Tags\IfTag;
 
-test('if nodelist', function () {
+test('if children', function () {
     $template = parseTemplate('{% if true %}IF{% else %}ELSE{% endif %}');
 
-    expect($template->root->nodeList())
+    expect($template->root->children())
         ->toHaveCount(1)
         ->{0}->toBeInstanceOf(IfTag::class)
-        ->{0}->nodeList()->toHaveCount(2)
-        ->{0}->nodeList()->{0}->nodeList()->toBe(['IF'])
-        ->{0}->nodeList()->{1}->nodeList()->toBe(['ELSE']);
+        ->{0}->children()->toHaveCount(2)
+        ->{0}->children()->{0}->children()->{0}->value->toBe('IF')
+        ->{0}->children()->{1}->children()->{0}->value->toBe('ELSE');
 });

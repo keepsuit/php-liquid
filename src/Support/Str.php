@@ -22,9 +22,15 @@ class Str
         }
 
         if (! ctype_lower($value)) {
-            $value = preg_replace('/\s+/u', '', ucwords($value)) ?? '';
+            if (($value = preg_replace('/\s+/u', '', ucwords($value))) === null) {
+                return $key;
+            }
 
-            $value = static::lower(preg_replace('/(.)(?=[A-Z])/u', '$1'.$delimiter, $value) ?? '');
+            if (($value = preg_replace('/(.)(?=[A-Z])/u', '$1'.$delimiter, $value)) === null) {
+                return $key;
+            }
+
+            $value = static::lower($value);
         }
 
         return static::$snakeCache[$key][$delimiter] = $value;
@@ -134,5 +140,18 @@ class Str
     public static function blank(string $value): bool
     {
         return trim($value) === '';
+    }
+
+    public static function beforeFirst(string $string, array $search): string
+    {
+        $positions = array_filter(array_map(fn ($search) => strpos($string, $search), $search));
+
+        if ($positions === []) {
+            return $string;
+        }
+
+        $index = min($positions);
+
+        return self::substr($string, 0, $index);
     }
 }

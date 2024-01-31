@@ -21,7 +21,11 @@ class ThemeRunner
     public function __construct(
         protected TemplateFactory $templateFactory
     ) {
-        $files = glob(__DIR__.'/tests/**/*.liquid') ?: [];
+        $files = glob(__DIR__.'/tests/**/*.liquid');
+
+        if ($files === false) {
+            throw new \RuntimeException('Could not find any tests');
+        }
 
         $this->tests = Arr::compact(Arr::map($files, function (string $path) {
             if (basename($path) === 'theme.liquid') {

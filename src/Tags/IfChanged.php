@@ -2,19 +2,34 @@
 
 namespace Keepsuit\Liquid\Tags;
 
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Nodes\BodyNode;
+use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\TagBlock;
 
 class IfChanged extends TagBlock
 {
+    protected BodyNode $body;
+
     public static function tagName(): string
     {
         return 'ifchanged';
     }
 
-    public function render(Context $context): string
+    public function parse(TagParseContext $context): static
     {
-        $output = parent::render($context);
+        assert($context->body !== null);
+
+        $this->body = $context->body;
+
+        $context->params->assertEnd();
+
+        return $this;
+    }
+
+    public function render(RenderContext $context): string
+    {
+        $output = $this->body->render($context);
 
         if ($context->getRegister('ifchanged') === $output) {
             return '';

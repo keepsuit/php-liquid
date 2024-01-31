@@ -2,9 +2,9 @@
 
 namespace Keepsuit\Liquid\Contracts;
 
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Render\RenderContext;
 
 interface IsContextAware
 {
-    public function setContext(Context $context): void;
+    public function setContext(RenderContext $context): void;
 }

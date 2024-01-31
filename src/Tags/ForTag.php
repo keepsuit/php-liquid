@@ -7,64 +7,63 @@ use Keepsuit\Liquid\Drops\ForLoopDrop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Interrupts\BreakInterrupt;
-use Keepsuit\Liquid\Nodes\BlockBodySection;
+use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Nodes\Range;
-use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Parser;
-use Keepsuit\Liquid\Parse\Regex;
-use Keepsuit\Liquid\Parse\Tokenizer;
+use Keepsuit\Liquid\Nodes\RangeLookup;
+use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Nodes\VariableLookup;
+use Keepsuit\Liquid\Parse\ExpressionParser;
+use Keepsuit\Liquid\Parse\TokenStream;
 use Keepsuit\Liquid\Parse\TokenType;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\TagBlock;
 use Traversable;
 
+/**
+ * @phpstan-import-type Expression from ExpressionParser
+ */
 class ForTag extends TagBlock implements HasParseTreeVisitorChildren
 {
-    const Syntax = '/\A('.Regex::VariableSegment.'+)\s+in\s+('.Regex::QuotedFragment.'+)\s*(reversed)?/';
-
     protected string $variableName;
 
-    protected mixed $collectionName;
+    protected VariableLookup|RangeLookup|string $collection;
 
     protected string $name;
 
     protected bool $reversed;
 
+    /**
+     * @var Expression|null
+     */
     protected mixed $from = null;
 
+    /**
+     * @var Expression|null
+     */
     protected mixed $limit = null;
 
-    protected BlockBodySection $forBlock;
+    protected BodyNode $forBlock;
 
-    protected ?BlockBodySection $elseBlock = null;
+    protected ?BodyNode $elseBlock = null;
 
     public static function tagName(): string
     {
         return 'for';
     }
 
-    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
+    public function parse(TagParseContext $context): static
     {
-        parent::parse($parseContext, $tokenizer);
-
-        $this->forBlock = $this->bodySections[0];
-
-        if (count($this->bodySections) > 1) {
-            $this->elseBlock = $this->bodySections[1];
-        }
-
-        $this->parseForBlock($parseContext, $this->forBlock->startDelimiter()->markup ?? '');
-
-        if ($this->blank()) {
-            $this->forBlock->removeBlankStrings();
-            $this->elseBlock?->removeBlankStrings();
-        }
+        match ($context->tag) {
+            'for' => $this->parseForBlock($context),
+            'else' => $this->parseElseBlock($context),
+            default => throw new SyntaxException('Invalid tag'),
+        };
 
         return $this;
     }
 
-    public function render(Context $context): string
+    public function render(RenderContext $context): string
     {
         $segment = $this->collectionSegment($context);
 
@@ -75,7 +74,7 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
         return $this->renderSegment($context, $segment);
     }
 
-    public function nodeList(): array
+    public function children(): array
     {
         return $this->elseBlock ? [$this->forBlock, $this->elseBlock] : [$this->forBlock];
     }
@@ -83,72 +82,48 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
     public function parseTreeVisitorChildren(): array
     {
         return Arr::compact([
-            ...$this->nodeList(),
+            ...$this->children(),
             $this->limit,
             $this->from,
-            $this->collectionName,
+            $this->collection,
         ]);
     }
 
-    protected function parseForBlock(ParseContext $parseContext, string $markup): void
+    public function blank(): bool
     {
-        $parser = new Parser($markup);
-
-        $this->variableName = $parser->consume(TokenType::Identifier);
-
-        if (! $parser->idOrFalse('in')) {
-            throw new SyntaxException($parseContext->locale->translate('errors.syntax.for_invalid_in'));
-        }
-
-        $collectionNameMarkup = $parser->expression();
-        $this->collectionName = $this->parseExpression($parseContext, $collectionNameMarkup);
-
-        $this->name = sprintf('%s-%s', $this->variableName, $collectionNameMarkup);
-        $this->reversed = $parser->idOrFalse('reversed') !== false;
-
-        while ($parser->look(TokenType::Comma) || $parser->look(TokenType::Identifier)) {
-            $parser->consumeOrFalse(TokenType::Comma);
-
-            $attribute = $parser->idOrFalse('limit') ?: $parser->idOrFalse('offset');
-
-            if (! $attribute) {
-                throw new SyntaxException($parseContext->locale->translate('errors.syntax.for_invalid_attribute'));
-            }
-
-            $parser->consume(TokenType::Colon);
-
-            $this->setAttribute($parseContext, $attribute, $parser->expression());
-        }
-
-        $parser->consume(TokenType::EndOfString);
+        return $this->forBlock->blank() && ($this->elseBlock?->blank() ?? true);
     }
 
-    protected function setAttribute(ParseContext $parseContext, string $attribute, string $expression): void
+    protected function setAttribute(string $attribute, TokenStream $tokenStream): void
     {
         if ($attribute === 'offset') {
-            $this->from = $expression === 'continue' ? 'continue' : $this->parseExpression($parseContext, $expression);
+            $expression = $tokenStream->expression();
+            $this->from = match (true) {
+                $expression instanceof VariableLookup, is_string($expression) => (string) $expression === 'continue' ? 'continue' : $expression,
+                default => $expression,
+            };
 
             return;
         }
 
         if ($attribute === 'limit') {
-            $this->limit = $this->parseExpression($parseContext, $expression);
+            $this->limit = $tokenStream->expression();
 
             return;
         }
     }
 
-    protected function isSubTag(string $tagName): bool
+    public function isSubTag(string $tagName): bool
     {
         return in_array($tagName, ['else'], true);
     }
 
-    protected function collectionSegment(Context $context): array
+    protected function collectionSegment(RenderContext $context): array
     {
         $offsets = $context->getRegister('for') ?? [];
         assert(is_array($offsets));
 
-        $collection = $context->evaluate($this->collectionName) ?? [];
+        $collection = $context->evaluate($this->collection) ?? [];
         $collection = match (true) {
             $collection instanceof Range => $collection->toArray(),
             $collection instanceof Traversable => iterator_to_array($collection),
@@ -161,13 +136,16 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
             $offset = $offsets[$this->name];
         } else {
             $fromValue = $context->evaluate($this->from);
-            $offset = $fromValue === null ? 0 : (is_numeric($fromValue) ? (int) $fromValue : throw new InvalidArgumentException('Invalid integer'));
+            $offset = match (true) {
+                $fromValue === null => 0,
+                is_numeric($fromValue) => (int) $fromValue,
+                default => throw new InvalidArgumentException('Invalid integer'),
+            };
         }
         assert(is_int($offset));
 
         $limitValue = $context->evaluate($this->limit);
         $length = $limitValue === null ? null : (is_numeric($limitValue) ? (int) $limitValue : throw new InvalidArgumentException('Invalid integer'));
-
         $segment = array_slice($collection, $offset, $length);
         $segment = $this->reversed ? array_reverse($segment) : $segment;
 
@@ -177,7 +155,7 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
         return $segment;
     }
 
-    protected function renderSegment(Context $context, array $segment): string
+    protected function renderSegment(RenderContext $context, array $segment): string
     {
         /** @var ForLoopDrop[] $forStack */
         $forStack = $context->getRegister('for_stack') ?? [];
@@ -218,8 +196,63 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
         });
     }
 
-    protected function renderElse(Context $context): string
+    protected function renderElse(RenderContext $context): string
     {
         return $this->elseBlock?->render($context) ?? '';
+    }
+
+    protected function parseForBlock(TagParseContext $context): void
+    {
+        assert($context->body !== null);
+        $this->forBlock = $context->body;
+
+        $variableName = $context->params->expression();
+        $this->variableName = match (true) {
+            $variableName instanceof VariableLookup, is_string($variableName) => (string) $variableName,
+            default => throw new SyntaxException('Invalid variable name'),
+        };
+
+        if (! $context->params->idOrFalse('in')) {
+            throw new SyntaxException("For loops require an 'in' clause");
+        }
+
+        $collection = $context->params->expression();
+        $this->collection = match (true) {
+            $collection instanceof VariableLookup, $collection instanceof RangeLookup, is_string($collection) => $collection,
+            default => throw new SyntaxException('Invalid collection'),
+        };
+
+        $this->name = sprintf('%s-%s', $this->variableName, $this->collection);
+        $this->reversed = $context->params->idOrFalse('reversed') !== false;
+
+        while ($context->params->look(TokenType::Comma) || $context->params->look(TokenType::Identifier)) {
+            $context->params->consumeOrFalse(TokenType::Comma);
+
+            $attribute = $context->params->idOrFalse('limit') ?: $context->params->idOrFalse('offset');
+
+            if (! $attribute) {
+                throw new SyntaxException('Invalid attribute in for loop. Valid attributes are limit and offset');
+            }
+
+            $context->params->consume(TokenType::Colon);
+
+            $this->setAttribute($attribute->data, $context->params);
+        }
+
+        $context->params->assertEnd();
+
+        if ($this->forBlock->blank()) {
+            $this->forBlock->removeBlankStrings();
+        }
+    }
+
+    protected function parseElseBlock(TagParseContext $context): void
+    {
+        $this->elseBlock = $context->body;
+        $context->params->assertEnd();
+
+        if ($this->elseBlock?->blank()) {
+            $this->elseBlock->removeBlankStrings();
+        }
     }
 }

@@ -227,7 +227,11 @@ class StandardFilters extends FiltersProvider
             return null;
         }
 
-        return $input[0];
+        if (! array_is_list($input)) {
+            return null;
+        }
+
+        return $input[0] ?? null;
     }
 
     /**
@@ -310,7 +314,7 @@ class StandardFilters extends FiltersProvider
      */
     public function newlineToBr(?string $input): string
     {
-        return preg_replace('/\r?\n/', "<br />\n", $input ?? '') ?? '';
+        return preg_replace('/\r?\n/', "<br />\n", $input ?? '') ?? $input ?? '';
     }
 
     /**
@@ -538,7 +542,7 @@ class StandardFilters extends FiltersProvider
         $STRIP_HTML_TAGS = '/<[\S\s]*?>/m';
         $STRIP_HTLM_BLOCKS = '/((<script.*?<\/script>)|(<!--.*?-->)|(<style.*?<\/style>))/m';
 
-        return preg_replace([$STRIP_HTLM_BLOCKS, $STRIP_HTML_TAGS], '', $input ?? '') ?? '';
+        return preg_replace([$STRIP_HTLM_BLOCKS, $STRIP_HTML_TAGS], '', $input ?? '') ?? $input ?? '';
     }
 
     /**
@@ -546,7 +550,7 @@ class StandardFilters extends FiltersProvider
      */
     public function stripNewlines(?string $input): string
     {
-        return preg_replace('/\r?\n/', '', $input ?? '') ?? '';
+        return preg_replace('/\r?\n/', '', $input ?? '') ?? $input ?? '';
     }
 
     /**

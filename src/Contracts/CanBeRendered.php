@@ -2,9 +2,9 @@
 
 namespace Keepsuit\Liquid\Contracts;
 
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Render\RenderContext;
 
 interface CanBeRendered
 {
-    public function render(Context $context): string;
+    public function render(RenderContext $context): string;
 }

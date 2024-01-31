@@ -17,19 +17,18 @@ use Keepsuit\Liquid\Exceptions\StandardException;
 use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Interrupts\Interrupt;
-use Keepsuit\Liquid\Parse\Expression;
+use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Profiler\Profiler;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\FilterRegistry;
-use Keepsuit\Liquid\Support\I18n;
 use Keepsuit\Liquid\Support\MissingValue;
 use Keepsuit\Liquid\Support\OutputsBag;
 use Keepsuit\Liquid\Template;
 use RuntimeException;
 use Throwable;
 
-final class Context
+final class RenderContext
 {
     protected int $baseScopeDepth = 0;
 
@@ -57,12 +56,25 @@ final class Context
     protected ?Profiler $profiler;
 
     public function __construct(
-        /** @var array<string, mixed> */
+        /**
+         * Environment variables only available in the current context
+         *
+         * @var array<string, mixed>
+         */
         protected array $environment = [],
-        /** @var array<string, mixed> $staticEnvironment */
+        /**
+         * Environment variables that are shared with all sub-contexts
+         *
+         * @var array<string, mixed> $staticEnvironment
+         */
         array $staticEnvironment = [],
-        /** array<string, mixed> */
-        protected array $outerScope = [],
+        /**
+         * Registers allows to provide/export data or utilities inside tags
+         * Registers are not accessible as variables.
+         * Registers are shared with all sub-contexts
+         *
+         * @var array<string, mixed> $registers
+         */
         array $registers = [],
         protected bool $rethrowExceptions = false,
         public readonly bool $strictVariables = false,
@@ -70,13 +82,12 @@ final class Context
         protected FilterRegistry $filterRegistry = new FilterRegistry(),
         public readonly ResourceLimits $resourceLimits = new ResourceLimits(),
         public readonly LiquidFileSystem $fileSystem = new BlankFileSystem(),
-        public readonly I18n $locale = new I18n(),
     ) {
-        $this->scopes = [$this->outerScope];
+        $this->scopes = [[]];
 
         $this->sharedState = new ContextSharedState(
             staticEnvironment: $staticEnvironment,
-            staticRegisters: $registers,
+            registers: $registers,
         );
 
         $this->profiler = $profile ? new Profiler() : null;
@@ -106,7 +117,7 @@ final class Context
     /**
      * @template TResult
      *
-     * @param  Closure(Context $context): TResult  $closure
+     * @param  Closure(RenderContext $context): TResult  $closure
      * @return TResult
      */
     public function stack(Closure $closure)
@@ -149,7 +160,7 @@ final class Context
 
     public function get(string $key): mixed
     {
-        return $this->evaluate(Expression::parse($key));
+        return $this->evaluate(VariableLookup::fromMarkup($key));
     }
 
     public function has(string $key): bool
@@ -243,7 +254,7 @@ final class Context
 
     public function getRegister(string $name): mixed
     {
-        return $this->dynamicRegisters[$name] ?? $this->sharedState->staticRegisters[$name] ?? null;
+        return $this->dynamicRegisters[$name] ?? $this->sharedState->registers[$name] ?? null;
     }
 
     public function setRegister(string $name, mixed $value): void
@@ -328,27 +339,27 @@ final class Context
     public function loadPartial(string $templateName): Template
     {
         if (! Arr::has($this->sharedState->partialsCache, $templateName)) {
-            throw new StandardException($this->locale->translate('errors.runtime.partial_not_loaded', ['partial' => $templateName]));
+            throw new StandardException(sprintf("The partial '%s' has not be loaded during parsing", $templateName));
         }
 
         return $this->sharedState->partialsCache[$templateName];
     }
 
-    public function setPartialsCache(array $partialsCache): Context
+    public function setPartialsCache(array $partialsCache): RenderContext
     {
         $this->sharedState->partialsCache = $partialsCache;
 
         return $this;
     }
 
-    public function mergePartialsCache(array $partialsCache): Context
+    public function mergePartialsCache(array $partialsCache): RenderContext
     {
         $this->sharedState->partialsCache = array_merge($this->sharedState->partialsCache, $partialsCache);
 
         return $this;
     }
 
-    public function mergeOutputs(array $outputs): Context
+    public function mergeOutputs(array $outputs): RenderContext
     {
         $this->sharedState->outputs->merge($outputs);
 
@@ -363,17 +374,16 @@ final class Context
     /**
      * @throws StackLevelException
      */
-    public function newIsolatedSubContext(?string $templateName): Context
+    public function newIsolatedSubContext(?string $templateName): RenderContext
     {
         $this->checkOverflow();
 
-        $subContext = new Context(
+        $subContext = new RenderContext(
             rethrowExceptions: $this->rethrowExceptions,
             strictVariables: $this->strictVariables,
             filterRegistry: $this->filterRegistry,
             resourceLimits: $this->resourceLimits,
             fileSystem: $this->fileSystem,
-            locale: $this->locale,
         );
         $subContext->baseScopeDepth = $this->baseScopeDepth + 1;
         $subContext->sharedState = $this->sharedState;
@@ -388,7 +398,7 @@ final class Context
      * @template TResult
      *
      * @param  string[]  $tags
-     * @param  Closure(Context $context): TResult  $closure
+     * @param  Closure(RenderContext $context): TResult  $closure
      * @return TResult
      */
     public function withDisabledTags(array $tags, Closure $closure)
@@ -419,7 +429,7 @@ final class Context
     protected function checkOverflow(): void
     {
         if ($this->baseScopeDepth + count($this->scopes) > ParseContext::MAX_DEPTH) {
-            throw new StackLevelException($this->locale->translate('errors.stack.nesting_too_deep'));
+            throw StackLevelException::nestingTooDeep();
         }
     }
 }

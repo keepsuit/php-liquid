@@ -4,13 +4,13 @@ use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
 use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Render\ResourceLimits;
 
 test('assigns persist on same context between renders', function () {
     $template = parseTemplate("{{ foo }}{% assign foo = 'foo' %}{{ foo }}");
 
-    $context = new Context();
+    $context = new RenderContext();
     expect($template->render($context))->toBe('foo');
     expect($template->render($context))->toBe('foofoo');
 });
@@ -18,15 +18,15 @@ test('assigns persist on same context between renders', function () {
 test('assigns does not persist on different contexts between renders', function () {
     $template = parseTemplate("{{ foo }}{% assign foo = 'foo' %}{{ foo }}");
 
-    expect($template->render(new Context()))->toBe('foo');
-    expect($template->render(new Context()))->toBe('foo');
+    expect($template->render(new RenderContext()))->toBe('foo');
+    expect($template->render(new RenderContext()))->toBe('foo');
 });
 
 test('lamdba is called once over multiple renders', function () {
     $template = parseTemplate('{{ number }}');
 
     $global = 0;
-    $context = new Context(
+    $context = new RenderContext(
         staticEnvironment: [
             'number' => function () use (&$global) {
                 $global += 1;
@@ -43,13 +43,13 @@ test('lamdba is called once over multiple renders', function () {
 test('resource limits render length', function () {
     $template = parseTemplate('0123456789');
 
-    $context = new Context(
+    $context = new RenderContext(
         resourceLimits: new ResourceLimits(renderLengthLimit: 9)
     );
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
     expect($context->resourceLimits->reached())->toBeTrue();
 
-    $context = new Context(
+    $context = new RenderContext(
         resourceLimits: new ResourceLimits(renderLengthLimit: 10)
     );
     expect($template->render($context))->toBe('0123456789');
@@ -58,20 +58,20 @@ test('resource limits render length', function () {
 
 test('resource limits render score', function () {
     $template = parseTemplate('{% for a in (1..10) %} {% for a in (1..10) %} foo {% endfor %} {% endfor %}');
-    $context = new Context(
+    $context = new RenderContext(
         resourceLimits: new ResourceLimits(renderScoreLimit: 50)
     );
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
     expect($context->resourceLimits->reached())->toBeTrue();
 
     $template = parseTemplate('{% for a in (1..100) %} foo {% endfor %}');
-    $context = new Context(
+    $context = new RenderContext(
         resourceLimits: new ResourceLimits(renderScoreLimit: 50)
     );
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
     expect($context->resourceLimits->reached())->toBeTrue();
 
-    $context = new Context(
+    $context = new RenderContext(
         resourceLimits: new ResourceLimits(renderScoreLimit: 200)
     );
     expect($template->render($context))->toBe(str_repeat(' foo ', 100));
@@ -80,7 +80,7 @@ test('resource limits render score', function () {
 
 test('resource limits abort rendering after first error', function () {
     $template = parseTemplate('{% for a in (1..100) %} foo1 {% endfor %} bar {% for a in (1..100) %} foo2 {% endfor %}');
-    $context = new Context(
+    $context = new RenderContext(
         rethrowExceptions: false,
         resourceLimits: new ResourceLimits(renderScoreLimit: 50)
     );
@@ -90,7 +90,7 @@ test('resource limits abort rendering after first error', function () {
 
 test('resource limits get updated even if no limits are set', function () {
     $template = parseTemplate('{% for a in (1..100) %}x{% assign foo = 1 %} {% endfor %}');
-    $context = new Context();
+    $context = new RenderContext();
     $template->render($context);
 
     expect($context->resourceLimits)
@@ -101,35 +101,35 @@ test('resource limits get updated even if no limits are set', function () {
 
 test('render length persists between blocks', function () {
     $template = parseTemplate('{% if true %}aaaa{% endif %}');
-    $context = new Context(resourceLimits: new ResourceLimits(renderLengthLimit: 3));
+    $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 3));
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
-    $context = new Context(resourceLimits: new ResourceLimits(renderLengthLimit: 4));
+    $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 4));
     expect($template->render($context))->toBe('aaaa');
 
     $template = parseTemplate('{% if true %}aaaa{% endif %}{% if true %}bbb{% endif %}');
-    $context = new Context(resourceLimits: new ResourceLimits(renderLengthLimit: 6));
+    $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 6));
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
-    $context = new Context(resourceLimits: new ResourceLimits(renderLengthLimit: 7));
+    $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 7));
     expect($template->render($context))->toBe('aaaabbb');
 
     $template = parseTemplate('{% if true %}a{% endif %}{% if true %}b{% endif %}{% if true %}a{% endif %}{% if true %}b{% endif %}{% if true %}a{% endif %}{% if true %}b{% endif %}');
-    $context = new Context(resourceLimits: new ResourceLimits(renderLengthLimit: 5));
+    $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 5));
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
-    $context = new Context(resourceLimits: new ResourceLimits(renderLengthLimit: 6));
+    $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 6));
     expect($template->render($context))->toBe('ababab');
 });
 
 test('render length uses number of bytes not characters', function () {
     $template = parseTemplate('{% if true %}すごい{% endif %}');
-    $context = new Context(resourceLimits: new ResourceLimits(renderLengthLimit: 8));
+    $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 8));
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
-    $context = new Context(resourceLimits: new ResourceLimits(renderLengthLimit: 9));
+    $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 9));
     expect($template->render($context))->toBe('すごい');
 });
 
 test('undefined variables', function () {
     $template = parseTemplate('{{x}} {{y}} {{z.a}} {{z.b}} {{z.c.d}}');
-    $context = new Context(
+    $context = new RenderContext(
         staticEnvironment: [
             'x' => 33,
             'z' => ['a' => 32, 'c' => ['e' => 31]],
@@ -152,7 +152,7 @@ test('undefined variables', function () {
 
 test('null value does not throw exception', function () {
     $template = parseTemplate('some{{x}}thing');
-    $context = new Context(
+    $context = new RenderContext(
         staticEnvironment: [
             'x' => null,
         ],
@@ -168,7 +168,7 @@ test('null value does not throw exception', function () {
 
 test('undefined drop method', function () {
     $template = parseTemplate('{{ d.text }} {{ d.undefined }}');
-    $context = new Context(
+    $context = new RenderContext(
         staticEnvironment: [
             'd' => new \Keepsuit\Liquid\Tests\Stubs\TextDrop(),
         ],
@@ -185,7 +185,7 @@ test('undefined drop method', function () {
 
 test('undefined drop method throw exception', function () {
     $template = parseTemplate('{{ d.text }} {{ d.undefined }}');
-    $context = new Context(
+    $context = new RenderContext(
         staticEnvironment: [
             'd' => new \Keepsuit\Liquid\Tests\Stubs\TextDrop(),
         ],
@@ -198,7 +198,7 @@ test('undefined drop method throw exception', function () {
 
 test('undefined filter', function () {
     $template = parseTemplate('{{a}} {{x | upcase | somefilter1 | somefilter2 | downcase}}');
-    $context = new Context(
+    $context = new RenderContext(
         staticEnvironment: [
             'a' => 123,
             'x' => 'foo',
@@ -216,7 +216,7 @@ test('undefined filter', function () {
 
 test('undefined filter throw exception', function () {
     $template = parseTemplate('{{a}} {{x | upcase | somefilter1 | somefilter2 | downcase}}');
-    $context = new Context(
+    $context = new RenderContext(
         staticEnvironment: [
             'a' => 123,
             'x' => 'foo',

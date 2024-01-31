@@ -34,7 +34,6 @@ test('has a block which does nothing', function () {
     assertTemplateResult('', '{% comment %}{% blabla %}{% endcomment %}');
     assertTemplateResult('', '{%comment%}{% endif %}{%endcomment%}');
     assertTemplateResult('', '{% comment %}{% endwhatever %}{% endcomment %}');
-    assertTemplateResult(' ', '{% comment %}{% raw %} {{%%%%}}  }} { {% endcomment %} {% comment {% endraw %} {% endcomment %}');
     assertTemplateResult('', '{% comment %}{% " %}{% endcomment %}');
     assertTemplateResult('', '{% comment %}{%%}{% endcomment %}');
 

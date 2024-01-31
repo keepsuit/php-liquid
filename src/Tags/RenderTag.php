@@ -4,27 +4,31 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Drops\ForLoopDrop;
-use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Regex;
-use Keepsuit\Liquid\Parse\Tokenizer;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Nodes\VariableLookup;
+use Keepsuit\Liquid\Parse\ExpressionParser;
+use Keepsuit\Liquid\Parse\TokenType;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\Template;
 use Traversable;
 
+/**
+ * @phpstan-import-type Expression from ExpressionParser
+ */
 class RenderTag extends Tag implements HasParseTreeVisitorChildren
 {
-    protected const Syntax = '/('.Regex::QuotedString.'+)(\s+(with|for)\s+('.Regex::QuotedFragment.'+))?(\s+(?:as)\s+('.Regex::VariableSegment.'+))?/';
-
     protected string $templateNameExpression;
 
     protected mixed $variableNameExpression;
 
     protected ?string $aliasName;
 
+    /**
+     * @var array<string, Expression>
+     */
     protected array $attributes = [];
 
     protected bool $isForLoop;
@@ -34,35 +38,54 @@ class RenderTag extends Tag implements HasParseTreeVisitorChildren
         return 'render';
     }
 
-    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
+    public function parse(TagParseContext $context): static
     {
-        return $parseContext->nested(function () use ($parseContext) {
-            if (! preg_match(static::Syntax, $this->markup, $matches)) {
-                throw new SyntaxException($parseContext->locale->translate('errors.syntax.render'));
+        $this->isForLoop = false;
+        $this->variableNameExpression = null;
+
+        $context->getParseContext()->nested(function () use ($context) {
+            $templateNameExpression = $context->params->expression();
+            $this->templateNameExpression = match (true) {
+                is_string($templateNameExpression) => $templateNameExpression,
+                default => throw new SyntaxException('Template name must be a string'),
+            };
+
+            if ($context->params->idOrFalse('for')) {
+                $this->isForLoop = true;
+                $this->variableNameExpression = $context->params->expression();
+            } elseif ($context->params->idOrFalse('with')) {
+                $this->variableNameExpression = $context->params->expression();
             }
 
-            $templateNameExpression = $this->parseExpression($parseContext, $matches[1]);
-            if (! is_string($templateNameExpression)) {
-                throw new InvalidArgumentException('Template name must be a string');
-            }
-            $this->templateNameExpression = $templateNameExpression;
-
-            $this->aliasName = $matches[6] ?? null;
-            $this->variableNameExpression = ($matches[4] ?? null) ? $this->parseExpression($parseContext, $matches[4]) : null;
-            $this->isForLoop = ($matches[3] ?? null) === 'for';
-
-            preg_match_all(sprintf('/%s/', Regex::TagAttributes), $this->markup, $attributeMatches, PREG_SET_ORDER);
-            foreach ($attributeMatches as $matches) {
-                $this->attributes[$matches[1]] = $this->parseExpression($parseContext, $matches[2]);
+            if ($context->params->idOrFalse('as')) {
+                $aliasName = $context->params->expression();
+                $this->aliasName = match (true) {
+                    is_string($aliasName), $aliasName instanceof VariableLookup => (string) $aliasName,
+                    default => throw new SyntaxException('Alias name must be a valid variable name'),
+                };
             }
 
-            $parseContext->loadPartial($this->templateNameExpression);
+            while ($context->params->consumeOrFalse(TokenType::Comma)) {
+                $attributeName = $context->params->expression();
+                if (! (is_string($attributeName) || $attributeName instanceof VariableLookup)) {
+                    throw new SyntaxException('Attribute name must be a valid variable name');
+                }
 
-            return $this;
+                $context->params->consume(TokenType::Colon);
+                $attributeValue = $context->params->expression();
+
+                $this->attributes[(string) $attributeName] = $attributeValue;
+            }
+
+            $context->params->assertEnd();
+
+            $context->getParseContext()->loadPartial($this->templateNameExpression);
         });
+
+        return $this;
     }
 
-    public function render(Context $context): string
+    public function render(RenderContext $context): string
     {
         $partial = $context->loadPartial($this->templateNameExpression);
 
@@ -108,7 +131,7 @@ class RenderTag extends Tag implements HasParseTreeVisitorChildren
         ];
     }
 
-    protected function buildPartialContext(Template $partial, Context $context, array $variables = []): Context
+    protected function buildPartialContext(Template $partial, RenderContext $context, array $variables = []): RenderContext
     {
         $innerContext = $context->newIsolatedSubContext($partial->name);
 

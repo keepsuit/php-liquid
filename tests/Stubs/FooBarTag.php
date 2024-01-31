@@ -2,7 +2,8 @@
 
 namespace Keepsuit\Liquid\Tests\Stubs;
 
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tag;
 
 class FooBarTag extends Tag
@@ -12,7 +13,12 @@ class FooBarTag extends Tag
         return 'foobar';
     }
 
-    public function render(Context $context): string
+    public function parse(TagParseContext $context): static
+    {
+        return $this;
+    }
+
+    public function render(RenderContext $context): string
     {
         return ' ';
     }

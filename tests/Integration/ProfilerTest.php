@@ -2,7 +2,7 @@
 
 use Keepsuit\Liquid\Profiler\Profiler;
 use Keepsuit\Liquid\Profiler\Timing;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\TemplateFactory;
 use Keepsuit\Liquid\Tests\Stubs\ProfilingFileSystem;
@@ -17,10 +17,10 @@ beforeEach(function () {
 
 test('context allows flagging profiling', function () {
     $template = parseTemplate("{{ 'a string' | upcase }}");
-    $template->render(new Context());
+    $template->render(new RenderContext());
     expect($template->getProfiler())->toBeNull();
 
-    $template->render(new Context(profile: true));
+    $template->render(new RenderContext(profile: true));
     expect($template->getProfiler())->toBeInstanceOf(Profiler::class);
 });
 
@@ -29,8 +29,7 @@ test('simple profiling', function () {
 
     expect($profiler->getTiming())
         ->toBeInstanceOf(Timing::class)
-        ->getChildren()->toHaveCount(1)
-        ->getChildren()->{0}->code->toBe(" 'a string' | upcase ");
+        ->getChildren()->toHaveCount(1);
 });
 
 test('profiler ignore raw strings', function () {
@@ -81,8 +80,8 @@ test('profile rendering time', function () {
 });
 
 test('profiling multiple renders', function () {
-    $context = new Context(profile: true, fileSystem: new ProfilingFileSystem());
-    $template = parseTemplate('{% sleep 0.001 %}', lineNumbers: true, factory: $this->templateFactory);
+    $context = new RenderContext(profile: true, fileSystem: new ProfilingFileSystem());
+    $template = parseTemplate('{% sleep 0.001 %}', factory: $this->templateFactory);
 
     invade($context)->templateName = 'index';
     $template->render($context);

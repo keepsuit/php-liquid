@@ -3,21 +3,20 @@
 namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
+use Keepsuit\Liquid\Nodes\TagParseContext;
 use Keepsuit\Liquid\Nodes\Variable;
-use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Tokenizer;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tag;
 
 class EchoTag extends Tag implements HasParseTreeVisitorChildren
 {
     protected Variable $variable;
 
-    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
+    public function parse(TagParseContext $context): static
     {
-        parent::parse($parseContext, $tokenizer);
+        $this->variable = $context->params->variable();
 
-        $this->variable = Variable::fromMarkup($this->markup, $parseContext->lineNumber);
+        $context->params->assertEnd();
 
         return $this;
     }
@@ -37,7 +36,7 @@ class EchoTag extends Tag implements HasParseTreeVisitorChildren
         return [$this->variable];
     }
 
-    public function render(Context $context): string
+    public function render(RenderContext $context): string
     {
         return $this->variable->render($context);
     }

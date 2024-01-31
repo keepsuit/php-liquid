@@ -3,193 +3,186 @@
 namespace Keepsuit\Liquid\Parse;
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Nodes\BodyNode;
+use Keepsuit\Liquid\Nodes\Raw;
+use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Nodes\Text;
+use Keepsuit\Liquid\Nodes\Variable;
+use Keepsuit\Liquid\Tag;
+use Keepsuit\Liquid\TagBlock;
 
 class Parser
 {
-    /**
-     * @var array<array{0:TokenType, 1:string, 2:int}>
-     */
-    protected array $tokens;
+    protected TokenStream $tokenStream;
 
-    protected int $pointer;
+    /**
+     * @var TagBlock[]
+     */
+    protected array $blockScopes;
+
+    public function __construct(
+        protected ParseContext $parseContext,
+    ) {
+    }
 
     /**
      * @throws SyntaxException
      */
-    public function __construct(protected string $input)
+    public function parse(TokenStream $tokenStream): BodyNode
     {
-        $this->tokens = (new Lexer($input))->tokenize();
-        $this->pointer = 0;
+        $this->tokenStream = $tokenStream;
+        $this->blockScopes = [];
+
+        return $this->subparse();
     }
 
     /**
-     * @phpstan-impure
-     */
-    public function jump(int $int): void
-    {
-        $this->pointer = $int;
-    }
-
-    /**
-     * @phpstan-impure
-     *
      * @throws SyntaxException
      */
-    public function consume(?TokenType $type = null): string
+    public function subparse(): BodyNode
     {
-        $token = $this->tokens[$this->pointer];
-
-        if ($type != null && $token[0] !== $type) {
-            throw SyntaxException::unexpectedTokenType($type, $token[0]);
+        if ($this->currentToken() === null) {
+            return new BodyNode([]);
         }
 
-        $this->pointer += 1;
+        $nodes = [];
 
-        return $token[1] ?? '';
+        while (! $this->tokenStream->isEnd()) {
+            $token = $this->tokenStream->next();
+            $this->parseContext->lineNumber = $token->lineNumber;
+
+            switch ($token->type) {
+                case TokenType::TextData:
+                    $nodes[] = (new Text($token->data))->setLineNumber($this->parseContext->lineNumber);
+                    break;
+                case TokenType::RawData:
+                    $nodes[] = (new Raw($token->data))->setLineNumber($this->parseContext->lineNumber);
+                    break;
+                case TokenType::VariableStart:
+                    $nodes[] = $this->parseVariable();
+
+                    break;
+                case TokenType::BlockStart:
+                    try {
+                        $tagName = $this->tokenStream->consume(TokenType::Identifier)->data;
+                        $this->tokenStream->jump(-1);
+                    } catch (SyntaxException $e) {
+                        throw new SyntaxException('A block must start with a tag name.');
+                    }
+
+                    if ($this->isEndOrSubTagOfCurrentBlock($tagName)) {
+                        return new BodyNode($nodes);
+                    }
+
+                    $nodes[] = $this->parseBlock();
+                    break;
+                default:
+                    throw new SyntaxException('Unexpected token type: '.$token->type->toString());
+            }
+        }
+
+        return new BodyNode($nodes);
     }
 
-    public function consumeOrFalse(TokenType $type): string|false
+    protected function parseVariable(): Variable
     {
-        try {
-            return $this->consume($type);
-        } catch (SyntaxException) {
+        $variable = $this->tokenStream->variable();
+
+        $this->tokenStream->consume(TokenType::VariableEnd);
+
+        return $variable;
+    }
+
+    /**
+     * @throws SyntaxException
+     */
+    protected function parseBlock(): Tag
+    {
+        $currentToken = $this->tokenStream->current();
+
+        $tagName = $this->tokenStream->consume(TokenType::Identifier)->data;
+
+        /** @var class-string<Tag>|null $tagClass */
+        $tagClass = $this->parseContext->tagRegistry->get($tagName) ?? null;
+
+        if ($tagClass === null || ! class_exists($tagClass)) {
+            $blockTagName = $this->currentBlockScope() ? $this->currentBlockScope()::tagName() : null;
+
+            throw SyntaxException::unknownTag($tagName, $blockTagName);
+        }
+
+        $tag = (new $tagClass())->setLineNumber($currentToken?->lineNumber);
+
+        if ($tag instanceof TagBlock) {
+            $this->blockScopes[] = $tag;
+
+            $currentTagName = $tagName;
+            do {
+                $params = $this->tokenStream->sliceUntil(TokenType::BlockEnd);
+                $this->tokenStream->consume(TokenType::BlockEnd);
+
+                $body = $this->subparse();
+                $tagParseContext = (new TagParseContext($currentTagName, $params, $body))->setParseContext($this->parseContext);
+
+                $tag->parse($tagParseContext);
+
+                try {
+                    $currentTagName = $this->tokenStream->consume(TokenType::Identifier)->data;
+                } catch (SyntaxException $e) {
+                    throw SyntaxException::tagBlockNeverClosed($tag::tagName());
+                }
+            } while ($currentTagName !== $tag::blockDelimiter());
+
+            $this->tokenStream->consume(TokenType::BlockEnd);
+
+            array_pop($this->blockScopes);
+
+            return $tag;
+        }
+
+        $params = $this->tokenStream->sliceUntil(TokenType::BlockEnd);
+        $this->tokenStream->consume(TokenType::BlockEnd);
+
+        $tagParseContext = (new TagParseContext($tagName, $params))
+            ->setParseContext($this->parseContext);
+
+        $tag->parse($tagParseContext);
+
+        return $tag;
+    }
+
+    protected function currentBlockScope(): ?TagBlock
+    {
+        return $this->blockScopes[count($this->blockScopes) - 1] ?? null;
+    }
+
+    protected function isEndOrSubTagOfCurrentBlock(string $tagName): bool
+    {
+        $currentBlock = $this->currentBlockScope();
+
+        if (! $currentBlock) {
             return false;
         }
-    }
 
-    /**
-     * @phpstan-impure
-     *
-     * @throws SyntaxException
-     */
-    public function id(string $identifier): string|false
-    {
-        $token = $this->tokens[$this->pointer];
-
-        if ($token === null || $token[0] !== TokenType::Identifier) {
-            throw SyntaxException::unexpectedTokenType(TokenType::Identifier, $token[0]);
+        if ($tagName === $currentBlock::blockDelimiter()) {
+            return true;
         }
 
-        if ($token[1] !== $identifier) {
-            return false;
-        }
-
-        $this->pointer += 1;
-
-        return $token[1];
+        return $currentBlock->isSubTag($tagName);
     }
 
-    public function idOrFalse(string $identifier): string|false
+    public function getParseContext(): ParseContext
     {
-        try {
-            return $this->id($identifier);
-        } catch (SyntaxException) {
-            return false;
-        }
+        return $this->parseContext;
     }
 
-    public function look(TokenType $type, int $offset = 0): bool
+    public function getTokenStream(): TokenStream
     {
-        $token = $this->tokens[$this->pointer + $offset] ?? null;
-
-        if ($token === null) {
-            return false;
-        }
-
-        return $token[0] === $type;
+        return $this->tokenStream;
     }
 
-    /**
-     * @throws SyntaxException
-     */
-    public function expression(): string
+    public function currentToken(): ?Token
     {
-        $token = $this->tokens[$this->pointer];
-
-        return match ($token[0]) {
-            TokenType::Identifier => $this->consume()
-                .$this->variableLookups(),
-            TokenType::OpenSquare => $this->consume()
-                .$this->expression()
-                .$this->consume(TokenType::CloseSquare)
-                .$this->variableLookups(),
-            TokenType::String, TokenType::Number => $this->consume(),
-            TokenType::OpenRound => $this->consume()
-                .$this->expression()
-                .$this->consume(TokenType::DotDot)
-                .$this->expression()
-                .$this->consume(TokenType::CloseRound),
-            default => throw SyntaxException::invalidExpression($token[1] ?? ''),
-        };
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    public function attributes(?TokenType $separator = null): array
-    {
-        $attributes = [];
-
-        if ($this->look(TokenType::EndOfString) !== false) {
-            return $attributes;
-        }
-
-        do {
-            $attribute = $this->consume(TokenType::Identifier);
-            $this->consume(TokenType::Colon);
-            $attributes[$attribute] = $this->expression();
-
-            $shouldContinue = match (true) {
-                $separator === null => $this->look(TokenType::EndOfString) === false,
-                default => $this->consumeOrFalse($separator) !== false
-            };
-        } while ($shouldContinue);
-
-        return $attributes;
-    }
-
-    /**
-     * @return array<string, string>|string
-     *
-     * @throws SyntaxException
-     */
-    public function argument(): string|array
-    {
-        if ($this->look(TokenType::Identifier) && $this->look(TokenType::Colon, 1)) {
-            $identifier = $this->consume(TokenType::Identifier);
-            $this->consume(TokenType::Colon);
-
-            return [$identifier => $this->expression()];
-        }
-
-        return $this->expression();
-    }
-
-    /**
-     * @throws SyntaxException
-     */
-    protected function variableLookups(): string
-    {
-        $output = match (true) {
-            $this->look(TokenType::OpenSquare) => $this->consume()
-                .$this->expression()
-                .$this->consume(TokenType::CloseSquare),
-            $this->look(TokenType::Dot) => $this->consume()
-                .$this->consume(TokenType::Identifier),
-            default => '',
-        };
-
-        if ($output === '') {
-            return $output;
-        }
-
-        return $output.$this->variableLookups();
-    }
-
-    public function toString(): string
-    {
-        $current = $this->tokens[$this->pointer];
-
-        return substr($this->input, $current[2] ?? 0);
+        return $this->tokenStream->current();
     }
 }

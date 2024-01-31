@@ -4,51 +4,56 @@ namespace Keepsuit\Liquid\Performance\Shopify;
 
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Nodes\Range;
-use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Regex;
-use Keepsuit\Liquid\Parse\Tokenizer;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Nodes\VariableLookup;
+use Keepsuit\Liquid\Parse\TokenType;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\TagBlock;
 
 class PaginateTag extends TagBlock
 {
-    protected const Syntax = '/('.Regex::QuotedFragment.')\s*(by\s*(\d+))?/';
+    protected VariableLookup|string $collectionName;
 
-    protected string $collectionName;
-
-    protected int $pageSize;
+    protected int $pageSize = 20;
 
     protected array $attributes;
+
+    protected BodyNode $body;
 
     public static function tagName(): string
     {
         return 'paginate';
     }
 
-    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
+    public function parse(TagParseContext $context): static
     {
-        parent::parse($parseContext, $tokenizer);
+        assert($context->body !== null);
+        $this->body = $context->body;
 
-        if (preg_match(self::Syntax, $this->markup, $matches)) {
-            $this->collectionName = $matches[1];
-            $this->pageSize = isset($matches[2]) ? (int) $matches[3] : 20;
-        } else {
-            throw new SyntaxException("Syntax Error in tag 'paginate' - Valid syntax: paginate [collection] by number");
+        $collectionName = $context->params->expression();
+        $this->collectionName = match (true) {
+            $collectionName instanceof VariableLookup, is_string($collectionName) => (string) $collectionName,
+            default => throw new SyntaxException('Invalid collection name'),
+        };
+
+        if ($context->params->idOrFalse('by')) {
+            $this->pageSize = (int) $context->params->consume(TokenType::Number)->data;
         }
 
-        $this->attributes = ['window_size' => 3];
-        preg_match_all(sprintf('/%s/', Regex::TagAttributes), $this->markup, $attributeMatches, PREG_SET_ORDER);
-        foreach ($attributeMatches as $matches) {
-            $this->attributes[$matches[1]] = $this->parseExpression($parseContext, $matches[2]);
+        if (! $context->params->isEnd()) {
+            dd('paginate', $context->params->current());
         }
+
+        $context->params->assertEnd();
 
         return $this;
     }
 
-    public function render(Context $context): string
+    public function render(RenderContext $context): string
     {
-        return $context->stack(function (Context $context) {
+        return $context->stack(function (RenderContext $context) {
             $currentPage = $context->get('current_page');
 
             $collection = $context->get($this->collectionName);
@@ -90,7 +95,7 @@ class PaginateTag extends TagBlock
 
             $context->set('paginate', $pagination);
 
-            return parent::render($context);
+            return $this->body->render($context);
         });
     }
 

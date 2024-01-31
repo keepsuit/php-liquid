@@ -2,35 +2,45 @@
 
 namespace Keepsuit\Liquid\Tests\Stubs;
 
-use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Tokenizer;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
+use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Nodes\VariableLookup;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tag;
 
 class SleepTag extends Tag
 {
-    protected float $duration;
+    protected VariableLookup|float $duration;
 
     public static function tagName(): string
     {
         return 'sleep';
     }
 
-    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
+    public function parse(TagParseContext $context): static
     {
-        parent::parse($parseContext, $tokenizer);
-
-        $this->duration = floatval($this->markup);
+        $duration = $context->params->expression();
+        $this->duration = match (true) {
+            is_numeric($duration) => floatval($duration),
+            $duration instanceof VariableLookup => $duration,
+            default => throw new InvalidArgumentException('Invalid duration value'),
+        };
 
         return $this;
     }
 
-    public function render(Context $context): string
+    public function render(RenderContext $context): string
     {
-        if ($this->duration > 1) {
-            sleep((int) $this->duration);
+        $duration = match (true) {
+            is_numeric($this->duration) => $this->duration,
+            $this->duration instanceof VariableLookup => $this->duration->evaluate($context),
+        };
+        assert(is_numeric($duration));
+
+        if ($duration > 1) {
+            sleep((int) $duration);
         } else {
-            usleep((int) (1_000_000 * $this->duration));
+            usleep((int) (1_000_000 * $duration));
         }
 
         return '';

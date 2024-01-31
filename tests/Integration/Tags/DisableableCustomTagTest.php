@@ -1,12 +1,15 @@
 <?php
 
 use Keepsuit\Liquid\Contracts\Disableable;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Nodes\BodyNode;
+use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\TagBlock;
+use Keepsuit\Liquid\TemplateFactory;
 
 beforeEach(function () {
-    $this->templateFactory = \Keepsuit\Liquid\TemplateFactory::new()
+    $this->templateFactory = TemplateFactory::new()
         ->registerTag(CustomTag::class)
         ->registerTag(Custom2Tag::class);
 });
@@ -32,9 +35,14 @@ class CustomTag extends Tag implements Disableable
         return 'custom';
     }
 
-    public function render(Context $context): string
+    public function render(RenderContext $context): string
     {
         return static::tagName();
+    }
+
+    public function parse(TagParseContext $context): static
+    {
+        return $this;
     }
 }
 
@@ -45,34 +53,57 @@ class Custom2Tag extends Tag implements Disableable
         return 'custom2';
     }
 
-    public function render(Context $context): string
+    public function render(RenderContext $context): string
     {
         return static::tagName();
+    }
+
+    public function parse(TagParseContext $context): static
+    {
+        return $this;
     }
 }
 
 class DisableCustomTag extends TagBlock
 {
+    protected ?BodyNode $body;
+
     public static function tagName(): string
     {
         return 'disable';
     }
 
-    public function disabledTags(): array
+    public function parse(TagParseContext $context): static
     {
-        return ['custom'];
+        $this->body = $context->body;
+
+        return $this;
+    }
+
+    public function render(RenderContext $context): string
+    {
+        return $context->withDisabledTags(['custom'], fn () => $this->body?->render($context) ?? '');
     }
 }
 
 class DisableBothTag extends TagBlock
 {
+    protected ?BodyNode $body;
+
     public static function tagName(): string
     {
         return 'disable';
     }
 
-    public function disabledTags(): array
+    public function parse(TagParseContext $context): static
     {
-        return ['custom', 'custom2'];
+        $this->body = $context->body;
+
+        return $this;
+    }
+
+    public function render(RenderContext $context): string
+    {
+        return $context->withDisabledTags(['custom', 'custom2'], fn () => $this->body?->render($context) ?? '');
     }
 }

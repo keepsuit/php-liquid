@@ -4,17 +4,13 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Condition\ElseCondition;
-use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
-use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Nodes\BlockBodySection;
-use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\Parser;
-use Keepsuit\Liquid\Parse\Tokenizer;
+use Keepsuit\Liquid\Nodes\TagParseContext;
 use Keepsuit\Liquid\Parse\TokenType;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Render\RenderContext;
+use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\TagBlock;
 
-class IfTag extends TagBlock implements HasParseTreeVisitorChildren
+class IfTag extends TagBlock
 {
     /** @var Condition[] */
     protected array $conditions = [];
@@ -24,28 +20,21 @@ class IfTag extends TagBlock implements HasParseTreeVisitorChildren
         return 'if';
     }
 
-    public function parse(ParseContext $parseContext, Tokenizer $tokenizer): static
+    public function parse(TagParseContext $context): static
     {
-        parent::parse($parseContext, $tokenizer);
-
-        try {
-            $this->conditions = array_map(fn (BlockBodySection $block) => $this->parseBodySection($parseContext, $block), $this->bodySections);
-        } catch (SyntaxException $exception) {
-            $exception->markupContext = $this->markup;
-            throw $exception;
-        }
+        $this->conditions[] = $this->mapBodySectionToCondition($context);
 
         return $this;
     }
 
-    public function render(Context $context): string
+    public function render(RenderContext $context): string
     {
         $output = '';
         foreach ($this->conditions as $condition) {
             $result = $condition->evaluate($context);
 
             if ($result) {
-                return $condition->attachment?->render($context) ?? '';
+                return $condition->body?->render($context) ?? '';
             }
         }
 
@@ -57,71 +46,72 @@ class IfTag extends TagBlock implements HasParseTreeVisitorChildren
         return $this->conditions;
     }
 
-    public function nodeList(): array
+    protected function mapBodySectionToCondition(TagParseContext $bodySection): Condition
     {
-        return array_map(fn (Condition $block) => $block->attachment, $this->conditions);
+        $condition = match ($bodySection->tag) {
+            'else' => new ElseCondition(),
+            default => $this->parseCondition($bodySection)
+        };
+
+        if ($bodySection->body?->blank()) {
+            $bodySection->body->removeBlankStrings();
+        }
+
+        $condition->body($bodySection->body);
+
+        $bodySection->params->assertEnd();
+
+        return $condition;
     }
 
-    protected function isSubTag(string $tagName): bool
+    public function children(): array
+    {
+        return Arr::compact(array_map(fn (Condition $block) => $block->body, $this->conditions));
+    }
+
+    public function blank(): bool
+    {
+        foreach ($this->conditions as $condition) {
+            if (! $condition->body?->blank()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public function isSubTag(string $tagName): bool
     {
         return in_array($tagName, ['else', 'elsif'], true);
     }
 
-    /**
-     * @throws SyntaxException
-     */
-    protected function parseBodySection(ParseContext $parseContext, BlockBodySection $section): Condition
+    protected function parseCondition(TagParseContext $bodySection): Condition
     {
-        assert($section->startDelimiter() !== null);
-
-        $condition = match (true) {
-            $section->startDelimiter()->tag === 'else' => new ElseCondition(),
-            default => $this->parseCondition($parseContext, $section->startDelimiter()->markup),
-        };
-
-        if ($section->blank()) {
-            $section->removeBlankStrings();
-        }
-        $condition->attach($section);
-
-        return $condition;
+        return $this->parseBinaryComparison($bodySection);
     }
 
-    /**
-     * @throws SyntaxException
-     */
-    protected function parseCondition(ParseContext $parseContext, string $markup): Condition
+    protected function parseBinaryComparison(TagParseContext $bodySection): Condition
     {
-        $parser = new Parser($markup);
-
-        $condition = $this->parseBinaryComparison($parseContext, $parser);
-        $parser->consume(TokenType::EndOfString);
-
-        return $condition;
-    }
-
-    protected function parseBinaryComparison(ParseContext $parseContext, Parser $parser): Condition
-    {
-        $condition = $this->parseComparison($parseContext, $parser);
+        $condition = $this->parseComparison($bodySection);
         $firstCondition = $condition;
 
-        while ($operator = $parser->idOrFalse('and') ?: $parser->idOrFalse('or')) {
-            $childCondition = $this->parseComparison($parseContext, $parser);
-            $condition->{$operator}($childCondition);
+        while ($operator = $bodySection->params->idOrFalse('and') ?: $bodySection->params->idOrFalse('or')) {
+            $childCondition = $this->parseComparison($bodySection);
+            $condition->{$operator->data}($childCondition);
             $condition = $childCondition;
         }
 
         return $firstCondition;
     }
 
-    protected function parseComparison(ParseContext $parseContext, Parser $parser): Condition
+    protected function parseComparison(TagParseContext $bodySection): Condition
     {
-        $a = $this->parseExpression($parseContext, $parser->expression());
+        $a = $bodySection->params->expression();
 
-        if ($operator = $parser->consumeOrFalse(TokenType::Comparison)) {
-            $b = $this->parseExpression($parseContext, $parser->expression());
+        if ($operator = $bodySection->params->consumeOrFalse(TokenType::Comparison)) {
+            $b = $bodySection->params->expression();
 
-            return new Condition($a, $operator, $b);
+            return new Condition($a, $operator->data, $b);
         } else {
             return new Condition($a);
         }

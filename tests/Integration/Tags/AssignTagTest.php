@@ -2,7 +2,7 @@
 
 use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Render\Context;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Render\ResourceLimits;
 use Keepsuit\Liquid\TemplateFactory;
 
@@ -42,7 +42,7 @@ test('assign syntax error', function () {
         ->toThrow(SyntaxException::class, 'assign');
 
     expect(fn () => renderTemplate("{% assign foo = ('X' | downcase) %}"))
-        ->toThrow(SyntaxException::class, 'Expected DotDot, got Pipe');
+        ->toThrow(SyntaxException::class, 'assign');
 });
 
 test('expression with whitespace in square brackets', function () {
@@ -56,11 +56,11 @@ test('expression with whitespace in square brackets', function () {
 test('assign score exceeding resource limit', function () {
     $template = parseTemplate('{% assign foo = 42 %}{% assign bar = 23 %}');
 
-    $context = new Context(rethrowExceptions: true, resourceLimits: new ResourceLimits(assignScoreLimit: 1));
+    $context = new RenderContext(rethrowExceptions: true, resourceLimits: new ResourceLimits(assignScoreLimit: 1));
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
     expect($context->resourceLimits->reached())->toBeTrue();
 
-    $context = new Context(rethrowExceptions: true, resourceLimits: new ResourceLimits(assignScoreLimit: 2));
+    $context = new RenderContext(rethrowExceptions: true, resourceLimits: new ResourceLimits(assignScoreLimit: 2));
     expect($template->render($context))->toBe('');
     expect($context->resourceLimits->reached())->toBeFalse();
     expect($context->resourceLimits->getAssignScore())->toBe(2);
@@ -104,7 +104,7 @@ test('assign score of array', function () {
 
 function assignScoreOf(mixed $value): int
 {
-    $context = new Context(rethrowExceptions: true, staticEnvironment: ['value' => $value]);
+    $context = new RenderContext(rethrowExceptions: true, staticEnvironment: ['value' => $value]);
     parseTemplate('{% assign obj = value %}')->render($context);
 
     return $context->resourceLimits->getAssignScore();

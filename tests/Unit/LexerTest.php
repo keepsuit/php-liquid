@@ -1,92 +1,214 @@
 <?php
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parse\Lexer;
 use Keepsuit\Liquid\Parse\TokenType;
 
-test('strings', function () {
-    $tokens = (new Lexer(' \'this is a test""\' "wat \'lol\'"'))->tokenize();
+test('[variable] strings', function () {
+    $tokens = tokenize('{{ \'this is a test""\' "wat \'lol\'" }}');
 
-    expect($tokens)
-        ->toHaveCount(3)
-        ->toBe([
-            [TokenType::String, '\'this is a test""\'', 1],
-            [TokenType::String, '"wat \'lol\'"', 20],
-            [TokenType::EndOfString, '', 31],
-        ]);
+    $tokens->consume(TokenType::VariableStart);
+
+    expect($tokens->consume(TokenType::String))
+        ->data->toBe('\'this is a test""\'')
+        ->lineNumber->toBe(1);
+
+    expect($tokens->consume(TokenType::String))
+        ->data->toBe('"wat \'lol\'"')
+        ->lineNumber->toBe(1);
+
+    $tokens->consume(TokenType::VariableEnd);
+
+    expect($tokens->isEnd())->toBeTrue();
 });
 
-test('integer', function () {
-    $tokens = (new Lexer('hi 50'))->tokenize();
+test('[variable] integer', function () {
+    $tokens = tokenize('{{ 50 -10 }}');
 
-    expect($tokens)
-        ->toHaveCount(3)
-        ->toBe([
-            [TokenType::Identifier, 'hi', 0],
-            [TokenType::Number, '50', 3],
-            [TokenType::EndOfString, '', 5],
-        ]);
+    $tokens->consume(TokenType::VariableStart);
+
+    expect($tokens->consume(TokenType::Number))
+        ->data->toBe('50')
+        ->lineNumber->toBe(1);
+
+    expect($tokens->consume(TokenType::Number))
+        ->data->toBe('-10')
+        ->lineNumber->toBe(1);
+
+    $tokens->consume(TokenType::VariableEnd);
+
+    expect($tokens->isEnd())->toBeTrue();
 });
 
-test('float', function () {
-    $tokens = (new Lexer('hi 5.0'))->tokenize();
+test('[variable] float', function () {
+    $tokens = tokenize('{{ 5.0 -2.7 }}');
 
-    expect($tokens)
-        ->toHaveCount(3)
-        ->toBe([
-            [TokenType::Identifier, 'hi', 0],
-            [TokenType::Number, '5.0', 3],
-            [TokenType::EndOfString, '', 6],
-        ]);
+    $tokens->consume(TokenType::VariableStart);
+
+    expect($tokens->consume(TokenType::Number))
+        ->data->toBe('5.0')
+        ->lineNumber->toBe(1);
+
+    expect($tokens->consume(TokenType::Number))
+        ->data->toBe('-2.7')
+        ->lineNumber->toBe(1);
+
+    $tokens->consume(TokenType::VariableEnd);
+
+    expect($tokens->isEnd())->toBeTrue();
 });
 
-test('specials', function () {
-    $tokens = (new Lexer('| .:'))->tokenize();
+test('[variable] specials', function () {
+    $tokens = tokenize('{{ | .: [,] }}');
 
-    expect($tokens)
-        ->toHaveCount(4)
-        ->toBe([
-            [TokenType::Pipe, '|', 0],
-            [TokenType::Dot, '.', 2],
-            [TokenType::Colon, ':', 3],
-            [TokenType::EndOfString, '', 4],
-        ]);
+    $tokens->consume(TokenType::VariableStart);
 
-    $tokens = (new Lexer('[,]'))->tokenize();
+    expect($tokens->consume(TokenType::Pipe))->data->toBe('|');
+    expect($tokens->consume(TokenType::Dot))->data->toBe('.');
+    expect($tokens->consume(TokenType::Colon))->data->toBe(':');
+    expect($tokens->consume(TokenType::OpenSquare))->data->toBe('[');
+    expect($tokens->consume(TokenType::Comma))->data->toBe(',');
+    expect($tokens->consume(TokenType::CloseSquare))->data->toBe(']');
 
-    expect($tokens)
-        ->toHaveCount(4)
-        ->toBe([
-            [TokenType::OpenSquare, '[', 0],
-            [TokenType::Comma, ',', 1],
-            [TokenType::CloseSquare, ']', 2],
-            [TokenType::EndOfString, '', 3],
-        ]);
+    $tokens->consume(TokenType::VariableEnd);
+
+    expect($tokens->isEnd())->toBeTrue();
 });
 
-test('fancy identifiers', function () {
-    $tokens = (new Lexer('hi five?'))->tokenize();
+test('[variable] fancy identifiers', function () {
+    $tokens = tokenize('{{ hi five? 2foo }}');
 
-    expect($tokens)
-        ->toHaveCount(3)
-        ->toBe([
-            [TokenType::Identifier, 'hi', 0],
-            [TokenType::Identifier, 'five?', 3],
-            [TokenType::EndOfString, '', 8],
-        ]);
+    $tokens->consume(TokenType::VariableStart);
 
-    $tokens = (new Lexer('2foo'))->tokenize();
+    expect($tokens->consume(TokenType::Identifier))
+        ->data->toBe('hi')
+        ->lineNumber->toBe(1);
 
-    expect($tokens)
-        ->toHaveCount(3)
-        ->toBe([
-            [TokenType::Number, '2', 0],
-            [TokenType::Identifier, 'foo', 1],
-            [TokenType::EndOfString, '', 4],
-        ]);
+    expect($tokens->consume(TokenType::Identifier))
+        ->data->toBe('five?')
+        ->lineNumber->toBe(1);
+
+    expect($tokens->consume(TokenType::Number))
+        ->data->toBe('2')
+        ->lineNumber->toBe(1);
+
+    expect($tokens->consume(TokenType::Identifier))
+        ->data->toBe('foo')
+        ->lineNumber->toBe(1);
+
+    $tokens->consume(TokenType::VariableEnd);
+
+    expect($tokens->isEnd())->toBeTrue();
 });
 
-test('unexpected character', function () {
-    expect(fn () => (new Lexer('%'))->tokenize())
+test('[variable] unexpected character', function () {
+    expect(fn () => tokenize('{{ % }}'))
         ->toThrow(SyntaxException::class, 'Unexpected character %');
+});
+
+it('[blocks]', function () {
+    $tokens = tokenize('{% if hi %} {% endif %}');
+
+    $tokens->consume(TokenType::BlockStart);
+
+    expect($tokens->consume())
+        ->type->toBe(TokenType::Identifier)
+        ->data->toBe('if');
+
+    expect($tokens->consume())
+        ->type->toBe(TokenType::Identifier)
+        ->data->toBe('hi');
+
+    $tokens->consume(TokenType::BlockEnd);
+
+    expect($tokens->consume())
+        ->type->toBe(TokenType::TextData)
+        ->data->toBe(' ');
+
+    $tokens->consume(TokenType::BlockStart);
+
+    expect($tokens->consume())
+        ->type->toBe(TokenType::Identifier)
+        ->data->toBe('endif');
+
+    $tokens->consume(TokenType::BlockEnd);
+});
+
+test('text', function () {
+    expect(tokenize(' ')->consume())
+        ->type->toBe(TokenType::TextData)
+        ->data->toBe(' ');
+
+    expect(tokenize('hello world')->consume())
+        ->type->toBe(TokenType::TextData)
+        ->data->toBe('hello world');
+});
+
+test('unclosed expression', function () {
+    expect(fn () => tokenize('{{ hi'))
+        ->toThrow(SyntaxException::class, 'Variable was not properly terminated with: }}');
+
+    expect(fn () => tokenize('{% if'))
+        ->toThrow(SyntaxException::class, 'Tag was not properly terminated with: %}');
+});
+
+test('full source', function () {
+    $tokens = tokenize(<<<'LIQUID'
+        This is a test
+        {{- hi | filter: 5.0 }}
+        {%- if hi == 5 %}
+            {{ hi }}
+        {%- endif %}
+        end
+        LIQUID
+    );
+
+    expect($tokens->consume(TokenType::TextData))
+        ->data->toBe('This is a test')
+        ->lineNumber->toBe(1);
+
+    $tokens->consume(TokenType::VariableStart);
+    expect($tokens->consume(TokenType::Identifier))
+        ->data->toBe('hi')
+        ->lineNumber->toBe(2);
+    $tokens->consume(TokenType::Pipe);
+    expect($tokens->consume(TokenType::Identifier))
+        ->data->toBe('filter');
+    $tokens->consume(TokenType::Colon);
+    expect($tokens->consume(TokenType::Number))
+        ->data->toBe('5.0');
+    $tokens->consume(TokenType::VariableEnd);
+
+    $tokens->consume(TokenType::BlockStart);
+    expect($tokens->consume(TokenType::Identifier))
+        ->data->toBe('if')
+        ->lineNumber->toBe(3);
+    expect($tokens->consume(TokenType::Identifier))
+        ->data->toBe('hi');
+    expect($tokens->consume(TokenType::Comparison))
+        ->data->toBe('==')
+        ->lineNumber->toBe(3);
+    expect($tokens->consume(TokenType::Number))
+        ->data->toBe('5');
+    $tokens->consume(TokenType::BlockEnd);
+
+    expect($tokens->consume(TokenType::TextData))
+        ->data->toBe("\n    ");
+
+    $tokens->consume(TokenType::VariableStart);
+    expect($tokens->consume(TokenType::Identifier))
+        ->data->toBe('hi')
+        ->lineNumber->toBe(4);
+    $tokens->consume(TokenType::VariableEnd);
+
+    $tokens->consume(TokenType::BlockStart);
+    expect($tokens->consume(TokenType::Identifier))
+        ->data->toBe('endif')
+        ->lineNumber->toBe(5);
+    $tokens->consume(TokenType::BlockEnd);
+
+    expect($tokens->consume(TokenType::TextData))
+        ->data->toBe("\nend")
+        ->lineNumber->toBe(5);
+
+    expect($tokens->isEnd())->toBeTrue();
 });

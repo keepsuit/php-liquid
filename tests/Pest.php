@@ -1,6 +1,8 @@
 <?php
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Parse\ParseContext;
+use Keepsuit\Liquid\Parse\TokenStream;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\TemplateFactory;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
@@ -16,11 +18,9 @@ function fixture(string $path): string
  */
 function parseTemplate(
     string $source,
-    bool $lineNumbers = true,
     TemplateFactory $factory = new TemplateFactory(),
 ): Template {
     return $factory
-        ->lineNumbers($lineNumbers)
         ->parseString($source);
 }
 
@@ -36,7 +36,6 @@ function renderTemplate(
     TemplateFactory $factory = new TemplateFactory()
 ): string {
     $factory = $factory->setFilesystem(new StubFileSystem(partials: $partials))
-        ->lineNumbers()
         ->rethrowExceptions(! $renderErrors);
 
     $template = $factory->parseString($template);
@@ -88,4 +87,14 @@ function assertMatchSyntaxError(
     }
 
     throw new ExpectationFailedException('Syntax Exception not thrown.');
+}
+
+function tokenize(string $source): TokenStream
+{
+    return (new ParseContext())->tokenize($source);
+}
+
+function parse(string|TokenStream $source)
+{
+    return (new ParseContext())->parse($source instanceof TokenStream ? $source : tokenize($source));
 }

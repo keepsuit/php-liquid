@@ -13,8 +13,8 @@ test('local', function () {
     $fileSystem = new LocalFileSystem('/some/path');
 
     expect($fileSystem)
-        ->fullPath('mypartial')->toBe('/some/path/_mypartial.liquid')
-        ->fullPath('dir/mypartial')->toBe('/some/path/dir/_mypartial.liquid');
+        ->fullPath('mypartial')->toBe('/some/path/mypartial.liquid')
+        ->fullPath('dir/mypartial')->toBe('/some/path/dir/mypartial.liquid');
 
     expect(fn () => $fileSystem->fullPath('../dir/mypartial'))->toThrow(FileSystemException::class);
 

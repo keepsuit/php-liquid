@@ -122,16 +122,16 @@ test('break through render', function () {
 test('increment is isolated between renders', function () {
     assertTemplateResult(
         '010',
-        '{% increment %}{% increment %}{% render "incr" %}',
-        partials: ['incr' => '{% increment %}'],
+        '{% increment a %}{% increment a %}{% render "incr" %}',
+        partials: ['incr' => '{% increment a %}'],
     );
 });
 
 test('decrement is isolated between renders', function () {
     assertTemplateResult(
         '-1-2-1',
-        '{% decrement %}{% decrement %}{% render "decr" %}',
-        partials: ['decr' => '{% decrement %}'],
+        '{% decrement a %}{% decrement a %}{% render "decr" %}',
+        partials: ['decr' => '{% decrement a %}'],
     );
 });
 
