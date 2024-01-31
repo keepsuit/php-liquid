@@ -116,19 +116,30 @@ final class TemplateFactory
     }
 
     public function newRenderContext(
-        /** @var array<string, mixed> $environment */
+        /**
+         * Environment variables only available in the current context
+         *
+         * @var array<string, mixed> $environment
+         */
         array $environment = [],
-        /** @var array<string, mixed> $staticEnvironment */
+        /**
+         * Environment variables that are shared with all sub-contexts
+         *
+         * @var array<string, mixed> $staticEnvironment
+         */
         array $staticEnvironment = [],
-        /** @var array<string, mixed> $outerScope */
-        array $outerScope = [],
-        /** @var array<string, mixed> $registers */
+        /**
+         * Registers allows to provide/export data or utilities inside tags
+         * Registers are not accessible as variables.
+         * Registers are shared with all sub-contexts
+         *
+         * @var array<string, mixed> $registers
+         */
         array $registers = [],
     ): RenderContext {
         return new RenderContext(
             environment: $environment,
             staticEnvironment: $staticEnvironment,
-            outerScope: $outerScope,
             registers: $registers,
             rethrowExceptions: $this->rethrowExceptions,
             strictVariables: $this->strictVariables,

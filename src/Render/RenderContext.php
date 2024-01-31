@@ -56,12 +56,25 @@ final class RenderContext
     protected ?Profiler $profiler;
 
     public function __construct(
-        /** @var array<string, mixed> */
+        /**
+         * Environment variables only available in the current context
+         *
+         * @var array<string, mixed>
+         */
         protected array $environment = [],
-        /** @var array<string, mixed> $staticEnvironment */
+        /**
+         * Environment variables that are shared with all sub-contexts
+         *
+         * @var array<string, mixed> $staticEnvironment
+         */
         array $staticEnvironment = [],
-        /** array<string, mixed> */
-        protected array $outerScope = [],
+        /**
+         * Registers allows to provide/export data or utilities inside tags
+         * Registers are not accessible as variables.
+         * Registers are shared with all sub-contexts
+         *
+         * @var array<string, mixed> $registers
+         */
         array $registers = [],
         protected bool $rethrowExceptions = false,
         public readonly bool $strictVariables = false,
@@ -70,11 +83,11 @@ final class RenderContext
         public readonly ResourceLimits $resourceLimits = new ResourceLimits(),
         public readonly LiquidFileSystem $fileSystem = new BlankFileSystem(),
     ) {
-        $this->scopes = [$this->outerScope];
+        $this->scopes = [[]];
 
         $this->sharedState = new ContextSharedState(
             staticEnvironment: $staticEnvironment,
-            staticRegisters: $registers,
+            registers: $registers,
         );
 
         $this->profiler = $profile ? new Profiler() : null;
@@ -241,7 +254,7 @@ final class RenderContext
 
     public function getRegister(string $name): mixed
     {
-        return $this->dynamicRegisters[$name] ?? $this->sharedState->staticRegisters[$name] ?? null;
+        return $this->dynamicRegisters[$name] ?? $this->sharedState->registers[$name] ?? null;
     }
 
     public function setRegister(string $name, mixed $value): void
