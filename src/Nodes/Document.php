@@ -3,10 +3,11 @@
 namespace Keepsuit\Liquid\Nodes;
 
 use Keepsuit\Liquid\Contracts\CanBeRendered;
+use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Render\RenderContext;
 
-class Document implements CanBeRendered
+class Document implements CanBeRendered, CanBeStreamed
 {
     public function __construct(
         protected BodyNode $body,
@@ -27,6 +28,20 @@ class Document implements CanBeRendered
         }
 
         return $this->body->render($context);
+    }
+
+    /**
+     * @throws LiquidException
+     */
+    public function stream(RenderContext $context): \Generator
+    {
+        if ($context->getProfiler() !== null) {
+            yield $this->render($context);
+
+            return;
+        }
+
+        yield from $this->body->stream($context);
     }
 
     /**

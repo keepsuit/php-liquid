@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Drops\ForLoopDrop;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
@@ -18,7 +19,7 @@ use Traversable;
 /**
  * @phpstan-import-type Expression from ExpressionParser
  */
-class RenderTag extends Tag implements HasParseTreeVisitorChildren
+class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildren
 {
     protected string $templateNameExpression;
 
@@ -87,6 +88,17 @@ class RenderTag extends Tag implements HasParseTreeVisitorChildren
 
     public function render(RenderContext $context): string
     {
+        $output = '';
+
+        foreach ($this->stream($context) as $chunk) {
+            $output .= $chunk;
+        }
+
+        return $output;
+    }
+
+    public function stream(RenderContext $context): \Generator
+    {
         $partial = $context->loadPartial($this->templateNameExpression);
 
         $contextVariableName = $this->aliasName ?? Arr::last(explode('/', $this->templateNameExpression));
@@ -100,26 +112,25 @@ class RenderTag extends Tag implements HasParseTreeVisitorChildren
 
             $forLoop = new ForLoopDrop($this->templateNameExpression, count($variable));
 
-            $output = '';
             foreach ($variable as $value) {
                 $partialContext = $this->buildPartialContext($partial, $context, [
                     'forloop' => $forLoop,
                     $contextVariableName => $value,
                 ]);
 
-                $output .= $partial->render($partialContext);
+                yield from $partial->stream($partialContext);
 
                 $forLoop->increment();
             }
 
-            return $output;
+            return;
         }
 
         $partialContext = $this->buildPartialContext($partial, $context, [
             $contextVariableName => $variable,
         ]);
 
-        return $partial->render($partialContext);
+        yield from $partial->stream($partialContext);
     }
 
     public function parseTreeVisitorChildren(): array

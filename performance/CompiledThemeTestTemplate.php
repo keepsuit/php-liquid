@@ -33,6 +33,22 @@ class CompiledThemeTestTemplate
         }
     }
 
+    public function stream(array $assigns = []): void
+    {
+        $content = $this->template->stream($this->buildContext($assigns));
+
+        if ($this->layout) {
+            $content = $this->layout->stream($this->buildContext([
+                ...$assigns,
+                'content_for_layout' => $content,
+            ]));
+        }
+
+        while ($content->valid()) {
+            $content->next();
+        }
+    }
+
     protected function buildContext(array $assigns = []): RenderContext
     {
         return $this->factory->newRenderContext(

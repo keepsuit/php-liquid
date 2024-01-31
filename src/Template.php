@@ -74,6 +74,27 @@ class Template
         }
     }
 
+    /**
+     * @return \Generator<string>
+     */
+    public function stream(RenderContext $context): \Generator
+    {
+        $this->profiler = $context->getProfiler();
+
+        try {
+            $context->mergePartialsCache($this->state->partialsCache);
+            $context->mergeOutputs($this->state->outputs);
+
+            yield from $this->root->stream($context);
+        } catch (LiquidException $e) {
+            $e->templateName = $e->templateName ?? $this->name;
+            throw $e;
+        } finally {
+            $this->state->errors = $context->getErrors();
+            $this->state->outputs = $context->getOutputs()->all();
+        }
+    }
+
     public function getState(): TemplateSharedState
     {
         return $this->state;

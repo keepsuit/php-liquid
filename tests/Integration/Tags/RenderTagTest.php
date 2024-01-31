@@ -239,3 +239,27 @@ test('render tag renders error with template name', function () {
         renderErrors: true
     );
 });
+
+test('render stream', function () {
+    $stream = streamTemplate(
+        "{% render 'product' for products %}",
+        assigns: [
+            'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
+        ],
+        partials: [
+            'product' => 'Product: {{ product.title }} ',
+        ],
+    );
+
+    $output = iterator_to_array($stream);
+
+    expect($output)
+        ->toBe([
+            'Product: ',
+            'Draft 151cm',
+            ' ',
+            'Product: ',
+            'Element 155cm',
+            ' ',
+        ]);
+});
