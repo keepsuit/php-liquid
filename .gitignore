@@ -3,6 +3,7 @@
 .php_cs.cache
 .phpunit.result.cache
 .phpunit.cache
+.phpbench
 build
 composer.lock
 coverage
@@ -11,4 +12,3 @@ phpunit.xml
 psalm.xml
 vendor
 .php-cs-fixer.cache
-.phpbench
