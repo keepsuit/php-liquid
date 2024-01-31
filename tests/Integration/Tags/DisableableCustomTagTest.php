@@ -2,7 +2,7 @@
 
 use Keepsuit\Liquid\Contracts\Disableable;
 use Keepsuit\Liquid\Nodes\BodyNode;
-use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\TagBlock;

@@ -4,7 +4,7 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\BodyNode;
-use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Parse\Token;
 use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\RenderContext;

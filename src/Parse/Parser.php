@@ -5,7 +5,6 @@ namespace Keepsuit\Liquid\Parse;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Nodes\Raw;
-use Keepsuit\Liquid\Nodes\TagParseContext;
 use Keepsuit\Liquid\Nodes\Text;
 use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Tag;

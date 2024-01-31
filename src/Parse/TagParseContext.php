@@ -1,9 +1,8 @@
 <?php
 
-namespace Keepsuit\Liquid\Nodes;
+namespace Keepsuit\Liquid\Parse;
 
-use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\TokenStream;
+use Keepsuit\Liquid\Nodes\BodyNode;
 
 class TagParseContext
 {

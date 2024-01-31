@@ -6,7 +6,7 @@ use Keepsuit\Liquid\Contracts\Disableable;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Exceptions\TagDisabledException;
 use Keepsuit\Liquid\Nodes\Node;
-use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
 
 abstract class Tag extends Node

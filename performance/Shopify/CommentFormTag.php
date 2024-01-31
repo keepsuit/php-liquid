@@ -4,8 +4,8 @@ namespace Keepsuit\Liquid\Performance\Shopify;
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\BodyNode;
-use Keepsuit\Liquid\Nodes\TagParseContext;
 use Keepsuit\Liquid\Nodes\VariableLookup;
+use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\TagBlock;
 

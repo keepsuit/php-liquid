@@ -6,7 +6,7 @@ use Keepsuit\Liquid\Drops\TableRowLoopDrop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Nodes\Range;
-use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;

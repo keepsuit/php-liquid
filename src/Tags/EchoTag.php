@@ -3,8 +3,8 @@
 namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
-use Keepsuit\Liquid\Nodes\TagParseContext;
 use Keepsuit\Liquid\Nodes\Variable;
+use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tag;
 

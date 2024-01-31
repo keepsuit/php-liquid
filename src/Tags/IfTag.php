@@ -4,7 +4,7 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Condition\ElseCondition;
-use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;

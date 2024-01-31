@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\Tests\Stubs;
 
-use Keepsuit\Liquid\Nodes\TagParseContext;
+use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\TagBlock;
 
