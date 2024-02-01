@@ -309,8 +309,8 @@ final class RenderContext
             default => new InternalException($error),
         };
 
-        $error->lineNumber = $lineNumber;
-        $error->templateName = $this->templateName;
+        $error->lineNumber = $error->lineNumber ?? $lineNumber;
+        $error->templateName = $error->templateName ?? $this->templateName;
 
         $this->sharedState->errors[] = $error;
 

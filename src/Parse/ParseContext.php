@@ -140,7 +140,7 @@ class ParseContext
             default => new InternalException($error),
         };
 
-        $error->lineNumber = $this->lineNumber;
+        $error->lineNumber = $error->lineNumber ?? $this->lineNumber;
 
         throw $error;
     }
