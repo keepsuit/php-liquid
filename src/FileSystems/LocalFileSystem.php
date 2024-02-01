@@ -36,7 +36,9 @@ class LocalFileSystem implements LiquidFileSystem
             throw new FileSystemException("Illegal template name '$templatePath'");
         }
 
-        $templatePath = preg_replace('/\./', '/', $templatePath);
+        if (preg_replace('/\./', '/', $templatePath) === null) {
+            throw new FileSystemException("Illegal template name '$templatePath'");
+        }
 
         $path = match (true) {
             str_contains($templatePath, '/') => sprintf('%s/%s', dirname($templatePath), sprintf($this->pattern, basename($templatePath))),
