@@ -2,6 +2,14 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.4.1 - 2024-02-01
+
+### What's changed
+
+* Make `rethrowExceptions` and `filterRegistry` public accessible in `RenderContext`
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.4.0...v0.4.1
+
 ## v0.4.0 - 2024-01-31
 
 ### Breaking changes
