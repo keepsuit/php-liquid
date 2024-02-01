@@ -76,10 +76,10 @@ final class RenderContext
          * @var array<string, mixed> $registers
          */
         array $registers = [],
-        protected bool $rethrowExceptions = false,
+        public readonly bool $rethrowExceptions = false,
         public readonly bool $strictVariables = false,
         bool $profile = false,
-        protected FilterRegistry $filterRegistry = new FilterRegistry(),
+        public readonly FilterRegistry $filterRegistry = new FilterRegistry(),
         public readonly ResourceLimits $resourceLimits = new ResourceLimits(),
         public readonly LiquidFileSystem $fileSystem = new BlankFileSystem(),
     ) {
