@@ -4,7 +4,6 @@ namespace Keepsuit\Liquid\Render;
 
 use ArithmeticError;
 use Closure;
-use Keepsuit\Liquid\Contracts\AsLiquidValue;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Contracts\LiquidFileSystem;
