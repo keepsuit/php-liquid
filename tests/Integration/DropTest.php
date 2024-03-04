@@ -1,6 +1,7 @@
 <?php
 
 use Keepsuit\Liquid\Render\RenderContext;
+use Keepsuit\Liquid\Tests\Stubs\CachableDrop;
 use Keepsuit\Liquid\Tests\Stubs\ContextDrop;
 use Keepsuit\Liquid\Tests\Stubs\EnumerableDrop;
 use Keepsuit\Liquid\Tests\Stubs\ProductDrop;
@@ -105,13 +106,22 @@ test('default to string on drops', function () {
     expect(renderTemplate('{{ collection }}', ['collection' => new EnumerableDrop()]))->toBe(EnumerableDrop::class);
 });
 
-test('invokable methods', function () {
-    expect(invade(new ProductDrop())->getInvokableMethods())->toBe(['texts', 'catchall', 'context']);
-    expect(invade(new EnumerableDrop())->getInvokableMethods())->toBe(['size', 'first', 'count', 'min', 'max']);
+test('drop metadata', function () {
+    expect(invade(new ProductDrop())->getMetadata())
+        ->invokableMethods->toBe(['texts', 'catchall', 'context'])
+        ->cacheableMethods->toBe([]);
+
+    expect(invade(new EnumerableDrop())->getMetadata())
+        ->invokableMethods->toBe(['size', 'first', 'count', 'min', 'max'])
+        ->cacheableMethods->toBe([]);
+
+    expect(invade(new CachableDrop())->getMetadata())
+        ->invokableMethods->toBe(['notCached', 'cached'])
+        ->cacheableMethods->toBe(['cached']);
 });
 
 it('can cache drop method calls', function () {
-    $drop = new \Keepsuit\Liquid\Tests\Stubs\CachableDrop();
+    $drop = new CachableDrop();
 
     expect($drop)
         ->notCached->toBe(0)
