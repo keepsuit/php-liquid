@@ -4,12 +4,11 @@ namespace Keepsuit\Liquid;
 
 use Keepsuit\Liquid\Concerns\ContextAware;
 use Keepsuit\Liquid\Contracts\IsContextAware;
-use Keepsuit\Liquid\Contracts\MapsToLiquid;
 use Keepsuit\Liquid\Drops\DropMethodPrivate;
 use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 use Keepsuit\Liquid\Support\Str;
 
-class Drop implements IsContextAware, MapsToLiquid
+class Drop implements IsContextAware
 {
     use ContextAware;
 
@@ -17,16 +16,6 @@ class Drop implements IsContextAware, MapsToLiquid
      * @var string[]
      */
     private ?array $invokableMethods = null;
-
-    public function toLiquid(): mixed
-    {
-        return $this;
-    }
-
-    public function toLiquidValue(): mixed
-    {
-        return $this;
-    }
 
     protected function liquidMethodMissing(string $name): mixed
     {

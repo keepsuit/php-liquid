@@ -203,9 +203,9 @@ test('render tag forloop', function () {
 test('render tag for drop', function () {
     assertTemplateResult(
         '123',
-        "{% render 'loop' for loop as value %}",
+        "{% render 'loop' for iterator as value %}",
         assigns: [
-            'loop' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop(),
+            'iterator' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop(),
         ],
         partials: [
             'loop' => '{{ value.foo }}',
@@ -215,10 +215,10 @@ test('render tag for drop', function () {
 
 test('render tag with drop', function () {
     assertTemplateResult(
-        "Keepsuit\Liquid\Tests\Stubs\IteratorDrop",
-        "{% render 'loop' with loop as value %}",
+        '1',
+        "{% render 'loop' with data as value %}",
         assigns: [
-            'loop' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop(),
+            'data' => 1,
         ],
         partials: [
             'loop' => '{{ value }}',

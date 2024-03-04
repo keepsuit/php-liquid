@@ -18,11 +18,6 @@ test('drop does only respond to whitelisted methods', function () {
     expect(renderTemplate('{{ product | map: "whatever" }}', ['product' => new ProductDrop()]))->toBe('');
 });
 
-test('drop respond to to liquid', function () {
-    expect(renderTemplate('{{ product.to_liquid.texts.text }}', ['product' => new ProductDrop()]))->toBe('text1');
-    expect(renderTemplate('{{ product | map: "to_liquid" | map: "texts" | map: "text" }}', ['product' => new ProductDrop()]))->toBe('text1');
-});
-
 test('text drop', function () {
     expect(renderTemplate(' {{ product.texts.text }} ', ['product' => new ProductDrop()]))->toBe(' text1 ');
 });

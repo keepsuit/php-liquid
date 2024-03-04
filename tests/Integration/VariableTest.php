@@ -13,7 +13,7 @@ test('variable render calls to liquid', function () {
     assertTemplateResult('foobar', '{{ foo }}', ['foo' => new ThingWithToLiquid()]);
 });
 
-test('variable lookup calls to liquid value', function () {
+test('variable lookup evaluate value as liquid', function () {
     assertTemplateResult('1', '{{ foo }}', ['foo' => new IntegerDrop('1')]);
     assertTemplateResult('2', '{{ list[foo] }}', ['foo' => new IntegerDrop('1'), 'list' => [1, 2, 3]]);
     assertTemplateResult('one', '{{ list[foo] }}', ['foo' => new IntegerDrop('1'), 'list' => [1 => 'one']]);

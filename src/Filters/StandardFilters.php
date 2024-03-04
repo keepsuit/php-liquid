@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid\Filters;
 
 use DateTime;
+use Keepsuit\Liquid\Contracts\AsLiquidValue;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Drop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
@@ -165,7 +166,7 @@ class StandardFilters extends FiltersProvider
      */
     public function default(mixed $input, mixed $defaultValue, bool $allow_false = false): mixed
     {
-        $inputValue = $input instanceof Drop ? $input->toLiquidValue() : $input;
+        $inputValue = $input instanceof AsLiquidValue ? $input->toLiquidValue() : $input;
 
         return match (true) {
             $inputValue === null, $inputValue === '', $inputValue === [] => $defaultValue,

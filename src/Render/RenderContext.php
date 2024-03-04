@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Render;
 
 use ArithmeticError;
 use Closure;
+use Keepsuit\Liquid\Contracts\AsLiquidValue;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Contracts\LiquidFileSystem;
@@ -136,7 +137,7 @@ final class RenderContext
     public function evaluate(mixed $value): mixed
     {
         if ($value instanceof CanBeEvaluated) {
-            return $value->evaluate($this);
+            return $this->evaluate($value->evaluate($this));
         }
 
         return $value;
@@ -230,18 +231,22 @@ final class RenderContext
 
     public function normalizeValue(mixed $value): mixed
     {
+        if (is_object($value) && isset($this->sharedState->computedObjectsCache[$value])) {
+            return $this->sharedState->computedObjectsCache[$value];
+        }
+
         if ($value instanceof Closure) {
             return $this->sharedState->computedObjectsCache[$value] ??= $this->normalizeValue($value($this));
         }
 
         if ($value instanceof MapsToLiquid) {
             $liquidValue = $value->toLiquid();
-            // Return value if toLiquid() returns itself
-            if ($value === $liquidValue) {
-                return $value;
-            }
 
-            return $this->sharedState->computedObjectsCache[$value] ??= $this->normalizeValue($liquidValue);
+            // Check if toLiquid() returns itself
+            return $this->sharedState->computedObjectsCache[$value] ??= match (true) {
+                $value === $liquidValue => $value,
+                default => $this->normalizeValue($liquidValue)
+            };
         }
 
         return $value;

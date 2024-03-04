@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Condition;
 
+use Keepsuit\Liquid\Contracts\AsLiquidValue;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Render\RenderContext;
@@ -98,18 +99,27 @@ class Condition implements HasParseTreeVisitorChildren
     protected function interpretCondition(mixed $left, mixed $right, ?string $operator, RenderContext $context): bool
     {
         if ($operator === null) {
-            $result = $context->evaluate($left);
+            $result = $this->toLiquidValue($context->evaluate($left));
 
             return $result !== false && $result !== null;
         }
 
-        $left = $context->evaluate($left);
-        $right = $context->evaluate($right);
+        $left = $this->toLiquidValue($context->evaluate($left));
+        $right = $this->toLiquidValue($context->evaluate($right));
 
         if (array_key_exists($operator, static::$customOperators)) {
             return (bool) static::$customOperators[$operator]($left, $right);
         }
 
         return ConditionOperator::parse($operator)->evaluate($left, $right);
+    }
+
+    protected function toLiquidValue(mixed $value): mixed
+    {
+        if ($value instanceof AsLiquidValue) {
+            return $value->toLiquidValue();
+        }
+
+        return $value;
     }
 }
