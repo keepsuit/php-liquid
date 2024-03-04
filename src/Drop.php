@@ -4,14 +4,9 @@ namespace Keepsuit\Liquid;
 
 use Keepsuit\Liquid\Concerns\ContextAware;
 use Keepsuit\Liquid\Contracts\IsContextAware;
-use Keepsuit\Liquid\Drops\Cache;
-use Keepsuit\Liquid\Drops\Hidden;
 use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 use Keepsuit\Liquid\Support\DropMetadata;
 use Keepsuit\Liquid\Support\Str;
-use ReflectionClass;
-use ReflectionMethod;
-use Traversable;
 
 class Drop implements IsContextAware
 {

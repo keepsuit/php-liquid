@@ -18,8 +18,8 @@ final class DropMetadata
 
     public static function init(Drop $drop): DropMetadata
     {
-        if (isset(static::$cache[get_class($drop)])) {
-            return static::$cache[get_class($drop)];
+        if (isset(self::$cache[get_class($drop)])) {
+            return self::$cache[get_class($drop)];
         }
 
         $blacklist = array_map(
@@ -48,7 +48,7 @@ final class DropMetadata
             $publicMethods
         )));
 
-        return static::$cache[get_class($drop)] = new DropMetadata(
+        return self::$cache[get_class($drop)] = new DropMetadata(
             invokableMethods: $invokableMethods,
             cacheableMethods: $cacheableMethods
         );
