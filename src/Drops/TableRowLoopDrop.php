@@ -32,7 +32,7 @@ class TableRowLoopDrop extends Drop
     ) {
     }
 
-    #[DropMethodPrivate]
+    #[Hidden]
     public function increment(): void
     {
         $this->index += 1;

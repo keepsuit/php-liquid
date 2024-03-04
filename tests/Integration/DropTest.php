@@ -109,3 +109,15 @@ test('invokable methods', function () {
     expect(invade(new ProductDrop())->getInvokableMethods())->toBe(['texts', 'catchall', 'context']);
     expect(invade(new EnumerableDrop())->getInvokableMethods())->toBe(['size', 'first', 'count', 'min', 'max']);
 });
+
+it('can cache drop method calls', function () {
+    $drop = new \Keepsuit\Liquid\Tests\Stubs\CachableDrop();
+
+    expect($drop)
+        ->notCached->toBe(0)
+        ->notCached->toBe(1);
+
+    expect($drop)
+        ->cached->toBe(0)
+        ->cached->toBe(0);
+});

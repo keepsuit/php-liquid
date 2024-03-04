@@ -4,7 +4,8 @@ namespace Keepsuit\Liquid;
 
 use Keepsuit\Liquid\Concerns\ContextAware;
 use Keepsuit\Liquid\Contracts\IsContextAware;
-use Keepsuit\Liquid\Drops\DropMethodPrivate;
+use Keepsuit\Liquid\Drops\Cache;
+use Keepsuit\Liquid\Drops\Hidden;
 use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 use Keepsuit\Liquid\Support\Str;
 
@@ -16,6 +17,13 @@ class Drop implements IsContextAware
      * @var string[]
      */
     private ?array $invokableMethods = null;
+
+    /**
+     * @var string[]
+     */
+    private ?array $cacheableMethods = null;
+
+    private array $cache = [];
 
     protected function liquidMethodMissing(string $name): mixed
     {
@@ -30,6 +38,7 @@ class Drop implements IsContextAware
     public function __get(string $name): mixed
     {
         $invokableMethods = $this->getInvokableMethods();
+        $cacheableMethods = $this->getCacheableMethods();
 
         $possibleNames = [
             $name,
@@ -42,8 +51,20 @@ class Drop implements IsContextAware
                 continue;
             }
 
+            $isCacheable = in_array($methodName, $cacheableMethods);
+
+            if ($isCacheable && isset($this->cache[$methodName])) {
+                return $this->cache[$methodName];
+            }
+
             if (method_exists($this, $methodName)) {
-                return $this->{$methodName}();
+                $result = $this->{$methodName}();
+
+                if ($isCacheable) {
+                    $this->cache[$methodName] = $result;
+                }
+
+                return $result;
             }
         }
 
@@ -63,10 +84,24 @@ class Drop implements IsContextAware
 
     protected function getInvokableMethods(): array
     {
-        if ($this->invokableMethods !== null) {
-            return $this->invokableMethods;
+        if ($this->invokableMethods === null) {
+            $this->init();
         }
 
+        return $this->invokableMethods;
+    }
+
+    protected function getCacheableMethods(): array
+    {
+        if ($this->cacheableMethods === null) {
+            $this->init();
+        }
+
+        return $this->cacheableMethods;
+    }
+
+    protected function init(): void
+    {
         $blacklist = array_map(
             fn (\ReflectionMethod $method) => $method->getName(),
             (new \ReflectionClass(Drop::class))->getMethods(\ReflectionMethod::IS_PUBLIC)
@@ -76,20 +111,21 @@ class Drop implements IsContextAware
             $blacklist = [...$blacklist, 'current', 'next', 'key', 'valid', 'rewind'];
         }
 
-        $subClassPublicMethods = array_map(
-            function (\ReflectionMethod $method) {
-                if ($method->getAttributes(DropMethodPrivate::class) !== []) {
-                    return null;
-                }
+        $publicMethods = (new \ReflectionClass($this))->getMethods(\ReflectionMethod::IS_PUBLIC);
 
-                return $method->getName();
-            },
-            (new \ReflectionClass($this))->getMethods(\ReflectionMethod::IS_PUBLIC)
+        $visibleMethodNames = array_map(
+            fn (\ReflectionMethod $method) => $method->getAttributes(Hidden::class) !== [] ? null : $method->getName(),
+            $publicMethods
         );
 
-        return $this->invokableMethods = array_values(array_filter(
-            array_diff($subClassPublicMethods, $blacklist),
+        $this->invokableMethods = array_values(array_filter(
+            array_diff($visibleMethodNames, $blacklist),
             fn (?string $name) => $name !== null && ! str_starts_with($name, '__')
         ));
+
+        $this->cacheableMethods = array_values(array_filter(array_map(
+            fn (\ReflectionMethod $method) => $method->getAttributes(Cache::class) !== [] ? $method->getName() : null,
+            $publicMethods
+        )));
     }
 }
