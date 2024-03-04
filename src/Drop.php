@@ -8,6 +8,9 @@ use Keepsuit\Liquid\Drops\Cache;
 use Keepsuit\Liquid\Drops\Hidden;
 use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 use Keepsuit\Liquid\Support\Str;
+use ReflectionClass;
+use ReflectionMethod;
+use Traversable;
 
 class Drop implements IsContextAware
 {
@@ -104,21 +107,21 @@ class Drop implements IsContextAware
      * @phpstan-assert !null $this->invokableMethods
      * @phpstan-assert !null $this->cacheableMethods
      */
-    protected function init(): void
+    private function init(): void
     {
         $blacklist = array_map(
-            fn (\ReflectionMethod $method) => $method->getName(),
-            (new \ReflectionClass(Drop::class))->getMethods(\ReflectionMethod::IS_PUBLIC)
+            fn (ReflectionMethod $method) => $method->getName(),
+            (new ReflectionClass(Drop::class))->getMethods(ReflectionMethod::IS_PUBLIC)
         );
 
-        if ($this instanceof \Traversable) {
+        if ($this instanceof Traversable) {
             $blacklist = [...$blacklist, 'current', 'next', 'key', 'valid', 'rewind'];
         }
 
-        $publicMethods = (new \ReflectionClass($this))->getMethods(\ReflectionMethod::IS_PUBLIC);
+        $publicMethods = (new ReflectionClass($this))->getMethods(ReflectionMethod::IS_PUBLIC);
 
         $visibleMethodNames = array_map(
-            fn (\ReflectionMethod $method) => $method->getAttributes(Hidden::class) !== [] ? null : $method->getName(),
+            fn (ReflectionMethod $method) => $method->getAttributes(Hidden::class) !== [] ? null : $method->getName(),
             $publicMethods
         );
 
@@ -128,7 +131,7 @@ class Drop implements IsContextAware
         ));
 
         $this->cacheableMethods = array_values(array_filter(array_map(
-            fn (\ReflectionMethod $method) => $method->getAttributes(Cache::class) !== [] ? $method->getName() : null,
+            fn (ReflectionMethod $method) => $method->getAttributes(Cache::class) !== [] ? $method->getName() : null,
             $publicMethods
         )));
     }
