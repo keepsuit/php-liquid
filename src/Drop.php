@@ -100,6 +100,10 @@ class Drop implements IsContextAware
         return $this->cacheableMethods;
     }
 
+    /**
+     * @phpstan-assert !null $this->invokableMethods
+     * @phpstan-assert !null $this->cacheableMethods
+     */
     protected function init(): void
     {
         $blacklist = array_map(
