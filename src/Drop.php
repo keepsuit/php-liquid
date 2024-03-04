@@ -88,7 +88,7 @@ class Drop implements IsContextAware
         );
 
         return $this->invokableMethods = array_values(array_filter(
-            ['toLiquid', ...array_diff($subClassPublicMethods, $blacklist)],
+            array_diff($subClassPublicMethods, $blacklist),
             fn (?string $name) => $name !== null && ! str_starts_with($name, '__')
         ));
     }

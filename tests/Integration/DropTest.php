@@ -106,6 +106,6 @@ test('default to string on drops', function () {
 });
 
 test('invokable methods', function () {
-    expect(invade(new ProductDrop())->getInvokableMethods())->toBe(['toLiquid', 'texts', 'catchall', 'context']);
-    expect(invade(new EnumerableDrop())->getInvokableMethods())->toBe(['toLiquid', 'size', 'first', 'count', 'min', 'max']);
+    expect(invade(new ProductDrop())->getInvokableMethods())->toBe(['texts', 'catchall', 'context']);
+    expect(invade(new EnumerableDrop())->getInvokableMethods())->toBe(['size', 'first', 'count', 'min', 'max']);
 });
