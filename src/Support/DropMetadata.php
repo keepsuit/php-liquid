@@ -2,9 +2,9 @@
 
 namespace Keepsuit\Liquid\Support;
 
-use Keepsuit\Liquid\Drop;
 use Keepsuit\Liquid\Attributes\Cache;
 use Keepsuit\Liquid\Attributes\Hidden;
+use Keepsuit\Liquid\Drop;
 use ReflectionClass;
 use ReflectionMethod;
 use Traversable;

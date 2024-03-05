@@ -2,8 +2,8 @@
 
 namespace Keepsuit\Liquid\Tests\Stubs;
 
-use Keepsuit\Liquid\Drop;
 use Keepsuit\Liquid\Attributes\Cache;
+use Keepsuit\Liquid\Drop;
 
 class CachableDrop extends Drop
 {
