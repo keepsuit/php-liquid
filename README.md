@@ -89,6 +89,59 @@ $stream = $template->stream($context);
 // $stream is a Generator<string>
 ```
 
+## Drops
+
+Liquid support almost any kind of object but in order to have a better control over the accessible data in the templates,
+you can pass your data as `Drop` objects and have a better control over the accessible data.
+Drops are standard php objects that extend the `Keepsuit\Liquid\Drop` class.
+Each public method of the class will be accessible in the template as a property.
+You can also override the `liquidMethodMissing` method to handle undefined properties.
+
+Liquid provides some attributes to control the behavior of the drops:
+- `Hidden`: Hide the method from the template, it cannot be accessed as a property.
+- `Cache`: Cache the result of the method, it will be called only once and the result will be stored in the drop.
+
+```php
+use Keepsuit\Liquid\Drop;
+
+class ProductDrop extends Drop {
+    public function __construct(private Product $product) {}
+
+    public function title(): string {
+        return $this->product->title;
+    }
+
+    public function price(): float {
+        return round($this->product->price, 2);
+    }
+    
+    #[\Keepsuit\Liquid\Attributes\Cache]
+    public function expensiveOperation(){
+        // complex operation
+    }
+    
+    #[\Keepsuit\Liquid\Attributes\Hidden]
+    public function buy(){
+        // Do something
+    }
+}
+```
+
+If you implements the `MapsToLiquid` interface in your domain classes, 
+the liquid renderer will automatically convert your objects to drops.
+
+```php
+use Keepsuit\Liquid\Contracts\MapsToLiquid;
+
+class Product implements MapsToLiquid {
+    public function __construct(public string $title, public float $price) {}
+
+    public function toLiquid(): ProductDrop {
+        return new ProductDrop($this);
+    }
+}
+```
+
 ## Advanced usage
 
 ### Custom tags
