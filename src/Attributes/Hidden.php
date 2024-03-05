@@ -1,6 +1,6 @@
 <?php
 
-namespace Keepsuit\Liquid\Drops;
+namespace Keepsuit\Liquid\Attributes;
 
 use Attribute;
 

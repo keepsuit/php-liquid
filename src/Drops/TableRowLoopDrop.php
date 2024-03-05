@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Drops;
 
+use Keepsuit\Liquid\Attributes\Hidden;
 use Keepsuit\Liquid\Drop;
 
 /**

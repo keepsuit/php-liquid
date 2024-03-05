@@ -3,8 +3,8 @@
 namespace Keepsuit\Liquid\Support;
 
 use Keepsuit\Liquid\Drop;
-use Keepsuit\Liquid\Drops\Cache;
-use Keepsuit\Liquid\Drops\Hidden;
+use Keepsuit\Liquid\Attributes\Cache;
+use Keepsuit\Liquid\Attributes\Hidden;
 use ReflectionClass;
 use ReflectionMethod;
 use Traversable;
