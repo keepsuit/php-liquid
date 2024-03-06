@@ -2,6 +2,22 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.5.0 - 2024-03-06
+
+### Breaking changes
+
+* Added `AsLiquidValue` interface to provide a scalar value from objects used for comparisons
+* Added `Hidden` and `Cache` attributes for drop methods
+* Rewritten and improved drops metadata extraction
+* Improved `RenderContext` values caching
+
+### What's Changed
+
+* added cacheable methods to drop by @cappuc in https://github.com/keepsuit/php-liquid/pull/12
+* extract drop metadata only once per drop class by @cappuc in https://github.com/keepsuit/php-liquid/pull/13
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.4.2...v0.5.0
+
 ## v0.4.2 - 2024-02-01
 
 ### What's changed
