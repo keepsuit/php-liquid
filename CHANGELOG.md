@@ -2,6 +2,14 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.5.1 - 2024-03-19
+
+### What's changed
+
+* Don't preserve keys when transforming generator to array (it can break with `yield from`)
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.5.0...v0.5.1
+
 ## v0.5.0 - 2024-03-06
 
 ### Breaking changes
