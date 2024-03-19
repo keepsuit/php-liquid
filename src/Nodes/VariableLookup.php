@@ -83,7 +83,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
         $object = $context->findVariable($name);
 
         if ($object instanceof \Generator && $this->lookups !== []) {
-            $object = iterator_to_array($object);
+            $object = iterator_to_array($object, preserve_keys: false);
         }
 
         foreach ($this->lookups as $i => $lookup) {

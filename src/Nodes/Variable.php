@@ -81,7 +81,7 @@ class Variable extends Node implements CanBeEvaluated, CanBeStreamed, HasParseTr
         }
 
         if ($output instanceof \Generator) {
-            $output = iterator_to_array($output);
+            $output = iterator_to_array($output, preserve_keys: false);
         }
 
         foreach ($this->filters as [$filterName, $filterArgs, $filterNamedArgs]) {
@@ -112,7 +112,7 @@ class Variable extends Node implements CanBeEvaluated, CanBeStreamed, HasParseTr
         }
 
         if ($output instanceof \Generator) {
-            $output = iterator_to_array($output);
+            $output = iterator_to_array($output, preserve_keys: false);
         }
 
         if (is_array($output)) {
