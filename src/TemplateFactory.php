@@ -12,6 +12,11 @@ use Keepsuit\Liquid\Render\ResourceLimits;
 use Keepsuit\Liquid\Support\FilterRegistry;
 use Keepsuit\Liquid\Support\TagRegistry;
 
+/**
+ * @property-read bool $profile
+ * @property-read bool $rethrowExceptions
+ * @property-read bool $strictVariables
+ */
 final class TemplateFactory
 {
     protected TagRegistry $tagRegistry;
@@ -97,7 +102,7 @@ final class TemplateFactory
     }
 
     /**
-     * Enable/disabled lineNumber, rethrowExceptions and strictVariables.
+     * Enable/disabled rethrowExceptions and strictVariables.
      */
     public function debugMode(bool $debugMode = true): TemplateFactory
     {
@@ -213,5 +218,20 @@ final class TemplateFactory
     {
         return (new FilterRegistry())
             ->register(StandardFilters::class);
+    }
+
+    public function __get(string $name): mixed
+    {
+        $publicProperties = [
+            'profile',
+            'rethrowExceptions',
+            'strictVariables',
+        ];
+
+        if (in_array($name, $publicProperties)) {
+            return $this->{$name};
+        }
+
+        throw new \InvalidArgumentException("Property {$name} does not exist");
     }
 }

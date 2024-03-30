@@ -20,3 +20,15 @@ test('get registered tags', function () {
     expect($factory->getTagRegistry()->all())->toHaveKey('testblock');
     expect($factory->getTagRegistry()->all()['testblock'])->toBe(\Keepsuit\Liquid\Tests\Stubs\TestTagBlockTag::class);
 });
+
+test('template factory settings', function () {
+    $factory = TemplateFactory::new()
+        ->rethrowExceptions()
+        ->strictVariables()
+        ->profile();
+
+    expect($factory)
+        ->rethrowExceptions->toBeTrue()
+        ->strictVariables->toBeTrue()
+        ->profile->toBeTrue();
+});
