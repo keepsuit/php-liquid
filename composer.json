@@ -31,9 +31,6 @@
         "symfony/console": "^6.3 || ^7.0",
         "symfony/yaml": "^6.0 || ^7.0"
     },
-    "suggest": {
-        "ext-yaml": "Used to parse YAML files with better performance than symfony/yaml"
-    },
     "autoload": {
         "psr-4": {
             "Keepsuit\\Liquid\\": "src"
