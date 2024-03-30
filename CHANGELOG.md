@@ -2,6 +2,15 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.5.2 - 2024-03-30
+
+### What's Changed
+
+* Make `TemplateFactory` settings public readable
+* Bump dependabot/fetch-metadata from 1.6.0 to 2.0.0 by @dependabot in https://github.com/keepsuit/php-liquid/pull/14
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.5.1...v0.5.2
+
 ## v0.5.1 - 2024-03-19
 
 ### What's changed
