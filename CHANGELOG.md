@@ -2,6 +2,15 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.5.3 - 2024-04-04
+
+### What's changed
+
+- Allow access of `Drop` public properties with snake case and camel case aliases
+- Allow to hide a public property of `Drop` with `Hidden` attribute
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.5.2...v0.5.3
+
 ## v0.5.2 - 2024-03-30
 
 ### What's Changed
