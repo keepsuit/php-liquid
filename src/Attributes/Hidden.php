@@ -8,7 +8,7 @@ use Attribute;
  * This attribute can be used to mark a drop method as hidden,
  * so it won't be exposed to the liquid context.
  */
-#[Attribute(Attribute::TARGET_METHOD)]
+#[Attribute(Attribute::TARGET_METHOD | Attribute::TARGET_PROPERTY)]
 class Hidden
 {
 }

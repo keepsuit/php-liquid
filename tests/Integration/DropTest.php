@@ -2,6 +2,7 @@
 
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tests\Stubs\CachableDrop;
+use Keepsuit\Liquid\Tests\Stubs\CatchAllDrop;
 use Keepsuit\Liquid\Tests\Stubs\ContextDrop;
 use Keepsuit\Liquid\Tests\Stubs\EnumerableDrop;
 use Keepsuit\Liquid\Tests\Stubs\ProductDrop;
@@ -20,19 +21,19 @@ test('drop does only respond to whitelisted methods', function () {
 });
 
 test('text drop', function () {
-    expect(renderTemplate(' {{ product.texts.text }} ', ['product' => new ProductDrop()]))->toBe(' text1 ');
+    expect(renderTemplate(' {{ product.text.text }} ', ['product' => new ProductDrop()]))->toBe(' text1 ');
 });
 
 test('catchall unknown method', function () {
-    expect(renderTemplate(' {{ product.catchall.unknown }} ', ['product' => new ProductDrop()]))->toBe(' catchall_method: unknown ');
+    expect(renderTemplate(' {{ product.catch_all.unknown }} ', ['product' => new ProductDrop()]))->toBe(' catchall_method: unknown ');
 });
 
 test('catchall integer argument drop', function () {
-    expect(renderTemplate(' {{ product.catchall[8] }} ', ['product' => new ProductDrop()]))->toBe(' catchall_method: 8 ');
+    expect(renderTemplate(' {{ product.catch_all[8] }} ', ['product' => new ProductDrop()]))->toBe(' catchall_method: 8 ');
 });
 
 test('text array drop', function () {
-    expect(renderTemplate('{% for text in product.texts.array %} {{text}} {% endfor %}', ['product' => new ProductDrop()]))->toBe(' text1  text2 ');
+    expect(renderTemplate('{% for text in product.text.array %} {{text}} {% endfor %}', ['product' => new ProductDrop()]))->toBe(' text1  text2 ');
 });
 
 test('context drop', function () {
@@ -108,16 +109,19 @@ test('default to string on drops', function () {
 
 test('drop metadata', function () {
     expect(invade(new ProductDrop())->getMetadata())
-        ->invokableMethods->toBe(['texts', 'catchall', 'context'])
-        ->cacheableMethods->toBe([]);
+        ->invokableMethods->toBe(['text', 'catchAll', 'context'])
+        ->cacheableMethods->toBe([])
+        ->properties->toBe(['productName']);
 
     expect(invade(new EnumerableDrop())->getMetadata())
         ->invokableMethods->toBe(['size', 'first', 'count', 'min', 'max'])
-        ->cacheableMethods->toBe([]);
+        ->cacheableMethods->toBe([])
+        ->properties->toBe([]);
 
     expect(invade(new CachableDrop())->getMetadata())
         ->invokableMethods->toBe(['notCached', 'cached'])
-        ->cacheableMethods->toBe(['cached']);
+        ->cacheableMethods->toBe(['cached'])
+        ->properties->toBe([]);
 });
 
 it('can cache drop method calls', function () {
@@ -130,4 +134,16 @@ it('can cache drop method calls', function () {
     expect($drop)
         ->cached->toBe(0)
         ->cached->toBe(0);
+});
+
+it('can access drop data with snake and camel cases', function () {
+    $drop = new ProductDrop();
+
+    expect($drop)
+        ->productName->toBe('Product')
+        ->product_name->toBe('Product');
+
+    expect($drop)
+        ->catchAll->toBeInstanceOf(CatchAllDrop::class)
+        ->catch_all->toBeInstanceOf(CatchAllDrop::class);
 });

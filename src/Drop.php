@@ -31,11 +31,17 @@ class Drop implements IsContextAware
         $invokableMethods = $this->getMetadata()->invokableMethods;
         $cacheableMethods = $this->getMetadata()->cacheableMethods;
 
-        $possibleNames = [
+        $possibleNames = array_unique([
             $name,
             Str::camel($name),
             Str::snake($name),
-        ];
+        ]);
+
+        foreach ($possibleNames as $propertyName) {
+            if (in_array($propertyName, $this->getMetadata()->properties)) {
+                return $this->{$propertyName};
+            }
+        }
 
         foreach ($possibleNames as $methodName) {
             if (! in_array($methodName, $invokableMethods)) {
@@ -66,7 +72,7 @@ class Drop implements IsContextAware
             }
         }
 
-        if ($this->context->strictVariables) {
+        if (isset($this->context) && $this->context->strictVariables) {
             throw new UndefinedDropMethodException($name);
         }
 

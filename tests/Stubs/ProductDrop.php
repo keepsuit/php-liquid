@@ -6,12 +6,17 @@ use Keepsuit\Liquid\Drop;
 
 class ProductDrop extends Drop
 {
-    public function texts(): TextDrop
+    public function __construct(
+        public string $productName = 'Product'
+    ) {
+    }
+
+    public function text(): TextDrop
     {
         return new TextDrop();
     }
 
-    public function catchall(): CatchAllDrop
+    public function catchAll(): CatchAllDrop
     {
         return new CatchAllDrop();
     }

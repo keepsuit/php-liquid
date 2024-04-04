@@ -7,14 +7,25 @@ use Keepsuit\Liquid\Attributes\Hidden;
 use Keepsuit\Liquid\Drop;
 use ReflectionClass;
 use ReflectionMethod;
+use ReflectionProperty;
 use Traversable;
 
+/**
+ * @internal
+ */
 final class DropMetadata
 {
     /**
      * @var array<string,mixed>
      */
     protected static array $cache = [];
+
+    public function __construct(
+        public readonly array $invokableMethods = [],
+        public readonly array $cacheableMethods = [],
+        public readonly array $properties = [],
+    ) {
+    }
 
     public static function init(Drop $drop): DropMetadata
     {
@@ -31,32 +42,40 @@ final class DropMetadata
             $blacklist = [...$blacklist, 'current', 'next', 'key', 'valid', 'rewind'];
         }
 
-        $publicMethods = (new ReflectionClass($drop))->getMethods(ReflectionMethod::IS_PUBLIC);
+        $classReflection = new ReflectionClass($drop);
 
-        $visibleMethodNames = array_map(
-            fn (ReflectionMethod $method) => $method->getAttributes(Hidden::class) !== [] ? null : $method->getName(),
+        $publicMethods = array_filter(
+            $classReflection->getMethods(ReflectionMethod::IS_PUBLIC),
+            fn (ReflectionMethod $method) => $method->getAttributes(Hidden::class) === []
+                && ! in_array($method->getName(), $blacklist)
+                && ! str_starts_with($method->getName(), '__')
+        );
+
+        $invokableMethods = array_map(
+            fn (ReflectionMethod $method) => $method->getName(),
             $publicMethods
         );
 
-        $invokableMethods = array_values(array_filter(
-            array_diff($visibleMethodNames, $blacklist),
-            fn (?string $name) => $name !== null && ! str_starts_with($name, '__')
-        ));
+        $cacheableMethods = array_map(
+            fn (ReflectionMethod $method) => $method->getName(),
+            array_filter(
+                $publicMethods,
+                fn (ReflectionMethod $method) => $method->getAttributes(Cache::class) !== []
+            )
+        );
 
-        $cacheableMethods = array_values(array_filter(array_map(
-            fn (ReflectionMethod $method) => $method->getAttributes(Cache::class) !== [] ? $method->getName() : null,
-            $publicMethods
-        )));
+        $publicProperties = array_map(
+            fn (ReflectionProperty $property) => $property->getName(),
+            array_filter(
+                $classReflection->getProperties(ReflectionProperty::IS_PUBLIC),
+                fn (ReflectionProperty $property) => $property->getAttributes(Hidden::class) === []
+            )
+        );
 
         return self::$cache[get_class($drop)] = new DropMetadata(
-            invokableMethods: $invokableMethods,
-            cacheableMethods: $cacheableMethods
+            invokableMethods: array_values($invokableMethods),
+            cacheableMethods: array_values($cacheableMethods),
+            properties: array_values($publicProperties)
         );
-    }
-
-    public function __construct(
-        public readonly array $invokableMethods,
-        public readonly array $cacheableMethods
-    ) {
     }
 }

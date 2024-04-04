@@ -94,11 +94,11 @@ $stream = $template->stream($context);
 Liquid support almost any kind of object but in order to have a better control over the accessible data in the templates,
 you can pass your data as `Drop` objects and have a better control over the accessible data.
 Drops are standard php objects that extend the `Keepsuit\Liquid\Drop` class.
-Each public method of the class will be accessible in the template as a property.
+Public properties and public methods of the class will be accessible in the template as a property.
 You can also override the `liquidMethodMissing` method to handle undefined properties.
 
 Liquid provides some attributes to control the behavior of the drops:
-- `Hidden`: Hide the method from the template, it cannot be accessed as a property.
+- `Hidden`: Hide the method or the property from the template, it cannot be accessed from liquid.
 - `Cache`: Cache the result of the method, it will be called only once and the result will be stored in the drop.
 
 ```php
