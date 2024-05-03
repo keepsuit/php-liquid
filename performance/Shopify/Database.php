@@ -19,13 +19,18 @@ class Database
 
         $database = (array) Yaml::parseFile(static::DATABASE_FILE_PATH);
 
-        foreach ($database['products'] as $product) {
-            $collections = array_filter(
-                $database['collections'],
-                fn (array $collection) => Arr::first($collection['products'], fn (array $p) => $p['id'] === $product['id']) !== null
-            );
-            $product['collections'] = array_values($collections);
-        }
+        $database['products'] = array_map(
+            function (array $product) use ($database) {
+                $collections = array_filter(
+                    $database['collections'],
+                    fn (array $collection) => Arr::first($collection['products'], fn (array $p) => $p['id'] === $product['id']) !== null
+                );
+                $product['collections'] = array_values($collections);
+
+                return $product;
+            },
+            $database['products']
+        );
 
         $tables = [];
         foreach ($database as $key => $values) {
