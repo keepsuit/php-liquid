@@ -74,4 +74,4 @@ jobs:
         run: composer update --prefer-dist --no-interaction
 
       - name: Run benchmarks
-        run: vendor/bin/phpbench run --progress=none --report=aggregate
+        run: 'vendor/bin/phpbench run --progress=none --report=aggregate --php-config="opcache.enable: 1, opcache.enable_cli: 1"'
