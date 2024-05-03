@@ -171,53 +171,32 @@ final class RenderContext
     /**
      * @throws UndefinedVariableException
      */
-    public function findVariable(string $key): mixed
+    public function findVariables(string $key): array
     {
-        $scope = Arr::first($this->scopes, fn (array $scope) => array_key_exists($key, $scope));
+        $variables = [];
 
-        $variable = is_array($scope)
-            ? $this->internalContextLookup($scope, $key)
-            : $this->tryFindVariableInEnvironments($key);
+        foreach ($this->scopes as $scope) {
+            $variables[] = $this->internalContextLookup($scope, $key);
+        }
+        $variables[] = $this->internalContextLookup($this->environment, $key);
+        $variables[] = $this->internalContextLookup($this->sharedState->staticEnvironment, $key);
 
-        if ($variable instanceof MissingValue) {
-            return $this->strictVariables ? throw new UndefinedVariableException($key) : null;
+        $variables = array_values(array_filter($variables, fn (mixed $value) => ! $value instanceof MissingValue));
+
+        if ($variables === []) {
+            return $this->strictVariables ? throw new UndefinedVariableException($key) : [];
         }
 
-        if ($variable instanceof IsContextAware) {
-            $variable->setContext($this);
+        foreach ($variables as $variable) {
+            if ($variable instanceof IsContextAware) {
+                $variable->setContext($this);
+            }
         }
 
-        return $variable;
+        return $variables;
     }
 
-    /**
-     * @throws UndefinedVariableException
-     */
-    public function lookupAndEvaluate(mixed $scope, int|string $key): mixed
-    {
-        $value = match (true) {
-            is_array($scope) || is_object($scope) => $this->internalContextLookup($scope, $key),
-            default => new MissingValue(),
-        };
-
-        if ($value instanceof MissingValue) {
-            return $this->strictVariables ? throw new UndefinedVariableException((string) $key) : null;
-        }
-
-        return $value;
-    }
-
-    protected function tryFindVariableInEnvironments(string $key): mixed
-    {
-        $foundVariable = $this->internalContextLookup($this->environment, $key);
-        if (! $foundVariable instanceof MissingValue) {
-            return $foundVariable;
-        }
-
-        return $this->internalContextLookup($this->sharedState->staticEnvironment, $key);
-    }
-
-    public function internalContextLookup(array|object $scope, int|string $key): mixed
+    public function internalContextLookup(mixed $scope, int|string $key): mixed
     {
         $value = match (true) {
             is_array($scope) && array_key_exists($key, $scope) => $scope[$key],

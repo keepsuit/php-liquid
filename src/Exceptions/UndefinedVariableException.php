@@ -4,8 +4,8 @@ namespace Keepsuit\Liquid\Exceptions;
 
 class UndefinedVariableException extends LiquidException
 {
-    public function __construct(string $method)
+    public function __construct(string $variable)
     {
-        parent::__construct("Variable `$method` not found");
+        parent::__construct("Variable `$variable` not found");
     }
 }

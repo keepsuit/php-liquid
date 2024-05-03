@@ -6,8 +6,10 @@ use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Parse\LexerOptions;
 use Keepsuit\Liquid\Render\RenderContext;
+use Keepsuit\Liquid\Support\MissingValue;
 use Keepsuit\Liquid\Support\Str;
 
 class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
@@ -80,30 +82,46 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
     {
         $name = $context->evaluate($this->name);
         assert(is_string($name));
-        $object = $context->findVariable($name);
+        $variables = $context->findVariables($name);
 
-        if ($object instanceof \Generator && $this->lookups !== []) {
-            $object = iterator_to_array($object, preserve_keys: false);
+        if ($this->lookups === []) {
+            return $variables[0] ?? null;
         }
 
-        foreach ($this->lookups as $i => $lookup) {
-            $key = $context->evaluate($lookup) ?? '';
-
-            assert(is_string($key) || is_int($key));
-
-            $object = match (true) {
-                is_array($object) && array_key_exists($key, $object) => $context->lookupAndEvaluate($object, $key),
-                is_object($object) => $context->lookupAndEvaluate($object, $key),
-                in_array($i, $this->lookupFilters) => $this->applyFilter($context, $object, (string) $key),
-                default => $context->lookupAndEvaluate($object, $key),
-            };
-
-            if ($object instanceof IsContextAware) {
-                $object->setContext($context);
+        foreach ($variables as $object) {
+            if ($object instanceof \Generator) {
+                $object = iterator_to_array($object, preserve_keys: false);
             }
+
+            foreach ($this->lookups as $i => $lookup) {
+                $key = $context->evaluate($lookup) ?? '';
+
+                assert(is_string($key) || is_int($key));
+
+                $object = match (true) {
+                    is_array($object) && array_key_exists($key, $object) => $context->internalContextLookup($object, $key),
+                    is_object($object) => $context->internalContextLookup($object, $key),
+                    in_array($i, $this->lookupFilters) => $this->applyFilter($context, $object, (string) $key),
+                    default => $context->internalContextLookup($object, $key),
+                };
+
+                if ($object instanceof MissingValue) {
+                    continue 2;
+                }
+
+                if ($object instanceof IsContextAware) {
+                    $object->setContext($context);
+                }
+            }
+
+            return $object;
         }
 
-        return $object;
+        if ($context->strictVariables) {
+            throw new UndefinedVariableException($this->toString());
+        }
+
+        return null;
     }
 
     protected function applyFilter(RenderContext $context, mixed $object, string $filter): mixed
