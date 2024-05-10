@@ -23,12 +23,12 @@ test('get registered tags', function () {
 
 test('template factory settings', function () {
     $factory = TemplateFactory::new()
-        ->rethrowExceptions()
-        ->strictVariables()
-        ->profile();
+        ->setRethrowExceptions()
+        ->setStrictVariables()
+        ->setProfile();
 
     expect($factory)
-        ->rethrowExceptions->toBeTrue()
-        ->strictVariables->toBeTrue()
-        ->profile->toBeTrue();
+        ->getRethrowExceptions()->toBeTrue()
+        ->getStrictVariables()->toBeTrue()
+        ->getProfile()->toBeTrue();
 });

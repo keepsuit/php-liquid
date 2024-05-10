@@ -53,7 +53,7 @@ function renderTemplate(
 ): string {
     $factory = $factory
         ->setFilesystem(new StubFileSystem(partials: $partials))
-        ->rethrowExceptions(! $renderErrors);
+        ->setRethrowExceptions(! $renderErrors);
 
     $template = $factory->parseString($template);
 
@@ -81,7 +81,7 @@ function streamTemplate(
 ): Generator {
     $factory = $factory
         ->setFilesystem(new StubFileSystem(partials: $partials))
-        ->rethrowExceptions(! $renderErrors);
+        ->setRethrowExceptions(! $renderErrors);
 
     $template = $factory->parseString($template);
 
