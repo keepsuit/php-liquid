@@ -12,11 +12,6 @@ use Keepsuit\Liquid\Render\ResourceLimits;
 use Keepsuit\Liquid\Support\FilterRegistry;
 use Keepsuit\Liquid\Support\TagRegistry;
 
-/**
- * @property-read bool $profile
- * @property-read bool $rethrowExceptions
- * @property-read bool $strictVariables
- */
 final class TemplateFactory
 {
     protected TagRegistry $tagRegistry;
