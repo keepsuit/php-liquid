@@ -68,7 +68,7 @@ test('assign score exceeding resource limit', function () {
 
 test('assign score exceeding resource limit from composite object', function () {
     $factory = TemplateFactory::new()
-        ->rethrowExceptions();
+        ->setRethrowExceptions();
 
     $template = parseTemplate("{% assign foo = 'aaaa' | split: '' %}", factory: $factory);
 

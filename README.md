@@ -40,9 +40,9 @@ Create a new template factory instance:
 ```php
 $factory = \Keepsuit\Liquid\TemplateFactory::new()
     // enable strict variables mode
-    ->strictVariables()
+    ->setStrictVariables()
     // rethrow exceptions instead of rendering them
-    ->rethrowExceptions()
+    ->setRethrowExceptions()
     // set filesystem used to load templates
     ->setFilesystem(new \Keepsuit\Liquid\FileSystems\LocalFileSystem(__DIR__ . '/views'));
 ```

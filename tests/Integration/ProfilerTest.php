@@ -12,7 +12,7 @@ beforeEach(function () {
     $this->templateFactory = TemplateFactory::new()
         ->setFilesystem(new ProfilingFileSystem())
         ->registerTag(SleepTag::class)
-        ->profile();
+        ->setProfile();
 });
 
 test('context allows flagging profiling', function () {
@@ -189,7 +189,7 @@ function profileTemplate(string $source, array $assigns = []): ?Profiler
 {
     /** @var TemplateFactory $factory */
     $factory = test()->templateFactory;
-    $template = $factory->profile()->parseString($source);
+    $template = $factory->setProfile()->parseString($source);
     $template->render($factory->newRenderContext(
         staticEnvironment: $assigns,
     ));

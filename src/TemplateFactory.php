@@ -80,31 +80,46 @@ final class TemplateFactory
         return $this->filterRegistry;
     }
 
-    public function profile(bool $profile = true): TemplateFactory
+    public function setProfile(bool $profile = true): TemplateFactory
     {
         $this->profile = $profile;
 
         return $this;
     }
 
-    public function rethrowExceptions(bool $rethrowExceptions = true): TemplateFactory
+    public function getProfile(): bool
+    {
+        return $this->profile;
+    }
+
+    public function setRethrowExceptions(bool $rethrowExceptions = true): TemplateFactory
     {
         $this->rethrowExceptions = $rethrowExceptions;
 
         return $this;
     }
 
-    public function strictVariables(bool $strictVariables = true): TemplateFactory
+    public function getRethrowExceptions(): bool
+    {
+        return $this->rethrowExceptions;
+    }
+
+    public function setStrictVariables(bool $strictVariables = true): TemplateFactory
     {
         $this->strictVariables = $strictVariables;
 
         return $this;
     }
 
+    public function getStrictVariables(): bool
+    {
+        return $this->strictVariables;
+    }
+
     /**
      * Enable/disabled rethrowExceptions and strictVariables.
      */
-    public function debugMode(bool $debugMode = true): TemplateFactory
+    public function setDebugMode(bool $debugMode = true): TemplateFactory
     {
         $this->rethrowExceptions = $debugMode;
         $this->strictVariables = $debugMode;
@@ -218,20 +233,5 @@ final class TemplateFactory
     {
         return (new FilterRegistry())
             ->register(StandardFilters::class);
-    }
-
-    public function __get(string $name): mixed
-    {
-        $publicProperties = [
-            'profile',
-            'rethrowExceptions',
-            'strictVariables',
-        ];
-
-        if (in_array($name, $publicProperties)) {
-            return $this->{$name};
-        }
-
-        throw new \InvalidArgumentException("Property {$name} does not exist");
     }
 }
