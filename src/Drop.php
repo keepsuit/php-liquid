@@ -21,6 +21,21 @@ class Drop implements IsContextAware
         throw new UndefinedDropMethodException($name);
     }
 
+    public function toArray(): array
+    {
+        $result = [];
+
+        foreach ($this->getMetadata()->properties as $property) {
+            $result[$property] = $this->{$property};
+        }
+
+        foreach ($this->getMetadata()->invokableMethods as $method) {
+            $result[$method] = $this->{$method};
+        }
+
+        return $result;
+    }
+
     public function __toString(): string
     {
         return get_class($this);
