@@ -20,6 +20,8 @@ final class DropMetadata
      */
     protected static array $cache = [];
 
+    protected static array $dropBaseMethods;
+
     public function __construct(
         public readonly array $invokableMethods = [],
         public readonly array $cacheableMethods = [],
@@ -33,10 +35,12 @@ final class DropMetadata
             return self::$cache[get_class($drop)];
         }
 
-        $blacklist = array_map(
+        self::$dropBaseMethods ??= array_map(
             fn (ReflectionMethod $method) => $method->getName(),
             (new ReflectionClass(Drop::class))->getMethods(ReflectionMethod::IS_PUBLIC)
         );
+
+        $blacklist = self::$dropBaseMethods;
 
         if ($drop instanceof Traversable) {
             $blacklist = [...$blacklist, 'current', 'next', 'key', 'valid', 'rewind'];
