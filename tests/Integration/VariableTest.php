@@ -29,6 +29,39 @@ test('generator variable with lookup', function () {
     assertTemplateResult('1', '{{test.first}}', ['test' => generator()]);
 });
 
+test('variable override', function () {
+    $templateFactory = new \Keepsuit\Liquid\TemplateFactory();
+    $templateFactory->registerTag(\Keepsuit\Liquid\Tests\Stubs\VariableOverrideTag::class);
+
+    assertTemplateResult('old|new|old', <<<'LIQUID'
+        {{ test }}|
+        {%- override test "new" -%}
+        {{ test }}|
+        {%- endoverride -%}
+        {{ test }}
+        LIQUID, [
+        'test' => 'old',
+    ], factory: $templateFactory);
+});
+
+test('variable nested override', function () {
+    $templateFactory = new \Keepsuit\Liquid\TemplateFactory();
+    $templateFactory->registerTag(\Keepsuit\Liquid\Tests\Stubs\VariableOverrideTag::class);
+
+    assertTemplateResult('old_a,old_b|old_a,new_b|old_a,old_b', <<<'LIQUID'
+        {{ test.a }},{{ test.b }}|
+        {%- override test.b "new_b" -%}
+        {{ test.a }},{{ test.b }}|
+        {%- endoverride -%}
+        {{ test.a }},{{ test.b }}
+        LIQUID, [
+        'test' => [
+            'a' => 'old_a',
+            'b' => 'old_b',
+        ],
+    ], factory: $templateFactory);
+});
+
 function generator(): Generator
 {
     yield '1';

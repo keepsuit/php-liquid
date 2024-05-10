@@ -145,9 +145,9 @@ test('undefined variables', function () {
         ->{0}->toBeInstanceOf(UndefinedVariableException::class)
         ->{0}->getMessage()->toBe('Variable `y` not found')
         ->{1}->toBeInstanceOf(UndefinedVariableException::class)
-        ->{1}->getMessage()->toBe('Variable `b` not found')
+        ->{1}->getMessage()->toBe('Variable `z.b` not found')
         ->{2}->toBeInstanceOf(UndefinedVariableException::class)
-        ->{2}->getMessage()->toBe('Variable `d` not found');
+        ->{2}->getMessage()->toBe('Variable `z.c.d` not found');
 });
 
 test('null value does not throw exception', function () {
