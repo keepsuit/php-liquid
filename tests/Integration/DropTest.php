@@ -107,6 +107,19 @@ test('default to string on drops', function () {
     expect(renderTemplate('{{ collection }}', ['collection' => new EnumerableDrop()]))->toBe(EnumerableDrop::class);
 });
 
+test('drop toArray', function () {
+    $context = (new \Keepsuit\Liquid\TemplateFactory())->newRenderContext();
+
+    $drop = new ProductDrop();
+    $drop->setContext($context);
+    expect($drop->toArray())
+        ->toHaveKeys(['productName', 'text', 'catchAll', 'context'])
+        ->productName->toBe('Product')
+        ->text->toBeInstanceOf(\Keepsuit\Liquid\Tests\Stubs\TextDrop::class)
+        ->catchAll->toBeInstanceOf(\Keepsuit\Liquid\Tests\Stubs\CatchAllDrop::class)
+        ->context->toBe($context);
+});
+
 test('drop metadata', function () {
     expect(invade(new ProductDrop())->getMetadata())
         ->invokableMethods->toBe(['text', 'catchAll', 'context'])
