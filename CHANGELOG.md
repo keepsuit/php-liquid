@@ -2,6 +2,18 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.6.0 - 2024-05-10
+
+### What's Changed
+
+* Rename template factory setter methods and add getters by @cappuc in https://github.com/keepsuit/php-liquid/pull/19
+* Nested variable override by @cappuc in https://github.com/keepsuit/php-liquid/pull/18
+* Added toArray method to drop by @cappuc in https://github.com/keepsuit/php-liquid/pull/20
+* Bump aglipanci/laravel-pint-action from 2.3.1 to 2.4 by @dependabot in https://github.com/keepsuit/php-liquid/pull/15
+* Bump dependabot/fetch-metadata from 2.0.0 to 2.1.0 by @dependabot in https://github.com/keepsuit/php-liquid/pull/16
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.5.3...v0.6.0
+
 ## v0.5.3 - 2024-04-04
 
 ### What's changed
