@@ -45,7 +45,7 @@ class FilterRegistry
     }
 
     /**
-     * @throws UndefinedFilterException
+     * @throws UndefinedFilterException|UndefinedVariableException
      */
     public function invoke(RenderContext $context, string $filterName, mixed $value, mixed ...$args): mixed
     {

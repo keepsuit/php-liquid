@@ -6,6 +6,7 @@ use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
 use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Render\ResourceLimits;
+use Keepsuit\Liquid\TemplateFactory;
 
 test('assigns persist on same context between renders', function () {
     $template = parseTemplate("{{ foo }}{% assign foo = 'foo' %}{{ foo }}");
@@ -127,106 +128,156 @@ test('render length uses number of bytes not characters', function () {
     expect($template->render($context))->toBe('すごい');
 });
 
-test('undefined variables', function () {
+test('undefined variables', function (bool $strict) {
+    $factory = TemplateFactory::new()
+        ->setRethrowExceptions(false)
+        ->setStrictVariables($strict);
+
     $template = parseTemplate('{{x}} {{y}} {{z.a}} {{z.b}} {{z.c.d}}');
-    $context = new RenderContext(
+    $context = $factory->newRenderContext(
         staticEnvironment: [
             'x' => 33,
             'z' => ['a' => 32, 'c' => ['e' => 31]],
         ],
-        rethrowExceptions: false,
-        strictVariables: true,
     );
 
     expect($template->render($context))->toBe('33  32  ');
 
-    expect($template->getErrors())
-        ->toHaveCount(3)
-        ->{0}->toBeInstanceOf(UndefinedVariableException::class)
-        ->{0}->getMessage()->toBe('Variable `y` not found')
-        ->{1}->toBeInstanceOf(UndefinedVariableException::class)
-        ->{1}->getMessage()->toBe('Variable `z.b` not found')
-        ->{2}->toBeInstanceOf(UndefinedVariableException::class)
-        ->{2}->getMessage()->toBe('Variable `z.c.d` not found');
-});
+    if ($strict) {
+        expect($template->getErrors())
+            ->toHaveCount(3)
+            ->{0}->toBeInstanceOf(UndefinedVariableException::class)
+            ->{0}->getMessage()->toBe('Variable `y` not found')
+            ->{1}->toBeInstanceOf(UndefinedVariableException::class)
+            ->{1}->getMessage()->toBe('Variable `z.b` not found')
+            ->{2}->toBeInstanceOf(UndefinedVariableException::class)
+            ->{2}->getMessage()->toBe('Variable `z.c.d` not found');
+    } else {
+        expect($template->getErrors())->toBeEmpty();
+    }
+})->with([
+    'strict' => true,
+    'default' => false,
+]);
 
-test('null value does not throw exception', function () {
+test('null value does not throw exception', function (bool $strict) {
     $template = parseTemplate('some{{x}}thing');
     $context = new RenderContext(
         staticEnvironment: [
             'x' => null,
         ],
         rethrowExceptions: false,
-        strictVariables: true,
+        strictVariables: $strict,
     );
 
     expect($template->render($context))->toBe('something');
 
     expect($template->getErrors())
         ->toHaveCount(0);
-});
+})->with([
+    'strict' => true,
+    'default' => false,
+]);
 
-test('undefined drop method', function () {
+test('undefined drop method', function (bool $strict) {
+    $factory = TemplateFactory::new()
+        ->setRethrowExceptions(false)
+        ->setStrictVariables($strict);
+
     $template = parseTemplate('{{ d.text }} {{ d.undefined }}');
-    $context = new RenderContext(
+    $context = $factory->newRenderContext(
         staticEnvironment: [
             'd' => new \Keepsuit\Liquid\Tests\Stubs\TextDrop(),
         ],
-        rethrowExceptions: false,
-        strictVariables: true,
     );
 
     expect($template->render($context))->toBe('text1 ');
 
-    expect($template->getErrors())
-        ->toHaveCount(1)
-        ->{0}->toBeInstanceOf(UndefinedDropMethodException::class);
-});
+    if ($strict) {
+        expect($template->getErrors())
+            ->toHaveCount(1)
+            ->{0}->toBeInstanceOf(UndefinedDropMethodException::class);
+    } else {
+        expect($template->getErrors())->toBeEmpty();
+    }
+})->with([
+    'strict' => true,
+    'default' => false,
+]);
 
-test('undefined drop method throw exception', function () {
+test('undefined drop method throw exception', function (bool $strict) {
+    $factory = TemplateFactory::new()
+        ->setRethrowExceptions()
+        ->setStrictVariables($strict);
+
     $template = parseTemplate('{{ d.text }} {{ d.undefined }}');
-    $context = new RenderContext(
+    $context = $factory->newRenderContext(
         staticEnvironment: [
             'd' => new \Keepsuit\Liquid\Tests\Stubs\TextDrop(),
         ],
-        rethrowExceptions: true,
-        strictVariables: true,
     );
 
-    expect(fn () => $template->render($context))->toThrow(UndefinedDropMethodException::class);
-});
+    if ($strict) {
+        expect(fn () => $template->render($context))->toThrow(UndefinedDropMethodException::class);
+    } else {
+        expect($template->render($context))->toBe('text1 ');
+    }
+})->with([
+    'strict' => true,
+    'default' => false,
+]);
 
-test('undefined filter', function () {
-    $template = parseTemplate('{{a}} {{x | upcase | somefilter1 | somefilter2 | downcase}}');
-    $context = new RenderContext(
+test('undefined filter', function (bool $strict) {
+    $factory = TemplateFactory::new()
+        ->setRethrowExceptions(false)
+        ->setStrictVariables($strict);
+
+    $template = parseTemplate('{{a}} {{x | upcase | somefilter1 | somefilter2 | capitalize}}', $factory);
+    $context = $factory->newRenderContext(
         staticEnvironment: [
             'a' => 123,
             'x' => 'foo',
         ],
-        rethrowExceptions: false,
-        strictVariables: true,
     );
 
-    expect($template->render($context))->toBe('123 ');
+    if ($strict) {
+        expect($template->render($context))->toBe('123 ');
 
-    expect($template->getErrors())
-        ->toHaveCount(1)
-        ->{0}->toBeInstanceOf(UndefinedFilterException::class);
-});
+        expect($template->getErrors())
+            ->toHaveCount(1)
+            ->{0}->toBeInstanceOf(UndefinedFilterException::class);
+    } else {
+        expect($template->render($context))->toBe('123 Foo');
 
-test('undefined filter throw exception', function () {
-    $template = parseTemplate('{{a}} {{x | upcase | somefilter1 | somefilter2 | downcase}}');
-    $context = new RenderContext(
+        expect($template->getErrors())->toBeEmpty();
+    }
+})->with([
+    'strict' => true,
+    'default' => false,
+]);
+
+test('undefined filter throw exception', function (bool $strict) {
+    $factory = TemplateFactory::new()
+        ->setRethrowExceptions()
+        ->setStrictVariables($strict);
+
+    $template = parseTemplate('{{a}} {{x | upcase | somefilter1 | somefilter2 | capitalize}}');
+    $context = $factory->newRenderContext(
         staticEnvironment: [
             'a' => 123,
             'x' => 'foo',
         ],
-        rethrowExceptions: true,
-        strictVariables: true,
     );
 
-    expect(fn () => $template->render($context))->toThrow(UndefinedFilterException::class);
-});
+    if ($strict) {
+        expect(fn () => $template->render($context))->toThrow(UndefinedFilterException::class);
+    } else {
+        expect($template->render($context))->toBe('123 Foo');
+    }
+})->with([
+    'strict' => true,
+    'default' => false,
+]);
 
 test('range literals works as expected', function () {
     assertTemplateResult('1..5', '{% assign foo = (x..y) %}{{ foo }}', ['x' => 1, 'y' => 5]);

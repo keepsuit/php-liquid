@@ -45,8 +45,7 @@
     "scripts": {
         "test": "vendor/bin/pest",
         "test-coverage": "vendor/bin/pest --coverage",
-        "format": "vendor/bin/pint",
-        "lint": "vendor/bin/phpstan analyse",
+        "lint": "vendor/bin/pint && vendor/bin/phpstan analyse",
         "benchmark": "vendor/bin/phpbench run --report=aggregate --php-config=\"opcache.enable: 1, opcache.enable_cli: 1\"",
         "profile": "vendor/bin/phpbench xdebug:profile"
     },
