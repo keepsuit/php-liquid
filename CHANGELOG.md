@@ -2,6 +2,14 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.6.1 - 2024-05-25
+
+### What's Changed
+
+* Strict variables improvements by @cappuc in https://github.com/keepsuit/php-liquid/pull/21
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.6.0...v0.6.1
+
 ## v0.6.0 - 2024-05-10
 
 ### What's Changed
