@@ -11,6 +11,7 @@ use Keepsuit\Liquid\Parse\LexerOptions;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\MissingValue;
 use Keepsuit\Liquid\Support\Str;
+use Keepsuit\Liquid\Support\UndefinedVariable;
 
 class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 {
@@ -65,7 +66,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
             return $this->name;
         }
 
-        return sprintf('%s.%s', $this->name, implode('.', $this->lookups));
+        return implode('.', [$this->name, ...$this->lookups]);
     }
 
     public function __toString(): string
@@ -85,6 +86,10 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
         $variables = $context->findVariables($name);
 
         if ($this->lookups === []) {
+            if ($context->strictVariables && $variables === []) {
+                return new UndefinedVariable($this->toString());
+            }
+
             return $variables[0] ?? null;
         }
 
@@ -117,11 +122,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
             return $object;
         }
 
-        if ($context->strictVariables) {
-            throw new UndefinedVariableException($this->toString());
-        }
-
-        return null;
+        return $context->strictVariables ? new UndefinedVariable($this->toString()) : null;
     }
 
     protected function applyFilter(RenderContext $context, mixed $object, string $filter): mixed

@@ -55,6 +55,7 @@ class PaginateTag extends TagBlock
     {
         return $context->stack(function (RenderContext $context) {
             $currentPage = $context->get('current_page');
+            $currentPage = is_int($currentPage) ? $currentPage : 1;
 
             $collection = $context->get($this->collectionName);
             $collection = match (true) {

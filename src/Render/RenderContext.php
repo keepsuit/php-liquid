@@ -168,9 +168,6 @@ final class RenderContext
         return $this->get($key) !== null;
     }
 
-    /**
-     * @throws UndefinedVariableException
-     */
     public function findVariables(string $key): array
     {
         $variables = [];
@@ -182,10 +179,6 @@ final class RenderContext
         $variables[] = $this->internalContextLookup($this->sharedState->staticEnvironment, $key);
 
         $variables = array_values(array_filter($variables, fn (mixed $value) => ! $value instanceof MissingValue));
-
-        if ($variables === []) {
-            return $this->strictVariables ? throw new UndefinedVariableException($key) : [];
-        }
 
         foreach ($variables as $variable) {
             if ($variable instanceof IsContextAware) {
