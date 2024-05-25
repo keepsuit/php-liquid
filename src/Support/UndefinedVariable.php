@@ -11,7 +11,7 @@ use Keepsuit\Liquid\Render\RenderContext;
 
 class UndefinedVariable implements CanBeRendered, AsLiquidValue
 {
-    public function __construct(protected string $variableName)
+    public function __construct(public readonly string $variableName)
     {
     }
 

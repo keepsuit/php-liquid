@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid\Support;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
+use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Render\RenderContext;
 
 class FilterRegistry
@@ -51,7 +52,15 @@ class FilterRegistry
         $filter = $this->filters[$filterName] ?? null;
 
         if ($filter !== null) {
-            return $filter($context, $value, ...$args);
+            try {
+                return $filter($context, $value, ...$args);
+            } catch (\TypeError $e) {
+                if ($value instanceof UndefinedVariable) {
+                    throw new UndefinedVariableException($value->variableName);
+                }
+
+                throw $e;
+            }
         }
 
         if ($context->strictVariables) {
