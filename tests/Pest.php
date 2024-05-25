@@ -69,9 +69,9 @@ function renderTemplate(
 }
 
 /**
- * @throws SyntaxException
  * @return Generator<string>
  *
+ * @throws SyntaxException
  */
 function streamTemplate(
     string $template,

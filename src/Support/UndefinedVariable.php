@@ -3,13 +3,11 @@
 namespace Keepsuit\Liquid\Support;
 
 use Keepsuit\Liquid\Contracts\AsLiquidValue;
-use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\CanBeRendered;
 use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
-use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Render\RenderContext;
 
-class UndefinedVariable implements CanBeRendered, AsLiquidValue
+class UndefinedVariable implements AsLiquidValue, CanBeRendered
 {
     public function __construct(public readonly string $variableName)
     {
