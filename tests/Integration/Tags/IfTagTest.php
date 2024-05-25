@@ -96,6 +96,15 @@ test('if from variable', function () {
     assertTemplateResult(' YES ', '{% if foo.bar %} NO {% else %} YES {% endif %}', ['notfoo' => [], 'bar' => true]);
 });
 
+test('if undefined variable', function (bool $strict) {
+    assertTemplateResult(' NO ', '{% if var %} YES {% else %} NO {% endif %}', strictVariables: $strict);
+    assertTemplateResult(' YES ', '{% if var == null %} YES {% else %} NO {% endif %}', strictVariables: $strict);
+    assertTemplateResult(' NO ', '{% if var == false %} YES {% else %} NO {% endif %}', strictVariables: $strict);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
+
 test('nested if', function () {
     assertTemplateResult('', '{% if false %}{% if false %} NO {% endif %}{% endif %}');
     assertTemplateResult('', '{% if false %}{% if true %} NO {% endif %}{% endif %}');

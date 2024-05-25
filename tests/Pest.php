@@ -49,11 +49,13 @@ function renderTemplate(
     array $registers = [],
     array $partials = [],
     bool $renderErrors = false,
+    bool $strictVariables = false,
     TemplateFactory $factory = new TemplateFactory()
 ): string {
     $factory = $factory
         ->setFilesystem(new StubFileSystem(partials: $partials))
-        ->setRethrowExceptions(! $renderErrors);
+        ->setRethrowExceptions(! $renderErrors)
+        ->setStrictVariables($strictVariables);
 
     $template = $factory->parseString($template);
 
@@ -77,11 +79,13 @@ function streamTemplate(
     array $registers = [],
     array $partials = [],
     bool $renderErrors = false,
+    bool $strictVariables = false,
     TemplateFactory $factory = new TemplateFactory()
 ): Generator {
     $factory = $factory
         ->setFilesystem(new StubFileSystem(partials: $partials))
-        ->setRethrowExceptions(! $renderErrors);
+        ->setRethrowExceptions(! $renderErrors)
+        ->setStrictVariables($strictVariables);
 
     $template = $factory->parseString($template);
 
@@ -101,6 +105,7 @@ function assertTemplateResult(
     array $registers = [],
     array $partials = [],
     bool $renderErrors = false,
+    bool $strictVariables = false,
     TemplateFactory $factory = new TemplateFactory(),
 ): void {
     expect(renderTemplate(
@@ -109,6 +114,7 @@ function assertTemplateResult(
         registers: $registers,
         partials: $partials,
         renderErrors: $renderErrors,
+        strictVariables: $strictVariables,
         factory: $factory,
     ))->toBe($expected);
 }

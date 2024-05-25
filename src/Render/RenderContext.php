@@ -14,7 +14,6 @@ use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Exceptions\StandardException;
-use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Interrupts\Interrupt;
 use Keepsuit\Liquid\Nodes\VariableLookup;
@@ -168,9 +167,6 @@ final class RenderContext
         return $this->get($key) !== null;
     }
 
-    /**
-     * @throws UndefinedVariableException
-     */
     public function findVariables(string $key): array
     {
         $variables = [];
@@ -182,10 +178,6 @@ final class RenderContext
         $variables[] = $this->internalContextLookup($this->sharedState->staticEnvironment, $key);
 
         $variables = array_values(array_filter($variables, fn (mixed $value) => ! $value instanceof MissingValue));
-
-        if ($variables === []) {
-            return $this->strictVariables ? throw new UndefinedVariableException($key) : [];
-        }
 
         foreach ($variables as $variable) {
             if ($variable instanceof IsContextAware) {

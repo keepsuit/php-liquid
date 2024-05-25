@@ -1,6 +1,7 @@
 <?php
 
 use Keepsuit\Liquid\Exceptions\ArithmeticException;
+use Keepsuit\Liquid\Support\UndefinedVariable;
 use Keepsuit\Liquid\Tests\Stubs\BooleanDrop;
 use Keepsuit\Liquid\Tests\Stubs\NumberDrop;
 use Keepsuit\Liquid\Tests\Stubs\TestDrop;
@@ -615,6 +616,17 @@ test('default', function () {
     assertTemplateResult('bar', "{{ drop | default: 'bar' }}", ['drop' => new BooleanDrop(false)]);
     assertTemplateResult('Yay', "{{ drop | default: 'bar' }}", ['drop' => new BooleanDrop(true)]);
 });
+
+test('default handle undefined variable', function (bool $strict) {
+    expect($this->filters->invoke($this->context, 'default', new UndefinedVariable('foo'), 'bar'))->toBe('bar');
+
+    assertTemplateResult('bar', '{{ foo | default: "bar" }}', strictVariables: $strict);
+    assertTemplateResult('bar', '{{ foo.x | default: "bar" }}', strictVariables: $strict);
+    assertTemplateResult('bar', '{{ foo.x.y | default: "bar" }}', strictVariables: $strict);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
 test('default handle false', function () {
     expect($this->filters->invoke($this->context, 'default', 'foo', 'bar', allow_false: true))->toBe('foo');

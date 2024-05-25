@@ -2,6 +2,7 @@
 
 use Keepsuit\Liquid\Nodes\Range;
 use Keepsuit\Liquid\Render\RenderContext;
+use Keepsuit\Liquid\Support\UndefinedVariable;
 use Keepsuit\Liquid\Tests\Stubs\Category;
 use Keepsuit\Liquid\Tests\Stubs\CategoryDrop;
 use Keepsuit\Liquid\Tests\Stubs\CentsDrop;
@@ -9,56 +10,79 @@ use Keepsuit\Liquid\Tests\Stubs\ContextSensitiveDrop;
 use Keepsuit\Liquid\Tests\Stubs\CounterDrop;
 use Keepsuit\Liquid\Tests\Stubs\HundredCents;
 
-beforeEach(function () {
-    $this->context = new RenderContext();
-});
+test('variables', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
 
-test('variables', function () {
-    $this->context->set('string', 'string');
-    expect($this->context->get('string'))->toBe('string');
+    $context->set('string', 'string');
+    expect($context->get('string'))->toBe('string');
 
-    $this->context->set('num', 5);
-    expect($this->context->get('num'))->toBe(5);
+    $context->set('num', 5);
+    expect($context->get('num'))->toBe(5);
 
-    $this->context->set('bool', true);
-    expect($this->context->get('bool'))->toBe(true);
-    $this->context->set('bool', false);
-    expect($this->context->get('bool'))->toBe(false);
+    $context->set('bool', true);
+    expect($context->get('bool'))->toBe(true);
+    $context->set('bool', false);
+    expect($context->get('bool'))->toBe(false);
 
-    $this->context->set('date', new DateTime('2019-01-01'));
-    expect($this->context->get('date'))->toBeInstanceOf(DateTime::class);
+    $context->set('date', new DateTime('2019-01-01'));
+    expect($context->get('date'))->toBeInstanceOf(DateTime::class);
 
-    $this->context->set('nil', null);
-    expect($this->context->get('nil'))->toBe(null);
-});
+    $context->set('nil', null);
+    expect($context->get('nil'))->toBe(null);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('variables not existing', function () {
-    assertTemplateResult('true', '{% if does_not_exist == nil %}true{% endif %}');
-});
+test('variables not existing', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
 
-test('array size', function () {
+    if ($strict) {
+        expect($context->get('does_not_exist'))->toBeInstanceOf(UndefinedVariable::class);
+        expect(fn () => renderTemplate('{{ does_not_exists }}', strictVariables: true))->toThrow(\Keepsuit\Liquid\Exceptions\UndefinedVariableException::class, 'Variable `does_not_exists` not found');
+    } else {
+        expect($context->get('does_not_exist'))->toBeNull();
+        assertTemplateResult('', '{{ does_not_exists }}', strictVariables: $strict);
+    }
+
+    assertTemplateResult('true', '{% if does_not_exist == nil %}true{% endif %}', strictVariables: $strict);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
+
+test('array size', function (bool $strict) {
     assertTemplateResult(
         'true',
         '{% if numbers.size == 4 %}true{% endif %}',
         ['numbers' => [1, 2, 3, 4]],
+        strictVariables: $strict
     );
     assertTemplateResult(
         'true',
         '{% if numbers.size == 4 %}true{% endif %}',
         ['numbers' => [1 => 1, 2 => 2, 3 => 3, 4 => 4]],
+        strictVariables: $strict
     );
     assertTemplateResult(
         'true',
         '{% if numbers.size == 1000 %}true{% endif %}',
         ['numbers' => [1 => 1, 2 => 2, 3 => 3, 4 => 4, 'size' => 1000]],
+        strictVariables: $strict
     );
-});
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('hyphenated variable', function () {
-    assertTemplateResult('godz', '{{ oh-my }}', ['oh-my' => 'godz']);
-});
+test('hyphenated variable', function (bool $strict) {
+    assertTemplateResult('godz', '{{ oh-my }}', ['oh-my' => 'godz'], strictVariables: $strict);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('add filter', function () {
+test('add filter', function (bool $strict) {
     $context = \Keepsuit\Liquid\TemplateFactory::new()
         ->registerFilter(\Keepsuit\Liquid\Tests\Stubs\TestFilters::class)
         ->newRenderContext();
@@ -68,72 +92,110 @@ test('add filter', function () {
     $context = \Keepsuit\Liquid\TemplateFactory::new()
         ->newRenderContext();
     expect($context->applyFilter('hi', 'hi?'))->toBe('hi?');
-});
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('add item in outer scope', function () {
-    $this->context->set('test', 'test');
-    $this->context->stack(function () {
-        expect($this->context->get('test'))->toBe('test');
+test('add item in outer scope', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
+    $context->set('test', 'test');
+    $context->stack(function () use ($context) {
+        expect($context->get('test'))->toBe('test');
     });
-    expect($this->context->get('test'))->toBe('test');
-});
+    expect($context->get('test'))->toBe('test');
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('add item in inner scope', function () {
-    $this->context->stack(function () {
-        $this->context->set('test', 'test');
+test('add item in inner scope', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
+    $context->stack(function () use ($context) {
+        $context->set('test', 'test');
 
-        expect($this->context->get('test'))->toBe('test');
+        expect($context->get('test'))->toBe('test');
     });
-    expect($this->context->get('test'))->toBeNull();
-});
 
-test('hierarchical data', function () {
+    if ($strict) {
+        expect($context->get('test'))->toBeInstanceOf(UndefinedVariable::class);
+    } else {
+        expect($context->get('test'))->toBeNull();
+    }
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
+
+test('hierarchical data', function (bool $strict) {
     $assigns = ['hash' => ['name' => 'tobi']];
-    assertTemplateResult('tobi', '{{ hash.name }}', $assigns);
-    assertTemplateResult('tobi', '{{ hash["name"] }}', $assigns);
-});
+    assertTemplateResult('tobi', '{{ hash.name }}', $assigns, strictVariables: $strict);
+    assertTemplateResult('tobi', '{{ hash["name"] }}', $assigns, strictVariables: $strict);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('keywords', function () {
-    assertTemplateResult('pass', '{% if true == expect %}pass{% endif %}', ['expect' => true]);
-    assertTemplateResult('pass', '{% if false == expect %}pass{% endif %}', ['expect' => false]);
-});
+test('keywords', function (bool $strict) {
+    assertTemplateResult('pass', '{% if true == expect %}pass{% endif %}', ['expect' => true], strictVariables: $strict);
+    assertTemplateResult('pass', '{% if false == expect %}pass{% endif %}', ['expect' => false], strictVariables: $strict);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('digits', function () {
-    assertTemplateResult('pass', '{% if 100 == expect %}pass{% endif %}', ['expect' => 100]);
-    assertTemplateResult('pass', '{% if 100.00 == expect %}pass{% endif %}', ['expect' => 100.00]);
-});
+test('digits', function (bool $strict) {
+    assertTemplateResult('pass', '{% if 100 == expect %}pass{% endif %}', ['expect' => 100], strictVariables: $strict);
+    assertTemplateResult('pass', '{% if 100.00 == expect %}pass{% endif %}', ['expect' => 100.00], strictVariables: $strict);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('strings', function () {
-    assertTemplateResult('hello!', '{{ "hello!" }}');
-    assertTemplateResult('hello!', "{{ 'hello!' }}");
-});
+test('strings', function (bool $strict) {
+    assertTemplateResult('hello!', '{{ "hello!" }}', strictVariables: $strict);
+    assertTemplateResult('hello!', "{{ 'hello!' }}", strictVariables: $strict);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('merge', function () {
-    $this->context->merge(['test' => 'test']);
-    expect($this->context->get('test'))->toBe('test');
+test('merge', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
+    $context->merge(['test' => 'test']);
+    expect($context->get('test'))->toBe('test');
 
-    $this->context->merge(['test' => 'newvalue', 'foo' => 'bar']);
-    expect($this->context)
+    $context->merge(['test' => 'newvalue', 'foo' => 'bar']);
+    expect($context)
         ->get('test')->toBe('newvalue')
         ->get('foo')->toBe('bar');
-});
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('array notation', function () {
+test('array notation', function (bool $strict) {
     $assigns = ['test' => ['a', 'b']];
-    assertTemplateResult('a', '{{ test[0] }}', $assigns);
-    assertTemplateResult('b', '{{ test[1] }}', $assigns);
-    assertTemplateResult('pass', '{% if test[2] == nil %}pass{% endif %}', $assigns);
-});
+    assertTemplateResult('a', '{{ test[0] }}', $assigns, strictVariables: $strict);
+    assertTemplateResult('b', '{{ test[1] }}', $assigns, strictVariables: $strict);
+    assertTemplateResult('pass', '{% if test[2] == nil %}pass{% endif %}', $assigns, strictVariables: $strict);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('recursive array notation', function () {
+test('recursive array notation', function (bool $strict) {
     $assigns = ['test' => ['test' => [1, 2, 3, 4, 5]]];
-    assertTemplateResult('1', '{{ test.test[0] }}', $assigns);
+    assertTemplateResult('1', '{{ test.test[0] }}', $assigns, strictVariables: $strict);
 
     $assigns = ['test' => [['test' => 'worked']]];
-    assertTemplateResult('worked', '{{ test[0].test }}', $assigns);
-});
+    assertTemplateResult('worked', '{{ test[0].test }}', $assigns, strictVariables: $strict);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('hash to array transition', function () {
+test('hash to array transition', function (bool $strict) {
     $assigns = [
         'colors' => [
             'Blue' => ['003366', '336699', '6699CC', '99CCFF'],
@@ -143,167 +205,241 @@ test('hash to array transition', function () {
         ],
     ];
 
-    assertTemplateResult('003366', '{{ colors.Blue[0] }}', $assigns);
-    assertTemplateResult('FF9999', '{{ colors.Red[3] }}', $assigns);
-});
+    assertTemplateResult('003366', '{{ colors.Blue[0] }}', $assigns, strictVariables: $strict);
+    assertTemplateResult('FF9999', '{{ colors.Red[3] }}', $assigns, strictVariables: $strict);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('array first/last', function () {
+test('array first/last', function (bool $strict) {
     $assigns = ['test' => [1, 2, 3, 4, 5]];
-    assertTemplateResult('1', '{{ test.first }}', $assigns);
-    assertTemplateResult('pass', '{% if test.last == 5 %}pass{% endif %}', $assigns);
+    assertTemplateResult('1', '{{ test.first }}', $assigns, strictVariables: $strict);
+    assertTemplateResult('pass', '{% if test.last == 5 %}pass{% endif %}', $assigns, strictVariables: $strict);
 
     $assigns = ['test' => ['test' => [1, 2, 3, 4, 5]]];
-    assertTemplateResult('1', '{{ test.test.first }}', $assigns);
-    assertTemplateResult('5', '{{ test.test.last }}', $assigns);
+    assertTemplateResult('1', '{{ test.test.first }}', $assigns, strictVariables: $strict);
+    assertTemplateResult('5', '{{ test.test.last }}', $assigns, strictVariables: $strict);
 
     $assigns = ['test' => [1]];
-    assertTemplateResult('1', '{{ test.first }}', $assigns);
-    assertTemplateResult('1', '{{ test.last }}', $assigns);
-});
+    assertTemplateResult('1', '{{ test.first }}', $assigns, strictVariables: $strict);
+    assertTemplateResult('1', '{{ test.last }}', $assigns, strictVariables: $strict);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('access hashes with hash notation', function () {
+test('access hashes with hash notation', function (bool $strict) {
     $assigns = ['products' => ['count' => 5, 'tags' => ['deepsnow', 'freestyle']]];
-    assertTemplateResult('5', '{{ products["count"] }}', $assigns);
-    assertTemplateResult('deepsnow', '{{ products["tags"][0] }}', $assigns);
-    assertTemplateResult('deepsnow', '{{ products["tags"].first }}', $assigns);
+    assertTemplateResult('5', '{{ products["count"] }}', $assigns, strictVariables: $strict);
+    assertTemplateResult('deepsnow', '{{ products["tags"][0] }}', $assigns, strictVariables: $strict);
+    assertTemplateResult('deepsnow', '{{ products["tags"].first }}', $assigns, strictVariables: $strict);
 
     $assigns = ['product' => ['variants' => [['title' => 'draft151cm'], ['title' => 'element151cm']]]];
-    assertTemplateResult('draft151cm', '{{ product["variants"][0]["title"] }}', $assigns);
-    assertTemplateResult('element151cm', '{{ product["variants"][1]["title"] }}', $assigns);
-    assertTemplateResult('draft151cm', '{{ product["variants"].first["title"] }}', $assigns);
-    assertTemplateResult('element151cm', '{{ product["variants"].last["title"] }}', $assigns);
-});
+    assertTemplateResult('draft151cm', '{{ product["variants"][0]["title"] }}', $assigns, strictVariables: $strict);
+    assertTemplateResult('element151cm', '{{ product["variants"][1]["title"] }}', $assigns, strictVariables: $strict);
+    assertTemplateResult('draft151cm', '{{ product["variants"].first["title"] }}', $assigns, strictVariables: $strict);
+    assertTemplateResult('element151cm', '{{ product["variants"].last["title"] }}', $assigns, strictVariables: $strict);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('access hashes with hash access variables', function () {
+test('access hashes with hash access variables', function (bool $strict) {
     $assigns = [
         'var' => 'tags',
         'nested' => ['var' => 'tags'],
         'products' => ['count' => 5, 'tags' => ['deepsnow', 'freestyle']],
     ];
 
-    assertTemplateResult('deepsnow', '{{ products[var].first }}', $assigns);
-    assertTemplateResult('freestyle', '{{ products[nested.var].last }}', $assigns);
-});
+    assertTemplateResult('deepsnow', '{{ products[var].first }}', $assigns, strictVariables: $strict);
+    assertTemplateResult('freestyle', '{{ products[nested.var].last }}', $assigns, strictVariables: $strict);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('hash notation for lookup filters', function () {
-    assertTemplateResult('1', '{{ value.first }}', ['value' => [1, 2, 3, 4, 5]]);
-    assertTemplateResult('1', '{{ value["first"] }}', ['value' => [1, 2, 3, 4, 5]]);
+test('hash notation for lookup filters', function (bool $strict) {
+    assertTemplateResult('1', '{{ value.first }}', ['value' => [1, 2, 3, 4, 5]], strictVariables: $strict);
+    assertTemplateResult('1', '{{ value["first"] }}', ['value' => [1, 2, 3, 4, 5]], strictVariables: $strict);
 
-    assertTemplateResult('Hello', '{{ value["first"] }}', ['value' => ['first' => 'Hello']]);
-    assertTemplateResult('', '{{ value["first"] }}', ['value' => ['key' => 'value']]);
-});
+    assertTemplateResult('Hello', '{{ value["first"] }}', ['value' => ['first' => 'Hello']], strictVariables: $strict);
+    assertTemplateResult('', '{{ value["first"] }}', ['value' => ['key' => 'value']], strictVariables: $strict);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('first can appear in middle of call chain', function () {
+test('first can appear in middle of call chain', function (bool $strict) {
     $assigns = ['product' => ['variants' => [['title' => 'draft151cm'], ['title' => 'element151cm']]]];
 
-    assertTemplateResult('draft151cm', '{{ product.variants[0].title }}', $assigns);
-    assertTemplateResult('element151cm', '{{ product.variants[1].title }}', $assigns);
-    assertTemplateResult('draft151cm', '{{ product.variants.first.title }}', $assigns);
-    assertTemplateResult('element151cm', '{{ product.variants.last.title }}', $assigns);
-});
+    assertTemplateResult('draft151cm', '{{ product.variants[0].title }}', $assigns, strictVariables: $strict);
+    assertTemplateResult('element151cm', '{{ product.variants[1].title }}', $assigns, strictVariables: $strict);
+    assertTemplateResult('draft151cm', '{{ product.variants.first.title }}', $assigns, strictVariables: $strict);
+    assertTemplateResult('element151cm', '{{ product.variants.last.title }}', $assigns, strictVariables: $strict);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('cents', function () {
-    $this->context->merge(['cents' => new HundredCents()]);
-    expect($this->context->get('cents'))->toBe(100);
-});
+test('cents', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
+    $context->merge(['cents' => new HundredCents()]);
+    expect($context->get('cents'))->toBe(100);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('nested cents', function () {
-    $this->context->merge(['cents' => ['amount' => new HundredCents()]]);
-    expect($this->context->get('cents.amount'))->toBe(100);
+test('nested cents', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
+    $context->merge(['cents' => ['amount' => new HundredCents()]]);
+    expect($context->get('cents.amount'))->toBe(100);
 
-    $this->context->merge(['cents' => ['cents' => ['amount' => new HundredCents()]]]);
-    expect($this->context->get('cents.cents.amount'))->toBe(100);
-});
+    $context->merge(['cents' => ['cents' => ['amount' => new HundredCents()]]]);
+    expect($context->get('cents.cents.amount'))->toBe(100);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('cents through drop', function () {
-    $this->context->merge(['cents' => new CentsDrop()]);
-    expect($this->context->get('cents.amount'))->toBe(100);
-});
+test('cents through drop', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
+    $context->merge(['cents' => new CentsDrop()]);
+    expect($context->get('cents.amount'))->toBe(100);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('nested cents through drop', function () {
-    $this->context->merge(['vars' => ['cents' => new CentsDrop()]]);
-    expect($this->context->get('vars.cents.amount'))->toBe(100);
-});
+test('nested cents through drop', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
+    $context->merge(['vars' => ['cents' => new CentsDrop()]]);
+    expect($context->get('vars.cents.amount'))->toBe(100);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('cents through drop nestedly', function () {
-    $this->context->merge(['cents' => ['cents' => new CentsDrop()]]);
-    expect($this->context->get('cents.cents.amount'))->toBe(100);
+test('cents through drop nestedly', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
+    $context->merge(['cents' => ['cents' => new CentsDrop()]]);
+    expect($context->get('cents.cents.amount'))->toBe(100);
 
-    $this->context->merge(['cents' => ['cents' => ['cents' => new CentsDrop()]]]);
-    expect($this->context->get('cents.cents.cents.amount'))->toBe(100);
-});
+    $context->merge(['cents' => ['cents' => ['cents' => new CentsDrop()]]]);
+    expect($context->get('cents.cents.cents.amount'))->toBe(100);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('context from within drop', function () {
-    $this->context->merge(['test' => '123', 'vars' => new ContextSensitiveDrop()]);
-    expect($this->context->get('vars.test'))->toBe('123');
-});
+test('context from within drop', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
+    $context->merge(['test' => '123', 'vars' => new ContextSensitiveDrop()]);
+    expect($context->get('vars.test'))->toBe('123');
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('nested context from within drop', function () {
-    $this->context->merge(['test' => '123', 'vars' => ['local' => new ContextSensitiveDrop()]]);
-    expect($this->context->get('vars.local.test'))->toBe('123');
-});
+test('nested context from within drop', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
+    $context->merge(['test' => '123', 'vars' => ['local' => new ContextSensitiveDrop()]]);
+    expect($context->get('vars.local.test'))->toBe('123');
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('ranges', function () {
-    assertTemplateResult('1..5', '{{ (1..5) }}');
-    assertTemplateResult('pass', '{% if (1..5) == expect %}pass{% endif %}', ['expect' => new Range(1, 5)]);
+test('ranges', function (bool $strict) {
+    assertTemplateResult('1..5', '{{ (1..5) }}', strictVariables: $strict);
+    assertTemplateResult('pass', '{% if (1..5) == expect %}pass{% endif %}', ['expect' => new Range(1, 5)], strictVariables: $strict);
 
     $assigns = ['test' => '5'];
-    assertTemplateResult('1..5', '{{ (1..test) }}', $assigns);
-    assertTemplateResult('5..5', '{{ (test..test) }}', $assigns);
-});
+    assertTemplateResult('1..5', '{{ (1..test) }}', $assigns, strictVariables: $strict);
+    assertTemplateResult('5..5', '{{ (test..test) }}', $assigns, strictVariables: $strict);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('drop with variable called only once', function () {
-    $this->context->set('counter', new CounterDrop());
+test('drop with variable called only once', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
+    $context->set('counter', new CounterDrop());
 
-    expect($this->context->get('counter.count'))->toBe(1);
-    expect($this->context->get('counter.count'))->toBe(2);
-    expect($this->context->get('counter.count'))->toBe(3);
-});
+    expect($context->get('counter.count'))->toBe(1);
+    expect($context->get('counter.count'))->toBe(2);
+    expect($context->get('counter.count'))->toBe(3);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('drop with key called only once', function () {
-    $this->context->set('counter', new CounterDrop());
+test('drop with key called only once', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
+    $context->set('counter', new CounterDrop());
 
-    expect($this->context->get('counter["count"]'))->toBe(1);
-    expect($this->context->get('counter["count"]'))->toBe(2);
-    expect($this->context->get('counter["count"]'))->toBe(3);
-});
+    expect($context->get('counter["count"]'))->toBe(1);
+    expect($context->get('counter["count"]'))->toBe(2);
+    expect($context->get('counter["count"]'))->toBe(3);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('closure as variable', function () {
-    $this->context->set('dynamic', fn () => 'hello');
+test('closure as variable', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
+    $context->set('dynamic', fn () => 'hello');
 
-    expect($this->context->get('dynamic'))->toBe('hello');
-});
+    expect($context->get('dynamic'))->toBe('hello');
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('nested closure as variable', function () {
-    $this->context->set('dynamic', ['lambda' => fn () => 'hello']);
+test('nested closure as variable', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
+    $context->set('dynamic', ['lambda' => fn () => 'hello']);
 
-    expect($this->context->get('dynamic.lambda'))->toBe('hello');
-});
+    expect($context->get('dynamic.lambda'))->toBe('hello');
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('array containing closure as variable', function () {
-    $this->context->set('dynamic', [1, 2, fn () => 'hello', 4, 5]);
+test('array containing closure as variable', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
+    $context->set('dynamic', [1, 2, fn () => 'hello', 4, 5]);
 
-    expect($this->context->get('dynamic[2]'))->toBe('hello');
-});
+    expect($context->get('dynamic[2]'))->toBe('hello');
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('closure is called once', function () {
+test('closure is called once', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
     $global = 0;
 
-    $this->context->set('callcount', function () use (&$global) {
+    $context->set('callcount', function () use (&$global) {
         $global += 1;
 
         return $global;
     });
 
-    expect($this->context->get('callcount'))->toBe(1);
-    expect($this->context->get('callcount'))->toBe(1);
-    expect($this->context->get('callcount'))->toBe(1);
-});
+    expect($context->get('callcount'))->toBe(1);
+    expect($context->get('callcount'))->toBe(1);
+    expect($context->get('callcount'))->toBe(1);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('nested closure is called once', function () {
+test('nested closure is called once', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
     $global = 0;
 
-    $this->context->set('callcount', [
+    $context->set('callcount', [
         'lambda' => function () use (&$global) {
             $global += 1;
 
@@ -311,15 +447,19 @@ test('nested closure is called once', function () {
         },
     ]);
 
-    expect($this->context->get('callcount.lambda'))->toBe(1);
-    expect($this->context->get('callcount.lambda'))->toBe(1);
-    expect($this->context->get('callcount.lambda'))->toBe(1);
-});
+    expect($context->get('callcount.lambda'))->toBe(1);
+    expect($context->get('callcount.lambda'))->toBe(1);
+    expect($context->get('callcount.lambda'))->toBe(1);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('lambda in array is called once', function () {
+test('lambda in array is called once', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
     $global = 0;
 
-    $this->context->set('callcount', [
+    $context->set('callcount', [
         1,
         2,
         function () use (&$global) {
@@ -331,39 +471,54 @@ test('lambda in array is called once', function () {
         5,
     ]);
 
-    expect($this->context->get('callcount[2]'))->toBe(1);
-    expect($this->context->get('callcount[2]'))->toBe(1);
-    expect($this->context->get('callcount[2]'))->toBe(1);
-});
+    expect($context->get('callcount[2]'))->toBe(1);
+    expect($context->get('callcount[2]'))->toBe(1);
+    expect($context->get('callcount[2]'))->toBe(1);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('access to context from closure', function () {
-    $this->context->setRegister('magic', 3445392);
-    $this->context->set('closure', fn (RenderContext $context) => $context->getRegister('magic'));
+test('access to context from closure', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
+    $context->setRegister('magic', 3445392);
+    $context->set('closure', fn (RenderContext $context) => $context->getRegister('magic'));
 
-    expect($this->context->get('closure'))->toBe(3445392);
-});
+    expect($context->get('closure'))->toBe(3445392);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('toLiquid and context at first level', function () {
-    $this->context->set('category', new Category('foobar'));
+test('toLiquid and context at first level', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
+    $context->set('category', new Category('foobar'));
 
-    expect($this->context->get('category'))->toBeInstanceOf(CategoryDrop::class);
-    expect(invade($this->context->get('category'))->context)->toBe($this->context);
-});
+    expect($context->get('category'))->toBeInstanceOf(CategoryDrop::class);
+    expect(invade($context->get('category'))->context)->toBe($context);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('context initialization with a closure in environment', function () {
+test('context initialization with a closure in environment', function (bool $strict) {
     $context = new RenderContext(
         environment: [
             'test' => fn (RenderContext $c) => $c->get('poutine'),
         ],
         staticEnvironment: [
             'poutine' => 'fries',
-        ]
+        ],
+        strictVariables: $strict
     );
 
     expect($context->get('test'))->toBe('fries');
-});
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('staticEnvironment has lower priority then environment', function () {
+test('staticEnvironment has lower priority then environment', function (bool $strict) {
     $context = new RenderContext(
         environment: [
             'shadowed' => 'dynamic',
@@ -371,87 +526,125 @@ test('staticEnvironment has lower priority then environment', function () {
         staticEnvironment: [
             'shadowed' => 'static',
             'unshadowed' => 'static',
-        ]
+        ],
+        strictVariables: $strict
     );
 
     expect($context->get('shadowed'))->toBe('dynamic');
     expect($context->get('unshadowed'))->toBe('static');
-});
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('new isolated subcontext does not inherit variables', function () {
-    $context = new RenderContext();
+test('new isolated subcontext does not inherit variables', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
     $context->set('my_variable', 'some value');
     $subContext = $context->newIsolatedSubContext('sub');
 
-    expect($subContext->get('my_variable'))->toBeNull();
-});
+    if ($strict) {
+        expect($subContext->get('my_variable'))->toBeInstanceOf(UndefinedVariable::class);
+    } else {
+        expect($subContext->get('my_variable'))->toBeNull();
+    }
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('new isolated subcontext inherit static environments', function () {
-    $context = new RenderContext(staticEnvironment: ['my_env_value' => 'some value']);
+test('new isolated subcontext inherit static environments', function (bool $strict) {
+    $context = new RenderContext(staticEnvironment: ['my_env_value' => 'some value'], strictVariables: $strict);
     $subContext = $context->newIsolatedSubContext('sub');
 
     expect($subContext->get('my_env_value'))->toBe('some value');
-});
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('new isolated subcontext does inherit static registers', function () {
-    $context = new RenderContext(registers: ['my_register' => 'my value']);
+test('new isolated subcontext does inherit static registers', function (bool $strict) {
+    $context = new RenderContext(registers: ['my_register' => 'my value'], strictVariables: $strict);
     $subContext = $context->newIsolatedSubContext('sub');
 
     expect($subContext->getRegister('my_register'))->toBe('my value');
-});
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('new isolated subcontext does not inherit non static registers', function () {
-    $context = new RenderContext(registers: ['my_register' => 'my value']);
+test('new isolated subcontext does not inherit non static registers', function (bool $strict) {
+    $context = new RenderContext(registers: ['my_register' => 'my value'], strictVariables: $strict);
     $context->setRegister('my_register', 'my alt value');
     $subContext = $context->newIsolatedSubContext('sub');
 
     expect($subContext->getRegister('my_register'))->toBe('my value');
-});
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('new isolated subcontext registers do not pollute context', function () {
-    $context = new RenderContext(registers: ['my_register' => 'my value']);
+test('new isolated subcontext registers do not pollute context', function (bool $strict) {
+    $context = new RenderContext(registers: ['my_register' => 'my value'], strictVariables: $strict);
     $subContext = $context->newIsolatedSubContext('sub');
     $subContext->setRegister('my_register', 'my alt value');
 
     expect($context->getRegister('my_register'))->toBe('my value');
-});
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('new isolated subcontext inherit resource limits', function () {
+test('new isolated subcontext inherit resource limits', function (bool $strict) {
     $resourceLimits = new \Keepsuit\Liquid\Render\ResourceLimits();
-    $context = new RenderContext(resourceLimits: $resourceLimits);
+    $context = new RenderContext(strictVariables: $strict, resourceLimits: $resourceLimits);
     $subContext = $context->newIsolatedSubContext('sub');
 
     expect($subContext->resourceLimits)->toBe($resourceLimits);
-});
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('new isolated subcontext inherit file system', function () {
+test('new isolated subcontext inherit file system', function (bool $strict) {
     $fileSystem = new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem();
-    $context = new RenderContext(fileSystem: $fileSystem);
+    $context = new RenderContext(strictVariables: $strict, fileSystem: $fileSystem);
     $subContext = $context->newIsolatedSubContext('sub');
 
     expect($subContext->fileSystem)->toBe($fileSystem);
-});
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('new isolated subcontext inherit filters', function () {
+test('new isolated subcontext inherit filters', function (bool $strict) {
     $context = \Keepsuit\Liquid\TemplateFactory::new()
+        ->setStrictVariables($strict)
         ->registerFilter(\Keepsuit\Liquid\Tests\Stubs\TestFilters::class)
         ->newRenderContext();
     $subContext = $context->newIsolatedSubContext('sub');
 
     expect(parseTemplate('{{ "hi?" | hi }}')->render($subContext))->toBe('hi? hi!');
-});
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('disabled specified tags', function () {
-    $this->context->withDisabledTags(['foo', 'bar'], function (RenderContext $context) {
+test('disabled specified tags', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
+    $context->withDisabledTags(['foo', 'bar'], function (RenderContext $context) {
         expect($context)
             ->tagDisabled('foo')->toBe(true)
             ->tagDisabled('bar')->toBe(true)
             ->tagDisabled('unknown')->toBe(false);
     });
-});
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('disabled nested tags', function () {
-    $this->context->withDisabledTags(['foo'], function (RenderContext $context) {
+test('disabled nested tags', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
+    $context->withDisabledTags(['foo'], function (RenderContext $context) {
         $context->withDisabledTags(['foo'], function (RenderContext $context) {
             expect($context)
                 ->tagDisabled('foo')->toBe(true)
@@ -474,10 +667,17 @@ test('disabled nested tags', function () {
             ->tagDisabled('foo')->toBe(true)
             ->tagDisabled('bar')->toBe(false);
     });
-});
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
 
-test('has key will not add an error for missing keys', function () {
-    $this->context->has('unknown');
+test('has key will not add an error for missing keys', function (bool $strict) {
+    $context = new RenderContext(strictVariables: $strict);
+    $context->has('unknown');
 
-    expect($this->context->getErrors())->toBe([]);
-});
+    expect($context->getErrors())->toBe([]);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
