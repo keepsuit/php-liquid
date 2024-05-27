@@ -87,7 +87,7 @@ class Variable extends Node implements CanBeEvaluated, CanBeStreamed, HasParseTr
         foreach ($this->filters as [$filterName, $filterArgs, $filterNamedArgs]) {
             $filterArgs = $this->evaluateFilterExpressions($context, $filterArgs ?? []);
             $filterNamedArgs = $this->evaluateFilterExpressions($context, $filterNamedArgs ?? []);
-            $output = $context->applyFilter($filterName, $output, ...$filterArgs, ...$filterNamedArgs);
+            $output = $context->applyFilter($filterName, $output, [...$filterArgs, ...$filterNamedArgs]);
         }
 
         return $output;

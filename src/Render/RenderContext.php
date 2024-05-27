@@ -222,9 +222,9 @@ final class RenderContext
         return $value;
     }
 
-    public function applyFilter(string $filter, mixed $value, mixed ...$args): mixed
+    public function applyFilter(string $filter, mixed $value, array $args = []): mixed
     {
-        return $this->filterRegistry->invoke($this, $filter, $value, ...$args);
+        return $this->filterRegistry->invoke($this, $filter, $value, $args);
     }
 
     public function getRegister(string $name): mixed
