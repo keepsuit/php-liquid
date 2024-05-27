@@ -30,14 +30,14 @@ class FilterRegistry
                 continue;
             }
 
-            $this->filters[Str::snake($method->getName())] = function (RenderContext $context, ...$args) use ($filterClass, $method) {
+            $this->filters[Str::snake($method->getName())] = function (RenderContext $context, mixed $value, array $args) use ($filterClass, $method) {
                 $filterClassInstance = new $filterClass();
 
                 if ($filterClassInstance instanceof IsContextAware) {
                     $filterClassInstance->setContext($context);
                 }
 
-                return $filterClassInstance->{$method->getName()}(...$args);
+                return $filterClassInstance->{$method->getName()}($value, ...$args);
             };
         }
 
@@ -47,13 +47,13 @@ class FilterRegistry
     /**
      * @throws UndefinedFilterException|UndefinedVariableException
      */
-    public function invoke(RenderContext $context, string $filterName, mixed $value, mixed ...$args): mixed
+    public function invoke(RenderContext $context, string $filterName, mixed $value, array $args = []): mixed
     {
         $filter = $this->filters[$filterName] ?? null;
 
         if ($filter !== null) {
             try {
-                return $filter($context, $value, ...$args);
+                return $filter($context, $value, $args);
             } catch (\TypeError $e) {
                 if ($value instanceof UndefinedVariable) {
                     throw new UndefinedVariableException($value->variableName);
