@@ -2,6 +2,14 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.6.2 - 2024-05-27
+
+### What's Changed
+
+* pass filter arguments as array by @cappuc in https://github.com/keepsuit/php-liquid/pull/22
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.6.1...v0.6.2
+
 ## v0.6.1 - 2024-05-25
 
 ### What's Changed
