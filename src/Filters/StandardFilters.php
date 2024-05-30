@@ -244,9 +244,9 @@ class StandardFilters extends FiltersProvider
     }
 
     /**
-     * Combines all of the items in an array into a single string, separated by a space.
+     * Combines all the items in an array into a single string, separated by a space.
      */
-    public function join(array $input, string $glue = ' '): string
+    public function join(iterable $input, string $glue = ' '): string
     {
         return implode($glue, $this->mapToLiquid($input));
     }
@@ -385,7 +385,7 @@ class StandardFilters extends FiltersProvider
     /**
      * Reverses the order of the items in an array.
      */
-    public function reverse(array $input): array
+    public function reverse(iterable $input): array
     {
         return array_reverse($this->mapToLiquid($input));
     }
@@ -401,10 +401,14 @@ class StandardFilters extends FiltersProvider
     /**
      * Returns the size of an array or a string.
      */
-    public function size(string|array|null $input): int
+    public function size(string|iterable|null $input): int
     {
         if ($input === null) {
             return 0;
+        }
+
+        if (is_iterable($input) && ! is_array($input)) {
+            $input = iterator_to_array($input);
         }
 
         return is_array($input) ? count($input) : Str::length($input);
@@ -413,8 +417,12 @@ class StandardFilters extends FiltersProvider
     /**
      * Returns a substring or series of array items, starting at a given 0-based index.
      */
-    public function slice(string|array|null $input, int $start, int $length = 1): string|array
+    public function slice(string|iterable|null $input, int $start, int $length = 1): string|array
     {
+        if (is_iterable($input) && ! is_array($input)) {
+            $input = iterator_to_array($input);
+        }
+
         $count = static::size($input);
 
         if (abs($start) >= $count) {
@@ -626,7 +634,7 @@ class StandardFilters extends FiltersProvider
     /**
      * Removes any duplicate items in an array.
      */
-    public function uniq(array $input, ?string $property = null): array
+    public function uniq(iterable $input, ?string $property = null): array
     {
         return Arr::unique($this->mapToLiquid($input), $property);
     }
