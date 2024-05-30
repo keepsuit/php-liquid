@@ -8,12 +8,14 @@ use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Contracts\LiquidFileSystem;
 use Keepsuit\Liquid\Contracts\MapsToLiquid;
+use Keepsuit\Liquid\Drop;
 use Keepsuit\Liquid\Exceptions\ArithmeticException;
 use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Exceptions\StandardException;
+use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Interrupts\Interrupt;
 use Keepsuit\Liquid\Nodes\VariableLookup;
@@ -190,11 +192,16 @@ final class RenderContext
 
     public function internalContextLookup(mixed $scope, int|string $key): mixed
     {
-        $value = match (true) {
-            is_array($scope) && array_key_exists($key, $scope) => $scope[$key],
-            is_object($scope) => $scope->$key,
-            default => new MissingValue(),
-        };
+        try {
+            $value = match (true) {
+                is_array($scope) && array_key_exists($key, $scope) => $scope[$key],
+                $scope instanceof Drop => $scope->{$key},
+                is_object($scope) && property_exists($scope, (string) $key) => $scope->{$key},
+                default => new MissingValue(),
+            };
+        } catch (UndefinedDropMethodException) {
+            return new MissingValue();
+        }
 
         return $this->normalizeValue($value);
     }

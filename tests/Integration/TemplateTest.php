@@ -1,7 +1,6 @@
 <?php
 
 use Keepsuit\Liquid\Exceptions\ResourceLimitException;
-use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
 use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Render\RenderContext;
@@ -196,7 +195,7 @@ test('undefined drop method', function (bool $strict) {
     if ($strict) {
         expect($template->getErrors())
             ->toHaveCount(1)
-            ->{0}->toBeInstanceOf(UndefinedDropMethodException::class);
+            ->{0}->toBeInstanceOf(UndefinedVariableException::class);
     } else {
         expect($template->getErrors())->toBeEmpty();
     }
@@ -218,7 +217,7 @@ test('undefined drop method throw exception', function (bool $strict) {
     );
 
     if ($strict) {
-        expect(fn () => $template->render($context))->toThrow(UndefinedDropMethodException::class);
+        expect(fn () => $template->render($context))->toThrow(UndefinedVariableException::class);
     } else {
         expect($template->render($context))->toBe('text1 ');
     }

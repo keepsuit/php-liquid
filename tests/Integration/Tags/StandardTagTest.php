@@ -318,6 +318,14 @@ test('size of hash', function () {
     );
 });
 
+test('size of iterable', function () {
+    assertTemplateResult(
+        'array has 4 elements',
+        'array has {{ array.size }} elements',
+        assigns: ['array' => new \Keepsuit\Liquid\Tests\Stubs\Collection([1, 2, 3, 4])],
+    );
+});
+
 test('illegal symbols', function () {
     assertTemplateResult('', '{% if true == empty %}?{% endif %}');
     assertTemplateResult('', '{% if true == null %}?{% endif %}');
