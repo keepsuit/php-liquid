@@ -2,6 +2,14 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.6.3 - 2024-05-30
+
+### What's Changed
+
+* Improved iterable support by @cappuc in https://github.com/keepsuit/php-liquid/pull/23
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.6.2...v0.6.3
+
 ## v0.6.2 - 2024-05-27
 
 ### What's Changed
