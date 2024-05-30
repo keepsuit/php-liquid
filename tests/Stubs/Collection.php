@@ -2,12 +2,10 @@
 
 namespace Keepsuit\Liquid\Tests\Stubs;
 
-use Keepsuit\Liquid\Drop;
-
 /**
  * @implements \Iterator<int, mixed>
  */
-class Collection implements \Iterator, \Countable
+class Collection implements \Countable, \Iterator
 {
     protected int $index = 0;
 
@@ -49,6 +47,6 @@ class Collection implements \Iterator, \Countable
 
     public function count(): int
     {
-       return count($this->data);
+        return count($this->data);
     }
 }
