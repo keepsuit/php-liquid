@@ -75,6 +75,11 @@ test('dynamically choosen templates are not allowed', function () {
         ->toThrow(SyntaxException::class);
 });
 
+test('dynamically template name', function () {
+    expect(renderTemplate("{% assign name = 'snippet' %}{% render name %}", partials: ['snippet' => 'echo'], allowDynamicTemplates: true))
+        ->toBe('echo');
+});
+
 test('render tag caches second read of some partial', function () {
     $factory = TemplateFactory::new()
         ->setFilesystem($fileSystem = new StubFileSystem(['snippet' => 'echo']));

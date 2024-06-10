@@ -25,6 +25,8 @@ use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\FilterRegistry;
 use Keepsuit\Liquid\Support\MissingValue;
 use Keepsuit\Liquid\Support\OutputsBag;
+use Keepsuit\Liquid\Support\PartialsCache;
+use Keepsuit\Liquid\Support\TagRegistry;
 use Keepsuit\Liquid\Template;
 use RuntimeException;
 use Throwable;
@@ -79,10 +81,12 @@ final class RenderContext
         array $registers = [],
         public readonly bool $rethrowExceptions = false,
         public readonly bool $strictVariables = false,
+        public readonly bool $allowDynamicPartials = false,
         bool $profile = false,
         public readonly FilterRegistry $filterRegistry = new FilterRegistry(),
         public readonly ResourceLimits $resourceLimits = new ResourceLimits(),
         public readonly LiquidFileSystem $fileSystem = new BlankFileSystem(),
+        public readonly TagRegistry $tagRegistry = new TagRegistry(),
     ) {
         $this->scopes = [[]];
 
@@ -320,28 +324,40 @@ final class RenderContext
 
     public function loadPartial(string $templateName): Template
     {
-        if (! Arr::has($this->sharedState->partialsCache, $templateName)) {
-            throw new StandardException(sprintf("The partial '%s' has not be loaded during parsing", $templateName));
+        if ($template = $this->sharedState->partialsCache->get($templateName)) {
+            return $template;
         }
 
-        return $this->sharedState->partialsCache[$templateName];
+        if (! $this->allowDynamicPartials) {
+            throw new StandardException('Dynamic templates are not allowed');
+        }
+
+        $parseContext = new ParseContext(
+            allowDynamicPartials: $this->allowDynamicPartials,
+            tagRegistry: $this->tagRegistry,
+            fileSystem: $this->fileSystem,
+            partialsCache: $this->sharedState->partialsCache,
+            outputs: $this->sharedState->outputs,
+        );
+
+        return $parseContext->loadPartial($templateName);
     }
 
-    public function setPartialsCache(array $partialsCache): RenderContext
+    public function setPartialsCache(PartialsCache $partialsCache): RenderContext
     {
         $this->sharedState->partialsCache = $partialsCache;
 
         return $this;
     }
 
-    public function mergePartialsCache(array $partialsCache): RenderContext
+    public function mergePartialsCache(PartialsCache $partialsCache): RenderContext
     {
-        $this->sharedState->partialsCache = array_merge($this->sharedState->partialsCache, $partialsCache);
+        $this->sharedState->partialsCache->merge($partialsCache);
 
         return $this;
     }
 
-    public function mergeOutputs(array $outputs): RenderContext
+    public function mergeOutputs(OutputsBag $outputs): RenderContext
     {
         $this->sharedState->outputs->merge($outputs);
 

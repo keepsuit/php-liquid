@@ -3,16 +3,11 @@
 namespace Keepsuit\Liquid\Render;
 
 use Keepsuit\Liquid\Support\OutputsBag;
-use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\Support\PartialsCache;
 use WeakMap;
 
 class ContextSharedState
 {
-    /**
-     * @var array<string, Template>
-     */
-    public array $partialsCache = [];
-
     /**
      * @var WeakMap<object, mixed>
      */
@@ -27,6 +22,7 @@ class ContextSharedState
         public array $errors = [],
         /** @var array<string, int> */
         public array $disabledTags = [],
+        public PartialsCache $partialsCache = new PartialsCache(),
         public OutputsBag $outputs = new OutputsBag(),
     ) {
         $this->computedObjectsCache = new WeakMap();

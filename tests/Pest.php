@@ -50,12 +50,14 @@ function renderTemplate(
     array $partials = [],
     bool $renderErrors = false,
     bool $strictVariables = false,
+    bool $allowDynamicTemplates = false,
     TemplateFactory $factory = new TemplateFactory()
 ): string {
     $factory = $factory
         ->setFilesystem(new StubFileSystem(partials: $partials))
         ->setRethrowExceptions(! $renderErrors)
-        ->setStrictVariables($strictVariables);
+        ->setStrictVariables($strictVariables)
+        ->setAllowDynamicPartials($allowDynamicTemplates);
 
     $template = $factory->parseString($template);
 
