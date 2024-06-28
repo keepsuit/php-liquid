@@ -207,7 +207,7 @@ Then you need to register the filters provider in the template factory:
 ```php
 /** @var \Keepsuit\Liquid\TemplateFactory $factory */
 
-$factory->registerFilters(CustomFilters::class);
+$factory->registerFilter(CustomFilters::class);
 ```
 
 ## Testing
