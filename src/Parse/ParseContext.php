@@ -28,21 +28,18 @@ class ParseContext
 
     protected bool $partial = false;
 
-    protected PartialsCache $partialsCache;
-
-    protected OutputsBag $outputs;
-
     protected Lexer $lexer;
 
     protected Parser $parser;
 
     public function __construct(
+        public readonly bool $allowDynamicPartials = false,
         public readonly TagRegistry $tagRegistry = new TagRegistry(),
         public readonly LiquidFileSystem $fileSystem = new BlankFileSystem(),
+        protected PartialsCache $partialsCache = new PartialsCache(),
+        protected OutputsBag $outputs = new OutputsBag(),
     ) {
         $this->lineNumber = 1;
-        $this->outputs = new OutputsBag();
-        $this->partialsCache = new PartialsCache();
         $this->lexer = new Lexer($this);
         $this->parser = new Parser($this);
     }
@@ -72,16 +69,17 @@ class ParseContext
         }
 
         $partialParseContext = new ParseContext(
+            allowDynamicPartials: $this->allowDynamicPartials,
             tagRegistry: $this->tagRegistry,
             fileSystem: $this->fileSystem,
+            partialsCache: $this->partialsCache,
+            outputs: $this->outputs,
         );
         $partialParseContext->partial = true;
         $partialParseContext->depth = $this->depth;
-        $partialParseContext->outputs = $this->outputs;
-        $partialParseContext->partialsCache = $this->partialsCache;
 
         try {
-            $source = $this->fileSystem->readTemplateFile($templateName);
+            $source = $partialParseContext->fileSystem->readTemplateFile($templateName);
 
             $template = Template::parse($partialParseContext, $source, $templateName);
 

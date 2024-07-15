@@ -28,6 +28,8 @@ final class TemplateFactory
 
     protected bool $strictVariables = false;
 
+    protected bool $allowDynamicPartials = false;
+
     public function __construct()
     {
         $this->tagRegistry = $this->buildTagRegistry();
@@ -111,6 +113,18 @@ final class TemplateFactory
         return $this->strictVariables;
     }
 
+    public function setAllowDynamicPartials(bool $allowDynamicPartials = true): TemplateFactory
+    {
+        $this->allowDynamicPartials = $allowDynamicPartials;
+
+        return $this;
+    }
+
+    public function getAllowDynamicPartials(): bool
+    {
+        return $this->allowDynamicPartials;
+    }
+
     /**
      * Enable/disabled rethrowExceptions and strictVariables.
      */
@@ -125,6 +139,7 @@ final class TemplateFactory
     public function newParseContext(): ParseContext
     {
         return new ParseContext(
+            allowDynamicPartials: $this->allowDynamicPartials,
             tagRegistry: $this->tagRegistry,
             fileSystem: $this->fileSystem,
         );
@@ -158,10 +173,12 @@ final class TemplateFactory
             registers: $registers,
             rethrowExceptions: $this->rethrowExceptions,
             strictVariables: $this->strictVariables,
+            allowDynamicPartials: $this->allowDynamicPartials,
             profile: $this->profile,
             filterRegistry: $this->filterRegistry,
             resourceLimits: $this->resourceLimits,
             fileSystem: $this->fileSystem,
+            tagRegistry: $this->tagRegistry,
         );
     }
 

@@ -43,9 +43,9 @@ class OutputsBag
         return $this->bags;
     }
 
-    public function merge(array $outputs): void
+    public function merge(OutputsBag $outputs): void
     {
-        foreach ($outputs as $key => $value) {
+        foreach ($outputs->all() as $key => $value) {
             $this->bags[$key] = $value;
         }
     }
