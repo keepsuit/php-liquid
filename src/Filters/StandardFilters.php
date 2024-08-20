@@ -682,12 +682,14 @@ class StandardFilters extends FiltersProvider
                 return match (true) {
                     is_string($value) && $property !== null => str_starts_with($value, $property),
                     is_array($value) && $property !== null => (bool) ($value[$property] ?? null),
+                    is_object($value) && $property !== null => (bool) ($value->$property ?? null),
                     default => (bool) $value,
                 };
             }
 
             return match (true) {
                 is_array($value) && $property !== null => ($value[$property] ?? null) === $targetValue,
+                is_object($value) && $property !== null => ($value->$property ?? null) === $targetValue,
                 default => false,
             };
         });
