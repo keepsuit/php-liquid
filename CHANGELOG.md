@@ -2,6 +2,20 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.6.4 - 2024-08-20
+
+### What's Changed
+
+* Support objects in `where` filter
+* Bump dependabot/fetch-metadata from 2.1.0 to 2.2.0 by @dependabot in https://github.com/keepsuit/php-liquid/pull/27
+* Update custom filters example in README.md by @tillschander in https://github.com/keepsuit/php-liquid/pull/26
+
+### New Contributors
+
+* @tillschander made their first contribution in https://github.com/keepsuit/php-liquid/pull/26
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.6.3...v0.6.4
+
 ## v0.6.3 - 2024-05-30
 
 ### What's Changed
