@@ -2,6 +2,4 @@
 
 namespace Keepsuit\Liquid\Exceptions;
 
-class StandardException extends LiquidException
-{
-}
+class StandardException extends LiquidException {}

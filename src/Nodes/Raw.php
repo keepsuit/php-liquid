@@ -9,8 +9,7 @@ class Raw extends Node implements HasParseTreeVisitorChildren
 {
     public function __construct(
         public readonly string $value,
-    ) {
-    }
+    ) {}
 
     public function render(RenderContext $context): string
     {

@@ -26,8 +26,7 @@ final class DropMetadata
         public readonly array $invokableMethods = [],
         public readonly array $cacheableMethods = [],
         public readonly array $properties = [],
-    ) {
-    }
+    ) {}
 
     public static function init(Drop $drop): DropMetadata
     {

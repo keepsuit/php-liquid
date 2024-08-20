@@ -11,8 +11,7 @@ class ArgumentParser
 {
     public function __construct(
         protected TokenStream $tokenStream
-    ) {
-    }
+    ) {}
 
     /**
      * @return Argument

@@ -13,8 +13,7 @@ class LoaderDrop extends Drop implements \Iterator
 
     public function __construct(
         protected array $data = [],
-    ) {
-    }
+    ) {}
 
     public function current(): mixed
     {

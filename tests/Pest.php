@@ -18,7 +18,7 @@ function fixture(string $path): string
  */
 function parseTemplate(
     string $source,
-    TemplateFactory $factory = new TemplateFactory(),
+    TemplateFactory $factory = new TemplateFactory,
 ): Template {
     return $factory
         ->parseString($source);
@@ -27,7 +27,7 @@ function parseTemplate(
 function buildRenderContext(
     array $assigns = [],
     array $registers = [],
-    TemplateFactory $factory = new TemplateFactory()
+    TemplateFactory $factory = new TemplateFactory
 ) {
     $context = $factory->newRenderContext(
         staticEnvironment: $assigns,
@@ -50,7 +50,7 @@ function renderTemplate(
     array $partials = [],
     bool $renderErrors = false,
     bool $strictVariables = false,
-    TemplateFactory $factory = new TemplateFactory()
+    TemplateFactory $factory = new TemplateFactory
 ): string {
     $factory = $factory
         ->setFilesystem(new StubFileSystem(partials: $partials))
@@ -80,7 +80,7 @@ function streamTemplate(
     array $partials = [],
     bool $renderErrors = false,
     bool $strictVariables = false,
-    TemplateFactory $factory = new TemplateFactory()
+    TemplateFactory $factory = new TemplateFactory
 ): Generator {
     $factory = $factory
         ->setFilesystem(new StubFileSystem(partials: $partials))
@@ -106,7 +106,7 @@ function assertTemplateResult(
     array $partials = [],
     bool $renderErrors = false,
     bool $strictVariables = false,
-    TemplateFactory $factory = new TemplateFactory(),
+    TemplateFactory $factory = new TemplateFactory,
 ): void {
     expect(renderTemplate(
         template: $template,
@@ -125,7 +125,7 @@ function assertMatchSyntaxError(
     array $assigns = [],
     array $registers = [],
     array $partials = [],
-    TemplateFactory $factory = new TemplateFactory()
+    TemplateFactory $factory = new TemplateFactory
 ): void {
     try {
         renderTemplate(template: $template, assigns: $assigns, registers: $registers, partials: $partials, factory: $factory);
@@ -140,10 +140,10 @@ function assertMatchSyntaxError(
 
 function tokenize(string $source): TokenStream
 {
-    return (new ParseContext())->tokenize($source);
+    return (new ParseContext)->tokenize($source);
 }
 
 function parse(string|TokenStream $source)
 {
-    return (new ParseContext())->parse($source instanceof TokenStream ? $source : tokenize($source));
+    return (new ParseContext)->parse($source instanceof TokenStream ? $source : tokenize($source));
 }

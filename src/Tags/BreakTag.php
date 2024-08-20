@@ -23,7 +23,7 @@ class BreakTag extends Tag
 
     public function render(RenderContext $context): string
     {
-        $context->pushInterrupt(new BreakInterrupt());
+        $context->pushInterrupt(new BreakInterrupt);
 
         return '';
     }

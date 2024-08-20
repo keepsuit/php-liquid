@@ -284,7 +284,7 @@ test('first can appear in middle of call chain', function (bool $strict) {
 
 test('cents', function (bool $strict) {
     $context = new RenderContext(strictVariables: $strict);
-    $context->merge(['cents' => new HundredCents()]);
+    $context->merge(['cents' => new HundredCents]);
     expect($context->get('cents'))->toBe(100);
 })->with([
     'default' => false,
@@ -293,10 +293,10 @@ test('cents', function (bool $strict) {
 
 test('nested cents', function (bool $strict) {
     $context = new RenderContext(strictVariables: $strict);
-    $context->merge(['cents' => ['amount' => new HundredCents()]]);
+    $context->merge(['cents' => ['amount' => new HundredCents]]);
     expect($context->get('cents.amount'))->toBe(100);
 
-    $context->merge(['cents' => ['cents' => ['amount' => new HundredCents()]]]);
+    $context->merge(['cents' => ['cents' => ['amount' => new HundredCents]]]);
     expect($context->get('cents.cents.amount'))->toBe(100);
 })->with([
     'default' => false,
@@ -305,7 +305,7 @@ test('nested cents', function (bool $strict) {
 
 test('cents through drop', function (bool $strict) {
     $context = new RenderContext(strictVariables: $strict);
-    $context->merge(['cents' => new CentsDrop()]);
+    $context->merge(['cents' => new CentsDrop]);
     expect($context->get('cents.amount'))->toBe(100);
 })->with([
     'default' => false,
@@ -314,7 +314,7 @@ test('cents through drop', function (bool $strict) {
 
 test('nested cents through drop', function (bool $strict) {
     $context = new RenderContext(strictVariables: $strict);
-    $context->merge(['vars' => ['cents' => new CentsDrop()]]);
+    $context->merge(['vars' => ['cents' => new CentsDrop]]);
     expect($context->get('vars.cents.amount'))->toBe(100);
 })->with([
     'default' => false,
@@ -323,10 +323,10 @@ test('nested cents through drop', function (bool $strict) {
 
 test('cents through drop nestedly', function (bool $strict) {
     $context = new RenderContext(strictVariables: $strict);
-    $context->merge(['cents' => ['cents' => new CentsDrop()]]);
+    $context->merge(['cents' => ['cents' => new CentsDrop]]);
     expect($context->get('cents.cents.amount'))->toBe(100);
 
-    $context->merge(['cents' => ['cents' => ['cents' => new CentsDrop()]]]);
+    $context->merge(['cents' => ['cents' => ['cents' => new CentsDrop]]]);
     expect($context->get('cents.cents.cents.amount'))->toBe(100);
 })->with([
     'default' => false,
@@ -335,7 +335,7 @@ test('cents through drop nestedly', function (bool $strict) {
 
 test('context from within drop', function (bool $strict) {
     $context = new RenderContext(strictVariables: $strict);
-    $context->merge(['test' => '123', 'vars' => new ContextSensitiveDrop()]);
+    $context->merge(['test' => '123', 'vars' => new ContextSensitiveDrop]);
     expect($context->get('vars.test'))->toBe('123');
 })->with([
     'default' => false,
@@ -344,7 +344,7 @@ test('context from within drop', function (bool $strict) {
 
 test('nested context from within drop', function (bool $strict) {
     $context = new RenderContext(strictVariables: $strict);
-    $context->merge(['test' => '123', 'vars' => ['local' => new ContextSensitiveDrop()]]);
+    $context->merge(['test' => '123', 'vars' => ['local' => new ContextSensitiveDrop]]);
     expect($context->get('vars.local.test'))->toBe('123');
 })->with([
     'default' => false,
@@ -365,7 +365,7 @@ test('ranges', function (bool $strict) {
 
 test('drop with variable called only once', function (bool $strict) {
     $context = new RenderContext(strictVariables: $strict);
-    $context->set('counter', new CounterDrop());
+    $context->set('counter', new CounterDrop);
 
     expect($context->get('counter.count'))->toBe(1);
     expect($context->get('counter.count'))->toBe(2);
@@ -377,7 +377,7 @@ test('drop with variable called only once', function (bool $strict) {
 
 test('drop with key called only once', function (bool $strict) {
     $context = new RenderContext(strictVariables: $strict);
-    $context->set('counter', new CounterDrop());
+    $context->set('counter', new CounterDrop);
 
     expect($context->get('counter["count"]'))->toBe(1);
     expect($context->get('counter["count"]'))->toBe(2);
@@ -595,7 +595,7 @@ test('new isolated subcontext registers do not pollute context', function (bool 
 ]);
 
 test('new isolated subcontext inherit resource limits', function (bool $strict) {
-    $resourceLimits = new \Keepsuit\Liquid\Render\ResourceLimits();
+    $resourceLimits = new \Keepsuit\Liquid\Render\ResourceLimits;
     $context = new RenderContext(strictVariables: $strict, resourceLimits: $resourceLimits);
     $subContext = $context->newIsolatedSubContext('sub');
 
@@ -606,7 +606,7 @@ test('new isolated subcontext inherit resource limits', function (bool $strict) 
 ]);
 
 test('new isolated subcontext inherit file system', function (bool $strict) {
-    $fileSystem = new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem();
+    $fileSystem = new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
     $context = new RenderContext(strictVariables: $strict, fileSystem: $fileSystem);
     $subContext = $context->newIsolatedSubContext('sub');
 

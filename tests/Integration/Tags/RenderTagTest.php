@@ -205,7 +205,7 @@ test('render tag for drop', function () {
         '123',
         "{% render 'loop' for iterator as value %}",
         assigns: [
-            'iterator' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop(),
+            'iterator' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop,
         ],
         partials: [
             'loop' => '{{ value.foo }}',
@@ -231,7 +231,7 @@ test('render tag renders error with template name', function () {
         'Liquid error (foo line 1): Standard error',
         "{% render 'foo' with errors %}",
         assigns: [
-            'errors' => new \Keepsuit\Liquid\Tests\Stubs\ErrorDrop(),
+            'errors' => new \Keepsuit\Liquid\Tests\Stubs\ErrorDrop,
         ],
         partials: [
             'foo' => '{{ foo.standard_error }}',

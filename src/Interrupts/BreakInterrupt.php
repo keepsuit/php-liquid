@@ -2,6 +2,4 @@
 
 namespace Keepsuit\Liquid\Interrupts;
 
-class BreakInterrupt extends Interrupt
-{
-}
+class BreakInterrupt extends Interrupt {}

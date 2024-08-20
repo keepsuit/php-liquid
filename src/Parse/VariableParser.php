@@ -9,8 +9,7 @@ class VariableParser
 {
     public function __construct(
         protected TokenStream $tokenStream
-    ) {
-    }
+    ) {}
 
     public function parseVariable(): Variable
     {

@@ -2,6 +2,4 @@
 
 namespace Keepsuit\Liquid\Exceptions;
 
-class ArithmeticException extends LiquidException
-{
-}
+class ArithmeticException extends LiquidException {}

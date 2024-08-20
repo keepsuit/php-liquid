@@ -23,8 +23,7 @@ class ForLoopDrop extends Drop
         protected string $name,
         protected int $length,
         public readonly ?ForLoopDrop $parentLoop = null,
-    ) {
-    }
+    ) {}
 
     #[Hidden]
     public function increment(): void

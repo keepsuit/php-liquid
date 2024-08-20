@@ -9,9 +9,7 @@ use Keepsuit\Liquid\Render\RenderContext;
 
 class UndefinedVariable implements AsLiquidValue, CanBeRendered
 {
-    public function __construct(public readonly string $variableName)
-    {
-    }
+    public function __construct(public readonly string $variableName) {}
 
     public function render(RenderContext $context): string
     {

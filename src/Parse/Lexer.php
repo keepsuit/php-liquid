@@ -38,8 +38,7 @@ class Lexer
 
     public function __construct(
         protected ParseContext $parseContext,
-    ) {
-    }
+    ) {}
 
     /**
      * @throws SyntaxException

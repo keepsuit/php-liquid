@@ -32,13 +32,13 @@ final class TemplateFactory
     {
         $this->tagRegistry = $this->buildTagRegistry();
         $this->filterRegistry = $this->buildFilterRegistry();
-        $this->fileSystem = new BlankFileSystem();
-        $this->resourceLimits = new ResourceLimits();
+        $this->fileSystem = new BlankFileSystem;
+        $this->resourceLimits = new ResourceLimits;
     }
 
     public static function new(): TemplateFactory
     {
-        return new self();
+        return new self;
     }
 
     public function setFilesystem(LiquidFileSystem $fileSystem): TemplateFactory
@@ -205,7 +205,7 @@ final class TemplateFactory
 
     protected function buildTagRegistry(): TagRegistry
     {
-        return (new TagRegistry())
+        return (new TagRegistry)
             ->register(Tags\AssignTag::class)
             ->register(Tags\BreakTag::class)
             ->register(Tags\CaptureTag::class)
@@ -226,7 +226,7 @@ final class TemplateFactory
 
     protected function buildFilterRegistry(): FilterRegistry
     {
-        return (new FilterRegistry())
+        return (new FilterRegistry)
             ->register(StandardFilters::class);
     }
 }

@@ -15,8 +15,7 @@ class BodyNode extends Node implements CanBeStreamed
     public function __construct(
         /** @var array<Node> */
         protected array $children = [],
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<Node>

@@ -10,14 +10,14 @@ use Keepsuit\Liquid\Tests\Stubs\SleepTag;
 
 beforeEach(function () {
     $this->templateFactory = TemplateFactory::new()
-        ->setFilesystem(new ProfilingFileSystem())
+        ->setFilesystem(new ProfilingFileSystem)
         ->registerTag(SleepTag::class)
         ->setProfile();
 });
 
 test('context allows flagging profiling', function () {
     $template = parseTemplate("{{ 'a string' | upcase }}");
-    $template->render(new RenderContext());
+    $template->render(new RenderContext);
     expect($template->getProfiler())->toBeNull();
 
     $template->render(new RenderContext(profile: true));
@@ -80,7 +80,7 @@ test('profile rendering time', function () {
 });
 
 test('profiling multiple renders', function () {
-    $context = new RenderContext(profile: true, fileSystem: new ProfilingFileSystem());
+    $context = new RenderContext(profile: true, fileSystem: new ProfilingFileSystem);
     $template = parseTemplate('{% sleep 0.001 %}', factory: $this->templateFactory);
 
     invade($context)->templateName = 'index';

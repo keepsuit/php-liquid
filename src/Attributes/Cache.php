@@ -9,6 +9,4 @@ use Attribute;
  * The result of the method will be computed only once and then cached.
  */
 #[Attribute(Attribute::TARGET_METHOD)]
-class Cache
-{
-}
+class Cache {}

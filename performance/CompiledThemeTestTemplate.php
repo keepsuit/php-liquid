@@ -13,8 +13,7 @@ class CompiledThemeTestTemplate
         public string $templateName,
         public Template $template,
         public ?Template $layout,
-    ) {
-    }
+    ) {}
 
     public function pageTemplate(): string
     {

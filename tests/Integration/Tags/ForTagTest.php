@@ -365,7 +365,7 @@ test('iterate drop with limit applied', function () {
 });
 
 test('for cleans up registers', function () {
-    $context = new RenderContext(rethrowExceptions: true, staticEnvironment: ['drop' => new ErrorDrop()]);
+    $context = new RenderContext(rethrowExceptions: true, staticEnvironment: ['drop' => new ErrorDrop]);
 
     expect(fn () => parseTemplate('{% for i in (1..2) %}{{ drop.standard_error }}{% endfor %}')->render($context))->toThrow(\Keepsuit\Liquid\Exceptions\StandardException::class);
 

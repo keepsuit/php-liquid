@@ -19,8 +19,7 @@ class ResourceLimits
         public readonly ?int $renderLengthLimit = null,
         public readonly ?int $renderScoreLimit = null,
         public readonly ?int $assignScoreLimit = null,
-    ) {
-    }
+    ) {}
 
     /**
      * @throws ResourceLimitException
@@ -85,7 +84,7 @@ class ResourceLimits
     {
         $this->reachedLimit = true;
 
-        throw new ResourceLimitException();
+        throw new ResourceLimitException;
     }
 
     public function reached(): bool

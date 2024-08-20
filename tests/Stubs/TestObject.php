@@ -8,6 +8,5 @@ class TestObject extends Drop
 {
     public function __construct(
         public readonly ?string $a
-    ) {
-    }
+    ) {}
 }

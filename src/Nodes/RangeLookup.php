@@ -12,8 +12,7 @@ class RangeLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
     final public function __construct(
         public readonly mixed $start,
         public readonly mixed $end,
-    ) {
-    }
+    ) {}
 
     public function parseTreeVisitorChildren(): array
     {

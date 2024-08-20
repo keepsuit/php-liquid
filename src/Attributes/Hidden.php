@@ -9,6 +9,4 @@ use Attribute;
  * so it won't be exposed to the liquid context.
  */
 #[Attribute(Attribute::TARGET_METHOD | Attribute::TARGET_PROPERTY)]
-class Hidden
-{
-}
+class Hidden {}

@@ -23,7 +23,7 @@ class ContinueTag extends Tag
 
     public function render(RenderContext $context): string
     {
-        $context->pushInterrupt(new ContinueInterrupt());
+        $context->pushInterrupt(new ContinueInterrupt);
 
         return '';
     }

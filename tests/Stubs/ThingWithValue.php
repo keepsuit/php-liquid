@@ -8,6 +8,5 @@ class ThingWithValue extends Drop
 {
     public function __construct(
         public readonly int $value = 3
-    ) {
-    }
+    ) {}
 }

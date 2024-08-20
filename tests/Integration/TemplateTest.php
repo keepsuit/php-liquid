@@ -10,7 +10,7 @@ use Keepsuit\Liquid\TemplateFactory;
 test('assigns persist on same context between renders', function () {
     $template = parseTemplate("{{ foo }}{% assign foo = 'foo' %}{{ foo }}");
 
-    $context = new RenderContext();
+    $context = new RenderContext;
     expect($template->render($context))->toBe('foo');
     expect($template->render($context))->toBe('foofoo');
 });
@@ -18,8 +18,8 @@ test('assigns persist on same context between renders', function () {
 test('assigns does not persist on different contexts between renders', function () {
     $template = parseTemplate("{{ foo }}{% assign foo = 'foo' %}{{ foo }}");
 
-    expect($template->render(new RenderContext()))->toBe('foo');
-    expect($template->render(new RenderContext()))->toBe('foo');
+    expect($template->render(new RenderContext))->toBe('foo');
+    expect($template->render(new RenderContext))->toBe('foo');
 });
 
 test('lamdba is called once over multiple renders', function () {
@@ -90,7 +90,7 @@ test('resource limits abort rendering after first error', function () {
 
 test('resource limits get updated even if no limits are set', function () {
     $template = parseTemplate('{% for a in (1..100) %}x{% assign foo = 1 %} {% endfor %}');
-    $context = new RenderContext();
+    $context = new RenderContext;
     $template->render($context);
 
     expect($context->resourceLimits)
@@ -186,7 +186,7 @@ test('undefined drop method', function (bool $strict) {
     $template = parseTemplate('{{ d.text }} {{ d.undefined }}');
     $context = $factory->newRenderContext(
         staticEnvironment: [
-            'd' => new \Keepsuit\Liquid\Tests\Stubs\TextDrop(),
+            'd' => new \Keepsuit\Liquid\Tests\Stubs\TextDrop,
         ],
     );
 
@@ -212,7 +212,7 @@ test('undefined drop method throw exception', function (bool $strict) {
     $template = parseTemplate('{{ d.text }} {{ d.undefined }}');
     $context = $factory->newRenderContext(
         staticEnvironment: [
-            'd' => new \Keepsuit\Liquid\Tests\Stubs\TextDrop(),
+            'd' => new \Keepsuit\Liquid\Tests\Stubs\TextDrop,
         ],
     );
 

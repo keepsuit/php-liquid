@@ -13,8 +13,7 @@ class ParseTreeVisitor
         protected mixed $node,
         /** @var array<string, Closure> */
         protected array $callbacks = []
-    ) {
-    }
+    ) {}
 
     public static function for(mixed $root, array $callbacks = []): static
     {

@@ -25,8 +25,7 @@ class Condition implements HasParseTreeVisitorChildren
         protected mixed $left = null,
         protected ?string $operator = null,
         protected mixed $right = null
-    ) {
-    }
+    ) {}
 
     public static function registerOperator(string $operator, \Closure $closure): void
     {

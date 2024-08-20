@@ -8,8 +8,7 @@ class ThingWithParamToLiquid implements MapsToLiquid
 {
     public function __construct(
         public int $value = 0
-    ) {
-    }
+    ) {}
 
     public function toString(): string
     {

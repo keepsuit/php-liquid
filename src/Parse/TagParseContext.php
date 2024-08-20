@@ -12,8 +12,7 @@ class TagParseContext
         public readonly string $tag,
         public readonly TokenStream $params,
         public readonly ?BodyNode $body = null,
-    ) {
-    }
+    ) {}
 
     public function setParseContext(ParseContext $parseContext): static
     {

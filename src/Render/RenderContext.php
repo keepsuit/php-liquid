@@ -80,9 +80,9 @@ final class RenderContext
         public readonly bool $rethrowExceptions = false,
         public readonly bool $strictVariables = false,
         bool $profile = false,
-        public readonly FilterRegistry $filterRegistry = new FilterRegistry(),
-        public readonly ResourceLimits $resourceLimits = new ResourceLimits(),
-        public readonly LiquidFileSystem $fileSystem = new BlankFileSystem(),
+        public readonly FilterRegistry $filterRegistry = new FilterRegistry,
+        public readonly ResourceLimits $resourceLimits = new ResourceLimits,
+        public readonly LiquidFileSystem $fileSystem = new BlankFileSystem,
     ) {
         $this->scopes = [[]];
 
@@ -91,7 +91,7 @@ final class RenderContext
             registers: $registers,
         );
 
-        $this->profiler = $profile ? new Profiler() : null;
+        $this->profiler = $profile ? new Profiler : null;
     }
 
     public function isPartial(): bool
@@ -197,10 +197,10 @@ final class RenderContext
                 is_array($scope) && array_key_exists($key, $scope) => $scope[$key],
                 $scope instanceof Drop => $scope->{$key},
                 is_object($scope) && property_exists($scope, (string) $key) => $scope->{$key},
-                default => new MissingValue(),
+                default => new MissingValue,
             };
         } catch (UndefinedDropMethodException) {
-            return new MissingValue();
+            return new MissingValue;
         }
 
         return $this->normalizeValue($value);

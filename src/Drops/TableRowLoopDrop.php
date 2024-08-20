@@ -30,8 +30,7 @@ class TableRowLoopDrop extends Drop
     public function __construct(
         protected int $length,
         protected int $cols
-    ) {
-    }
+    ) {}
 
     #[Hidden]
     public function increment(): void

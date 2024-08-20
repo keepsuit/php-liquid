@@ -8,6 +8,5 @@ final class Token
         public readonly TokenType $type,
         public readonly string $data,
         public readonly int $lineNumber,
-    ) {
-    }
+    ) {}
 }

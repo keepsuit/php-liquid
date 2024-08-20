@@ -2,6 +2,4 @@
 
 namespace Keepsuit\Liquid\Exceptions;
 
-class InvalidArgumentException extends LiquidException
-{
-}
+class InvalidArgumentException extends LiquidException {}

@@ -37,12 +37,12 @@ class ParseContext
     protected Parser $parser;
 
     public function __construct(
-        public readonly TagRegistry $tagRegistry = new TagRegistry(),
-        public readonly LiquidFileSystem $fileSystem = new BlankFileSystem(),
+        public readonly TagRegistry $tagRegistry = new TagRegistry,
+        public readonly LiquidFileSystem $fileSystem = new BlankFileSystem,
     ) {
         $this->lineNumber = 1;
-        $this->outputs = new OutputsBag();
-        $this->partialsCache = new PartialsCache();
+        $this->outputs = new OutputsBag;
+        $this->partialsCache = new PartialsCache;
         $this->lexer = new Lexer($this);
         $this->parser = new Parser($this);
     }

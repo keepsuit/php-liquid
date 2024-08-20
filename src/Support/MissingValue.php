@@ -2,6 +2,4 @@
 
 namespace Keepsuit\Liquid\Support;
 
-class MissingValue
-{
-}
+class MissingValue {}

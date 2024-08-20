@@ -116,7 +116,7 @@ class CaseTag extends TagBlock
     {
         $bodySection->params->assertEnd();
 
-        return new ElseCondition();
+        return new ElseCondition;
     }
 
     public function isSubTag(string $tagName): bool

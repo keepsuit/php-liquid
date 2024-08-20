@@ -9,8 +9,7 @@ class BooleanDrop extends Drop implements AsLiquidValue
 {
     public function __construct(
         protected bool $value
-    ) {
-    }
+    ) {}
 
     public function toLiquidValue(): string|int|float|bool|null
     {

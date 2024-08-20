@@ -31,7 +31,7 @@ class FilterRegistry
             }
 
             $this->filters[Str::snake($method->getName())] = function (RenderContext $context, mixed $value, array $args) use ($filterClass, $method) {
-                $filterClassInstance = new $filterClass();
+                $filterClassInstance = new $filterClass;
 
                 if ($filterClassInstance instanceof IsContextAware) {
                     $filterClassInstance->setContext($context);

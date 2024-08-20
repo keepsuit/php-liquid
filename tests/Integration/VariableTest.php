@@ -10,7 +10,7 @@ test('simple variable', function () {
 });
 
 test('variable render calls to liquid', function () {
-    assertTemplateResult('foobar', '{{ foo }}', ['foo' => new ThingWithToLiquid()]);
+    assertTemplateResult('foobar', '{{ foo }}', ['foo' => new ThingWithToLiquid]);
 });
 
 test('variable lookup evaluate value as liquid', function () {
@@ -30,7 +30,7 @@ test('generator variable with lookup', function () {
 });
 
 test('variable override', function () {
-    $templateFactory = new \Keepsuit\Liquid\TemplateFactory();
+    $templateFactory = new \Keepsuit\Liquid\TemplateFactory;
     $templateFactory->registerTag(\Keepsuit\Liquid\Tests\Stubs\VariableOverrideTag::class);
 
     assertTemplateResult('old|new|old', <<<'LIQUID'
@@ -45,7 +45,7 @@ test('variable override', function () {
 });
 
 test('variable nested override', function () {
-    $templateFactory = new \Keepsuit\Liquid\TemplateFactory();
+    $templateFactory = new \Keepsuit\Liquid\TemplateFactory;
     $templateFactory->registerTag(\Keepsuit\Liquid\Tests\Stubs\VariableOverrideTag::class);
 
     assertTemplateResult('old_a,old_b|old_a,new_b|old_a,old_b', <<<'LIQUID'

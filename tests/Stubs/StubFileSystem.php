@@ -10,8 +10,7 @@ class StubFileSystem implements LiquidFileSystem
 
     public function __construct(
         protected array $partials = [],
-    ) {
-    }
+    ) {}
 
     public function readTemplateFile(string $templateName): string
     {

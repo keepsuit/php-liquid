@@ -24,8 +24,7 @@ class ExpressionParser
 
     public function __construct(
         protected TokenStream $tokenStream
-    ) {
-    }
+    ) {}
 
     /**
      * @return Expression

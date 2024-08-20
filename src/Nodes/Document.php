@@ -11,8 +11,7 @@ class Document implements CanBeRendered, CanBeStreamed
 {
     public function __construct(
         protected BodyNode $body,
-    ) {
-    }
+    ) {}
 
     /**
      * @throws LiquidException

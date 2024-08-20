@@ -6,7 +6,7 @@ use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Render\RenderContext;
 
 beforeEach(function () {
-    $this->context = new RenderContext();
+    $this->context = new RenderContext;
 });
 
 afterEach(function () {
@@ -108,24 +108,24 @@ test('contains with string left operand coerces right operand to string', functi
 
 test('or condition', function () {
     $a = new Condition(1, '==', 2);
-    expect($a->evaluate(new RenderContext()))->toBeFalse();
+    expect($a->evaluate(new RenderContext))->toBeFalse();
 
     $a->or(new Condition(2, '==', 1));
-    expect($a->evaluate(new RenderContext()))->toBeFalse();
+    expect($a->evaluate(new RenderContext))->toBeFalse();
 
     $a->or(new Condition(1, '==', 1));
-    expect($a->evaluate(new RenderContext()))->toBeTrue();
+    expect($a->evaluate(new RenderContext))->toBeTrue();
 });
 
 test('and condition', function () {
     $a = new Condition(1, '==', 1);
-    expect($a->evaluate(new RenderContext()))->toBeTrue();
+    expect($a->evaluate(new RenderContext))->toBeTrue();
 
     $a->and(new Condition(2, '==', 2));
-    expect($a->evaluate(new RenderContext()))->toBeTrue();
+    expect($a->evaluate(new RenderContext))->toBeTrue();
 
     $a->and(new Condition(2, '==', 1));
-    expect($a->evaluate(new RenderContext()))->toBeFalse();
+    expect($a->evaluate(new RenderContext))->toBeFalse();
 });
 
 test('should allow custom operators', function () {

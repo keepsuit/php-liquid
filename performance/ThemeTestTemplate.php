@@ -11,8 +11,7 @@ class ThemeTestTemplate
         public string $templateName,
         public string $liquid,
         public ?string $layoutLiquid,
-    ) {
-    }
+    ) {}
 
     public function pageTemplate(): string
     {

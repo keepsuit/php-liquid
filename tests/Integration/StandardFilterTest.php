@@ -252,7 +252,7 @@ test('map', function () {
 });
 
 test('map calls toLiquid', function () {
-    $thing = new ThingWithParamToLiquid();
+    $thing = new ThingWithParamToLiquid;
 
     assertTemplateResult(
         'woot: 1',
@@ -293,7 +293,7 @@ test('legacy map on hashes with dynamic key', function () {
 });
 
 test('sort calls to liquid', function () {
-    $t = new ThingWithParamToLiquid();
+    $t = new ThingWithParamToLiquid;
 
     assertTemplateResult(
         'woot: 1',
@@ -332,7 +332,7 @@ test('map works on iterator', function () {
     assertTemplateResult(
         '123',
         '{{ foo | map: "foo" }}',
-        assigns: ['foo' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop()]
+        assigns: ['foo' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop]
     );
 });
 
@@ -360,7 +360,7 @@ test('sort works on iterator', function () {
     assertTemplateResult(
         '213',
         '{{ foo | sort: "bar" | map: "foo" }}',
-        assigns: ['foo' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop()]
+        assigns: ['foo' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop]
     );
 });
 
@@ -368,12 +368,12 @@ test('first and last calls toLiquid', function () {
     assertTemplateResult(
         'foobar',
         '{{ foo | first }}',
-        assigns: ['foo' => [new \Keepsuit\Liquid\Tests\Stubs\ThingWithToLiquid()]]
+        assigns: ['foo' => [new \Keepsuit\Liquid\Tests\Stubs\ThingWithToLiquid]]
     );
     assertTemplateResult(
         'foobar',
         '{{ foo | last }}',
-        assigns: ['foo' => [new \Keepsuit\Liquid\Tests\Stubs\ThingWithToLiquid()]]
+        assigns: ['foo' => [new \Keepsuit\Liquid\Tests\Stubs\ThingWithToLiquid]]
     );
 });
 
@@ -381,7 +381,7 @@ test('truncate calls toLiquid', function () {
     assertTemplateResult(
         'wo...',
         '{{ foo | truncate: 5 }}',
-        assigns: ['foo' => new ThingWithParamToLiquid()]
+        assigns: ['foo' => new ThingWithParamToLiquid]
     );
 });
 
@@ -760,7 +760,7 @@ test('sum with unindexable values', function () {
 });
 
 test('sum without property calls to liquid', function () {
-    $t = new ThingWithParamToLiquid();
+    $t = new ThingWithParamToLiquid;
 
     renderTemplate('{{ foo | sum }}', assigns: ['foo' => [$t]]);
 
@@ -768,7 +768,7 @@ test('sum without property calls to liquid', function () {
 });
 
 test('sum with property calls to liquid on property values', function () {
-    $t = new ThingWithParamToLiquid();
+    $t = new ThingWithParamToLiquid;
 
     renderTemplate('{{ foo | sum: "quantity" }}', assigns: ['foo' => [['quantity' => $t]]]);
 

@@ -2,6 +2,4 @@
 
 namespace Keepsuit\Liquid\Contracts;
 
-interface Disableable
-{
-}
+interface Disableable {}

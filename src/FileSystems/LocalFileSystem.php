@@ -10,8 +10,7 @@ class LocalFileSystem implements LiquidFileSystem
     public function __construct(
         protected string $root,
         protected string $pattern = '%s.liquid'
-    ) {
-    }
+    ) {}
 
     public function readTemplateFile(string $templateName): string
     {

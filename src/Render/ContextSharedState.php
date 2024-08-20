@@ -27,8 +27,8 @@ class ContextSharedState
         public array $errors = [],
         /** @var array<string, int> */
         public array $disabledTags = [],
-        public OutputsBag $outputs = new OutputsBag(),
+        public OutputsBag $outputs = new OutputsBag,
     ) {
-        $this->computedObjectsCache = new WeakMap();
+        $this->computedObjectsCache = new WeakMap;
     }
 }

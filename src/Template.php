@@ -19,7 +19,7 @@ class Template
         public readonly Document $root,
         public readonly ?string $name = null,
     ) {
-        $this->state = new TemplateSharedState();
+        $this->state = new TemplateSharedState;
     }
 
     /**

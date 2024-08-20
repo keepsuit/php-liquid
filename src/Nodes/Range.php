@@ -10,8 +10,7 @@ class Range extends Node implements HasParseTreeVisitorChildren
     public function __construct(
         public readonly int $start,
         public readonly int $end,
-    ) {
-    }
+    ) {}
 
     public function render(RenderContext $context): string
     {

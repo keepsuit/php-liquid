@@ -8,8 +8,7 @@ class TestDrop extends Drop
 {
     public function __construct(
         public string $value
-    ) {
-    }
+    ) {}
 
     public function registers(): string
     {

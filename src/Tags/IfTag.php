@@ -49,7 +49,7 @@ class IfTag extends TagBlock
     protected function mapBodySectionToCondition(TagParseContext $bodySection): Condition
     {
         $condition = match ($bodySection->tag) {
-            'else' => new ElseCondition(),
+            'else' => new ElseCondition,
             default => $this->parseCondition($bodySection)
         };
 

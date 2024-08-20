@@ -20,8 +20,7 @@ class Variable extends Node implements CanBeEvaluated, CanBeStreamed, HasParseTr
         public readonly mixed $name,
         /** @var array<array{0:string,1:array,2:array<string,mixed>}> */
         public readonly array $filters = [],
-    ) {
-    }
+    ) {}
 
     public function render(RenderContext $context): string
     {

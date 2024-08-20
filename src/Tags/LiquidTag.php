@@ -22,7 +22,7 @@ class LiquidTag extends Tag
 
     public function parse(TagParseContext $context): static
     {
-        $this->body = new BodyNode();
+        $this->body = new BodyNode;
 
         while (! $context->params->isEnd()) {
             $this->body->pushChild($this->parseLine($context));
@@ -54,7 +54,7 @@ class LiquidTag extends Tag
             throw SyntaxException::unknownTag($tagName);
         }
 
-        $tag = (new $tagClass())->setLineNumber($currentToken->lineNumber);
+        $tag = (new $tagClass)->setLineNumber($currentToken->lineNumber);
 
         if ($tag instanceof TagBlock) {
             $currentTagName = $tag::tagName();
@@ -62,7 +62,7 @@ class LiquidTag extends Tag
             do {
                 $params = $tokens->sliceUntil(fn (Token $token) => $token->lineNumber > $currentToken->lineNumber);
 
-                $body = new BodyNode();
+                $body = new BodyNode;
 
                 $nextTag = $this->nextToken($context, $tag::tagName())->data;
 

@@ -2,6 +2,4 @@
 
 namespace Keepsuit\Liquid\Exceptions;
 
-class FileSystemException extends LiquidException
-{
-}
+class FileSystemException extends LiquidException {}

@@ -21,8 +21,7 @@ class Parser
 
     public function __construct(
         protected ParseContext $parseContext,
-    ) {
-    }
+    ) {}
 
     /**
      * @throws SyntaxException
@@ -110,7 +109,7 @@ class Parser
             throw SyntaxException::unknownTag($tagName, $blockTagName);
         }
 
-        $tag = (new $tagClass())->setLineNumber($currentToken?->lineNumber);
+        $tag = (new $tagClass)->setLineNumber($currentToken?->lineNumber);
 
         if ($tag instanceof TagBlock) {
             $this->blockScopes[] = $tag;

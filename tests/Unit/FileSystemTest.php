@@ -5,7 +5,7 @@ use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\FileSystems\LocalFileSystem;
 
 test('default', function () {
-    expect(fn () => (new BlankFileSystem())->readTemplateFile('dummy'))
+    expect(fn () => (new BlankFileSystem)->readTemplateFile('dummy'))
         ->toThrow(FileSystemException::class);
 });
 
