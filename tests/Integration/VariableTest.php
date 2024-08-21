@@ -62,6 +62,18 @@ test('variable nested override', function () {
     ], factory: $templateFactory);
 });
 
+test('nested variable lookup', function () {
+    assertTemplateResult('1', '{{ c.b }}', [
+        'a' => ['b' => 1],
+        'c' => new \Keepsuit\Liquid\Nodes\VariableLookup('a'),
+    ]);
+
+    assertTemplateResult('1', '{{ c.d.b }}', [
+        'a' => ['b' => 1],
+        'c' => ['d' => new \Keepsuit\Liquid\Nodes\VariableLookup('a')],
+    ]);
+});
+
 function generator(): Generator
 {
     yield '1';

@@ -93,6 +93,8 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
         }
 
         foreach ($variables as $object) {
+            $object = $context->evaluate($object);
+
             if ($object instanceof \Generator) {
                 $object = iterator_to_array($object, preserve_keys: false);
             }
@@ -102,7 +104,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 
                 assert(is_string($key) || is_int($key));
 
-                $nextObject = $context->internalContextLookup($object, $key);
+                $nextObject = $context->evaluate($context->internalContextLookup($object, $key));
 
                 if ($nextObject instanceof MissingValue && is_iterable($object) && in_array($i, $this->lookupFilters)) {
                     $nextObject = $context->applyFilter($lookup, $object);
