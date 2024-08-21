@@ -2,6 +2,14 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.6.5 - 2024-08-21
+
+### What's changed
+
+* Support nested variable lookups
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.6.4...v0.6.5
+
 ## v0.6.4 - 2024-08-20
 
 ### What's Changed
