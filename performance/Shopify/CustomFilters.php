@@ -172,8 +172,8 @@ class CustomFilters extends FiltersProvider
             throw new InvalidArgumentException('filter "size" can only be called on product images');
         }
 
-        $filename = $matches[1];
-        $extension = $matches[2];
+        $filename = $matches[1] ?? '';
+        $extension = $matches[2] ?? '';
 
         return match ($style) {
             'original' => '/files/shops/random_number/'.$url,
