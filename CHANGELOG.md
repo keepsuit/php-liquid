@@ -2,6 +2,14 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.6.6 - 2024-11-11
+
+### What's changed
+
+- exclude static methods & methods with params from drop invokable methods
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.6.5...v0.6.6
+
 ## v0.6.5 - 2024-08-21
 
 ### What's changed
