@@ -22,7 +22,7 @@
         "laravel/pint": "^1.2",
         "pestphp/pest": "^2.7",
         "pestphp/pest-plugin-arch": "^2.2",
-        "phpbench/phpbench": "^1.2",
+        "phpbench/phpbench": "dev-master",
         "phpstan/extension-installer": "^1.3",
         "phpstan/phpstan": "^2.0",
         "phpstan/phpstan-deprecation-rules": "^2.0",
@@ -43,11 +43,14 @@
         }
     },
     "scripts": {
-        "test": "vendor/bin/pest",
-        "test-coverage": "vendor/bin/pest --coverage",
-        "lint": "vendor/bin/pint && vendor/bin/phpstan analyse",
-        "benchmark": "vendor/bin/phpbench run --report=aggregate --php-config=\"opcache.enable: 1, opcache.enable_cli: 1\"",
-        "profile": "vendor/bin/phpbench xdebug:profile"
+        "test": "pest",
+        "test-coverage": "pest --coverage",
+        "lint": [
+            "pint",
+            "phpstan analyse"
+        ],
+        "benchmark": "phpbench run --report=aggregate --php-config=\"opcache.enable: 1, opcache.enable_cli: 1\"",
+        "profile": "phpbench xdebug:profile"
     },
     "config": {
         "sort-packages": true,
