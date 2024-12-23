@@ -1,5 +1,6 @@
 <?php
 
+use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tests\Stubs\CachableDrop;
 use Keepsuit\Liquid\Tests\Stubs\CatchAllDrop;
@@ -108,7 +109,7 @@ test('default to string on drops', function () {
 });
 
 test('drop toArray', function () {
-    $context = (new \Keepsuit\Liquid\TemplateFactory)->newRenderContext();
+    $context = Environment::default()->newRenderContext();
 
     $drop = new ProductDrop;
     $drop->setContext($context);

@@ -2,9 +2,9 @@
 
 namespace Keepsuit\Liquid\Performance;
 
+use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\Performance\Shopify\Database;
 use Keepsuit\Liquid\Support\Arr;
-use Keepsuit\Liquid\TemplateFactory;
 
 class ThemeRunner
 {
@@ -19,7 +19,7 @@ class ThemeRunner
     protected array $compiledTemplates;
 
     public function __construct(
-        protected TemplateFactory $templateFactory
+        protected Environment $environment
     ) {
         $files = glob(__DIR__.'/tests/**/*.liquid');
 
@@ -35,7 +35,7 @@ class ThemeRunner
             $themePath = dirname($path).'/theme.liquid';
 
             return new ThemeTestTemplate(
-                factory: $this->templateFactory,
+                environment: $this->environment,
                 templateName: $path,
                 liquid: file_get_contents($path) ?: '',
                 layoutLiquid: file_exists($themePath) ? (file_get_contents($themePath) ?: '') : null,
@@ -48,9 +48,9 @@ class ThemeRunner
     public function compile(): void
     {
         foreach ($this->tests as $test) {
-            $this->templateFactory->parseString($test->liquid);
+            $this->environment->parseString($test->liquid);
             if ($test->layoutLiquid !== null) {
-                $this->templateFactory->parseString($test->layoutLiquid);
+                $this->environment->parseString($test->layoutLiquid);
             }
         }
     }

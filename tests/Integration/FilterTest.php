@@ -1,6 +1,6 @@
 <?php
 
-use Keepsuit\Liquid\TemplateFactory;
+use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Tests\Stubs\CanadianMoneyFilter;
 use Keepsuit\Liquid\Tests\Stubs\HtmlAttributesFilter;
 use Keepsuit\Liquid\Tests\Stubs\MoneyFilters;
@@ -8,8 +8,9 @@ use Keepsuit\Liquid\Tests\Stubs\SubstituteFilter;
 use Keepsuit\Liquid\Tests\Stubs\TestObject;
 
 test('local filter', function () {
-    $context = TemplateFactory::new()
-        ->registerFilter(MoneyFilters::class)
+    $context = EnvironmentFactory::new()
+        ->registerFilters(MoneyFilters::class)
+        ->build()
         ->newRenderContext();
     $context->set('var', 1000);
 
@@ -18,8 +19,9 @@ test('local filter', function () {
 });
 
 test('underscore in filter name', function () {
-    $context = TemplateFactory::new()
-        ->registerFilter(MoneyFilters::class)
+    $context = EnvironmentFactory::new()
+        ->registerFilters(MoneyFilters::class)
+        ->build()
         ->newRenderContext();
     $context->set('var', 1000);
 
@@ -28,9 +30,10 @@ test('underscore in filter name', function () {
 });
 
 test('second filter override first', function () {
-    $context = TemplateFactory::new()
-        ->registerFilter(MoneyFilters::class)
-        ->registerFilter(CanadianMoneyFilter::class)
+    $context = EnvironmentFactory::new()
+        ->registerFilters(MoneyFilters::class)
+        ->registerFilters(CanadianMoneyFilter::class)
+        ->build()
         ->newRenderContext();
     $context->set('var', 1000);
 
@@ -120,8 +123,9 @@ test('non existent filter is ignored', function () {
 });
 
 test('filter with keyword arguments', function () {
-    $context = TemplateFactory::new()
-        ->registerFilter(SubstituteFilter::class)
+    $context = EnvironmentFactory::new()
+        ->registerFilters(SubstituteFilter::class)
+        ->build()
         ->newRenderContext();
     $context->set('surname', 'john');
     $context->set('input', 'hello %{first_name}, %{last_name}');
@@ -131,8 +135,9 @@ test('filter with keyword arguments', function () {
 });
 
 test('can parse data keyword args', function () {
-    $context = TemplateFactory::new()
-        ->registerFilter(HtmlAttributesFilter::class)
+    $context = EnvironmentFactory::new()
+        ->registerFilters(HtmlAttributesFilter::class)
+        ->build()
         ->newRenderContext();
 
     expect(parseTemplate("{{ 'img' | html_tag: data-src: 'src', data-widths: '100, 200' }}")->render($context))

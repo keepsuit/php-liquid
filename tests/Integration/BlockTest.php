@@ -3,7 +3,7 @@
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 
 beforeEach(function () {
-    $this->templateFactory = \Keepsuit\Liquid\TemplateFactory::new();
+    $this->templateFactory = \Keepsuit\Liquid\EnvironmentFactory::new();
 });
 
 test('unexpected end tag', function () {

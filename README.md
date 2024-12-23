@@ -38,7 +38,7 @@ composer require keepsuit/liquid
 Create a new template factory instance:
 
 ```php
-$factory = \Keepsuit\Liquid\TemplateFactory::new()
+$factory = \Keepsuit\Liquid\EnvironmentFactory::new()
     // enable strict variables mode
     ->setStrictVariables()
     // rethrow exceptions instead of rendering them
@@ -50,7 +50,7 @@ $factory = \Keepsuit\Liquid\TemplateFactory::new()
 Then create a new template instance parsing a liquid template:
 
 ```php
-/** @var \Keepsuit\Liquid\TemplateFactory $factory */
+/** @var \Keepsuit\Liquid\EnvironmentFactory $factory */
 
 // Parse from string
 $template = $factory->parseString('Hello {{ name }}!');
@@ -62,7 +62,7 @@ $template = $factory->parseTemplate('index');
 And finally render the template:
 
 ```php
-/** @var \Keepsuit\Liquid\TemplateFactory $factory */
+/** @var \Keepsuit\Liquid\EnvironmentFactory $factory */
 /** @var \Keepsuit\Liquid\Template $template */
 
 // Create the render context
@@ -179,7 +179,7 @@ class CustomTag extends Tag
 Then you need to register the tag in the template factory:
 
 ```php
-/** @var \Keepsuit\Liquid\TemplateFactory $factory */
+/** @var \Keepsuit\Liquid\EnvironmentFactory $factory */
 
 $factory->registerTag(CustomTag::class);
 ```
@@ -205,9 +205,9 @@ class CustomFilters extends FiltersProvider
 Then you need to register the filters provider in the template factory:
 
 ```php
-/** @var \Keepsuit\Liquid\TemplateFactory $factory */
+/** @var \Keepsuit\Liquid\EnvironmentFactory $factory */
 
-$factory->registerFilter(CustomFilters::class);
+$factory->registerFilters(CustomFilters::class);
 ```
 
 ## Testing

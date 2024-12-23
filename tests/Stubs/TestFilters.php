@@ -2,7 +2,9 @@
 
 namespace Keepsuit\Liquid\Tests\Stubs;
 
-class TestFilters
+use Keepsuit\Liquid\Filters\FiltersProvider;
+
+class TestFilters extends FiltersProvider
 {
     public function hi(string $output): string
     {

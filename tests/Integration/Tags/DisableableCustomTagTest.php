@@ -1,15 +1,15 @@
 <?php
 
 use Keepsuit\Liquid\Contracts\Disableable;
+use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\TagBlock;
-use Keepsuit\Liquid\TemplateFactory;
 
 beforeEach(function () {
-    $this->templateFactory = TemplateFactory::new()
+    $this->templateFactory = EnvironmentFactory::new()
         ->registerTag(CustomTag::class)
         ->registerTag(Custom2Tag::class);
 });

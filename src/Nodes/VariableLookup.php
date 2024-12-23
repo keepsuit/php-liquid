@@ -85,7 +85,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
         $variables = $context->findVariables($name);
 
         if ($this->lookups === []) {
-            if ($context->strictVariables && $variables === []) {
+            if ($context->options->strictVariables && $variables === []) {
                 return new UndefinedVariable($this->toString());
             }
 
@@ -123,7 +123,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
             return $object;
         }
 
-        return $context->strictVariables ? new UndefinedVariable($this->toString()) : null;
+        return $context->options->strictVariables ? new UndefinedVariable($this->toString()) : null;
     }
 
     protected function applyFilter(RenderContext $context, mixed $object, string $filter): mixed

@@ -1,15 +1,15 @@
 <?php
 
+use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Profiler\Profiler;
 use Keepsuit\Liquid\Profiler\Timing;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
-use Keepsuit\Liquid\TemplateFactory;
 use Keepsuit\Liquid\Tests\Stubs\ProfilingFileSystem;
 use Keepsuit\Liquid\Tests\Stubs\SleepTag;
 
 beforeEach(function () {
-    $this->templateFactory = TemplateFactory::new()
+    $this->factory = EnvironmentFactory::new()
         ->setFilesystem(new ProfilingFileSystem)
         ->registerTag(SleepTag::class)
         ->setProfile();
@@ -80,8 +80,12 @@ test('profile rendering time', function () {
 });
 
 test('profiling multiple renders', function () {
-    $context = new RenderContext(profile: true, fileSystem: new ProfilingFileSystem);
-    $template = parseTemplate('{% sleep 0.001 %}', factory: $this->templateFactory);
+    $environment = $this->factory
+        ->setFilesystem(new ProfilingFileSystem)
+        ->build();
+
+    $context = $environment->newRenderContext();
+    $template = $environment->parseString('{% sleep 0.001 %}');
 
     invade($context)->templateName = 'index';
     $template->render($context);
@@ -187,10 +191,11 @@ test('profiling support total time', function () {
 
 function profileTemplate(string $source, array $assigns = []): ?Profiler
 {
-    /** @var TemplateFactory $factory */
-    $factory = test()->templateFactory;
-    $template = $factory->setProfile()->parseString($source);
-    $template->render($factory->newRenderContext(
+    /** @var \Keepsuit\Liquid\EnvironmentFactory $factory */
+    $factory = test()->factory;
+    $environment = $factory->setProfile()->build();
+    $template = $environment->parseString($source);
+    $template->render($environment->newRenderContext(
         staticEnvironment: $assigns,
     ));
 
