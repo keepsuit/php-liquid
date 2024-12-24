@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Drops\TableRowLoopDrop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
+use Keepsuit\Liquid\Interrupts\BreakInterrupt;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Nodes\Range;
 use Keepsuit\Liquid\Parse\TagParseContext;
@@ -87,19 +88,24 @@ class TableRowTag extends TagBlock
             foreach ($collection as $item) {
                 $context->set($this->variableName, $item);
 
-                $output .= sprintf('<td class="col%s">', $tableRowLoop->col);
+                $output .= sprintf('%s<td class="col%s">', PHP_EOL, $tableRowLoop->col);
                 $output .= $this->body->render($context);
                 $output .= '</td>';
 
+                $interrupt = $context->popInterrupt();
+                if ($interrupt instanceof BreakInterrupt) {
+                    break;
+                }
+
                 if ($tableRowLoop->col_last && ! $tableRowLoop->last) {
-                    $output .= sprintf('</tr><tr class="row%s">', $tableRowLoop->row + 1);
+                    $output .= sprintf('%s</tr>%s<tr class="row%s">', PHP_EOL, PHP_EOL, $tableRowLoop->row + 1);
                 }
 
                 $tableRowLoop->increment();
             }
         });
 
-        $output .= '</tr>';
+        $output .= PHP_EOL.'</tr>';
 
         return $output;
     }
