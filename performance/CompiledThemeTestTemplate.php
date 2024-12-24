@@ -51,7 +51,7 @@ class CompiledThemeTestTemplate
     protected function buildContext(array $assigns = []): RenderContext
     {
         return $this->environment->newRenderContext(
-            staticEnvironment: $assigns,
+            staticVariables: $assigns,
         );
     }
 }

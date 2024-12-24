@@ -63,13 +63,13 @@ class Environment
          *
          * @var array<string, mixed> $environment
          */
-        array $environment = [],
+        array $variables = [],
         /**
          * Environment variables that are shared with all sub-contexts
          *
          * @var array<string, mixed> $staticEnvironment
          */
-        array $staticEnvironment = [],
+        array $staticVariables = [],
         /**
          * Registers allows to provide/export data or utilities inside tags
          * Registers are not accessible as variables.
@@ -82,8 +82,8 @@ class Environment
         ?ResourceLimits $resourceLimits = null,
     ): RenderContext {
         return new RenderContext(
-            variables: $environment,
-            staticVariables: $staticEnvironment,
+            variables: $variables,
+            staticVariables: $staticVariables,
             registers: $registers,
             profile: $this->profile,
             options: $options ?? $this->defaultRenderContextOptions,

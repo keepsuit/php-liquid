@@ -179,7 +179,7 @@ test('render template name with line numbers', function () {
     $template = $environment->parseString("Argument error:\n{% render 'product' with errors %}");
 
     $output = $template->render($environment->newRenderContext(
-        staticEnvironment: ['errors' => new ErrorDrop],
+        staticVariables: ['errors' => new ErrorDrop],
     ));
 
     expect($output)

@@ -196,7 +196,7 @@ function profileTemplate(string $source, array $assigns = []): ?Profiler
     $environment = $factory->setProfile()->build();
     $template = $environment->parseString($source);
     $template->render($environment->newRenderContext(
-        staticEnvironment: $assigns,
+        staticVariables: $assigns,
     ));
 
     return $template->getProfiler();

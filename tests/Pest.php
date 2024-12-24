@@ -30,7 +30,7 @@ function buildRenderContext(
     ?Environment $environment = null
 ) {
     $context = ($environment ?? Environment::default())->newRenderContext(
-        staticEnvironment: $assigns,
+        staticVariables: $assigns,
     );
 
     foreach ($registers as $key => $value) {

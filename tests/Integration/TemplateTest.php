@@ -136,7 +136,7 @@ test('undefined variables', function (bool $strict) {
 
     $template = parseTemplate('{{x}} {{y}} {{z.a}} {{z.b}} {{z.c.d}}');
     $context = $environment->newRenderContext(
-        staticEnvironment: [
+        staticVariables: [
             'x' => 33,
             'z' => ['a' => 32, 'c' => ['e' => 31]],
         ],
@@ -190,7 +190,7 @@ test('undefined drop method', function (bool $strict) {
 
     $template = parseTemplate('{{ d.text }} {{ d.undefined }}');
     $context = $environment->newRenderContext(
-        staticEnvironment: [
+        staticVariables: [
             'd' => new \Keepsuit\Liquid\Tests\Stubs\TextDrop,
         ],
     );
@@ -217,7 +217,7 @@ test('undefined drop method throw exception', function (bool $strict) {
 
     $template = parseTemplate('{{ d.text }} {{ d.undefined }}');
     $context = $environment->newRenderContext(
-        staticEnvironment: [
+        staticVariables: [
             'd' => new \Keepsuit\Liquid\Tests\Stubs\TextDrop,
         ],
     );
@@ -240,7 +240,7 @@ test('undefined filter', function (bool $strict) {
 
     $template = parseTemplate('{{a}} {{x | upcase | somefilter1 | somefilter2 | capitalize}}', $environment);
     $context = $environment->newRenderContext(
-        staticEnvironment: [
+        staticVariables: [
             'a' => 123,
             'x' => 'foo',
         ],
@@ -270,7 +270,7 @@ test('undefined filter throw exception', function (bool $strict) {
 
     $template = parseTemplate('{{a}} {{x | upcase | somefilter1 | somefilter2 | capitalize}}');
     $context = $environment->newRenderContext(
-        staticEnvironment: [
+        staticVariables: [
             'a' => 123,
             'x' => 'foo',
         ],
