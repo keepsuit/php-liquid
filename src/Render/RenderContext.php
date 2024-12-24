@@ -85,7 +85,7 @@ final class RenderContext
         ?Environment $environment = null,
     ) {
         $this->environment = $environment ?? Environment::default();
-        $this->resourceLimits = $resourceLimits ?? clone $this->environment->defaultResourceLimits;
+        $this->resourceLimits = $resourceLimits ?? ResourceLimits::clone($this->environment->defaultResourceLimits);
 
         $this->scopes = [[]];
 

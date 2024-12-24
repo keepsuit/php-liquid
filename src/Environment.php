@@ -87,7 +87,7 @@ class Environment
             registers: $registers,
             profile: $this->profile,
             options: $options ?? $this->defaultRenderContextOptions,
-            resourceLimits: $resourceLimits ?? clone $this->defaultResourceLimits,
+            resourceLimits: $resourceLimits,
             environment: $this
         );
     }
