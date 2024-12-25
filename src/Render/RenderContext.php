@@ -64,13 +64,13 @@ final class RenderContext
          *
          * @var array<string, mixed>
          */
-        protected array $variables = [],
+        protected array $data = [],
         /**
          * Environment variables that are shared with all sub-contexts
          *
          * @var array<string, mixed> $staticEnvironment
          */
-        array $staticVariables = [],
+        array $staticData = [],
         /**
          * Registers allows to provide/export data or utilities inside tags
          * Registers are not accessible as variables.
@@ -90,7 +90,7 @@ final class RenderContext
         $this->scopes = [[]];
 
         $this->sharedState = new ContextSharedState(
-            staticVariables: $staticVariables,
+            staticVariables: $staticData,
             registers: $registers,
         );
 
@@ -179,7 +179,7 @@ final class RenderContext
         foreach ($this->scopes as $scope) {
             $variables[] = $this->internalContextLookup($scope, $key);
         }
-        $variables[] = $this->internalContextLookup($this->variables, $key);
+        $variables[] = $this->internalContextLookup($this->data, $key);
         $variables[] = $this->internalContextLookup($this->sharedState->staticVariables, $key);
 
         $variables = array_values(array_filter($variables, fn (mixed $value) => ! $value instanceof MissingValue));
@@ -247,14 +247,14 @@ final class RenderContext
         $this->dynamicRegisters[$name] = $value;
     }
 
-    public function getVariables(string $name): mixed
+    public function getData(string $name): mixed
     {
-        return $this->variables[$name] ?? null;
+        return $this->data[$name] ?? null;
     }
 
-    public function setVariables(string $name, mixed $value): mixed
+    public function setData(string $name, mixed $value): mixed
     {
-        return $this->variables[$name] = $value;
+        return $this->data[$name] = $value;
     }
 
     public function setToActiveScope(string $key, mixed $value): array

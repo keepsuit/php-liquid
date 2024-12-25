@@ -104,7 +104,7 @@ test('assign score of array', function () {
 
 function assignScoreOf(mixed $value): int
 {
-    $context = new RenderContext(staticVariables: ['value' => $value], options: new RenderContextOptions(rethrowExceptions: true));
+    $context = new RenderContext(staticData: ['value' => $value], options: new RenderContextOptions(rethrowExceptions: true));
     parseTemplate('{% assign obj = value %}')->render($context);
 
     return $context->resourceLimits->getAssignScore();

@@ -506,10 +506,10 @@ test('toLiquid and context at first level', function (bool $strict) {
 
 test('context initialization with a closure in environment', function (bool $strict) {
     $context = new RenderContext(
-        variables: [
+        data: [
             'test' => fn (RenderContext $c) => $c->get('poutine'),
         ],
-        staticVariables: [
+        staticData: [
             'poutine' => 'fries',
         ],
         options: new RenderContextOptions(strictVariables: $strict)
@@ -523,10 +523,10 @@ test('context initialization with a closure in environment', function (bool $str
 
 test('staticEnvironment has lower priority then environment', function (bool $strict) {
     $context = new RenderContext(
-        variables: [
+        data: [
             'shadowed' => 'dynamic',
         ],
-        staticVariables: [
+        staticData: [
             'shadowed' => 'static',
             'unshadowed' => 'static',
         ],
@@ -556,7 +556,7 @@ test('new isolated subcontext does not inherit variables', function (bool $stric
 ]);
 
 test('new isolated subcontext inherit static environments', function (bool $strict) {
-    $context = new RenderContext(staticVariables: ['my_env_value' => 'some value'], options: new RenderContextOptions(strictVariables: $strict));
+    $context = new RenderContext(staticData: ['my_env_value' => 'some value'], options: new RenderContextOptions(strictVariables: $strict));
     $subContext = $context->newIsolatedSubContext('sub');
 
     expect($subContext->get('my_env_value'))->toBe('some value');

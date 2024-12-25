@@ -36,7 +36,7 @@ test('variable piping', function () {
         ->registerFilters(FunnyFilter::class)
         ->build();
     $context = $environment->newRenderContext(
-        staticVariables: $this->assigns,
+        staticData: $this->assigns,
     );
 
     expect($environment->parseString(' {{ car.gm | make_funny }} ')->render($context))
@@ -48,7 +48,7 @@ test('variable piping with input', function () {
         ->registerFilters(FunnyFilter::class)
         ->build();
     $context = $environment->newRenderContext(
-        staticVariables: $this->assigns,
+        staticData: $this->assigns,
     );
 
     expect($environment->parseString(' {{ car.gm | cite_funny }} ')->render($context))
@@ -60,7 +60,7 @@ test('variable piping with args', function () {
         ->registerFilters(FunnyFilter::class)
         ->build();
     $context = $environment->newRenderContext(
-        staticVariables: $this->assigns,
+        staticData: $this->assigns,
     );
 
     expect($environment->parseString(" {{ car.gm | add_smiley : ':-(' }} ")->render($context))
@@ -72,7 +72,7 @@ test('variable piping with no args', function () {
         ->registerFilters(FunnyFilter::class)
         ->build();
     $context = $environment->newRenderContext(
-        staticVariables: $this->assigns,
+        staticData: $this->assigns,
     );
 
     expect($environment->parseString(' {{ car.gm | add_smiley }} ')->render($context))
@@ -84,7 +84,7 @@ test('multiple variable piping with args', function () {
         ->registerFilters(FunnyFilter::class)
         ->build();
     $context = $environment->newRenderContext(
-        staticVariables: $this->assigns,
+        staticData: $this->assigns,
     );
 
     expect($environment->parseString(" {{ car.gm | add_smiley : ':-(' | add_smiley : ':-('}} ")->render($context))
@@ -96,7 +96,7 @@ test('variable piping with multiple args', function () {
         ->registerFilters(FunnyFilter::class)
         ->build();
     $context = $environment->newRenderContext(
-        staticVariables: $this->assigns,
+        staticData: $this->assigns,
     );
 
     expect($environment->parseString(" {{ car.gm | add_tag : 'span', 'bar'}} ")->render($context))
@@ -108,7 +108,7 @@ test('variable piping with variable args', function () {
         ->registerFilters(FunnyFilter::class)
         ->build();
     $context = $environment->newRenderContext(
-        staticVariables: $this->assigns,
+        staticData: $this->assigns,
     );
 
     expect($environment->parseString(" {{ car.gm | add_tag : 'span', car.bmw}} ")->render($context))
@@ -120,7 +120,7 @@ test('multiple pipings', function () {
         ->registerFilters(FunnyFilter::class)
         ->build();
     $context = $environment->newRenderContext(
-        staticVariables: ['best_cars' => 'bmw']
+        staticData: ['best_cars' => 'bmw']
     );
 
     expect($environment->parseString(' {{ best_cars | cite_funny | paragraph }} ')->render($context))
@@ -133,7 +133,7 @@ test('link to', function () {
         ->build();
 
     $context = $environment->newRenderContext(
-        staticVariables: $this->assigns,
+        staticData: $this->assigns,
     );
 
     expect($environment->parseString(" {{ 'Typo' | link_to: 'http://typo.leetsoft.com' }} ")->render($context))

@@ -28,7 +28,7 @@ test('lamdba is called once over multiple renders', function () {
 
     $global = 0;
     $context = new RenderContext(
-        staticVariables: [
+        staticData: [
             'number' => function () use (&$global) {
                 $global += 1;
 
@@ -136,7 +136,7 @@ test('undefined variables', function (bool $strict) {
 
     $template = parseTemplate('{{x}} {{y}} {{z.a}} {{z.b}} {{z.c.d}}');
     $context = $environment->newRenderContext(
-        staticVariables: [
+        staticData: [
             'x' => 33,
             'z' => ['a' => 32, 'c' => ['e' => 31]],
         ],
@@ -164,7 +164,7 @@ test('undefined variables', function (bool $strict) {
 test('null value does not throw exception', function (bool $strict) {
     $template = parseTemplate('some{{x}}thing');
     $context = new RenderContext(
-        staticVariables: [
+        staticData: [
             'x' => null,
         ],
         options: new RenderContextOptions(
@@ -190,7 +190,7 @@ test('undefined drop method', function (bool $strict) {
 
     $template = parseTemplate('{{ d.text }} {{ d.undefined }}');
     $context = $environment->newRenderContext(
-        staticVariables: [
+        staticData: [
             'd' => new \Keepsuit\Liquid\Tests\Stubs\TextDrop,
         ],
     );
@@ -217,7 +217,7 @@ test('undefined drop method throw exception', function (bool $strict) {
 
     $template = parseTemplate('{{ d.text }} {{ d.undefined }}');
     $context = $environment->newRenderContext(
-        staticVariables: [
+        staticData: [
             'd' => new \Keepsuit\Liquid\Tests\Stubs\TextDrop,
         ],
     );
@@ -240,7 +240,7 @@ test('undefined filter', function (bool $strict) {
 
     $template = parseTemplate('{{a}} {{x | upcase | somefilter1 | somefilter2 | capitalize}}', $environment);
     $context = $environment->newRenderContext(
-        staticVariables: [
+        staticData: [
             'a' => 123,
             'x' => 'foo',
         ],
@@ -270,7 +270,7 @@ test('undefined filter throw exception', function (bool $strict) {
 
     $template = parseTemplate('{{a}} {{x | upcase | somefilter1 | somefilter2 | capitalize}}');
     $context = $environment->newRenderContext(
-        staticVariables: [
+        staticData: [
             'a' => 123,
             'x' => 'foo',
         ],
