@@ -16,6 +16,6 @@ class RenderContextOptions
         /**
          * Rethrow exceptions that occur during rendering instead of rendering the error message.
          */
-        public readonly bool $rethrowExceptions = false,
+        public readonly bool $rethrowErrors = false,
     ) {}
 }

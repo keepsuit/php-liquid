@@ -57,11 +57,11 @@ test('expression with whitespace in square brackets', function () {
 test('assign score exceeding resource limit', function () {
     $template = parseTemplate('{% assign foo = 42 %}{% assign bar = 23 %}');
 
-    $context = new RenderContext(options: new RenderContextOptions(rethrowExceptions: true), resourceLimits: new ResourceLimits(assignScoreLimit: 1));
+    $context = new RenderContext(options: new RenderContextOptions(rethrowErrors: true), resourceLimits: new ResourceLimits(assignScoreLimit: 1));
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
     expect($context->resourceLimits->reached())->toBeTrue();
 
-    $context = new RenderContext(options: new RenderContextOptions(rethrowExceptions: true), resourceLimits: new ResourceLimits(assignScoreLimit: 2));
+    $context = new RenderContext(options: new RenderContextOptions(rethrowErrors: true), resourceLimits: new ResourceLimits(assignScoreLimit: 2));
     expect($template->render($context))->toBe('');
     expect($context->resourceLimits->reached())->toBeFalse();
     expect($context->resourceLimits->getAssignScore())->toBe(2);
@@ -69,7 +69,7 @@ test('assign score exceeding resource limit', function () {
 
 test('assign score exceeding resource limit from composite object', function () {
     $environment = EnvironmentFactory::new()
-        ->setRethrowExceptions()
+        ->setRethrowErrors()
         ->build();
 
     $template = $environment->parseString("{% assign foo = 'aaaa' | split: '' %}");
@@ -104,7 +104,7 @@ test('assign score of array', function () {
 
 function assignScoreOf(mixed $value): int
 {
-    $context = new RenderContext(staticData: ['value' => $value], options: new RenderContextOptions(rethrowExceptions: true));
+    $context = new RenderContext(staticData: ['value' => $value], options: new RenderContextOptions(rethrowErrors: true));
     parseTemplate('{% assign obj = value %}')->render($context);
 
     return $context->resourceLimits->getAssignScore();

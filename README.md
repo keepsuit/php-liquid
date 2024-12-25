@@ -42,7 +42,7 @@ $factory = \Keepsuit\Liquid\EnvironmentFactory::new()
     // enable strict variables mode
     ->setStrictVariables()
     // rethrow exceptions instead of rendering them
-    ->setRethrowExceptions()
+    ->setRethrowErrors()
     // set filesystem used to load templates
     ->setFilesystem(new \Keepsuit\Liquid\FileSystems\LocalFileSystem(__DIR__ . '/views'));
 ```

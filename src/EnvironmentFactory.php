@@ -2,7 +2,9 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Contracts\LiquidErrorHandler;
 use Keepsuit\Liquid\Contracts\LiquidFileSystem;
+use Keepsuit\Liquid\ErrorHandlers\DefaultErrorHandler;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Filters\FiltersProvider;
 use Keepsuit\Liquid\Render\RenderContextOptions;
@@ -18,6 +20,8 @@ final class EnvironmentFactory
 
     protected LiquidFileSystem $fileSystem;
 
+    protected LiquidErrorHandler $errorHandler;
+
     protected ResourceLimits $resourceLimits;
 
     protected RenderContextOptions $defaultRenderContextOptions;
@@ -29,6 +33,7 @@ final class EnvironmentFactory
         $this->tagRegistry = TagRegistry::default();
         $this->filterRegistry = FilterRegistry::default();
         $this->fileSystem = new BlankFileSystem;
+        $this->errorHandler = new DefaultErrorHandler;
         $this->resourceLimits = new ResourceLimits;
         $this->defaultRenderContextOptions = new RenderContextOptions;
     }
@@ -59,6 +64,13 @@ final class EnvironmentFactory
         return $this;
     }
 
+    public function setErrorHandler(LiquidErrorHandler $errorHandler): EnvironmentFactory
+    {
+        $this->errorHandler = $errorHandler;
+
+        return $this;
+    }
+
     public function setResourceLimits(ResourceLimits $resourceLimits): EnvironmentFactory
     {
         $this->resourceLimits = $resourceLimits;
@@ -73,12 +85,12 @@ final class EnvironmentFactory
         return $this;
     }
 
-    public function setRethrowExceptions(bool $rethrowExceptions = true): EnvironmentFactory
+    public function setRethrowErrors(bool $rethrowErrors = true): EnvironmentFactory
     {
         $this->defaultRenderContextOptions = new RenderContextOptions(
             strictVariables: $this->defaultRenderContextOptions->strictVariables,
             strictFilters: $this->defaultRenderContextOptions->strictFilters,
-            rethrowExceptions: $rethrowExceptions,
+            rethrowErrors: $rethrowErrors,
         );
 
         return $this;
@@ -89,7 +101,7 @@ final class EnvironmentFactory
         $this->defaultRenderContextOptions = new RenderContextOptions(
             strictVariables: $strictVariables,
             strictFilters: $this->defaultRenderContextOptions->strictFilters,
-            rethrowExceptions: $this->defaultRenderContextOptions->rethrowExceptions,
+            rethrowErrors: $this->defaultRenderContextOptions->rethrowErrors,
         );
 
         return $this;
@@ -100,7 +112,7 @@ final class EnvironmentFactory
         $this->defaultRenderContextOptions = new RenderContextOptions(
             strictVariables: $this->defaultRenderContextOptions->strictVariables,
             strictFilters: $strictFilters,
-            rethrowExceptions: $this->defaultRenderContextOptions->rethrowExceptions,
+            rethrowErrors: $this->defaultRenderContextOptions->rethrowErrors,
         );
 
         return $this;
