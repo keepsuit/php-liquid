@@ -1,11 +1,11 @@
 <?php
 
+use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Exceptions\StandardException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Render\RenderContext;
-use Keepsuit\Liquid\TemplateFactory;
 use Keepsuit\Liquid\Tests\Stubs\ErrorDrop;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
@@ -44,7 +44,7 @@ test('template parsed with line numbers renders them in errors', function () {
 test('standard error', function () {
     $template = parseTemplate(' {{ errors.standard_error }} ');
 
-    expect($template->render(new RenderContext(staticEnvironment: ['errors' => new ErrorDrop])))
+    expect($template->render(new RenderContext(staticData: ['errors' => new ErrorDrop])))
         ->toBe(' Liquid error (line 1): Standard error ');
 
     expect($template->getErrors())->toHaveCount(1);
@@ -54,7 +54,7 @@ test('standard error', function () {
 test('syntax error', function () {
     $template = parseTemplate(' {{ errors.syntax_error }} ');
 
-    expect($template->render(new RenderContext(staticEnvironment: ['errors' => new ErrorDrop])))
+    expect($template->render(new RenderContext(staticData: ['errors' => new ErrorDrop])))
         ->toBe(' Liquid syntax error (line 1): Syntax error ');
 
     expect($template->getErrors())->toHaveCount(1);
@@ -64,7 +64,7 @@ test('syntax error', function () {
 test('argument error', function () {
     $template = parseTemplate(' {{ errors.argument_error }} ');
 
-    expect($template->render(new RenderContext(staticEnvironment: ['errors' => new ErrorDrop])))
+    expect($template->render(new RenderContext(staticData: ['errors' => new ErrorDrop])))
         ->toBe(' Liquid error (line 1): Argument error ');
 
     expect($template->getErrors())->toHaveCount(1);
@@ -161,7 +161,7 @@ test('strict error messages', function () {
 test('default exception renderer with internal error', function () {
     $template = parseTemplate('This is a runtime error: {{ errors.runtime_error }}');
 
-    $output = $template->render(new RenderContext(staticEnvironment: ['errors' => new ErrorDrop]));
+    $output = $template->render(new RenderContext(staticData: ['errors' => new ErrorDrop]));
 
     expect($output)->toBe('This is a runtime error: Liquid error (line 1): Internal exception');
     expect($template->getErrors())
@@ -170,15 +170,16 @@ test('default exception renderer with internal error', function () {
 });
 
 test('render template name with line numbers', function () {
-    $factory = TemplateFactory::new()
+    $environment = EnvironmentFactory::new()
         ->setFilesystem(new StubFileSystem([
             'product' => '{{ errors.argument_error }}',
-        ]));
+        ]))
+        ->build();
 
-    $template = parseTemplate("Argument error:\n{% render 'product' with errors %}", factory: $factory);
+    $template = $environment->parseString("Argument error:\n{% render 'product' with errors %}");
 
-    $output = $template->render($factory->newRenderContext(
-        staticEnvironment: ['errors' => new ErrorDrop],
+    $output = $template->render($environment->newRenderContext(
+        staticData: ['errors' => new ErrorDrop],
     ));
 
     expect($output)
@@ -205,11 +206,12 @@ test('error is thrown during parse with template name', function () {
 });
 
 test('internal error is thrown with template name', function () {
-    $factory = TemplateFactory::new()
+    $environment = EnvironmentFactory::new()
         ->setFilesystem(new StubFileSystem([
             'product' => '{{ errors.argument_error }}',
-        ]));
+        ]))
+        ->build();
 
-    expect(fn () => parseTemplate("{% render 'snippet' with errors %}", factory: $factory))
+    expect(fn () => $environment->parseString("{% render 'snippet' with errors %}"))
         ->toThrow(InternalException::class);
 });

@@ -1,25 +1,27 @@
 <?php
 
-use Keepsuit\Liquid\TemplateFactory;
+use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
 test('parse template from string', function () {
-    $factory = TemplateFactory::new();
+    $environment = EnvironmentFactory::new()
+        ->build();
 
-    $template = $factory->parseString('Hello World', 'foo');
+    $template = $environment->parseString('Hello World', 'foo');
 
     expect($template->name)->toBe('foo');
-    expect($template->render($factory->newRenderContext()))->toBe('Hello World');
+    expect($template->render($environment->newRenderContext()))->toBe('Hello World');
 });
 
 test('parse template from file', function () {
-    $factory = TemplateFactory::new()
+    $environment = EnvironmentFactory::new()
         ->setFilesystem(new StubFileSystem([
             'foo' => 'Hello World',
-        ]));
+        ]))
+        ->build();
 
-    $template = $factory->parseTemplate('foo');
+    $template = $environment->parseTemplate('foo');
 
     expect($template->name)->toBe('foo');
-    expect($template->render($factory->newRenderContext()))->toBe('Hello World');
+    expect($template->render($environment->newRenderContext()))->toBe('Hello World');
 });

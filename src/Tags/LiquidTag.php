@@ -48,7 +48,7 @@ class LiquidTag extends Tag
         $tagName = $tokens->consume(TokenType::Identifier)->data;
 
         /** @var class-string<Tag>|null $tagClass */
-        $tagClass = $context->getParseContext()->tagRegistry->get($tagName) ?? null;
+        $tagClass = $context->getParseContext()->environment->tagRegistry->get($tagName) ?? null;
 
         if ($tagClass === null || ! class_exists($tagClass)) {
             throw SyntaxException::unknownTag($tagName);

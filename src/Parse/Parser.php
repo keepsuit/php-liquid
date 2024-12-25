@@ -101,7 +101,7 @@ class Parser
         $tagName = $this->tokenStream->consume(TokenType::Identifier)->data;
 
         /** @var class-string<Tag>|null $tagClass */
-        $tagClass = $this->parseContext->tagRegistry->get($tagName) ?? null;
+        $tagClass = $this->parseContext->environment->tagRegistry->get($tagName) ?? null;
 
         if ($tagClass === null || ! class_exists($tagClass)) {
             $blockTagName = $this->currentBlockScope() ? $this->currentBlockScope()::tagName() : null;

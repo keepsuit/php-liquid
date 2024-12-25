@@ -6,6 +6,8 @@ use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
 use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
+use Keepsuit\Liquid\Filters\FiltersProvider;
+use Keepsuit\Liquid\Filters\StandardFilters;
 use Keepsuit\Liquid\Render\RenderContext;
 
 class FilterRegistry
@@ -16,7 +18,7 @@ class FilterRegistry
     protected array $filters = [];
 
     /**
-     * @param  class-string  $filterClass
+     * @param  class-string<FiltersProvider>  $filterClass
      */
     public function register(string $filterClass): static
     {
@@ -45,6 +47,19 @@ class FilterRegistry
     }
 
     /**
+     * @return string[]
+     */
+    public function all(): array
+    {
+        return array_keys($this->filters);
+    }
+
+    public function has(string $filter): bool
+    {
+        return isset($this->filters[$filter]);
+    }
+
+    /**
      * @throws UndefinedFilterException|UndefinedVariableException
      */
     public function invoke(RenderContext $context, string $filterName, mixed $value, array $args = []): mixed
@@ -63,10 +78,19 @@ class FilterRegistry
             }
         }
 
-        if ($context->strictVariables) {
+        if ($context->options->strictFilters) {
             throw new UndefinedFilterException($filterName);
         }
 
         return $value;
+    }
+
+    /**
+     * Return a FilterRegistry instance with the standard filters registered.
+     */
+    public static function default(): FilterRegistry
+    {
+        return (new FilterRegistry)
+            ->register(StandardFilters::class);
     }
 }

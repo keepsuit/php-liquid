@@ -20,7 +20,7 @@ class ContextSharedState
 
     public function __construct(
         /** @var array<string, mixed> */
-        public array $staticEnvironment = [],
+        public array $staticVariables = [],
         /** @var array<string, mixed> */
         public array $registers = [],
         /** @var array<\Throwable> */

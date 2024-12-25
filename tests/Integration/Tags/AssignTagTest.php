@@ -1,10 +1,11 @@
 <?php
 
+use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Render\RenderContext;
+use Keepsuit\Liquid\Render\RenderContextOptions;
 use Keepsuit\Liquid\Render\ResourceLimits;
-use Keepsuit\Liquid\TemplateFactory;
 
 test('assign with hyphen in variable name', function () {
     $source = <<<'LIQUID'
@@ -56,29 +57,28 @@ test('expression with whitespace in square brackets', function () {
 test('assign score exceeding resource limit', function () {
     $template = parseTemplate('{% assign foo = 42 %}{% assign bar = 23 %}');
 
-    $context = new RenderContext(rethrowExceptions: true, resourceLimits: new ResourceLimits(assignScoreLimit: 1));
+    $context = new RenderContext(options: new RenderContextOptions(rethrowExceptions: true), resourceLimits: new ResourceLimits(assignScoreLimit: 1));
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
     expect($context->resourceLimits->reached())->toBeTrue();
 
-    $context = new RenderContext(rethrowExceptions: true, resourceLimits: new ResourceLimits(assignScoreLimit: 2));
+    $context = new RenderContext(options: new RenderContextOptions(rethrowExceptions: true), resourceLimits: new ResourceLimits(assignScoreLimit: 2));
     expect($template->render($context))->toBe('');
     expect($context->resourceLimits->reached())->toBeFalse();
     expect($context->resourceLimits->getAssignScore())->toBe(2);
 });
 
 test('assign score exceeding resource limit from composite object', function () {
-    $factory = TemplateFactory::new()
-        ->setRethrowExceptions();
+    $environment = EnvironmentFactory::new()
+        ->setRethrowExceptions()
+        ->build();
 
-    $template = parseTemplate("{% assign foo = 'aaaa' | split: '' %}", factory: $factory);
+    $template = $environment->parseString("{% assign foo = 'aaaa' | split: '' %}");
 
-    $factory->setResourceLimits(new ResourceLimits(assignScoreLimit: 3));
-    $context = $factory->newRenderContext();
+    $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(assignScoreLimit: 3));
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
     expect($context->resourceLimits->reached())->toBeTrue();
 
-    $factory->setResourceLimits(new ResourceLimits(assignScoreLimit: 5));
-    $context = $factory->newRenderContext();
+    $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(assignScoreLimit: 5));
     expect($template->render($context))->toBe('');
     expect($context->resourceLimits->reached())->toBeFalse();
     expect($context->resourceLimits->getAssignScore())->toBe(5);
@@ -104,7 +104,7 @@ test('assign score of array', function () {
 
 function assignScoreOf(mixed $value): int
 {
-    $context = new RenderContext(rethrowExceptions: true, staticEnvironment: ['value' => $value]);
+    $context = new RenderContext(staticData: ['value' => $value], options: new RenderContextOptions(rethrowExceptions: true));
     parseTemplate('{% assign obj = value %}')->render($context);
 
     return $context->resourceLimits->getAssignScore();

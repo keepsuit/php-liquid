@@ -2,11 +2,11 @@
 
 namespace Keepsuit\Liquid\Performance\benchmarks;
 
+use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Performance\Shopify\CommentFormTag;
 use Keepsuit\Liquid\Performance\Shopify\CustomFilters;
 use Keepsuit\Liquid\Performance\Shopify\PaginateTag;
 use Keepsuit\Liquid\Performance\ThemeRunner;
-use Keepsuit\Liquid\TemplateFactory;
 use PhpBench\Attributes\BeforeMethods;
 use PhpBench\Attributes\Iterations;
 use PhpBench\Attributes\OutputMode;
@@ -54,11 +54,12 @@ class LiquidBench
 
     protected function getThemeRunner(): ThemeRunner
     {
-        $templateFactory = TemplateFactory::new()
+        $environment = EnvironmentFactory::new()
             ->registerTag(CommentFormTag::class)
             ->registerTag(PaginateTag::class)
-            ->registerFilter(CustomFilters::class);
+            ->registerFilters(CustomFilters::class)
+            ->build();
 
-        return new ThemeRunner($templateFactory);
+        return new ThemeRunner($environment);
     }
 }

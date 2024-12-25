@@ -32,11 +32,11 @@ class IncrementTag extends Tag
 
     public function render(RenderContext $context): string
     {
-        $counter = $context->getEnvironment($this->variableName);
+        $counter = $context->getData($this->variableName);
 
         $counter = is_int($counter) ? $counter + 1 : 0;
 
-        $context->setEnvironment($this->variableName, $counter);
+        $context->setData($this->variableName, $counter);
 
         return (string) $counter;
     }

@@ -2,6 +2,7 @@
 
 use Keepsuit\Liquid\Nodes\Range;
 use Keepsuit\Liquid\Render\RenderContext;
+use Keepsuit\Liquid\Render\RenderContextOptions;
 use Keepsuit\Liquid\Support\UndefinedVariable;
 use Keepsuit\Liquid\Tests\Stubs\Category;
 use Keepsuit\Liquid\Tests\Stubs\CategoryDrop;
@@ -11,7 +12,7 @@ use Keepsuit\Liquid\Tests\Stubs\CounterDrop;
 use Keepsuit\Liquid\Tests\Stubs\HundredCents;
 
 test('variables', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
 
     $context->set('string', 'string');
     expect($context->get('string'))->toBe('string');
@@ -35,7 +36,7 @@ test('variables', function (bool $strict) {
 ]);
 
 test('variables not existing', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
 
     if ($strict) {
         expect($context->get('does_not_exist'))->toBeInstanceOf(UndefinedVariable::class);
@@ -83,13 +84,15 @@ test('hyphenated variable', function (bool $strict) {
 ]);
 
 test('add filter', function (bool $strict) {
-    $context = \Keepsuit\Liquid\TemplateFactory::new()
-        ->registerFilter(\Keepsuit\Liquid\Tests\Stubs\TestFilters::class)
+    $context = \Keepsuit\Liquid\EnvironmentFactory::new()
+        ->registerFilters(\Keepsuit\Liquid\Tests\Stubs\TestFilters::class)
+        ->build()
         ->newRenderContext();
 
     expect($context->applyFilter('hi', 'hi?'))->toBe('hi? hi!');
 
-    $context = \Keepsuit\Liquid\TemplateFactory::new()
+    $context = \Keepsuit\Liquid\EnvironmentFactory::new()
+        ->build()
         ->newRenderContext();
     expect($context->applyFilter('hi', 'hi?'))->toBe('hi?');
 })->with([
@@ -98,7 +101,7 @@ test('add filter', function (bool $strict) {
 ]);
 
 test('add item in outer scope', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->set('test', 'test');
     $context->stack(function () use ($context) {
         expect($context->get('test'))->toBe('test');
@@ -110,7 +113,7 @@ test('add item in outer scope', function (bool $strict) {
 ]);
 
 test('add item in inner scope', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->stack(function () use ($context) {
         $context->set('test', 'test');
 
@@ -161,7 +164,7 @@ test('strings', function (bool $strict) {
 ]);
 
 test('merge', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->merge(['test' => 'test']);
     expect($context->get('test'))->toBe('test');
 
@@ -283,7 +286,7 @@ test('first can appear in middle of call chain', function (bool $strict) {
 ]);
 
 test('cents', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->merge(['cents' => new HundredCents]);
     expect($context->get('cents'))->toBe(100);
 })->with([
@@ -292,7 +295,7 @@ test('cents', function (bool $strict) {
 ]);
 
 test('nested cents', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->merge(['cents' => ['amount' => new HundredCents]]);
     expect($context->get('cents.amount'))->toBe(100);
 
@@ -304,7 +307,7 @@ test('nested cents', function (bool $strict) {
 ]);
 
 test('cents through drop', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->merge(['cents' => new CentsDrop]);
     expect($context->get('cents.amount'))->toBe(100);
 })->with([
@@ -313,7 +316,7 @@ test('cents through drop', function (bool $strict) {
 ]);
 
 test('nested cents through drop', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->merge(['vars' => ['cents' => new CentsDrop]]);
     expect($context->get('vars.cents.amount'))->toBe(100);
 })->with([
@@ -322,7 +325,7 @@ test('nested cents through drop', function (bool $strict) {
 ]);
 
 test('cents through drop nestedly', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->merge(['cents' => ['cents' => new CentsDrop]]);
     expect($context->get('cents.cents.amount'))->toBe(100);
 
@@ -334,7 +337,7 @@ test('cents through drop nestedly', function (bool $strict) {
 ]);
 
 test('context from within drop', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->merge(['test' => '123', 'vars' => new ContextSensitiveDrop]);
     expect($context->get('vars.test'))->toBe('123');
 })->with([
@@ -343,7 +346,7 @@ test('context from within drop', function (bool $strict) {
 ]);
 
 test('nested context from within drop', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->merge(['test' => '123', 'vars' => ['local' => new ContextSensitiveDrop]]);
     expect($context->get('vars.local.test'))->toBe('123');
 })->with([
@@ -364,7 +367,7 @@ test('ranges', function (bool $strict) {
 ]);
 
 test('drop with variable called only once', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->set('counter', new CounterDrop);
 
     expect($context->get('counter.count'))->toBe(1);
@@ -376,7 +379,7 @@ test('drop with variable called only once', function (bool $strict) {
 ]);
 
 test('drop with key called only once', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->set('counter', new CounterDrop);
 
     expect($context->get('counter["count"]'))->toBe(1);
@@ -388,7 +391,7 @@ test('drop with key called only once', function (bool $strict) {
 ]);
 
 test('closure as variable', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->set('dynamic', fn () => 'hello');
 
     expect($context->get('dynamic'))->toBe('hello');
@@ -398,7 +401,7 @@ test('closure as variable', function (bool $strict) {
 ]);
 
 test('nested closure as variable', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->set('dynamic', ['lambda' => fn () => 'hello']);
 
     expect($context->get('dynamic.lambda'))->toBe('hello');
@@ -408,7 +411,7 @@ test('nested closure as variable', function (bool $strict) {
 ]);
 
 test('array containing closure as variable', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->set('dynamic', [1, 2, fn () => 'hello', 4, 5]);
 
     expect($context->get('dynamic[2]'))->toBe('hello');
@@ -418,7 +421,7 @@ test('array containing closure as variable', function (bool $strict) {
 ]);
 
 test('closure is called once', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $global = 0;
 
     $context->set('callcount', function () use (&$global) {
@@ -436,7 +439,7 @@ test('closure is called once', function (bool $strict) {
 ]);
 
 test('nested closure is called once', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $global = 0;
 
     $context->set('callcount', [
@@ -456,7 +459,7 @@ test('nested closure is called once', function (bool $strict) {
 ]);
 
 test('lambda in array is called once', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $global = 0;
 
     $context->set('callcount', [
@@ -480,7 +483,7 @@ test('lambda in array is called once', function (bool $strict) {
 ]);
 
 test('access to context from closure', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->setRegister('magic', 3445392);
     $context->set('closure', fn (RenderContext $context) => $context->getRegister('magic'));
 
@@ -491,7 +494,7 @@ test('access to context from closure', function (bool $strict) {
 ]);
 
 test('toLiquid and context at first level', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->set('category', new Category('foobar'));
 
     expect($context->get('category'))->toBeInstanceOf(CategoryDrop::class);
@@ -503,13 +506,13 @@ test('toLiquid and context at first level', function (bool $strict) {
 
 test('context initialization with a closure in environment', function (bool $strict) {
     $context = new RenderContext(
-        environment: [
+        data: [
             'test' => fn (RenderContext $c) => $c->get('poutine'),
         ],
-        staticEnvironment: [
+        staticData: [
             'poutine' => 'fries',
         ],
-        strictVariables: $strict
+        options: new RenderContextOptions(strictVariables: $strict)
     );
 
     expect($context->get('test'))->toBe('fries');
@@ -520,14 +523,14 @@ test('context initialization with a closure in environment', function (bool $str
 
 test('staticEnvironment has lower priority then environment', function (bool $strict) {
     $context = new RenderContext(
-        environment: [
+        data: [
             'shadowed' => 'dynamic',
         ],
-        staticEnvironment: [
+        staticData: [
             'shadowed' => 'static',
             'unshadowed' => 'static',
         ],
-        strictVariables: $strict
+        options: new RenderContextOptions(strictVariables: $strict)
     );
 
     expect($context->get('shadowed'))->toBe('dynamic');
@@ -538,7 +541,7 @@ test('staticEnvironment has lower priority then environment', function (bool $st
 ]);
 
 test('new isolated subcontext does not inherit variables', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->set('my_variable', 'some value');
     $subContext = $context->newIsolatedSubContext('sub');
 
@@ -553,7 +556,7 @@ test('new isolated subcontext does not inherit variables', function (bool $stric
 ]);
 
 test('new isolated subcontext inherit static environments', function (bool $strict) {
-    $context = new RenderContext(staticEnvironment: ['my_env_value' => 'some value'], strictVariables: $strict);
+    $context = new RenderContext(staticData: ['my_env_value' => 'some value'], options: new RenderContextOptions(strictVariables: $strict));
     $subContext = $context->newIsolatedSubContext('sub');
 
     expect($subContext->get('my_env_value'))->toBe('some value');
@@ -563,7 +566,7 @@ test('new isolated subcontext inherit static environments', function (bool $stri
 ]);
 
 test('new isolated subcontext does inherit static registers', function (bool $strict) {
-    $context = new RenderContext(registers: ['my_register' => 'my value'], strictVariables: $strict);
+    $context = new RenderContext(registers: ['my_register' => 'my value'], options: new RenderContextOptions(strictVariables: $strict));
     $subContext = $context->newIsolatedSubContext('sub');
 
     expect($subContext->getRegister('my_register'))->toBe('my value');
@@ -573,7 +576,7 @@ test('new isolated subcontext does inherit static registers', function (bool $st
 ]);
 
 test('new isolated subcontext does not inherit non static registers', function (bool $strict) {
-    $context = new RenderContext(registers: ['my_register' => 'my value'], strictVariables: $strict);
+    $context = new RenderContext(registers: ['my_register' => 'my value'], options: new RenderContextOptions(strictVariables: $strict));
     $context->setRegister('my_register', 'my alt value');
     $subContext = $context->newIsolatedSubContext('sub');
 
@@ -584,7 +587,7 @@ test('new isolated subcontext does not inherit non static registers', function (
 ]);
 
 test('new isolated subcontext registers do not pollute context', function (bool $strict) {
-    $context = new RenderContext(registers: ['my_register' => 'my value'], strictVariables: $strict);
+    $context = new RenderContext(registers: ['my_register' => 'my value'], options: new RenderContextOptions(strictVariables: $strict));
     $subContext = $context->newIsolatedSubContext('sub');
     $subContext->setRegister('my_register', 'my alt value');
 
@@ -596,7 +599,7 @@ test('new isolated subcontext registers do not pollute context', function (bool 
 
 test('new isolated subcontext inherit resource limits', function (bool $strict) {
     $resourceLimits = new \Keepsuit\Liquid\Render\ResourceLimits;
-    $context = new RenderContext(strictVariables: $strict, resourceLimits: $resourceLimits);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict), resourceLimits: $resourceLimits);
     $subContext = $context->newIsolatedSubContext('sub');
 
     expect($subContext->resourceLimits)->toBe($resourceLimits);
@@ -605,21 +608,28 @@ test('new isolated subcontext inherit resource limits', function (bool $strict) 
     'strict' => true,
 ]);
 
-test('new isolated subcontext inherit file system', function (bool $strict) {
-    $fileSystem = new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
-    $context = new RenderContext(strictVariables: $strict, fileSystem: $fileSystem);
+test('new isolated subcontext inherit environment', function (bool $strict) {
+    $environment = \Keepsuit\Liquid\EnvironmentFactory::new()
+        ->setFilesystem($fileSystem = new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem)
+        ->setStrictVariables($strict)
+        ->build();
+
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict), environment: $environment);
     $subContext = $context->newIsolatedSubContext('sub');
 
-    expect($subContext->fileSystem)->toBe($fileSystem);
+    expect($subContext)
+        ->environment->toBe($environment)
+        ->environment->fileSystem->toBe($fileSystem);
 })->with([
     'default' => false,
     'strict' => true,
 ]);
 
 test('new isolated subcontext inherit filters', function (bool $strict) {
-    $context = \Keepsuit\Liquid\TemplateFactory::new()
+    $context = \Keepsuit\Liquid\EnvironmentFactory::new()
         ->setStrictVariables($strict)
-        ->registerFilter(\Keepsuit\Liquid\Tests\Stubs\TestFilters::class)
+        ->registerFilters(\Keepsuit\Liquid\Tests\Stubs\TestFilters::class)
+        ->build()
         ->newRenderContext();
     $subContext = $context->newIsolatedSubContext('sub');
 
@@ -630,7 +640,7 @@ test('new isolated subcontext inherit filters', function (bool $strict) {
 ]);
 
 test('disabled specified tags', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->withDisabledTags(['foo', 'bar'], function (RenderContext $context) {
         expect($context)
             ->tagDisabled('foo')->toBe(true)
@@ -643,7 +653,7 @@ test('disabled specified tags', function (bool $strict) {
 ]);
 
 test('disabled nested tags', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->withDisabledTags(['foo'], function (RenderContext $context) {
         $context->withDisabledTags(['foo'], function (RenderContext $context) {
             expect($context)
@@ -673,7 +683,7 @@ test('disabled nested tags', function (bool $strict) {
 ]);
 
 test('has key will not add an error for missing keys', function (bool $strict) {
-    $context = new RenderContext(strictVariables: $strict);
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->has('unknown');
 
     expect($context->getErrors())->toBe([]);

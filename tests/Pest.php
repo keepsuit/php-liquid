@@ -1,10 +1,11 @@
 <?php
 
+use Keepsuit\Liquid\Environment;
+use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\TokenStream;
 use Keepsuit\Liquid\Template;
-use Keepsuit\Liquid\TemplateFactory;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 use PHPUnit\Framework\ExpectationFailedException;
 
@@ -18,19 +19,18 @@ function fixture(string $path): string
  */
 function parseTemplate(
     string $source,
-    TemplateFactory $factory = new TemplateFactory,
+    ?Environment $environment = null,
 ): Template {
-    return $factory
-        ->parseString($source);
+    return ($environment ?? Environment::default())->parseString($source);
 }
 
 function buildRenderContext(
     array $assigns = [],
     array $registers = [],
-    TemplateFactory $factory = new TemplateFactory
+    ?Environment $environment = null
 ) {
-    $context = $factory->newRenderContext(
-        staticEnvironment: $assigns,
+    $context = ($environment ?? Environment::default())->newRenderContext(
+        staticData: $assigns,
     );
 
     foreach ($registers as $key => $value) {
@@ -41,7 +41,7 @@ function buildRenderContext(
 }
 
 /**
- * @throws SyntaxException
+ * @throws \Keepsuit\Liquid\Exceptions\LiquidException
  */
 function renderTemplate(
     string $template,
@@ -50,19 +50,20 @@ function renderTemplate(
     array $partials = [],
     bool $renderErrors = false,
     bool $strictVariables = false,
-    TemplateFactory $factory = new TemplateFactory
+    EnvironmentFactory $factory = new EnvironmentFactory
 ): string {
-    $factory = $factory
+    $environment = $factory
         ->setFilesystem(new StubFileSystem(partials: $partials))
+        ->setStrictVariables($strictVariables)
         ->setRethrowExceptions(! $renderErrors)
-        ->setStrictVariables($strictVariables);
+        ->build();
 
-    $template = $factory->parseString($template);
+    $template = $environment->parseString($template);
 
     $context = buildRenderContext(
         assigns: $assigns,
         registers: $registers,
-        factory: $factory,
+        environment: $environment,
     );
 
     return $template->render($context);
@@ -80,19 +81,20 @@ function streamTemplate(
     array $partials = [],
     bool $renderErrors = false,
     bool $strictVariables = false,
-    TemplateFactory $factory = new TemplateFactory
+    EnvironmentFactory $factory = new EnvironmentFactory
 ): Generator {
-    $factory = $factory
+    $environment = $factory
         ->setFilesystem(new StubFileSystem(partials: $partials))
+        ->setStrictVariables($strictVariables)
         ->setRethrowExceptions(! $renderErrors)
-        ->setStrictVariables($strictVariables);
+        ->build();
 
-    $template = $factory->parseString($template);
+    $template = $environment->parseString($template);
 
     $context = buildRenderContext(
         assigns: $assigns,
         registers: $registers,
-        factory: $factory,
+        environment: $environment,
     );
 
     return $template->stream($context);
@@ -106,7 +108,7 @@ function assertTemplateResult(
     array $partials = [],
     bool $renderErrors = false,
     bool $strictVariables = false,
-    TemplateFactory $factory = new TemplateFactory,
+    EnvironmentFactory $factory = new EnvironmentFactory
 ): void {
     expect(renderTemplate(
         template: $template,
@@ -125,10 +127,9 @@ function assertMatchSyntaxError(
     array $assigns = [],
     array $registers = [],
     array $partials = [],
-    TemplateFactory $factory = new TemplateFactory
 ): void {
     try {
-        renderTemplate(template: $template, assigns: $assigns, registers: $registers, partials: $partials, factory: $factory);
+        renderTemplate(template: $template, assigns: $assigns, registers: $registers, partials: $partials);
     } catch (SyntaxException $exception) {
         expect($exception->toLiquidErrorMessage())->toBe($error);
 
