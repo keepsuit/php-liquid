@@ -6,9 +6,11 @@ use ArithmeticError;
 use Closure;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\IsContextAware;
+use Keepsuit\Liquid\Contracts\LiquidErrorHandler;
 use Keepsuit\Liquid\Contracts\MapsToLiquid;
 use Keepsuit\Liquid\Drop;
 use Keepsuit\Liquid\Environment;
+use Keepsuit\Liquid\ErrorHandlers\RethrowErrorHandler;
 use Keepsuit\Liquid\Exceptions\ArithmeticException;
 use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\LiquidException;
@@ -32,6 +34,8 @@ final class RenderContext
     public readonly Environment $environment;
 
     public readonly ResourceLimits $resourceLimits;
+
+    protected LiquidErrorHandler $errorHandler;
 
     protected int $baseScopeDepth = 0;
 
@@ -86,6 +90,7 @@ final class RenderContext
     ) {
         $this->environment = $environment ?? Environment::default();
         $this->resourceLimits = $resourceLimits ?? ResourceLimits::clone($this->environment->defaultResourceLimits);
+        $this->errorHandler = $this->options->rethrowErrors ? new RethrowErrorHandler : $this->environment->errorHandler;
 
         $this->scopes = [[]];
 
@@ -299,11 +304,7 @@ final class RenderContext
 
         $this->sharedState->errors[] = $error;
 
-        if ($this->options->rethrowExceptions) {
-            throw $error;
-        }
-
-        return $error->toLiquidErrorMessage();
+        return $this->errorHandler->handle($error);
     }
 
     public function getErrors(): array

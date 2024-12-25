@@ -55,7 +55,7 @@ function renderTemplate(
     $environment = $factory
         ->setFilesystem(new StubFileSystem(partials: $partials))
         ->setStrictVariables($strictVariables)
-        ->setRethrowExceptions(! $renderErrors)
+        ->setRethrowErrors(! $renderErrors)
         ->build();
 
     $template = $environment->parseString($template);
@@ -86,7 +86,7 @@ function streamTemplate(
     $environment = $factory
         ->setFilesystem(new StubFileSystem(partials: $partials))
         ->setStrictVariables($strictVariables)
-        ->setRethrowExceptions(! $renderErrors)
+        ->setRethrowErrors(! $renderErrors)
         ->build();
 
     $template = $environment->parseString($template);

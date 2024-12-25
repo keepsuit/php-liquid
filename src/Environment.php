@@ -2,7 +2,9 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Contracts\LiquidErrorHandler;
 use Keepsuit\Liquid\Contracts\LiquidFileSystem;
+use Keepsuit\Liquid\ErrorHandlers\DefaultErrorHandler;
 use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Parse\ParseContext;
@@ -22,6 +24,8 @@ class Environment
 
     public readonly LiquidFileSystem $fileSystem;
 
+    public readonly LiquidErrorHandler $errorHandler;
+
     public readonly ResourceLimits $defaultResourceLimits;
 
     public readonly RenderContextOptions $defaultRenderContextOptions;
@@ -30,6 +34,7 @@ class Environment
         ?TagRegistry $tagRegistry = null,
         ?FilterRegistry $filterRegistry = null,
         ?LiquidFileSystem $fileSystem = null,
+        ?LiquidErrorHandler $errorHandler = null,
         ?ResourceLimits $defaultResourceLimits = null,
         ?RenderContextOptions $defaultRenderContextOptions = null,
         public readonly bool $profile = false,
@@ -37,6 +42,7 @@ class Environment
         $this->tagRegistry = $tagRegistry ?? TagRegistry::default();
         $this->filterRegistry = $filterRegistry ?? FilterRegistry::default();
         $this->fileSystem = $fileSystem ?? new BlankFileSystem;
+        $this->errorHandler = $errorHandler ?? new DefaultErrorHandler;
         $this->defaultResourceLimits = $defaultResourceLimits ?? new ResourceLimits;
         $this->defaultRenderContextOptions = $defaultRenderContextOptions ?? new RenderContextOptions;
     }

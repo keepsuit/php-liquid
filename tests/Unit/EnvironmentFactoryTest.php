@@ -25,13 +25,13 @@ test('get registered tags', function () {
 
 test('default render options settings', function () {
     $environment = EnvironmentFactory::new()
-        ->setRethrowExceptions()
+        ->setRethrowErrors()
         ->setStrictVariables()
         ->setStrictFilters()
         ->build();
 
     expect($environment)
-        ->defaultRenderContextOptions->rethrowExceptions->toBeTrue()
+        ->defaultRenderContextOptions->rethrowErrors->toBeTrue()
         ->defaultRenderContextOptions->strictVariables->toBeTrue()
         ->defaultRenderContextOptions->strictFilters->toBeTrue();
 });

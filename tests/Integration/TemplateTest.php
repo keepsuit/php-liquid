@@ -82,7 +82,7 @@ test('resource limits render score', function () {
 test('resource limits abort rendering after first error', function () {
     $template = parseTemplate('{% for a in (1..100) %} foo1 {% endfor %} bar {% for a in (1..100) %} foo2 {% endfor %}');
     $context = new RenderContext(
-        options: new RenderContextOptions(rethrowExceptions: false),
+        options: new RenderContextOptions(rethrowErrors: false),
         resourceLimits: new ResourceLimits(renderScoreLimit: 50)
     );
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
@@ -130,7 +130,7 @@ test('render length uses number of bytes not characters', function () {
 
 test('undefined variables', function (bool $strict) {
     $environment = EnvironmentFactory::new()
-        ->setRethrowExceptions(false)
+        ->setRethrowErrors(false)
         ->setStrictVariables($strict)
         ->build();
 
@@ -169,7 +169,7 @@ test('null value does not throw exception', function (bool $strict) {
         ],
         options: new RenderContextOptions(
             strictVariables: $strict,
-            rethrowExceptions: false,
+            rethrowErrors: false,
         )
     );
 
@@ -184,7 +184,7 @@ test('null value does not throw exception', function (bool $strict) {
 
 test('undefined drop method', function (bool $strict) {
     $environment = EnvironmentFactory::new()
-        ->setRethrowExceptions(false)
+        ->setRethrowErrors(false)
         ->setStrictVariables($strict)
         ->build();
 
@@ -211,7 +211,7 @@ test('undefined drop method', function (bool $strict) {
 
 test('undefined drop method throw exception', function (bool $strict) {
     $environment = EnvironmentFactory::new()
-        ->setRethrowExceptions()
+        ->setRethrowErrors()
         ->setStrictVariables($strict)
         ->build();
 
@@ -234,7 +234,7 @@ test('undefined drop method throw exception', function (bool $strict) {
 
 test('undefined filter', function (bool $strict) {
     $environment = EnvironmentFactory::new()
-        ->setRethrowExceptions(false)
+        ->setRethrowErrors(false)
         ->setStrictFilters($strict)
         ->build();
 
@@ -264,7 +264,7 @@ test('undefined filter', function (bool $strict) {
 
 test('undefined filter throw exception', function (bool $strict) {
     $environment = EnvironmentFactory::new()
-        ->setRethrowExceptions()
+        ->setRethrowErrors()
         ->setStrictFilters($strict)
         ->build();
 
