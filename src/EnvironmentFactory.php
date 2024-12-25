@@ -75,33 +75,33 @@ final class EnvironmentFactory
 
     public function setRethrowExceptions(bool $rethrowExceptions = true): EnvironmentFactory
     {
-        $this->defaultRenderContextOptions->rethrowExceptions = $rethrowExceptions;
+        $this->defaultRenderContextOptions = new RenderContextOptions(
+            strictVariables: $this->defaultRenderContextOptions->strictVariables,
+            strictFilters: $this->defaultRenderContextOptions->strictFilters,
+            rethrowExceptions: $rethrowExceptions,
+        );
 
         return $this;
     }
 
     public function setStrictVariables(bool $strictVariables = true): EnvironmentFactory
     {
-        $this->defaultRenderContextOptions->strictVariables = $strictVariables;
+        $this->defaultRenderContextOptions = new RenderContextOptions(
+            strictVariables: $strictVariables,
+            strictFilters: $this->defaultRenderContextOptions->strictFilters,
+            rethrowExceptions: $this->defaultRenderContextOptions->rethrowExceptions,
+        );
 
         return $this;
     }
 
     public function setStrictFilters(bool $strictFilters = true): EnvironmentFactory
     {
-        $this->defaultRenderContextOptions->strictFilters = $strictFilters;
-
-        return $this;
-    }
-
-    /**
-     * Enable/disabled rethrowExceptions and strictVariables.
-     */
-    public function setDebugMode(bool $debugMode = true): EnvironmentFactory
-    {
-        $this->defaultRenderContextOptions->rethrowExceptions = $debugMode;
-        $this->defaultRenderContextOptions->strictVariables = $debugMode;
-        $this->defaultRenderContextOptions->strictFilters = $debugMode;
+        $this->defaultRenderContextOptions = new RenderContextOptions(
+            strictVariables: $this->defaultRenderContextOptions->strictVariables,
+            strictFilters: $strictFilters,
+            rethrowExceptions: $this->defaultRenderContextOptions->rethrowExceptions,
+        );
 
         return $this;
     }
