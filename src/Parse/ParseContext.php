@@ -10,7 +10,7 @@ use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Nodes\BodyNode;
+use Keepsuit\Liquid\Nodes\Document;
 use Keepsuit\Liquid\Support\OutputsBag;
 use Keepsuit\Liquid\Support\PartialsCache;
 use Keepsuit\Liquid\Template;
@@ -61,7 +61,7 @@ class ParseContext
         return $this->lexer->tokenize($markup);
     }
 
-    public function parse(TokenStream $tokenStream): BodyNode
+    public function parse(TokenStream $tokenStream): Document
     {
         return $this->parser->parse($tokenStream);
     }

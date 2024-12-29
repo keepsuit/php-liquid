@@ -33,7 +33,7 @@ class BodyNode extends Node implements CanBeStreamed
     }
 
     /**
-     * @param  array<Tag|Variable|Text>  $children
+     * @param  array<Node>  $children
      */
     public function setChildren(array $children): BodyNode
     {
@@ -74,6 +74,11 @@ class BodyNode extends Node implements CanBeStreamed
         return $output;
     }
 
+    /**
+     * @return \Generator<string>
+     *
+     * @throws LiquidException
+     */
     public function stream(RenderContext $context): \Generator
     {
         $context->resourceLimits->incrementRenderScore(count($this->children));

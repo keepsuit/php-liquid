@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid;
 
 use Keepsuit\Liquid\Contracts\LiquidErrorHandler;
+use Keepsuit\Liquid\Contracts\LiquidExtension;
 use Keepsuit\Liquid\Contracts\LiquidFileSystem;
 use Keepsuit\Liquid\ErrorHandlers\DefaultErrorHandler;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
@@ -27,6 +28,11 @@ final class EnvironmentFactory
     protected RenderContextOptions $defaultRenderContextOptions;
 
     protected bool $profile = false;
+
+    /**
+     * @var array<class-string<LiquidExtension>, LiquidExtension>
+     */
+    protected array $extensions = [];
 
     public function __construct()
     {
@@ -138,6 +144,13 @@ final class EnvironmentFactory
         return $this;
     }
 
+    public function addExtension(LiquidExtension $extension): EnvironmentFactory
+    {
+        $this->extensions[$extension::class] = $extension;
+
+        return $this;
+    }
+
     public function build(): Environment
     {
         return new Environment(
@@ -147,6 +160,7 @@ final class EnvironmentFactory
             defaultResourceLimits: $this->resourceLimits,
             defaultRenderContextOptions: $this->defaultRenderContextOptions,
             profile: $this->profile,
+            extensions: array_values($this->extensions),
         );
     }
 }

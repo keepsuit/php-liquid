@@ -96,7 +96,7 @@ final class RenderContext
 
         $this->sharedState = new ContextSharedState(
             staticVariables: $staticData,
-            registers: $registers,
+            registers: array_merge($this->environment->getExtensionRegisters(), $registers),
         );
 
         $this->profiler = $profile ? new Profiler : null;
@@ -288,7 +288,7 @@ final class RenderContext
     }
 
     /**
-     * @throws Throwable
+     * @throws LiquidException
      */
     public function handleError(Throwable $error, ?int $lineNumber = null): string
     {

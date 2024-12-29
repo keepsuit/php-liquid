@@ -5,7 +5,7 @@ use Keepsuit\Liquid\Tags\ForTag;
 test('for children', function () {
     $template = parseTemplate('{% for item in items %}FOR{% endfor %}');
 
-    expect($template->root->children())
+    expect($template->root->body->children())
         ->toHaveCount(1)
         ->{0}->toBeInstanceOf(ForTag::class)
         ->{0}->children()->toHaveCount(1)
@@ -15,7 +15,7 @@ test('for children', function () {
 test('for else children', function () {
     $template = parseTemplate('{% for item in items %}FOR{% else %}ELSE{% endfor %}');
 
-    expect($template->root->children())
+    expect($template->root->body->children())
         ->toHaveCount(1)
         ->{0}->toBeInstanceOf(ForTag::class)
         ->{0}->children()->toHaveCount(2)

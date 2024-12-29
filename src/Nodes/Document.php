@@ -2,15 +2,14 @@
 
 namespace Keepsuit\Liquid\Nodes;
 
-use Keepsuit\Liquid\Contracts\CanBeRendered;
 use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Render\RenderContext;
 
-class Document implements CanBeRendered, CanBeStreamed
+class Document extends Node implements CanBeStreamed
 {
     public function __construct(
-        protected BodyNode $body,
+        public readonly BodyNode $body,
     ) {}
 
     /**
@@ -48,6 +47,6 @@ class Document implements CanBeRendered, CanBeStreamed
      */
     public function children(): array
     {
-        return $this->body->children();
+        return [$this->body];
     }
 }

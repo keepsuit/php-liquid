@@ -31,7 +31,7 @@ class Template
             $root = $parseContext->parse($parseContext->tokenize($source));
 
             $template = new Template(
-                root: new Document($root),
+                root: $root,
                 name: $name,
             );
 
