@@ -26,4 +26,9 @@ class Range extends Node implements HasParseTreeVisitorChildren
     {
         return [$this->start, $this->end];
     }
+
+    public function debugLabel(): string
+    {
+        return sprintf('(%s..%s)', $this->start, $this->end);
+    }
 }

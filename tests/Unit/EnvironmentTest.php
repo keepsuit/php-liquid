@@ -55,3 +55,29 @@ test('default environment has standard filters registered', function () {
         ->toContain('join')
         ->toContain('last');
 });
+
+test('add extension', function () {
+    $environment = Environment::default();
+
+    $environment->addExtension(new \Keepsuit\Liquid\Tests\Stubs\StubExtension);
+
+    expect($environment)
+        ->getExtensions()->toHaveCount(1)
+        ->getExtensionNodeVisitors()->toHaveCount(1)
+        ->getExtensionNodeVisitors()->{0}->toBeInstanceOf(\Keepsuit\Liquid\Tests\Stubs\StubNodeVisitor::class)
+        ->getExtensionRegisters()->toHaveKey('test');
+});
+
+test('remove extension', function () {
+    $environment = Environment::default();
+
+    $environment->addExtension(new \Keepsuit\Liquid\Tests\Stubs\StubExtension);
+    expect($environment)->getExtensions()->toHaveCount(1);
+
+    $environment->removeExtension(\Keepsuit\Liquid\Tests\Stubs\StubExtension::class);
+
+    expect($environment)
+        ->getExtensions()->toHaveCount(0)
+        ->getExtensionNodeVisitors()->toHaveCount(0)
+        ->getExtensionRegisters()->not->toHaveKey('test');
+});

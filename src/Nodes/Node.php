@@ -32,4 +32,9 @@ abstract class Node implements CanBeRendered
     {
         return [];
     }
+
+    public function debugLabel(): ?string
+    {
+        return null;
+    }
 }

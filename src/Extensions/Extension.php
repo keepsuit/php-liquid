@@ -4,7 +4,7 @@ namespace Keepsuit\Liquid\Extensions;
 
 use Keepsuit\Liquid\Contracts\LiquidExtension;
 
-class Extension implements LiquidExtension
+abstract class Extension implements LiquidExtension
 {
     public function getNodeVisitors(): array
     {
