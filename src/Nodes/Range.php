@@ -2,10 +2,9 @@
 
 namespace Keepsuit\Liquid\Nodes;
 
-use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Render\RenderContext;
 
-class Range extends Node implements HasParseTreeVisitorChildren
+class Range extends Node
 {
     public function __construct(
         public readonly int $start,
@@ -22,8 +21,8 @@ class Range extends Node implements HasParseTreeVisitorChildren
         return range($this->start, $this->end);
     }
 
-    public function parseTreeVisitorChildren(): array
+    public function debugLabel(): string
     {
-        return [$this->start, $this->end];
+        return sprintf('(%s..%s)', $this->start, $this->end);
     }
 }

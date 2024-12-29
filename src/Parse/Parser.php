@@ -192,6 +192,6 @@ class Parser
 
     protected function newNodeTraverser(): NodeTraverser
     {
-        return new NodeTraverser(visitors: $this->parseContext->environment->getExtensionNodeVisitors());
+        return new NodeTraverser(visitors: $this->parseContext->environment->getNodeVisitors());
     }
 }

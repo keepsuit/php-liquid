@@ -6,6 +6,7 @@ use Keepsuit\Liquid\Contracts\LiquidErrorHandler;
 use Keepsuit\Liquid\Contracts\LiquidExtension;
 use Keepsuit\Liquid\Contracts\LiquidFileSystem;
 use Keepsuit\Liquid\ErrorHandlers\DefaultErrorHandler;
+use Keepsuit\Liquid\Extensions\StandardExtension;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Filters\FiltersProvider;
 use Keepsuit\Liquid\Render\RenderContextOptions;
@@ -34,12 +35,14 @@ final class EnvironmentFactory
 
     public function __construct()
     {
-        $this->tagRegistry = TagRegistry::default();
-        $this->filterRegistry = FilterRegistry::default();
+        $this->tagRegistry = new TagRegistry;
+        $this->filterRegistry = new FilterRegistry;
         $this->fileSystem = new BlankFileSystem;
         $this->errorHandler = new DefaultErrorHandler;
         $this->resourceLimits = new ResourceLimits;
         $this->defaultRenderContextOptions = new RenderContextOptions;
+
+        $this->addExtension(new StandardExtension);
     }
 
     public static function new(): EnvironmentFactory

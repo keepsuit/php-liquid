@@ -132,4 +132,17 @@ class Variable extends Node implements CanBeEvaluated, CanBeStreamed, HasParseTr
             $filterArgs
         );
     }
+
+    public function debugLabel(): ?string
+    {
+        return match (true) {
+            $this->name instanceof VariableLookup => $this->name->name,
+            $this->name instanceof RangeLookup => $this->name->toString(),
+            $this->name instanceof Literal => $this->name->value,
+            is_string($this->name) => $this->name,
+            is_bool($this->name) => $this->name ? 'true' : 'false',
+            is_numeric($this->name) => (string) $this->name,
+            default => null,
+        };
+    }
 }

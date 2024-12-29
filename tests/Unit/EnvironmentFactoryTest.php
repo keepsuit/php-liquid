@@ -14,6 +14,18 @@ test('register & delete custom tags', function () {
     expect($environment->tagRegistry->all())->not->toHaveKey('testblock');
 });
 
+test('add extension', function () {
+    $environment = EnvironmentFactory::new()
+        ->addExtension(new \Keepsuit\Liquid\Tests\Stubs\StubExtension)
+        ->build();
+
+    expect($environment)
+        ->getExtensions()->toHaveCount(2)
+        ->getNodeVisitors()->toHaveCount(1)
+        ->getNodeVisitors()->{0}->toBeInstanceOf(\Keepsuit\Liquid\Tests\Stubs\StubNodeVisitor::class)
+        ->getRegisters()->toHaveKey('test');
+});
+
 test('get registered tags', function () {
     $environment = EnvironmentFactory::new()
         ->registerTag(\Keepsuit\Liquid\Tests\Stubs\TestTagBlockTag::class)

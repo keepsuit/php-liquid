@@ -92,7 +92,7 @@ final class RenderContext
 
         $this->sharedState = new ContextSharedState(
             staticVariables: $staticData,
-            registers: array_merge($this->environment->getExtensionRegisters(), $registers),
+            registers: array_merge($this->environment->getRegisters(), $registers),
         );
     }
 

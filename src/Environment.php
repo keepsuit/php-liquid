@@ -7,6 +7,7 @@ use Keepsuit\Liquid\Contracts\LiquidExtension;
 use Keepsuit\Liquid\Contracts\LiquidFileSystem;
 use Keepsuit\Liquid\ErrorHandlers\DefaultErrorHandler;
 use Keepsuit\Liquid\Exceptions\LiquidException;
+use Keepsuit\Liquid\Extensions\StandardExtension;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
@@ -47,19 +48,24 @@ class Environment
         /** @var LiquidExtension[] $extensions */
         array $extensions = [],
     ) {
-        $this->tagRegistry = $tagRegistry ?? TagRegistry::default();
-        $this->filterRegistry = $filterRegistry ?? FilterRegistry::default();
+        $this->tagRegistry = $tagRegistry ?? new TagRegistry;
+        $this->filterRegistry = $filterRegistry ?? new FilterRegistry;
         $this->fileSystem = $fileSystem ?? new BlankFileSystem;
         $this->errorHandler = $errorHandler ?? new DefaultErrorHandler;
         $this->defaultResourceLimits = $defaultResourceLimits ?? new ResourceLimits;
         $this->defaultRenderContextOptions = $defaultRenderContextOptions ?? new RenderContextOptions;
-        $this->extensions = Arr::mapWithKeys($extensions, fn (LiquidExtension $extension) => [$extension::class => $extension]);
+
+        foreach ($extensions as $extension) {
+            $this->addExtension($extension);
+        }
     }
 
     public static function default(): Environment
     {
         if (! isset(self::$defaultEnvironment)) {
-            self::$defaultEnvironment = new self;
+            self::$defaultEnvironment = new Environment(
+                extensions: [new StandardExtension]
+            );
         }
 
         return self::$defaultEnvironment;
@@ -128,6 +134,14 @@ class Environment
     {
         $this->extensions[$extension::class] = $extension;
 
+        foreach ($extension->getTags() as $tag) {
+            $this->tagRegistry->register($tag);
+        }
+
+        foreach ($extension->getFiltersProviders() as $filtersProvider) {
+            $this->filterRegistry->register($filtersProvider);
+        }
+
         return $this;
     }
 
@@ -136,7 +150,21 @@ class Environment
      */
     public function removeExtension(string $extensionClass): static
     {
+        $extension = $this->extensions[$extensionClass] ?? null;
+
+        if ($extension === null) {
+            return $this;
+        }
+
         unset($this->extensions[$extensionClass]);
+
+        foreach ($extension->getTags() as $tag) {
+            $this->tagRegistry->delete($tag::tagName());
+        }
+
+        foreach ($extension->getFiltersProviders() as $filtersProvider) {
+            $this->filterRegistry->delete($filtersProvider);
+        }
 
         return $this;
     }
@@ -149,7 +177,7 @@ class Environment
         return array_values($this->extensions);
     }
 
-    public function getExtensionNodeVisitors(): array
+    public function getNodeVisitors(): array
     {
         return Arr::flatten(Arr::map(
             $this->getExtensions(),
@@ -157,7 +185,7 @@ class Environment
         ));
     }
 
-    public function getExtensionRegisters(): array
+    public function getRegisters(): array
     {
         return array_merge(...Arr::map(
             $this->getExtensions(),
