@@ -161,9 +161,4 @@ class BodyNode extends Node implements CanBeStreamed
 
         $this->children = array_filter($this->children, fn (Node $node) => ! ($node instanceof Text));
     }
-
-    public function parseTreeVisitorChildren(): array
-    {
-        return $this->children;
-    }
 }
