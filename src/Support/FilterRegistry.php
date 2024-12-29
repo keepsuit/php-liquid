@@ -2,45 +2,53 @@
 
 namespace Keepsuit\Liquid\Support;
 
+use Keepsuit\Liquid\Attributes\Hidden;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
 use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Filters\FiltersProvider;
-use Keepsuit\Liquid\Filters\StandardFilters;
 use Keepsuit\Liquid\Render\RenderContext;
 
 class FilterRegistry
 {
     /**
-     * @var array<string,\Closure>
+     * @var array<string,array{0:FiltersProvider,1:string}>
      */
     protected array $filters = [];
 
     /**
-     * @param  class-string<FiltersProvider>  $filterClass
+     * @param  class-string<FiltersProvider>  $filtersClass
      */
-    public function register(string $filterClass): static
+    public function register(string $filtersClass): static
     {
-        if (! class_exists($filterClass)) {
-            throw new InvalidArgumentException("Filter class $filterClass does not exist.");
+        if (! class_exists($filtersClass)) {
+            throw new InvalidArgumentException("Filter class $filtersClass does not exist.");
         }
 
-        $reflection = new \ReflectionClass($filterClass);
-        foreach ($reflection->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
-            if (str_starts_with($method->getName(), '__')) {
-                continue;
-            }
+        $filters = $this->extractFiltersFromClass($filtersClass);
 
-            $this->filters[Str::snake($method->getName())] = function (RenderContext $context, mixed $value, array $args) use ($filterClass, $method) {
-                $filterClassInstance = new $filterClass;
+        $instance = new $filtersClass;
+        foreach ($filters as $filter => $method) {
+            $this->filters[$filter] = [$instance, $method];
+        }
 
-                if ($filterClassInstance instanceof IsContextAware) {
-                    $filterClassInstance->setContext($context);
-                }
+        return $this;
+    }
 
-                return $filterClassInstance->{$method->getName()}($value, ...$args);
-            };
+    /**
+     * @param  class-string<FiltersProvider>  $filtersClass
+     */
+    public function delete(string $filtersClass): static
+    {
+        if (! class_exists($filtersClass)) {
+            return $this;
+        }
+
+        $filters = $this->extractFiltersFromClass($filtersClass);
+
+        foreach ($filters as $key => $value) {
+            unset($this->filters[$key]);
         }
 
         return $this;
@@ -68,7 +76,14 @@ class FilterRegistry
 
         if ($filter !== null) {
             try {
-                return $filter($context, $value, $args);
+                $instance = $filter[0];
+                $method = $filter[1];
+
+                if ($instance instanceof IsContextAware) {
+                    $instance->setContext($context);
+                }
+
+                return $instance->{$method}($value, ...$args);
             } catch (\TypeError $e) {
                 if ($value instanceof UndefinedVariable) {
                     throw new UndefinedVariableException($value->variableName);
@@ -86,11 +101,30 @@ class FilterRegistry
     }
 
     /**
-     * Return a FilterRegistry instance with the standard filters registered.
+     * @param  class-string<FiltersProvider>  $filtersClass
+     * @return array<string,string>
      */
-    public static function default(): FilterRegistry
+    protected function extractFiltersFromClass(string $filtersClass): array
     {
-        return (new FilterRegistry)
-            ->register(StandardFilters::class);
+        $filters = [];
+
+        $reflection = new \ReflectionClass($filtersClass);
+        foreach ($reflection->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+            if (str_starts_with($method->getName(), '__')) {
+                continue;
+            }
+
+            if ($method->isStatic()) {
+                continue;
+            }
+
+            if ($method->getAttributes(Hidden::class) !== []) {
+                continue;
+            }
+
+            $filters[Str::snake($method->getName())] = $method->getName();
+        }
+
+        return $filters;
     }
 }

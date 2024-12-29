@@ -20,10 +20,10 @@ test('add extension', function () {
         ->build();
 
     expect($environment)
-        ->getExtensions()->toHaveCount(1)
-        ->getExtensionNodeVisitors()->toHaveCount(1)
-        ->getExtensionNodeVisitors()->{0}->toBeInstanceOf(\Keepsuit\Liquid\Tests\Stubs\StubNodeVisitor::class)
-        ->getExtensionRegisters()->toHaveKey('test');
+        ->getExtensions()->toHaveCount(2)
+        ->getNodeVisitors()->toHaveCount(1)
+        ->getNodeVisitors()->{0}->toBeInstanceOf(\Keepsuit\Liquid\Tests\Stubs\StubNodeVisitor::class)
+        ->getRegisters()->toHaveKey('test');
 });
 
 test('get registered tags', function () {
