@@ -6,14 +6,11 @@ use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Nodes\Document;
 use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Profiler\Profiler;
 use Keepsuit\Liquid\Render\RenderContext;
 
 class Template
 {
     protected TemplateSharedState $state;
-
-    protected ?Profiler $profiler = null;
 
     public function __construct(
         public readonly Document $root,
@@ -58,8 +55,6 @@ class Template
      */
     public function render(RenderContext $context): string
     {
-        $this->profiler = $context->getProfiler();
-
         try {
             $context->mergePartialsCache($this->state->partialsCache);
             $context->mergeOutputs($this->state->outputs);
@@ -79,8 +74,6 @@ class Template
      */
     public function stream(RenderContext $context): \Generator
     {
-        $this->profiler = $context->getProfiler();
-
         try {
             $context->mergePartialsCache($this->state->partialsCache);
             $context->mergeOutputs($this->state->outputs);
@@ -103,10 +96,5 @@ class Template
     public function getErrors(): array
     {
         return $this->state->errors;
-    }
-
-    public function getProfiler(): ?Profiler
-    {
-        return $this->profiler;
     }
 }

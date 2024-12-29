@@ -31,11 +31,6 @@ parameters:
 			path: performance/Shopify/Database.php
 
 		-
-			message: "#^Strict comparison using \\!\\=\\= between null and null will always evaluate to false\\.$#"
-			count: 1
-			path: src/Profiler/Profiler.php
-
-		-
 			message: "#^Parameter \\#3 \\.\\.\\.\\$values of function sprintf expects bool\\|float\\|int\\|string\\|null, mixed given\\.$#"
 			count: 1
 			path: tests/Stubs/TestDrop.php

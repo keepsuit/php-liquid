@@ -21,7 +21,6 @@ use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 use Keepsuit\Liquid\Interrupts\Interrupt;
 use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Profiler\Profiler;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\MissingValue;
 use Keepsuit\Liquid\Support\OutputsBag;
@@ -60,8 +59,6 @@ final class RenderContext
      */
     protected array $interrupts = [];
 
-    protected ?Profiler $profiler;
-
     public function __construct(
         /**
          * Environment variables only available in the current context
@@ -83,7 +80,6 @@ final class RenderContext
          * @var array<string, mixed> $registers
          */
         array $registers = [],
-        bool $profile = false,
         public readonly RenderContextOptions $options = new RenderContextOptions,
         ?ResourceLimits $resourceLimits = null,
         ?Environment $environment = null,
@@ -98,8 +94,6 @@ final class RenderContext
             staticVariables: $staticData,
             registers: array_merge($this->environment->getExtensionRegisters(), $registers),
         );
-
-        $this->profiler = $profile ? new Profiler : null;
     }
 
     public function isPartial(): bool
@@ -317,11 +311,6 @@ final class RenderContext
         return $this->templateName;
     }
 
-    public function getProfiler(): ?Profiler
-    {
-        return $this->profiler;
-    }
-
     public function loadPartial(string $templateName): Template
     {
         if (! Arr::has($this->sharedState->partialsCache, $templateName)) {
@@ -372,7 +361,6 @@ final class RenderContext
         $subContext->baseScopeDepth = $this->baseScopeDepth + 1;
         $subContext->sharedState = $this->sharedState;
         $subContext->templateName = $templateName;
-        $subContext->profiler = $this->profiler;
         $subContext->partial = true;
 
         return $subContext;

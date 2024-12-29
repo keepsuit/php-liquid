@@ -27,8 +27,6 @@ final class EnvironmentFactory
 
     protected RenderContextOptions $defaultRenderContextOptions;
 
-    protected bool $profile = false;
-
     /**
      * @var array<class-string<LiquidExtension>, LiquidExtension>
      */
@@ -80,13 +78,6 @@ final class EnvironmentFactory
     public function setResourceLimits(ResourceLimits $resourceLimits): EnvironmentFactory
     {
         $this->resourceLimits = $resourceLimits;
-
-        return $this;
-    }
-
-    public function setProfile(bool $profile = true): EnvironmentFactory
-    {
-        $this->profile = $profile;
 
         return $this;
     }
@@ -159,7 +150,6 @@ final class EnvironmentFactory
             fileSystem: $this->fileSystem,
             defaultResourceLimits: $this->resourceLimits,
             defaultRenderContextOptions: $this->defaultRenderContextOptions,
-            profile: $this->profile,
             extensions: array_values($this->extensions),
         );
     }

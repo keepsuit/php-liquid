@@ -44,7 +44,6 @@ class Environment
         ?LiquidErrorHandler $errorHandler = null,
         ?ResourceLimits $defaultResourceLimits = null,
         ?RenderContextOptions $defaultRenderContextOptions = null,
-        public readonly bool $profile = false,
         /** @var LiquidExtension[] $extensions */
         array $extensions = [],
     ) {
@@ -101,7 +100,6 @@ class Environment
             data: $data,
             staticData: $staticData,
             registers: $registers,
-            profile: $this->profile,
             options: $options ?? $this->defaultRenderContextOptions,
             resourceLimits: $resourceLimits,
             environment: $this

@@ -17,14 +17,6 @@ class Document extends Node implements CanBeStreamed
      */
     public function render(RenderContext $context): string
     {
-        if ($context->getProfiler() !== null) {
-            return $context->getProfiler()->profile(
-                node: $this->body,
-                context: $context,
-                templateName: $context->getTemplateName()
-            );
-        }
-
         return $this->body->render($context);
     }
 
@@ -33,12 +25,6 @@ class Document extends Node implements CanBeStreamed
      */
     public function stream(RenderContext $context): \Generator
     {
-        if ($context->getProfiler() !== null) {
-            yield $this->render($context);
-
-            return;
-        }
-
         yield from $this->body->stream($context);
     }
 
