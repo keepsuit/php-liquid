@@ -7,7 +7,7 @@ use Keepsuit\Liquid\Tags\IfTag;
 test('blankspace', function () {
     $template = parseTemplate('  ');
 
-    expect($template->root->children())
+    expect($template->root->body->children())
         ->toHaveCount(1)
         ->{0}->toBeInstanceOf(Text::class)
         ->{0}->value->toBe('  ');
@@ -16,7 +16,7 @@ test('blankspace', function () {
 test('variable beginning', function () {
     $template = parseTemplate('{{funk}}  ');
 
-    expect($template->root->children())
+    expect($template->root->body->children())
         ->toHaveCount(2)
         ->{0}->toBeInstanceOf(Variable::class)
         ->{1}->toBeInstanceOf(Text::class);
@@ -25,7 +25,7 @@ test('variable beginning', function () {
 test('variable end', function () {
     $template = parseTemplate('  {{funk}}');
 
-    expect($template->root->children())
+    expect($template->root->body->children())
         ->toHaveCount(2)
         ->{0}->toBeInstanceOf(Text::class)
         ->{1}->toBeInstanceOf(Variable::class);
@@ -34,7 +34,7 @@ test('variable end', function () {
 test('variable middle', function () {
     $template = parseTemplate('  {{funk}}  ');
 
-    expect($template->root->children())
+    expect($template->root->body->children())
         ->toHaveCount(3)
         ->{0}->toBeInstanceOf(Text::class)
         ->{1}->toBeInstanceOf(Variable::class)
@@ -44,7 +44,7 @@ test('variable middle', function () {
 test('variable many embedded fragments', function () {
     $template = parseTemplate('  {{funk}} {{so}} {{brother}} ');
 
-    expect($template->root->children())
+    expect($template->root->body->children())
         ->toHaveCount(7)
         ->{0}->toBeInstanceOf(Text::class)
         ->{1}->toBeInstanceOf(Variable::class)
@@ -58,7 +58,7 @@ test('variable many embedded fragments', function () {
 test('with block', function () {
     $template = parseTemplate('  {% if hi %} hi {% endif %} ');
 
-    expect($template->root->children())
+    expect($template->root->body->children())
         ->toHaveCount(3)
         ->{0}->toBeInstanceOf(Text::class)
         ->{1}->toBeInstanceOf(IfTag::class)

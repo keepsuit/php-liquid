@@ -3,8 +3,10 @@
 namespace Keepsuit\Liquid;
 
 use Keepsuit\Liquid\Contracts\LiquidErrorHandler;
+use Keepsuit\Liquid\Contracts\LiquidExtension;
 use Keepsuit\Liquid\Contracts\LiquidFileSystem;
 use Keepsuit\Liquid\ErrorHandlers\DefaultErrorHandler;
+use Keepsuit\Liquid\Extensions\StandardExtension;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Filters\FiltersProvider;
 use Keepsuit\Liquid\Render\RenderContextOptions;
@@ -26,16 +28,21 @@ final class EnvironmentFactory
 
     protected RenderContextOptions $defaultRenderContextOptions;
 
-    protected bool $profile = false;
+    /**
+     * @var array<class-string<LiquidExtension>, LiquidExtension>
+     */
+    protected array $extensions = [];
 
     public function __construct()
     {
-        $this->tagRegistry = TagRegistry::default();
-        $this->filterRegistry = FilterRegistry::default();
+        $this->tagRegistry = new TagRegistry;
+        $this->filterRegistry = new FilterRegistry;
         $this->fileSystem = new BlankFileSystem;
         $this->errorHandler = new DefaultErrorHandler;
         $this->resourceLimits = new ResourceLimits;
         $this->defaultRenderContextOptions = new RenderContextOptions;
+
+        $this->addExtension(new StandardExtension);
     }
 
     public static function new(): EnvironmentFactory
@@ -74,13 +81,6 @@ final class EnvironmentFactory
     public function setResourceLimits(ResourceLimits $resourceLimits): EnvironmentFactory
     {
         $this->resourceLimits = $resourceLimits;
-
-        return $this;
-    }
-
-    public function setProfile(bool $profile = true): EnvironmentFactory
-    {
-        $this->profile = $profile;
 
         return $this;
     }
@@ -138,6 +138,13 @@ final class EnvironmentFactory
         return $this;
     }
 
+    public function addExtension(LiquidExtension $extension): EnvironmentFactory
+    {
+        $this->extensions[$extension::class] = $extension;
+
+        return $this;
+    }
+
     public function build(): Environment
     {
         return new Environment(
@@ -146,7 +153,7 @@ final class EnvironmentFactory
             fileSystem: $this->fileSystem,
             defaultResourceLimits: $this->resourceLimits,
             defaultRenderContextOptions: $this->defaultRenderContextOptions,
-            profile: $this->profile,
+            extensions: array_values($this->extensions),
         );
     }
 }

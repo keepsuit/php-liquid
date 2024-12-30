@@ -3,14 +3,17 @@
 namespace Keepsuit\Liquid;
 
 use Keepsuit\Liquid\Contracts\LiquidErrorHandler;
+use Keepsuit\Liquid\Contracts\LiquidExtension;
 use Keepsuit\Liquid\Contracts\LiquidFileSystem;
 use Keepsuit\Liquid\ErrorHandlers\DefaultErrorHandler;
 use Keepsuit\Liquid\Exceptions\LiquidException;
+use Keepsuit\Liquid\Extensions\StandardExtension;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Render\RenderContextOptions;
 use Keepsuit\Liquid\Render\ResourceLimits;
+use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\FilterRegistry;
 use Keepsuit\Liquid\Support\TagRegistry;
 
@@ -30,6 +33,11 @@ class Environment
 
     public readonly RenderContextOptions $defaultRenderContextOptions;
 
+    /**
+     * @var array<class-string<LiquidExtension>, LiquidExtension>
+     */
+    protected array $extensions = [];
+
     public function __construct(
         ?TagRegistry $tagRegistry = null,
         ?FilterRegistry $filterRegistry = null,
@@ -37,20 +45,27 @@ class Environment
         ?LiquidErrorHandler $errorHandler = null,
         ?ResourceLimits $defaultResourceLimits = null,
         ?RenderContextOptions $defaultRenderContextOptions = null,
-        public readonly bool $profile = false,
+        /** @var LiquidExtension[] $extensions */
+        array $extensions = [],
     ) {
-        $this->tagRegistry = $tagRegistry ?? TagRegistry::default();
-        $this->filterRegistry = $filterRegistry ?? FilterRegistry::default();
+        $this->tagRegistry = $tagRegistry ?? new TagRegistry;
+        $this->filterRegistry = $filterRegistry ?? new FilterRegistry;
         $this->fileSystem = $fileSystem ?? new BlankFileSystem;
         $this->errorHandler = $errorHandler ?? new DefaultErrorHandler;
         $this->defaultResourceLimits = $defaultResourceLimits ?? new ResourceLimits;
         $this->defaultRenderContextOptions = $defaultRenderContextOptions ?? new RenderContextOptions;
+
+        foreach ($extensions as $extension) {
+            $this->addExtension($extension);
+        }
     }
 
     public static function default(): Environment
     {
         if (! isset(self::$defaultEnvironment)) {
-            self::$defaultEnvironment = new self;
+            self::$defaultEnvironment = new Environment(
+                extensions: [new StandardExtension]
+            );
         }
 
         return self::$defaultEnvironment;
@@ -91,7 +106,6 @@ class Environment
             data: $data,
             staticData: $staticData,
             registers: $registers,
-            profile: $this->profile,
             options: $options ?? $this->defaultRenderContextOptions,
             resourceLimits: $resourceLimits,
             environment: $this
@@ -114,5 +128,68 @@ class Environment
         $source = $this->fileSystem->readTemplateFile($templateName);
 
         return Template::parse($this->newParseContext(), $source, $templateName);
+    }
+
+    public function addExtension(LiquidExtension $extension): static
+    {
+        $this->extensions[$extension::class] = $extension;
+
+        foreach ($extension->getTags() as $tag) {
+            $this->tagRegistry->register($tag);
+        }
+
+        foreach ($extension->getFiltersProviders() as $filtersProvider) {
+            $this->filterRegistry->register($filtersProvider);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param  class-string<LiquidExtension>  $extensionClass
+     */
+    public function removeExtension(string $extensionClass): static
+    {
+        $extension = $this->extensions[$extensionClass] ?? null;
+
+        if ($extension === null) {
+            return $this;
+        }
+
+        unset($this->extensions[$extensionClass]);
+
+        foreach ($extension->getTags() as $tag) {
+            $this->tagRegistry->delete($tag::tagName());
+        }
+
+        foreach ($extension->getFiltersProviders() as $filtersProvider) {
+            $this->filterRegistry->delete($filtersProvider);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return array<LiquidExtension>
+     */
+    public function getExtensions(): array
+    {
+        return array_values($this->extensions);
+    }
+
+    public function getNodeVisitors(): array
+    {
+        return Arr::flatten(Arr::map(
+            $this->getExtensions(),
+            fn (LiquidExtension $extension) => $extension->getNodeVisitors()
+        ));
+    }
+
+    public function getRegisters(): array
+    {
+        return array_merge(...Arr::map(
+            $this->getExtensions(),
+            fn (LiquidExtension $extension) => $extension->getRegisters()
+        ));
     }
 }

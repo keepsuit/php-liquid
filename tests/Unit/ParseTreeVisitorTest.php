@@ -139,9 +139,14 @@ test('preserve tree structure', function () {
             [
                 null,
                 [
-                    [null, [[null, [['other', [[null, []]]]]]]],
-                    ['test', [[null, []]]],
-                    ['xs', [[null, []]]],
+                    [
+                        null,
+                        [
+                            [null, [[null, [['other', [[null, []]]]]]]],
+                            ['test', [[null, []]]],
+                            ['xs', [[null, []]]],
+                        ],
+                    ],
                 ],
             ],
         ]);

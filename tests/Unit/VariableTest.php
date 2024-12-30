@@ -169,7 +169,7 @@ test('variable lookup interface', function () {
 
 function createVariable(string $markup): Variable
 {
-    $body = parse(sprintf('{{ %s }}', $markup));
+    $document = parse(sprintf('{{ %s }}', $markup));
 
-    return $body->children()[0];
+    return $document->body->children()[0];
 }

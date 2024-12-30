@@ -1,87 +1,81 @@
 <?php
 
 use Keepsuit\Liquid\EnvironmentFactory;
+use Keepsuit\Liquid\Extensions\ProfilerExtension;
+use Keepsuit\Liquid\Profiler\Profile;
 use Keepsuit\Liquid\Profiler\Profiler;
-use Keepsuit\Liquid\Profiler\Timing;
-use Keepsuit\Liquid\Render\RenderContext;
-use Keepsuit\Liquid\Support\Arr;
+use Keepsuit\Liquid\Profiler\ProfileType;
 use Keepsuit\Liquid\Tests\Stubs\ProfilingFileSystem;
 use Keepsuit\Liquid\Tests\Stubs\SleepTag;
 
-beforeEach(function () {
-    $this->factory = EnvironmentFactory::new()
-        ->setFilesystem(new ProfilingFileSystem)
-        ->registerTag(SleepTag::class)
-        ->setProfile();
-});
+test('profiling can be enabled with extension', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString("{{ 'a string' | upcase }}");
 
-test('context allows flagging profiling', function () {
-    $template = parseTemplate("{{ 'a string' | upcase }}");
-    $template->render(new RenderContext);
-    expect($template->getProfiler())->toBeNull();
+    $template->render($context = $environment->newRenderContext());
+    expect($context->getRegister('profiler'))->toBeNull();
 
-    $template->render(new RenderContext(profile: true));
-    expect($template->getProfiler())->toBeInstanceOf(Profiler::class);
+    $environment->addExtension(new ProfilerExtension($profiler = new Profiler));
+    $template->render($context = $environment->newRenderContext());
+    expect($context->getRegister('profiler'))->toBe($profiler);
 });
 
 test('simple profiling', function () {
-    $profiler = profileTemplate("{{ 'a string' | upcase }}");
+    $profile = profileTemplate("{{ 'a string' | upcase }}");
 
-    expect($profiler->getTiming())
-        ->toBeInstanceOf(Timing::class)
+    expect($profile)
+        ->type->toBe(ProfileType::Template)
+        ->name->toBe('template')
         ->getChildren()->toHaveCount(1);
+
+    expect($profile->getChildren()[0])
+        ->type->toBe(ProfileType::Variable)
+        ->name->toBe('a string');
 });
 
 test('profiler ignore raw strings', function () {
-    $profiler = profileTemplate("This is raw string\nstuff\nNewline");
+    $profile = profileTemplate("This is raw string\nstuff\nNewline");
 
-    expect($profiler->getTiming())
-        ->getChildren()->toHaveCount(0);
-});
-
-test('profiler include line numbers of nodes', function () {
-    $profiler = profileTemplate("{{ 'a string' | upcase }}\n{% increment test %}");
-
-    expect($profiler->getTiming())
-        ->getChildren()->toHaveCount(2)
-        ->getChildren()->{0}->lineNumber->toBe(1)
-        ->getChildren()->{1}->lineNumber->toBe(2);
+    expect($profile->getChildren())
+        ->toHaveCount(0);
 });
 
 test('profile render tag', function () {
-    $profiler = profileTemplate("{% render 'a_template' %}");
+    $profile = profileTemplate("{% render 'a_template' %}");
 
-    expect($profiler->getTiming())
+    expect($profile)
         ->getChildren()->toHaveCount(1);
 
-    $renderChildren = $profiler->getTiming()->getChildren()[0]->getChildren();
+    $renderTag = $profile->getChildren()[0];
 
-    expect($renderChildren)
-        ->toHaveCount(2)
-        ->{0}->lineNumber->toBe(1)
-        ->{1}->lineNumber->toBe(2);
+    expect($renderTag)
+        ->type->toBe(ProfileType::Tag)
+        ->name->toBe('render')
+        ->getChildren()->toHaveCount(1);
 
-    foreach ($renderChildren as $child) {
-        expect($child->templateName)->toBe('a_template');
-    }
+    expect($renderTag->getChildren()[0])
+        ->type->toBe(ProfileType::Template)
+        ->name->toBe('a_template')
+        ->getChildren()->toHaveCount(2)
+        ->getChildren()->{0}->type->toBe(ProfileType::Tag)
+        ->getChildren()->{1}->type->toBe(ProfileType::Variable);
 });
 
 test('profile rendering time', function () {
-    $profiler = profileTemplate("{% render 'a_template' %}");
+    $profile = profileTemplate("{% render 'a_template' %}");
 
-    expect($profiler->getTotalTime())
-        ->toBeGreaterThan(0);
+    expect($profile->getDuration())->toBeGreaterThan(0);
 
-    expect($profiler->getTiming()->getTotalTime())
-        ->toBeGreaterThan(0);
+    expect($profile->getStartTime())->toBeLessThan($profile->getEndTime());
 
-    expect($profiler->getTotalTime())
-        ->toBeGreaterThan($profiler->getTiming()->getChildren()[0]->getTotalTime());
+    expect($profile->getDuration())->toBeGreaterThan($profile->getChildren()[0]->getDuration());
 });
 
 test('profiling multiple renders', function () {
-    $environment = $this->factory
+    $environment = EnvironmentFactory::new()
         ->setFilesystem(new ProfilingFileSystem)
+        ->registerTag(SleepTag::class)
+        ->addExtension(new ProfilerExtension($profiler = new Profiler, tags: true, variables: true))
         ->build();
 
     $context = $environment->newRenderContext();
@@ -89,115 +83,136 @@ test('profiling multiple renders', function () {
 
     invade($context)->templateName = 'index';
     $template->render($context);
-    $firstRenderTime = $context->getProfiler()->getTotalTime();
+    expect($profiler->getProfiles())->toHaveCount(1);
+    $firstRenderProfile = $profiler->getProfiles()[0];
+
     invade($context)->templateName = 'layout';
     $template->render($context);
+    expect($profiler->getProfiles())->toHaveCount(2);
+    $secondRenderProfile = $profiler->getProfiles()[1];
 
-    $profiler = $context->getProfiler();
-    $rootTimings = $profiler->getAllTimings();
+    expect($firstRenderProfile)
+        ->name->toBe('index')
+        ->getDuration()->toBeGreaterThan(0.001);
 
-    expect($firstRenderTime)
-        ->toBeGreaterThan(1_000_000);
-    expect($profiler->getTotalTime())->toBeGreaterThan(1_000_000 + $firstRenderTime);
+    expect($secondRenderProfile)
+        ->name->toBe('layout')
+        ->getDuration()->toBeGreaterThan(0.001);
 
-    expect($rootTimings)
-        ->toHaveCount(2)
-        ->{0}->templateName->toBe('index')
-        ->{0}->code->toBeNull()
-        ->{1}->templateName->toBe('layout')
-        ->{1}->code->toBeNull();
-
-    $rootTotalTiming = array_sum(Arr::map($rootTimings, fn ($timing) => $timing->getTotalTime()));
-
-    expect($rootTotalTiming)
-        ->toEqual($profiler->getTotalTime());
+    expect($profiler)
+        ->getStartTime()->toBe($firstRenderProfile->getStartTime())
+        ->getEndTime()->toBe($secondRenderProfile->getEndTime())
+        ->getDuration()->toBe($firstRenderProfile->getDuration() + $secondRenderProfile->getDuration());
 });
 
 test('profiling supports multiple templates', function () {
-    $profiler = profileTemplate("{{ 'a string' | upcase }}\n{% render 'a_template' %}\n{% render 'b_template' %}");
+    $profile = profileTemplate("{{ 'a string' | upcase }}\n{% render 'a_template' %}\n{% render 'b_template' %}");
 
-    expect($profiler->getTiming())
+    expect($profile)
         ->getChildren()->toHaveCount(3);
 
-    $aTemplate = $profiler->getTiming()->getChildren()[1];
-    expect($aTemplate->getChildren())->toHaveCount(2);
-    foreach ($aTemplate->getChildren() as $child) {
-        expect($child->templateName)->toBe('a_template');
-    }
+    $renderTagA = $profile->getChildren()[1];
+    expect($renderTagA)
+        ->type->toBe(ProfileType::Tag)
+        ->name->toBe('render')
+        ->getChildren()->toHaveCount(1)
+        ->getChildren()->{0}->type->toBe(ProfileType::Template)
+        ->getChildren()->{0}->name->toBe('a_template');
 
-    $bTemplate = $profiler->getTiming()->getChildren()[2];
-    expect($bTemplate->getChildren())->toHaveCount(2);
-    foreach ($bTemplate->getChildren() as $child) {
-        expect($child->templateName)->toBe('b_template');
-    }
+    $renderTagB = $profile->getChildren()[2];
+    expect($renderTagB)
+        ->type->toBe(ProfileType::Tag)
+        ->name->toBe('render')
+        ->getChildren()->toHaveCount(1)
+        ->getChildren()->{0}->type->toBe(ProfileType::Template)
+        ->getChildren()->{0}->name->toBe('b_template');
 });
 
 test('profiling supports rendering the same partial multiple times', function () {
-    $profiler = profileTemplate("{{ 'a string' | upcase }}\n{% render 'a_template' %}\n{% render 'a_template' %}");
+    $profile = profileTemplate("{{ 'a string' | upcase }}\n{% render 'a_template' %}\n{% render 'a_template' %}");
 
-    expect($profiler->getTiming())
-        ->getChildren()->toHaveCount(3);
+    $renderTagA = $profile->getChildren()[1];
+    expect($renderTagA)
+        ->type->toBe(ProfileType::Tag)
+        ->name->toBe('render')
+        ->getChildren()->toHaveCount(1)
+        ->getChildren()->{0}->type->toBe(ProfileType::Template)
+        ->getChildren()->{0}->name->toBe('a_template');
 
-    $aTemplate = $profiler->getTiming()->getChildren()[1];
-    expect($aTemplate->getChildren())->toHaveCount(2);
-    foreach ($aTemplate->getChildren() as $child) {
-        expect($child->templateName)->toBe('a_template');
-    }
-
-    $aTemplate2 = $profiler->getTiming()->getChildren()[2];
-    expect($aTemplate2->getChildren())->toHaveCount(2);
-    foreach ($aTemplate2->getChildren() as $child) {
-        expect($child->templateName)->toBe('a_template');
-    }
+    $renderTagB = $profile->getChildren()[2];
+    expect($renderTagB)
+        ->type->toBe(ProfileType::Tag)
+        ->name->toBe('render')
+        ->getChildren()->toHaveCount(1)
+        ->getChildren()->{0}->type->toBe(ProfileType::Template)
+        ->getChildren()->{0}->name->toBe('a_template');
 });
 
 test('profiling marks children of if blocks', function () {
-    $profiler = profileTemplate('{% if true %} {% increment test %} {{ test }} {% endif %}');
+    $profile = profileTemplate('{% if true %} {% increment test %} {{ test }} {% endif %}');
 
-    expect($profiler->getTiming())
-        ->getChildren()->toHaveCount(1)
-        ->getChildren()->{0}->getChildren()->toHaveCount(2);
+    expect($profile->getChildren())
+        ->toHaveCount(1)
+        ->{0}->type->toBe(ProfileType::Tag)
+        ->{0}->name->toBe('if')
+        ->{0}->getChildren()->toHaveCount(2);
+
+    expect($profile->getChildren()[0]->getChildren())
+        ->{0}->type->toBe(ProfileType::Tag)
+        ->{0}->name->toBe('increment')
+        ->{1}->type->toBe(ProfileType::Variable)
+        ->{1}->name->toBe('test');
 });
 
 test('profiling marks children of for blocks', function () {
-    $profiler = profileTemplate('{% for item in collection %} {{ item }} {% endfor %}', [
+    $profile = profileTemplate('{% for item in collection %} {{ item }} {% endfor %}', [
         'collection' => ['one', 'two'],
     ]);
 
-    expect($profiler->getTiming())
-        ->getChildren()->toHaveCount(1)
-        ->getChildren()->{0}->getChildren()->toHaveCount(2);
+    expect($profile->getChildren())
+        ->toHaveCount(1)
+        ->{0}->type->toBe(ProfileType::Tag)
+        ->{0}->name->toBe('for')
+        ->{0}->getChildren()->toHaveCount(2);
+
+    expect($profile->getChildren()[0]->getChildren())
+        ->{1}->type->toBe(ProfileType::Variable)
+        ->{1}->name->toBe('item');
 });
 
-test('profiling support self time', function () {
-    $profiler = profileTemplate('{% for item in collection %} {% sleep item %} {% endfor %}', [
+test('profiling support self duration', function () {
+    $profile = profileTemplate('{% for item in collection %} {% sleep item %} {% endfor %}', [
         'collection' => [0.001, 0.002],
     ]);
 
-    $node = $profiler->getTiming()->getChildren()[0];
+    $node = $profile->getChildren()[0];
     $leaf = $node->getChildren()[0];
 
-    expect($leaf->getSelfTime())->toBeGreaterThan(0);
-    expect($node->getSelfTime())
-        ->toBeLessThanOrEqual($node->getTotalTime() - $leaf->getTotalTime());
+    expect($leaf->getSelfDuration())->toBeGreaterThan(0);
+    expect($node->getSelfDuration())->toBeLessThanOrEqual($node->getDuration() - $leaf->getDuration());
 });
 
-test('profiling support total time', function () {
-    $profiler = profileTemplate('{% if true %} {% sleep 0.001 %} {% endif %}');
+test('profiling support duration', function () {
+    $profile = profileTemplate('{% if true %} {% sleep 0.001 %} {% endif %}');
 
-    expect($profiler->getTotalTime())->toBeGreaterThan(0);
-    expect($profiler->getTiming()->getTotalTime())->toBeGreaterThan(0);
+    expect($profile->getDuration())->toBeGreaterThan(0);
+    expect($profile->getChildren()[0]->getDuration())->toBeGreaterThan(0);
 });
 
-function profileTemplate(string $source, array $assigns = []): ?Profiler
+function profileTemplate(string $source, array $assigns = []): Profile
 {
-    /** @var \Keepsuit\Liquid\EnvironmentFactory $factory */
-    $factory = test()->factory;
-    $environment = $factory->setProfile()->build();
-    $template = $environment->parseString($source);
-    $template->render($environment->newRenderContext(
-        staticData: $assigns,
-    ));
+    $environment = EnvironmentFactory::new()
+        ->setFilesystem(new ProfilingFileSystem)
+        ->registerTag(SleepTag::class)
+        ->addExtension(new ProfilerExtension($profiler = new Profiler, tags: true, variables: true))
+        ->build();
 
-    return $template->getProfiler();
+    $template = $environment->parseString($source);
+
+    $context = $environment->newRenderContext(
+        staticData: $assigns,
+    );
+    $template->render($context);
+
+    return $profiler->getProfiles()[0];
 }

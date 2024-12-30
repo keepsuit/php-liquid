@@ -4,17 +4,13 @@ namespace Keepsuit\Liquid\Parse;
 
 use Closure;
 use Keepsuit\Liquid\Environment;
-use Keepsuit\Liquid\Exceptions\ArithmeticException;
-use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\LiquidException;
-use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Nodes\BodyNode;
+use Keepsuit\Liquid\Nodes\Document;
 use Keepsuit\Liquid\Support\OutputsBag;
 use Keepsuit\Liquid\Support\PartialsCache;
 use Keepsuit\Liquid\Template;
-use Throwable;
 
 class ParseContext
 {
@@ -61,7 +57,7 @@ class ParseContext
         return $this->lexer->tokenize($markup);
     }
 
-    public function parse(TokenStream $tokenStream): BodyNode
+    public function parse(TokenStream $tokenStream): Document
     {
         return $this->parser->parse($tokenStream);
     }
@@ -124,22 +120,5 @@ class ParseContext
         } finally {
             $this->depth -= 1;
         }
-    }
-
-    /**
-     * @throws LiquidException
-     */
-    public function handleError(Throwable $error): void
-    {
-        $error = match (true) {
-            $error instanceof ResourceLimitException => throw $error,
-            $error instanceof \ArithmeticError => new ArithmeticException($error),
-            $error instanceof LiquidException => $error,
-            default => new InternalException($error),
-        };
-
-        $error->lineNumber = $error->lineNumber ?? $this->lineNumber;
-
-        throw $error;
     }
 }

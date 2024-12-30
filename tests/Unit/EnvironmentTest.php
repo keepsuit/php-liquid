@@ -1,6 +1,7 @@
 <?php
 
 use Keepsuit\Liquid\Environment;
+use Keepsuit\Liquid\EnvironmentFactory;
 
 test('default environment is static', function () {
     $env1 = Environment::default();
@@ -54,4 +55,46 @@ test('default environment has standard filters registered', function () {
         ->toContain('floor')
         ->toContain('join')
         ->toContain('last');
+});
+
+test('standard extension can be removed', function () {
+    $environment = EnvironmentFactory::new()->build();
+
+    expect($environment)
+        ->getExtensions()->toHaveCount(1)
+        ->tagRegistry->all()->toBeGreaterThan(0)
+        ->filterRegistry->all()->toBeGreaterThan(0);
+
+    $environment->removeExtension(\Keepsuit\Liquid\Extensions\StandardExtension::class);
+
+    expect($environment)
+        ->getExtensions()->toHaveCount(0)
+        ->tagRegistry->all()->toHaveCount(0)
+        ->filterRegistry->all()->toHaveCount(0);
+});
+
+test('add extension', function () {
+    $environment = EnvironmentFactory::new()->build();
+
+    $environment->addExtension(new \Keepsuit\Liquid\Tests\Stubs\StubExtension);
+
+    expect($environment)
+        ->getExtensions()->toHaveCount(2)
+        ->getNodeVisitors()->toHaveCount(1)
+        ->getNodeVisitors()->{0}->toBeInstanceOf(\Keepsuit\Liquid\Tests\Stubs\StubNodeVisitor::class)
+        ->getRegisters()->toHaveKey('test');
+});
+
+test('remove extension', function () {
+    $environment = EnvironmentFactory::new()->build();
+
+    $environment->addExtension(new \Keepsuit\Liquid\Tests\Stubs\StubExtension);
+    expect($environment)->getExtensions()->toHaveCount(2);
+
+    $environment->removeExtension(\Keepsuit\Liquid\Tests\Stubs\StubExtension::class);
+
+    expect($environment)
+        ->getExtensions()->toHaveCount(1)
+        ->getNodeVisitors()->toHaveCount(0)
+        ->getRegisters()->not->toHaveKey('test');
 });

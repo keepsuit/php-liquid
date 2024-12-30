@@ -13,6 +13,11 @@ abstract class Tag extends Node
 {
     abstract public static function tagName(): string;
 
+    public function debugLabel(): ?string
+    {
+        return static::tagName();
+    }
+
     /**
      * @throws SyntaxException
      */

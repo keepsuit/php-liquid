@@ -3,7 +3,6 @@
 namespace Keepsuit\Liquid\Support;
 
 use Keepsuit\Liquid\Tag;
-use Keepsuit\Liquid\Tags;
 
 class TagRegistry
 {
@@ -44,29 +43,5 @@ class TagRegistry
     public function all(): array
     {
         return $this->tags;
-    }
-
-    /**
-     * Returns TagRegistry instance with standard tags registered.
-     */
-    public static function default(): TagRegistry
-    {
-        return (new TagRegistry)
-            ->register(Tags\AssignTag::class)
-            ->register(Tags\BreakTag::class)
-            ->register(Tags\CaptureTag::class)
-            ->register(Tags\CaseTag::class)
-            ->register(Tags\ContinueTag::class)
-            ->register(Tags\CycleTag::class)
-            ->register(Tags\DecrementTag::class)
-            ->register(Tags\EchoTag::class)
-            ->register(Tags\ForTag::class)
-            ->register(Tags\IfChanged::class)
-            ->register(Tags\IfTag::class)
-            ->register(Tags\IncrementTag::class)
-            ->register(Tags\LiquidTag::class)
-            ->register(Tags\RenderTag::class)
-            ->register(Tags\TableRowTag::class)
-            ->register(Tags\UnlessTag::class);
     }
 }
