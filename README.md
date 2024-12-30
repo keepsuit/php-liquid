@@ -281,6 +281,27 @@ $environment = \Keepsuit\Liquid\EnvironmentFactory::new()
 $environment->addExtension(new CustomExtension());
 ```
 
+## Custom tags and filters
+
+By default, only the standard liquid tags and filters are available.
+But this package provides some custom tags and filters that you can use.
+
+### Tags
+
+- `DynamicRender`: This tag replace the default `Render` tag and allows to render dynamic templates (eg. read template name from a variable).
+
+### Filters
+
+- `TernaryFilter`
+  - `ternary`: adds a ternary operator.
+      ```liquid
+      {{ condition | ternary: true_value, false_value }}
+    
+      # Example
+      {{ true | ternary: 'yes', 'no' }} # yes
+      {{ false | ternary: 'yes', 'no' }} # no
+      ```
+
 ## Testing
 
 ```bash
