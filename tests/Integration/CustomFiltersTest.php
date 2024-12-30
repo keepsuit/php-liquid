@@ -1,9 +1,9 @@
 <?php
 
 beforeEach(function () {
-    $this->factory = \Keepsuit\Liquid\TemplateFactory::new()
+    $this->factory = \Keepsuit\Liquid\EnvironmentFactory::new()
         ->setStrictVariables(true)
-        ->registerFilter(\Keepsuit\Liquid\Filters\TernaryFilter::class);
+        ->registerFilters(\Keepsuit\Liquid\Filters\Custom\TernaryFilter::class);
 });
 
 test('ternary', function () {

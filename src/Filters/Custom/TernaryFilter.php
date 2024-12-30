@@ -1,8 +1,9 @@
 <?php
 
-namespace Keepsuit\Liquid\Filters;
+namespace Keepsuit\Liquid\Filters\Custom;
 
 use Keepsuit\Liquid\Contracts\AsLiquidValue;
+use Keepsuit\Liquid\Filters\FiltersProvider;
 
 class TernaryFilter extends FiltersProvider
 {
