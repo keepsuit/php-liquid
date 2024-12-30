@@ -18,7 +18,8 @@ Liquid is a template engine with interesting advantages:
 
 |  PHP Liquid | Shopify Liquid |
 |------------:|---------------:|
-| v0.1 - v0.5 |           v5.5 |
+|        v0.7 |           v5.6 |
+| v0.1 - v0.6 |           v5.5 |
 
 #### Differences from Shopify Liquid
 
@@ -35,44 +36,58 @@ composer require keepsuit/liquid
 
 ## Usage
 
-Create a new template factory instance:
+Create a new environment factory instance:
 
 ```php
-$factory = \Keepsuit\Liquid\EnvironmentFactory::new()
+$environment = \Keepsuit\Liquid\EnvironmentFactory::new()
     // enable strict variables mode
     ->setStrictVariables()
+    // enable strict filters mode
+    ->setStrictFilters()
     // rethrow exceptions instead of rendering them
     ->setRethrowErrors()
+    // replace the default error handler
+    ->setErrorHandler(new \Keepsuit\Liquid\ErrorHandlers\DefaultErrorHandler())
     // set filesystem used to load templates
-    ->setFilesystem(new \Keepsuit\Liquid\FileSystems\LocalFileSystem(__DIR__ . '/views'));
+    ->setFilesystem(new \Keepsuit\Liquid\FileSystems\LocalFileSystem(__DIR__ . '/views'))
+    // set the resource limits
+    ->setResourceLimits(new \Keepsuit\Liquid\ResourceLimits())
+    // register a custom extension
+    ->addExtension(new CustomExtension())
+    // register a custom tag
+    ->registerTag(CustomTag::class)
+    // register a custom filters provider
+    ->registerFilters(CustomFilters::class)
+    // build the environment
+    ->build();
 ```
 
 Then create a new template instance parsing a liquid template:
 
 ```php
-/** @var \Keepsuit\Liquid\EnvironmentFactory $factory */
+/** @var \Keepsuit\Liquid\Environment $environment */
 
 // Parse from string
-$template = $factory->parseString('Hello {{ name }}!');
+$template = $environment->parseString('Hello {{ name }}!');
 
 // Parse from template (loaded from filesystem)
-$template = $factory->parseTemplate('index');
+$template = $environment->parseTemplate('index');
 ```
 
 And finally render the template:
 
 ```php
-/** @var \Keepsuit\Liquid\EnvironmentFactory $factory */
+/** @var \Keepsuit\Liquid\Environment $environment */
 /** @var \Keepsuit\Liquid\Template $template */
 
 // Create the render context
-$context = $factory->newRenderContext(
-    // Environment variables only available in the current context
-    environment: [
+$context = $environment->newRenderContext(
+    // Data available only in the current context
+    data: [
         'name' => 'John',
     ],
-    // Environment variables that are shared with all sub-contexts
-    staticEnvironment: []
+    // Data shared with all sub-contexts
+    staticData: []
 )
 
 $view = $template->render($context);
@@ -127,7 +142,7 @@ class ProductDrop extends Drop {
 }
 ```
 
-If you implements the `MapsToLiquid` interface in your domain classes, 
+If you implement the `MapsToLiquid` interface in your domain classes, 
 the liquid renderer will automatically convert your objects to drops.
 
 ```php
@@ -176,19 +191,24 @@ class CustomTag extends Tag
 > [!NOTE]
 > Take a look at the implementation of default tags to see how to implement `parse` and `render` methods.
 
-Then you need to register the tag in the template factory:
+Then you need to register the tag in the environment:
 
 ```php
-/** @var \Keepsuit\Liquid\EnvironmentFactory $factory */
+// register when building the environment
+$environment = \Keepsuit\Liquid\EnvironmentFactory::new()
+    ->registerTag(CustomTag::class)
+    ->build();
 
-$factory->registerTag(CustomTag::class);
+// or directly in the environment
+$environment->tagRegistry->register(CustomTag::class);
 ```
 
 ### Custom filters
 
 To create a custom filter, you need to create a class that extends the `Keepsuit\Liquid\Filters\FiltersProvider` abstract class.
 
-Each public method of the class will be registered as a filter.
+Each public method of the class will be registered as a filter. 
+You can "hide" a public method with the `Hidden` attribute, so it will not be registered as filter.
 
 ```php
 use Keepsuit\Liquid\Filters\FiltersProvider;
@@ -199,15 +219,66 @@ class CustomFilters extends FiltersProvider
     {
         return 'custom '.$value;
     }
+    
+    #[\Keepsuit\Liquid\Attributes\Hidden]
+    public function notAFilter(string $value): string
+    {
+        return 'hidden '.$value;
+    }
 }
 ```
 
-Then you need to register the filters provider in the template factory:
+Then you need to register the filters provider in the environment:
 
 ```php
-/** @var \Keepsuit\Liquid\EnvironmentFactory $factory */
+// register when building the environment
+$environment = \Keepsuit\Liquid\EnvironmentFactory::new()
+    ->registerFilters(CustomFilters::class)
+    ->build();
 
-$factory->registerFilters(CustomFilters::class);
+// or directly in the environment
+$environment->filterRegistry->register(CustomFilters::class);
+```
+
+### Extensions
+
+Extensions allow you to add custom tags, filters, and other features to the liquid environment.
+
+To create a custom extension, you need to create a class that extends the `Keepsuit\Liquid\Extensions\Extension` abstract class.
+
+```php
+class CustomExtension extends \Keepsuit\Liquid\Extensions\Extension
+{
+    public function getTags() : array{
+        return [
+            CustomTag::class,
+        ];
+    }
+    
+    public function getFiltersProviders() : array{
+        return [
+            CustomFilters::class,
+        ];
+    }
+    
+    // custom registers passed to render context
+    public function getRegisters() : array {
+        return [
+            'custom' => fn() => 'custom value',
+        ];
+    }
+}
+```
+
+Then you need to register the extension in the environment:
+```php
+// register when building the environment
+$environment = \Keepsuit\Liquid\EnvironmentFactory::new()
+    ->addExtension(new CustomExtension())
+    ->build();
+
+// or directly in the environment
+$environment->addExtension(new CustomExtension());
 ```
 
 ## Testing
