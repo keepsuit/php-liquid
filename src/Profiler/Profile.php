@@ -49,19 +49,27 @@ class Profile
 
     public function getEndTime(): float
     {
-        $this->ensureProfileIsClosed();
+        if (! $this->isClosed()) {
+            return 0;
+        }
 
         return $this->end->time;
     }
 
     public function getDuration(): float
     {
+        if (! $this->isClosed()) {
+            return 0;
+        }
+
         return $this->getEndTime() - $this->getStartTime();
     }
 
     public function getSelfDuration(): float
     {
-        $this->ensureProfileIsClosed();
+        if (! $this->isClosed()) {
+            return 0;
+        }
 
         if ($this->selfDuration !== null) {
             return $this->selfDuration;
@@ -78,28 +86,20 @@ class Profile
 
     public function getMemoryUsage(): int
     {
-        $this->ensureProfileIsClosed();
+        if (! $this->isClosed()) {
+            return 0;
+        }
 
         return $this->end->memory - $this->start->memory;
     }
 
     public function getPeakMemoryUsage(): int
     {
-        $this->ensureProfileIsClosed();
+        if (! $this->isClosed()) {
+            return 0;
+        }
 
         return $this->end->peakMemory - $this->start->peakMemory;
-    }
-
-    /**
-     * @phpstan-assert ProfileSnapshot $this->end
-     *
-     * @throws StandardException
-     */
-    protected function ensureProfileIsClosed(): void
-    {
-        if ($this->end === null) {
-            throw new StandardException('Profile has not been closed');
-        }
     }
 
     public function addChild(Profile $profile): static
@@ -119,6 +119,14 @@ class Profile
     public function getChildren(): array
     {
         return $this->children;
+    }
+
+    /**
+     * @phpstan-assert-if-true !null $this->end
+     */
+    public function isClosed(): bool
+    {
+        return $this->end !== null;
     }
 
     public function serialize(): array
