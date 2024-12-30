@@ -312,13 +312,24 @@ final class RenderContext
         return $this->templateName;
     }
 
-    public function loadPartial(string $templateName): Template
+    public function loadPartial(string $templateName, bool $parseIfMissing = false): Template
     {
         if ($partial = $this->sharedState->partialsCache->get($templateName)) {
             return $partial;
         }
 
-        throw new StandardException(sprintf("The partial '%s' has not be loaded during parsing", $templateName));
+        if (! $parseIfMissing) {
+            throw new StandardException(sprintf("The partial '%s' has not be loaded during parsing", $templateName));
+        }
+
+        $parseContext = $this->environment->newParseContext();
+
+        $template = $parseContext->loadPartial($templateName);
+
+        $this->sharedState->partialsCache->merge($parseContext->getPartialsCache());
+        $this->sharedState->outputs->merge($parseContext->getOutputs());
+
+        return $template;
     }
 
     public function mergePartialsCache(PartialsCache $partialsCache): RenderContext
