@@ -1,5 +1,6 @@
 <?php
 
+use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\Exceptions\ArithmeticException;
 use Keepsuit\Liquid\Support\UndefinedVariable;
 use Keepsuit\Liquid\Tests\Stubs\BooleanDrop;
@@ -8,9 +9,8 @@ use Keepsuit\Liquid\Tests\Stubs\TestDrop;
 use Keepsuit\Liquid\Tests\Stubs\ThingWithParamToLiquid;
 
 beforeEach(function () {
-    $templateFactory = \Keepsuit\Liquid\TemplateFactory::new();
-    $this->filters = $templateFactory->getFilterRegistry();
-    $this->context = $templateFactory->newRenderContext();
+    $this->filters = Environment::default()->filterRegistry;
+    $this->context = Environment::default()->newRenderContext();
 });
 
 test('size', function () {

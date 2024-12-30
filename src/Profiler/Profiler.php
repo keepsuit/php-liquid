@@ -2,79 +2,84 @@
 
 namespace Keepsuit\Liquid\Profiler;
 
-use Keepsuit\Liquid\Nodes\Node;
-use Keepsuit\Liquid\Nodes\Text;
-use Keepsuit\Liquid\Render\RenderContext;
+use Keepsuit\Liquid\Exceptions\StandardException;
+use Keepsuit\Liquid\Support\Arr;
 
 class Profiler
 {
-    protected array $rootTimings = [];
+    /**
+     * @var array<int,Profile>
+     */
+    protected array $rootProfiles = [];
 
-    protected int $totalTime = 0;
+    /**
+     * @var array<int,Profile>
+     */
+    protected array $activeProfiles = [];
 
-    protected ?Timing $currentRootTiming = null;
-
-    protected ?Timing $currentTiming = null;
-
-    public function profile(Node $node, RenderContext $context, ?string $templateName): string
+    public function enter(Profile $profile): void
     {
-        if ($this->currentTiming != null) {
-            return $node->render($context);
+        if (count($this->activeProfiles) === 0) {
+            $this->rootProfiles[] = $profile;
+        } else {
+            $this->activeProfiles[0]->addChild($profile);
         }
 
-        try {
-            $this->currentRootTiming = null;
-
-            return $this->profileNode($node, $context, $templateName);
-        } finally {
-            $this->currentTiming = null;
-
-            if ($this->currentRootTiming !== null) {
-                $this->rootTimings[] = $this->currentRootTiming;
-                $this->totalTime += $this->currentRootTiming->getTotalTime();
-            }
-        }
+        array_unshift($this->activeProfiles, $profile);
     }
 
-    public function profileNode(Node $node, RenderContext $context, ?string $templateName): string
+    public function leave(): Profile
     {
-        if ($node instanceof Text) {
-            return $node->render($context);
+        $activeProfile = array_shift($this->activeProfiles);
+
+        if (! $activeProfile instanceof Profile) {
+            throw new StandardException('There is no active profile to leave');
         }
 
-        $timing = new Timing(
-            $node,
-            templateName: $templateName,
-        );
+        $activeProfile->leave();
 
-        $this->currentRootTiming ??= $timing;
-
-        $parentTiming = $this->currentTiming;
-        $this->currentTiming = $timing;
-
-        $output = $timing->measure(fn () => $node->render($context));
-
-        $parentTiming?->addChild($timing);
-        $this->currentTiming = $parentTiming;
-
-        return $output;
-    }
-
-    public function getTotalTime(): int
-    {
-        return $this->totalTime;
-    }
-
-    public function getTiming(): ?Timing
-    {
-        return $this->currentRootTiming;
+        return $activeProfile;
     }
 
     /**
-     * @return array<Timing>
+     * @return Profile[]
      */
-    public function getAllTimings(): array
+    public function getProfiles(): array
     {
-        return $this->rootTimings;
+        return $this->rootProfiles;
+    }
+
+    public function reset(): void
+    {
+        $this->rootProfiles = [];
+        $this->activeProfiles = [];
+    }
+
+    public function serialize(): array
+    {
+        return Arr::map($this->rootProfiles, fn (Profile $profile) => $profile->serialize());
+    }
+
+    public function getDuration(): float
+    {
+        return array_sum(Arr::map($this->rootProfiles, fn (Profile $profile) => $profile->getDuration()));
+    }
+
+    public function getStartTime(): float
+    {
+        if ($this->rootProfiles === []) {
+            return 0;
+        }
+
+        return $this->rootProfiles[0]->getStartTime();
+    }
+
+    public function getEndTime(): float
+    {
+        if ($this->rootProfiles === []) {
+            return 0;
+        }
+
+        return $this->rootProfiles[count($this->rootProfiles) - 1]->getEndTime();
     }
 }

@@ -33,7 +33,7 @@ class BodyNode extends Node implements CanBeStreamed
     }
 
     /**
-     * @param  array<Tag|Variable|Text>  $children
+     * @param  array<Node>  $children
      */
     public function setChildren(array $children): BodyNode
     {
@@ -74,6 +74,11 @@ class BodyNode extends Node implements CanBeStreamed
         return $output;
     }
 
+    /**
+     * @return \Generator<string>
+     *
+     * @throws LiquidException
+     */
     public function stream(RenderContext $context): \Generator
     {
         $context->resourceLimits->incrementRenderScore(count($this->children));
@@ -104,14 +109,6 @@ class BodyNode extends Node implements CanBeStreamed
 
     protected function renderChild(RenderContext $context, Node $node): string
     {
-        if ($context->getProfiler() !== null) {
-            return $context->getProfiler()->profileNode(
-                node: $node,
-                context: $context,
-                templateName: $context->getTemplateName(),
-            );
-        }
-
         return $node->render($context);
     }
 
@@ -120,12 +117,6 @@ class BodyNode extends Node implements CanBeStreamed
      */
     public function streamChild(RenderContext $context, Node $node): \Generator
     {
-        if ($context->getProfiler() !== null) {
-            yield $this->renderChild($context, $node);
-
-            return;
-        }
-
         if ($node instanceof CanBeStreamed) {
             yield from $node->stream($context);
 
@@ -155,10 +146,5 @@ class BodyNode extends Node implements CanBeStreamed
         }
 
         $this->children = array_filter($this->children, fn (Node $node) => ! ($node instanceof Text));
-    }
-
-    public function parseTreeVisitorChildren(): array
-    {
-        return $this->children;
     }
 }

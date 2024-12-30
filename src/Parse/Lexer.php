@@ -180,7 +180,7 @@ class Lexer
     protected function lexExpression(): void
     {
         if (preg_match('/\G\s+/A', $this->source, $matches, offset: $this->cursor) === 1) {
-            $this->moveCursor($matches[0]);
+            $this->moveCursor($matches[0] ?? '');
         }
 
         $this->ensureStreamNotEnded();

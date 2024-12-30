@@ -5,7 +5,7 @@ use Keepsuit\Liquid\Tags\CaseTag;
 test('case children', function () {
     $template = parseTemplate('{% case var %}{% when true %}WHEN{% else %}ELSE{% endcase %}');
 
-    expect($template->root->children())
+    expect($template->root->body->children())
         ->toHaveCount(1)
         ->{0}->toBeInstanceOf(CaseTag::class)
         ->{0}->children()->toHaveCount(2)

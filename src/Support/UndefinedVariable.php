@@ -13,7 +13,7 @@ class UndefinedVariable implements AsLiquidValue, CanBeRendered
 
     public function render(RenderContext $context): string
     {
-        if ($context->strictVariables) {
+        if ($context->options->strictVariables) {
             throw new UndefinedVariableException($this->variableName);
         }
 

@@ -1,8 +1,8 @@
 <?php
 
+use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\TemplateFactory;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
 test('render with no arguments', function () {
@@ -76,25 +76,27 @@ test('dynamically choosen templates are not allowed', function () {
 });
 
 test('render tag caches second read of some partial', function () {
-    $factory = TemplateFactory::new()
-        ->setFilesystem($fileSystem = new StubFileSystem(['snippet' => 'echo']));
+    $environment = EnvironmentFactory::new()
+        ->setFilesystem($fileSystem = new StubFileSystem(['snippet' => 'echo']))
+        ->build();
 
-    $template = parseTemplate('{% render "snippet" %}{% render "snippet" %}', factory: $factory);
+    $template = $environment->parseString('{% render "snippet" %}{% render "snippet" %}');
 
-    expect($template->render($factory->newRenderContext()))->toBe('echoecho');
+    expect($template->render($environment->newRenderContext()))->toBe('echoecho');
     expect($fileSystem->fileReadCount)->toBe(1);
-    expect($template->render($factory->newRenderContext()))->toBe('echoecho');
+    expect($template->render($environment->newRenderContext()))->toBe('echoecho');
     expect($fileSystem->fileReadCount)->toBe(1);
 });
 
 test('render tag does not cache partials across parsing', function () {
-    $factory = TemplateFactory::new()
-        ->setFilesystem($fileSystem = new StubFileSystem(['snippet' => 'my message']));
+    $environment = EnvironmentFactory::new()
+        ->setFilesystem($fileSystem = new StubFileSystem(['snippet' => 'my message']))
+        ->build();
 
-    expect(parseTemplate('{% render "snippet" %}', factory: $factory)->render($factory->newRenderContext()))->toBe('my message');
+    expect($environment->parseString('{% render "snippet" %}')->render($environment->newRenderContext()))->toBe('my message');
     expect($fileSystem->fileReadCount)->toBe(1);
 
-    expect(parseTemplate('{% render "snippet" %}', factory: $factory)->render($factory->newRenderContext()))->toBe('my message');
+    expect($environment->parseString('{% render "snippet" %}')->render($environment->newRenderContext()))->toBe('my message');
     expect($fileSystem->fileReadCount)->toBe(2);
 });
 

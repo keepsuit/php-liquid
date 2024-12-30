@@ -1,11 +1,12 @@
 <?php
 
+use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
 use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Render\RenderContext;
+use Keepsuit\Liquid\Render\RenderContextOptions;
 use Keepsuit\Liquid\Render\ResourceLimits;
-use Keepsuit\Liquid\TemplateFactory;
 
 test('assigns persist on same context between renders', function () {
     $template = parseTemplate("{{ foo }}{% assign foo = 'foo' %}{{ foo }}");
@@ -27,7 +28,7 @@ test('lamdba is called once over multiple renders', function () {
 
     $global = 0;
     $context = new RenderContext(
-        staticEnvironment: [
+        staticData: [
             'number' => function () use (&$global) {
                 $global += 1;
 
@@ -81,7 +82,7 @@ test('resource limits render score', function () {
 test('resource limits abort rendering after first error', function () {
     $template = parseTemplate('{% for a in (1..100) %} foo1 {% endfor %} bar {% for a in (1..100) %} foo2 {% endfor %}');
     $context = new RenderContext(
-        rethrowExceptions: false,
+        options: new RenderContextOptions(rethrowErrors: false),
         resourceLimits: new ResourceLimits(renderScoreLimit: 50)
     );
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
@@ -128,13 +129,14 @@ test('render length uses number of bytes not characters', function () {
 });
 
 test('undefined variables', function (bool $strict) {
-    $factory = TemplateFactory::new()
-        ->setRethrowExceptions(false)
-        ->setStrictVariables($strict);
+    $environment = EnvironmentFactory::new()
+        ->setRethrowErrors(false)
+        ->setStrictVariables($strict)
+        ->build();
 
     $template = parseTemplate('{{x}} {{y}} {{z.a}} {{z.b}} {{z.c.d}}');
-    $context = $factory->newRenderContext(
-        staticEnvironment: [
+    $context = $environment->newRenderContext(
+        staticData: [
             'x' => 33,
             'z' => ['a' => 32, 'c' => ['e' => 31]],
         ],
@@ -162,11 +164,13 @@ test('undefined variables', function (bool $strict) {
 test('null value does not throw exception', function (bool $strict) {
     $template = parseTemplate('some{{x}}thing');
     $context = new RenderContext(
-        staticEnvironment: [
+        staticData: [
             'x' => null,
         ],
-        rethrowExceptions: false,
-        strictVariables: $strict,
+        options: new RenderContextOptions(
+            strictVariables: $strict,
+            rethrowErrors: false,
+        )
     );
 
     expect($template->render($context))->toBe('something');
@@ -179,13 +183,14 @@ test('null value does not throw exception', function (bool $strict) {
 ]);
 
 test('undefined drop method', function (bool $strict) {
-    $factory = TemplateFactory::new()
-        ->setRethrowExceptions(false)
-        ->setStrictVariables($strict);
+    $environment = EnvironmentFactory::new()
+        ->setRethrowErrors(false)
+        ->setStrictVariables($strict)
+        ->build();
 
     $template = parseTemplate('{{ d.text }} {{ d.undefined }}');
-    $context = $factory->newRenderContext(
-        staticEnvironment: [
+    $context = $environment->newRenderContext(
+        staticData: [
             'd' => new \Keepsuit\Liquid\Tests\Stubs\TextDrop,
         ],
     );
@@ -205,13 +210,14 @@ test('undefined drop method', function (bool $strict) {
 ]);
 
 test('undefined drop method throw exception', function (bool $strict) {
-    $factory = TemplateFactory::new()
-        ->setRethrowExceptions()
-        ->setStrictVariables($strict);
+    $environment = EnvironmentFactory::new()
+        ->setRethrowErrors()
+        ->setStrictVariables($strict)
+        ->build();
 
     $template = parseTemplate('{{ d.text }} {{ d.undefined }}');
-    $context = $factory->newRenderContext(
-        staticEnvironment: [
+    $context = $environment->newRenderContext(
+        staticData: [
             'd' => new \Keepsuit\Liquid\Tests\Stubs\TextDrop,
         ],
     );
@@ -227,13 +233,14 @@ test('undefined drop method throw exception', function (bool $strict) {
 ]);
 
 test('undefined filter', function (bool $strict) {
-    $factory = TemplateFactory::new()
-        ->setRethrowExceptions(false)
-        ->setStrictVariables($strict);
+    $environment = EnvironmentFactory::new()
+        ->setRethrowErrors(false)
+        ->setStrictFilters($strict)
+        ->build();
 
-    $template = parseTemplate('{{a}} {{x | upcase | somefilter1 | somefilter2 | capitalize}}', $factory);
-    $context = $factory->newRenderContext(
-        staticEnvironment: [
+    $template = parseTemplate('{{a}} {{x | upcase | somefilter1 | somefilter2 | capitalize}}', $environment);
+    $context = $environment->newRenderContext(
+        staticData: [
             'a' => 123,
             'x' => 'foo',
         ],
@@ -256,13 +263,14 @@ test('undefined filter', function (bool $strict) {
 ]);
 
 test('undefined filter throw exception', function (bool $strict) {
-    $factory = TemplateFactory::new()
-        ->setRethrowExceptions()
-        ->setStrictVariables($strict);
+    $environment = EnvironmentFactory::new()
+        ->setRethrowErrors()
+        ->setStrictFilters($strict)
+        ->build();
 
     $template = parseTemplate('{{a}} {{x | upcase | somefilter1 | somefilter2 | capitalize}}');
-    $context = $factory->newRenderContext(
-        staticEnvironment: [
+    $context = $environment->newRenderContext(
+        staticData: [
             'a' => 123,
             'x' => 'foo',
         ],

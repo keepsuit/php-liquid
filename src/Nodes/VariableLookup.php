@@ -85,7 +85,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
         $variables = $context->findVariables($name);
 
         if ($this->lookups === []) {
-            if ($context->strictVariables && $variables === []) {
+            if ($context->options->strictVariables && $variables === []) {
                 return new UndefinedVariable($this->toString());
             }
 
@@ -93,6 +93,8 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
         }
 
         foreach ($variables as $object) {
+            $object = $context->evaluate($object);
+
             if ($object instanceof \Generator) {
                 $object = iterator_to_array($object, preserve_keys: false);
             }
@@ -102,7 +104,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 
                 assert(is_string($key) || is_int($key));
 
-                $nextObject = $context->internalContextLookup($object, $key);
+                $nextObject = $context->evaluate($context->internalContextLookup($object, $key));
 
                 if ($nextObject instanceof MissingValue && is_iterable($object) && in_array($i, $this->lookupFilters)) {
                     $nextObject = $context->applyFilter($lookup, $object);
@@ -121,7 +123,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
             return $object;
         }
 
-        return $context->strictVariables ? new UndefinedVariable($this->toString()) : null;
+        return $context->options->strictVariables ? new UndefinedVariable($this->toString()) : null;
     }
 
     protected function applyFilter(RenderContext $context, mixed $object, string $filter): mixed

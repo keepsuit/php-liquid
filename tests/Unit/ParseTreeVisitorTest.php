@@ -1,9 +1,9 @@
 <?php
 
+use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\ParseTreeVisitor;
 use Keepsuit\Liquid\Support\Arr;
-use Keepsuit\Liquid\TemplateFactory;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
 test('variable', function () {
@@ -139,9 +139,14 @@ test('preserve tree structure', function () {
             [
                 null,
                 [
-                    [null, [[null, [['other', [[null, []]]]]]]],
-                    ['test', [[null, []]]],
-                    ['xs', [[null, []]]],
+                    [
+                        null,
+                        [
+                            [null, [[null, [['other', [[null, []]]]]]]],
+                            ['test', [[null, []]]],
+                            ['xs', [[null, []]]],
+                        ],
+                    ],
                 ],
             ],
         ]);
@@ -149,10 +154,11 @@ test('preserve tree structure', function () {
 
 function traversal(string $source): ParseTreeVisitor
 {
-    $factory = TemplateFactory::new()
-        ->setFilesystem(new StubFileSystem(['hai' => 'hei']));
+    $environment = EnvironmentFactory::new()
+        ->setFilesystem(new StubFileSystem(['hai' => 'hei']))
+        ->build();
 
-    return ParseTreeVisitor::for(parseTemplate($source, factory: $factory)->root)
+    return ParseTreeVisitor::for($environment->parseString($source))
         ->addCallbackFor(VariableLookup::class, fn (VariableLookup $node) => [$node->name, null]);
 }
 

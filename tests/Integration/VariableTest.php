@@ -30,7 +30,7 @@ test('generator variable with lookup', function () {
 });
 
 test('variable override', function () {
-    $templateFactory = new \Keepsuit\Liquid\TemplateFactory;
+    $templateFactory = new \Keepsuit\Liquid\EnvironmentFactory;
     $templateFactory->registerTag(\Keepsuit\Liquid\Tests\Stubs\VariableOverrideTag::class);
 
     assertTemplateResult('old|new|old', <<<'LIQUID'
@@ -45,7 +45,7 @@ test('variable override', function () {
 });
 
 test('variable nested override', function () {
-    $templateFactory = new \Keepsuit\Liquid\TemplateFactory;
+    $templateFactory = new \Keepsuit\Liquid\EnvironmentFactory;
     $templateFactory->registerTag(\Keepsuit\Liquid\Tests\Stubs\VariableOverrideTag::class);
 
     assertTemplateResult('old_a,old_b|old_a,new_b|old_a,old_b', <<<'LIQUID'
@@ -60,6 +60,18 @@ test('variable nested override', function () {
             'b' => 'old_b',
         ],
     ], factory: $templateFactory);
+});
+
+test('nested variable lookup', function () {
+    assertTemplateResult('1', '{{ c.b }}', [
+        'a' => ['b' => 1],
+        'c' => new \Keepsuit\Liquid\Nodes\VariableLookup('a'),
+    ]);
+
+    assertTemplateResult('1', '{{ c.d.b }}', [
+        'a' => ['b' => 1],
+        'c' => ['d' => new \Keepsuit\Liquid\Nodes\VariableLookup('a')],
+    ]);
 });
 
 function generator(): Generator

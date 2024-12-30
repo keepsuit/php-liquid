@@ -9,7 +9,6 @@ parameters:
         - tests/Stubs
     tmpDir: build/phpstan
     treatPhpDocTypesAsCertain: false
-    checkGenericClassInNonGenericObjectType: true
     checkPhpDocMissingReturn: true
 
     ignoreErrors:

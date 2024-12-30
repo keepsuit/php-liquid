@@ -2,8 +2,10 @@
 
 namespace Keepsuit\Liquid\Parse;
 
+use Keepsuit\Liquid\Exceptions\StandardException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\BodyNode;
+use Keepsuit\Liquid\Nodes\Document;
 use Keepsuit\Liquid\Nodes\Raw;
 use Keepsuit\Liquid\Nodes\Text;
 use Keepsuit\Liquid\Nodes\Variable;
@@ -25,19 +27,23 @@ class Parser
 
     /**
      * @throws SyntaxException
+     * @throws StandardException
      */
-    public function parse(TokenStream $tokenStream): BodyNode
+    public function parse(TokenStream $tokenStream): Document
     {
         $this->tokenStream = $tokenStream;
         $this->blockScopes = [];
 
-        return $this->subparse();
+        $body = $this->subparse();
+        $document = new Document($body);
+
+        return $this->newNodeTraverser()->traverse($document);
     }
 
     /**
      * @throws SyntaxException
      */
-    public function subparse(): BodyNode
+    protected function subparse(): BodyNode
     {
         if ($this->currentToken() === null) {
             return new BodyNode([]);
@@ -101,7 +107,7 @@ class Parser
         $tagName = $this->tokenStream->consume(TokenType::Identifier)->data;
 
         /** @var class-string<Tag>|null $tagClass */
-        $tagClass = $this->parseContext->tagRegistry->get($tagName) ?? null;
+        $tagClass = $this->parseContext->environment->tagRegistry->get($tagName) ?? null;
 
         if ($tagClass === null || ! class_exists($tagClass)) {
             $blockTagName = $this->currentBlockScope() ? $this->currentBlockScope()::tagName() : null;
@@ -182,5 +188,10 @@ class Parser
     public function currentToken(): ?Token
     {
         return $this->tokenStream->current();
+    }
+
+    protected function newNodeTraverser(): NodeTraverser
+    {
+        return new NodeTraverser(visitors: $this->parseContext->environment->getNodeVisitors());
     }
 }

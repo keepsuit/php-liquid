@@ -6,9 +6,11 @@ use ArithmeticError;
 use Closure;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\IsContextAware;
-use Keepsuit\Liquid\Contracts\LiquidFileSystem;
+use Keepsuit\Liquid\Contracts\LiquidErrorHandler;
 use Keepsuit\Liquid\Contracts\MapsToLiquid;
 use Keepsuit\Liquid\Drop;
+use Keepsuit\Liquid\Environment;
+use Keepsuit\Liquid\ErrorHandlers\RethrowErrorHandler;
 use Keepsuit\Liquid\Exceptions\ArithmeticException;
 use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\LiquidException;
@@ -16,21 +18,25 @@ use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Exceptions\StandardException;
 use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
-use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Interrupts\Interrupt;
 use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Profiler\Profiler;
 use Keepsuit\Liquid\Support\Arr;
-use Keepsuit\Liquid\Support\FilterRegistry;
 use Keepsuit\Liquid\Support\MissingValue;
 use Keepsuit\Liquid\Support\OutputsBag;
+use Keepsuit\Liquid\Support\PartialsCache;
 use Keepsuit\Liquid\Template;
 use RuntimeException;
 use Throwable;
 
 final class RenderContext
 {
+    public readonly Environment $environment;
+
+    public readonly ResourceLimits $resourceLimits;
+
+    protected LiquidErrorHandler $errorHandler;
+
     protected int $baseScopeDepth = 0;
 
     protected ?string $templateName = null;
@@ -54,21 +60,19 @@ final class RenderContext
      */
     protected array $interrupts = [];
 
-    protected ?Profiler $profiler;
-
     public function __construct(
         /**
          * Environment variables only available in the current context
          *
          * @var array<string, mixed>
          */
-        protected array $environment = [],
+        protected array $data = [],
         /**
          * Environment variables that are shared with all sub-contexts
          *
          * @var array<string, mixed> $staticEnvironment
          */
-        array $staticEnvironment = [],
+        array $staticData = [],
         /**
          * Registers allows to provide/export data or utilities inside tags
          * Registers are not accessible as variables.
@@ -77,21 +81,20 @@ final class RenderContext
          * @var array<string, mixed> $registers
          */
         array $registers = [],
-        public readonly bool $rethrowExceptions = false,
-        public readonly bool $strictVariables = false,
-        bool $profile = false,
-        public readonly FilterRegistry $filterRegistry = new FilterRegistry,
-        public readonly ResourceLimits $resourceLimits = new ResourceLimits,
-        public readonly LiquidFileSystem $fileSystem = new BlankFileSystem,
+        public readonly RenderContextOptions $options = new RenderContextOptions,
+        ?ResourceLimits $resourceLimits = null,
+        ?Environment $environment = null,
     ) {
+        $this->environment = $environment ?? Environment::default();
+        $this->resourceLimits = $resourceLimits ?? ResourceLimits::clone($this->environment->defaultResourceLimits);
+        $this->errorHandler = $this->options->rethrowErrors ? new RethrowErrorHandler : $this->environment->errorHandler;
+
         $this->scopes = [[]];
 
         $this->sharedState = new ContextSharedState(
-            staticEnvironment: $staticEnvironment,
-            registers: $registers,
+            staticVariables: $staticData,
+            registers: array_merge($this->environment->getRegisters(), $registers),
         );
-
-        $this->profiler = $profile ? new Profiler : null;
     }
 
     public function isPartial(): bool
@@ -176,8 +179,8 @@ final class RenderContext
         foreach ($this->scopes as $scope) {
             $variables[] = $this->internalContextLookup($scope, $key);
         }
-        $variables[] = $this->internalContextLookup($this->environment, $key);
-        $variables[] = $this->internalContextLookup($this->sharedState->staticEnvironment, $key);
+        $variables[] = $this->internalContextLookup($this->data, $key);
+        $variables[] = $this->internalContextLookup($this->sharedState->staticVariables, $key);
 
         $variables = array_values(array_filter($variables, fn (mixed $value) => ! $value instanceof MissingValue));
 
@@ -231,7 +234,7 @@ final class RenderContext
 
     public function applyFilter(string $filter, mixed $value, array $args = []): mixed
     {
-        return $this->filterRegistry->invoke($this, $filter, $value, $args);
+        return $this->environment->filterRegistry->invoke($this, $filter, $value, $args);
     }
 
     public function getRegister(string $name): mixed
@@ -244,14 +247,14 @@ final class RenderContext
         $this->dynamicRegisters[$name] = $value;
     }
 
-    public function getEnvironment(string $name): mixed
+    public function getData(string $name): mixed
     {
-        return $this->environment[$name] ?? null;
+        return $this->data[$name] ?? null;
     }
 
-    public function setEnvironment(string $name, mixed $value): mixed
+    public function setData(string $name, mixed $value): mixed
     {
-        return $this->environment[$name] = $value;
+        return $this->data[$name] = $value;
     }
 
     public function setToActiveScope(string $key, mixed $value): array
@@ -280,7 +283,7 @@ final class RenderContext
     }
 
     /**
-     * @throws Throwable
+     * @throws LiquidException
      */
     public function handleError(Throwable $error, ?int $lineNumber = null): string
     {
@@ -296,11 +299,7 @@ final class RenderContext
 
         $this->sharedState->errors[] = $error;
 
-        if ($this->rethrowExceptions) {
-            throw $error;
-        }
-
-        return $error->toLiquidErrorMessage();
+        return $this->errorHandler->handle($error);
     }
 
     public function getErrors(): array
@@ -313,35 +312,34 @@ final class RenderContext
         return $this->templateName;
     }
 
-    public function getProfiler(): ?Profiler
+    public function loadPartial(string $templateName, bool $parseIfMissing = false): Template
     {
-        return $this->profiler;
-    }
+        if ($partial = $this->sharedState->partialsCache->get($templateName)) {
+            return $partial;
+        }
 
-    public function loadPartial(string $templateName): Template
-    {
-        if (! Arr::has($this->sharedState->partialsCache, $templateName)) {
+        if (! $parseIfMissing) {
             throw new StandardException(sprintf("The partial '%s' has not be loaded during parsing", $templateName));
         }
 
-        return $this->sharedState->partialsCache[$templateName];
+        $parseContext = $this->environment->newParseContext();
+
+        $template = $parseContext->loadPartial($templateName);
+
+        $this->sharedState->partialsCache->merge($parseContext->getPartialsCache());
+        $this->sharedState->outputs->merge($parseContext->getOutputs());
+
+        return $template;
     }
 
-    public function setPartialsCache(array $partialsCache): RenderContext
+    public function mergePartialsCache(PartialsCache $partialsCache): RenderContext
     {
-        $this->sharedState->partialsCache = $partialsCache;
+        $this->sharedState->partialsCache->merge($partialsCache);
 
         return $this;
     }
 
-    public function mergePartialsCache(array $partialsCache): RenderContext
-    {
-        $this->sharedState->partialsCache = array_merge($this->sharedState->partialsCache, $partialsCache);
-
-        return $this;
-    }
-
-    public function mergeOutputs(array $outputs): RenderContext
+    public function mergeOutputs(OutputsBag $outputs): RenderContext
     {
         $this->sharedState->outputs->merge($outputs);
 
@@ -356,21 +354,18 @@ final class RenderContext
     /**
      * @throws StackLevelException
      */
-    public function newIsolatedSubContext(?string $templateName): RenderContext
+    public function newIsolatedSubContext(?string $templateName = null, ?RenderContextOptions $options = null): RenderContext
     {
         $this->checkOverflow();
 
         $subContext = new RenderContext(
-            rethrowExceptions: $this->rethrowExceptions,
-            strictVariables: $this->strictVariables,
-            filterRegistry: $this->filterRegistry,
+            options: $options ?? $this->options,
             resourceLimits: $this->resourceLimits,
-            fileSystem: $this->fileSystem,
+            environment: $this->environment,
         );
         $subContext->baseScopeDepth = $this->baseScopeDepth + 1;
         $subContext->sharedState = $this->sharedState;
         $subContext->templateName = $templateName;
-        $subContext->profiler = $this->profiler;
         $subContext->partial = true;
 
         return $subContext;

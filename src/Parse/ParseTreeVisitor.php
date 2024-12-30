@@ -4,8 +4,8 @@ namespace Keepsuit\Liquid\Parse;
 
 use Closure;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
-use Keepsuit\Liquid\Nodes\Document;
 use Keepsuit\Liquid\Nodes\Node;
+use Keepsuit\Liquid\Template;
 
 class ParseTreeVisitor
 {
@@ -48,8 +48,8 @@ class ParseTreeVisitor
             return $this->node->children();
         }
 
-        if ($this->node instanceof Document) {
-            return $this->node->children();
+        if ($this->node instanceof Template) {
+            return $this->node->root->children();
         }
 
         return [];

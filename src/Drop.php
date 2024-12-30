@@ -87,7 +87,7 @@ class Drop implements IsContextAware
             }
         }
 
-        if (isset($this->context) && $this->context->strictVariables) {
+        if (isset($this->context) && $this->context->options->strictVariables) {
             throw new UndefinedDropMethodException($name);
         }
 

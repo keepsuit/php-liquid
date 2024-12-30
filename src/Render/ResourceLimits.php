@@ -21,6 +21,15 @@ class ResourceLimits
         public readonly ?int $assignScoreLimit = null,
     ) {}
 
+    public static function clone(ResourceLimits $limits): ResourceLimits
+    {
+        return new ResourceLimits(
+            renderLengthLimit: $limits->renderLengthLimit,
+            renderScoreLimit: $limits->renderScoreLimit,
+            assignScoreLimit: $limits->assignScoreLimit,
+        );
+    }
+
     /**
      * @throws ResourceLimitException
      */

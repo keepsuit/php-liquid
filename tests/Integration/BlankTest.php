@@ -1,10 +1,10 @@
 <?php
 
-use Keepsuit\Liquid\TemplateFactory;
+use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Tests\Stubs\FooBarTag;
 
 test('new tags are not blank by default', function () {
-    $factory = TemplateFactory::new()->registerTag(FooBarTag::class);
+    $factory = EnvironmentFactory::new()->registerTag(FooBarTag::class);
 
     expect(renderTemplate(wrapInFor('{% foobar %}'), factory: $factory))
         ->toBe(str_repeat(' ', 10));

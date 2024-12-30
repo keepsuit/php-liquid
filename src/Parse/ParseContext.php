@@ -3,20 +3,14 @@
 namespace Keepsuit\Liquid\Parse;
 
 use Closure;
-use Keepsuit\Liquid\Contracts\LiquidFileSystem;
-use Keepsuit\Liquid\Exceptions\ArithmeticException;
-use Keepsuit\Liquid\Exceptions\InternalException;
+use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\Exceptions\LiquidException;
-use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\FileSystems\BlankFileSystem;
-use Keepsuit\Liquid\Nodes\BodyNode;
+use Keepsuit\Liquid\Nodes\Document;
 use Keepsuit\Liquid\Support\OutputsBag;
 use Keepsuit\Liquid\Support\PartialsCache;
-use Keepsuit\Liquid\Support\TagRegistry;
 use Keepsuit\Liquid\Template;
-use Throwable;
 
 class ParseContext
 {
@@ -36,10 +30,13 @@ class ParseContext
 
     protected Parser $parser;
 
+    public readonly Environment $environment;
+
     public function __construct(
-        public readonly TagRegistry $tagRegistry = new TagRegistry,
-        public readonly LiquidFileSystem $fileSystem = new BlankFileSystem,
+        ?Environment $environment = null,
     ) {
+        $this->environment = $environment ?? Environment::default();
+
         $this->lineNumber = 1;
         $this->outputs = new OutputsBag;
         $this->partialsCache = new PartialsCache;
@@ -60,7 +57,7 @@ class ParseContext
         return $this->lexer->tokenize($markup);
     }
 
-    public function parse(TokenStream $tokenStream): BodyNode
+    public function parse(TokenStream $tokenStream): Document
     {
         return $this->parser->parse($tokenStream);
     }
@@ -71,17 +68,14 @@ class ParseContext
             return $cache;
         }
 
-        $partialParseContext = new ParseContext(
-            tagRegistry: $this->tagRegistry,
-            fileSystem: $this->fileSystem,
-        );
+        $partialParseContext = new ParseContext(environment: $this->environment);
         $partialParseContext->partial = true;
         $partialParseContext->depth = $this->depth;
         $partialParseContext->outputs = $this->outputs;
         $partialParseContext->partialsCache = $this->partialsCache;
 
         try {
-            $source = $this->fileSystem->readTemplateFile($templateName);
+            $source = $this->environment->fileSystem->readTemplateFile($templateName);
 
             $template = Template::parse($partialParseContext, $source, $templateName);
 
@@ -126,22 +120,5 @@ class ParseContext
         } finally {
             $this->depth -= 1;
         }
-    }
-
-    /**
-     * @throws LiquidException
-     */
-    public function handleError(Throwable $error): void
-    {
-        $error = match (true) {
-            $error instanceof ResourceLimitException => throw $error,
-            $error instanceof \ArithmeticError => new ArithmeticException($error),
-            $error instanceof LiquidException => $error,
-            default => new InternalException($error),
-        };
-
-        $error->lineNumber = $error->lineNumber ?? $this->lineNumber;
-
-        throw $error;
     }
 }

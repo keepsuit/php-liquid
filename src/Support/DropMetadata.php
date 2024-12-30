@@ -49,9 +49,11 @@ final class DropMetadata
 
         $publicMethods = array_filter(
             $classReflection->getMethods(ReflectionMethod::IS_PUBLIC),
-            fn (ReflectionMethod $method) => $method->getAttributes(Hidden::class) === []
+            fn (ReflectionMethod $method) => ! $method->isStatic()
+                && $method->getAttributes(Hidden::class) === []
                 && ! in_array($method->getName(), $blacklist)
                 && ! str_starts_with($method->getName(), '__')
+                && $method->getNumberOfParameters() === 0
         );
 
         $invokableMethods = array_map(
