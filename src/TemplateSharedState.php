@@ -2,20 +2,15 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Support\OutputsBag;
+use Keepsuit\Liquid\Support\PartialsCache;
+
 class TemplateSharedState
 {
-    /**
-     * @var array<\Throwable>
-     */
-    public array $errors = [];
-
-    /**
-     * @var array<string,Template>
-     */
-    public array $partialsCache = [];
-
-    /**
-     * @var array<string,mixed>
-     */
-    public array $outputs = [];
+    public function __construct(
+        /** @var array<\Throwable> */
+        public array $errors = [],
+        public PartialsCache $partialsCache = new PartialsCache,
+        public OutputsBag $outputs = new OutputsBag,
+    ) {}
 }

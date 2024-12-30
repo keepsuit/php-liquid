@@ -24,6 +24,7 @@ use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\MissingValue;
 use Keepsuit\Liquid\Support\OutputsBag;
+use Keepsuit\Liquid\Support\PartialsCache;
 use Keepsuit\Liquid\Template;
 use RuntimeException;
 use Throwable;
@@ -313,28 +314,21 @@ final class RenderContext
 
     public function loadPartial(string $templateName): Template
     {
-        if (! Arr::has($this->sharedState->partialsCache, $templateName)) {
-            throw new StandardException(sprintf("The partial '%s' has not be loaded during parsing", $templateName));
+        if ($partial = $this->sharedState->partialsCache->get($templateName)) {
+            return $partial;
         }
 
-        return $this->sharedState->partialsCache[$templateName];
+        throw new StandardException(sprintf("The partial '%s' has not be loaded during parsing", $templateName));
     }
 
-    public function setPartialsCache(array $partialsCache): RenderContext
+    public function mergePartialsCache(PartialsCache $partialsCache): RenderContext
     {
-        $this->sharedState->partialsCache = $partialsCache;
+        $this->sharedState->partialsCache->merge($partialsCache);
 
         return $this;
     }
 
-    public function mergePartialsCache(array $partialsCache): RenderContext
-    {
-        $this->sharedState->partialsCache = array_merge($this->sharedState->partialsCache, $partialsCache);
-
-        return $this;
-    }
-
-    public function mergeOutputs(array $outputs): RenderContext
+    public function mergeOutputs(OutputsBag $outputs): RenderContext
     {
         $this->sharedState->outputs->merge($outputs);
 

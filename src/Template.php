@@ -33,8 +33,8 @@ class Template
             );
 
             if (! $parseContext->isPartial()) {
-                $template->state->partialsCache = $parseContext->getPartialsCache()->all();
-                $template->state->outputs = $parseContext->getOutputs()->all();
+                $template->state->partialsCache = $parseContext->getPartialsCache();
+                $template->state->outputs = $parseContext->getOutputs();
             }
 
             return $template;
@@ -65,7 +65,7 @@ class Template
             throw $e;
         } finally {
             $this->state->errors = $context->getErrors();
-            $this->state->outputs = $context->getOutputs()->all();
+            $this->state->outputs = $context->getOutputs();
         }
     }
 
@@ -84,7 +84,7 @@ class Template
             throw $e;
         } finally {
             $this->state->errors = $context->getErrors();
-            $this->state->outputs = $context->getOutputs()->all();
+            $this->state->outputs = $context->getOutputs();
         }
     }
 
