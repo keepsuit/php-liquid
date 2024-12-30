@@ -21,7 +21,7 @@ use Traversable;
  */
 class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildren
 {
-    protected string $templateNameExpression;
+    protected string|VariableLookup $templateNameExpression;
 
     protected mixed $variableNameExpression;
 
@@ -48,6 +48,7 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
             $templateNameExpression = $context->params->expression();
             $this->templateNameExpression = match (true) {
                 is_string($templateNameExpression) => $templateNameExpression,
+                $this->allowDynamicPartials() && $templateNameExpression instanceof VariableLookup => $templateNameExpression,
                 default => throw new SyntaxException('Template name must be a string'),
             };
 
@@ -80,7 +81,9 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
 
             $context->params->assertEnd();
 
-            $context->getParseContext()->loadPartial($this->templateNameExpression);
+            if (is_string($this->templateNameExpression)) {
+                $context->getParseContext()->loadPartial($this->templateNameExpression);
+            }
         });
 
         return $this;
@@ -99,9 +102,10 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
 
     public function stream(RenderContext $context): \Generator
     {
-        $partial = $context->loadPartial($this->templateNameExpression);
+        $partial = $this->loadPartial($context);
+        $templateName = $partial->name ?? '';
 
-        $contextVariableName = $this->aliasName ?? Arr::last(explode('/', $this->templateNameExpression));
+        $contextVariableName = $this->aliasName ?? Arr::last(explode('/', $templateName));
         assert(is_string($contextVariableName));
 
         $variable = $this->variableNameExpression ? $context->evaluate($this->variableNameExpression) : null;
@@ -110,7 +114,7 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
             $variable = $variable instanceof Traversable ? iterator_to_array($variable) : $variable;
             assert(is_array($variable));
 
-            $forLoop = new ForLoopDrop($this->templateNameExpression, count($variable));
+            $forLoop = new ForLoopDrop($templateName, count($variable));
 
             foreach ($variable as $value) {
                 $partialContext = $this->buildPartialContext($partial, $context, [
@@ -142,6 +146,20 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
         ];
     }
 
+    protected function loadPartial(RenderContext $context): Template
+    {
+        $templateName = $this->templateNameExpression;
+        if ($this->allowDynamicPartials() && $this->templateNameExpression instanceof VariableLookup) {
+            $templateName = $this->templateNameExpression->evaluate($context);
+        }
+
+        if (! is_string($templateName)) {
+            throw new SyntaxException('Template name must be a string');
+        }
+
+        return $context->loadPartial($templateName, parseIfMissing: $this->allowDynamicPartials());
+    }
+
     protected function buildPartialContext(Template $partial, RenderContext $context, array $variables = []): RenderContext
     {
         $innerContext = $context->newIsolatedSubContext($partial->name);
@@ -155,5 +173,10 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
         }
 
         return $innerContext;
+    }
+
+    protected function allowDynamicPartials(): bool
+    {
+        return false;
     }
 }
