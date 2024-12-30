@@ -11,15 +11,9 @@ use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Filters\FiltersProvider;
 use Keepsuit\Liquid\Render\RenderContextOptions;
 use Keepsuit\Liquid\Render\ResourceLimits;
-use Keepsuit\Liquid\Support\FilterRegistry;
-use Keepsuit\Liquid\Support\TagRegistry;
 
 final class EnvironmentFactory
 {
-    protected TagRegistry $tagRegistry;
-
-    protected FilterRegistry $filterRegistry;
-
     protected LiquidFileSystem $fileSystem;
 
     protected LiquidErrorHandler $errorHandler;
@@ -33,10 +27,18 @@ final class EnvironmentFactory
      */
     protected array $extensions = [];
 
+    /**
+     * @var array<class-string<Tag>>
+     */
+    protected array $tags = [];
+
+    /**
+     * @var array<class-string<FiltersProvider>>
+     */
+    protected array $filters = [];
+
     public function __construct()
     {
-        $this->tagRegistry = new TagRegistry;
-        $this->filterRegistry = new FilterRegistry;
         $this->fileSystem = new BlankFileSystem;
         $this->errorHandler = new DefaultErrorHandler;
         $this->resourceLimits = new ResourceLimits;
@@ -48,20 +50,6 @@ final class EnvironmentFactory
     public static function new(): EnvironmentFactory
     {
         return new self;
-    }
-
-    public function setTagRegistry(TagRegistry $tagRegistry): EnvironmentFactory
-    {
-        $this->tagRegistry = $tagRegistry;
-
-        return $this;
-    }
-
-    public function setFilterRegistry(FilterRegistry $filterRegistry): EnvironmentFactory
-    {
-        $this->filterRegistry = $filterRegistry;
-
-        return $this;
     }
 
     public function setFilesystem(LiquidFileSystem $fileSystem): EnvironmentFactory
@@ -123,7 +111,9 @@ final class EnvironmentFactory
      */
     public function registerTag(string $tag): EnvironmentFactory
     {
-        $this->tagRegistry->register($tag);
+        if (! in_array($tag, $this->tags, true)) {
+            $this->tags[] = $tag;
+        }
 
         return $this;
     }
@@ -133,7 +123,9 @@ final class EnvironmentFactory
      */
     public function registerFilters(string $filtersProvider): EnvironmentFactory
     {
-        $this->filterRegistry->register($filtersProvider);
+        if (! in_array($filtersProvider, $this->filters, true)) {
+            $this->filters[] = $filtersProvider;
+        }
 
         return $this;
     }
@@ -147,13 +139,21 @@ final class EnvironmentFactory
 
     public function build(): Environment
     {
-        return new Environment(
-            tagRegistry: $this->tagRegistry,
-            filterRegistry: $this->filterRegistry,
+        $environment = new Environment(
             fileSystem: $this->fileSystem,
             defaultResourceLimits: $this->resourceLimits,
             defaultRenderContextOptions: $this->defaultRenderContextOptions,
             extensions: array_values($this->extensions),
         );
+
+        foreach ($this->tags as $tag) {
+            $environment->tagRegistry->register($tag);
+        }
+
+        foreach ($this->filters as $filtersProvider) {
+            $environment->filterRegistry->register($filtersProvider);
+        }
+
+        return $environment;
     }
 }

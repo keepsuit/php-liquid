@@ -39,8 +39,6 @@ class Environment
     protected array $extensions = [];
 
     public function __construct(
-        ?TagRegistry $tagRegistry = null,
-        ?FilterRegistry $filterRegistry = null,
         ?LiquidFileSystem $fileSystem = null,
         ?LiquidErrorHandler $errorHandler = null,
         ?ResourceLimits $defaultResourceLimits = null,
@@ -48,8 +46,8 @@ class Environment
         /** @var LiquidExtension[] $extensions */
         array $extensions = [],
     ) {
-        $this->tagRegistry = $tagRegistry ?? new TagRegistry;
-        $this->filterRegistry = $filterRegistry ?? new FilterRegistry;
+        $this->tagRegistry = new TagRegistry;
+        $this->filterRegistry = new FilterRegistry;
         $this->fileSystem = $fileSystem ?? new BlankFileSystem;
         $this->errorHandler = $errorHandler ?? new DefaultErrorHandler;
         $this->defaultResourceLimits = $defaultResourceLimits ?? new ResourceLimits;
