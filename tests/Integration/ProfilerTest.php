@@ -79,14 +79,13 @@ test('profiling multiple renders', function () {
         ->build();
 
     $context = $environment->newRenderContext();
-    $template = $environment->parseString('{% sleep 0.001 %}');
+    $template = $environment->parseString('{% sleep 0.001 %}', 'index');
 
-    invade($context)->templateName = 'index';
     $template->render($context);
     expect($profiler->getProfiles())->toHaveCount(1);
     $firstRenderProfile = $profiler->getProfiles()[0];
 
-    invade($context)->templateName = 'layout';
+    $template = $environment->parseString('{% sleep 0.001 %}', 'layout');
     $template->render($context);
     expect($profiler->getProfiles())->toHaveCount(2);
     $secondRenderProfile = $profiler->getProfiles()[1];

@@ -24,7 +24,7 @@ class ProfilerNodeVisitor implements NodeVisitor
         if ($node instanceof Document) {
             $children = $node->body->children();
             $node->body->setChildren([
-                new ProfilerDisplayStartNode(type: ProfileType::Template),
+                new ProfilerDisplayStartNode(type: ProfileType::Template, name: $node->name),
                 ...$children,
                 new ProfilerDisplayEndNode,
             ]);

@@ -29,13 +29,13 @@ class Parser
      * @throws SyntaxException
      * @throws StandardException
      */
-    public function parse(TokenStream $tokenStream): Document
+    public function parse(TokenStream $tokenStream, ?string $name = null): Document
     {
         $this->tokenStream = $tokenStream;
         $this->blockScopes = [];
 
         $body = $this->subparse();
-        $document = new Document($body);
+        $document = new Document($body, name: $name);
 
         return $this->newNodeTraverser()->traverse($document);
     }

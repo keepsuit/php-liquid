@@ -57,9 +57,9 @@ class ParseContext
         return $this->lexer->tokenize($markup);
     }
 
-    public function parse(TokenStream $tokenStream): Document
+    public function parse(TokenStream $tokenStream, ?string $name = null): Document
     {
-        return $this->parser->parse($tokenStream);
+        return $this->parser->parse($tokenStream, name: $name);
     }
 
     public function loadPartial(string $templateName): Template

@@ -65,6 +65,8 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
                     is_string($aliasName), $aliasName instanceof VariableLookup => (string) $aliasName,
                     default => throw new SyntaxException('Alias name must be a valid variable name'),
                 };
+            } else {
+                $this->aliasName = null;
             }
 
             while ($context->params->consumeOrFalse(TokenType::Comma)) {
@@ -103,7 +105,7 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
     public function stream(RenderContext $context): \Generator
     {
         $partial = $this->loadPartial($context);
-        $templateName = $partial->name ?? '';
+        $templateName = $partial->name() ?? '';
 
         $contextVariableName = $this->aliasName ?? Arr::last(explode('/', $templateName));
         assert(is_string($contextVariableName));
@@ -117,7 +119,7 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
             $forLoop = new ForLoopDrop($templateName, count($variable));
 
             foreach ($variable as $value) {
-                $partialContext = $this->buildPartialContext($partial, $context, [
+                $partialContext = $this->setInnerContextVariables($context->newIsolatedSubContext($templateName), [
                     'forloop' => $forLoop,
                     $contextVariableName => $value,
                 ]);
@@ -130,7 +132,7 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
             return;
         }
 
-        $partialContext = $this->buildPartialContext($partial, $context, [
+        $partialContext = $this->setInnerContextVariables($context->newIsolatedSubContext($templateName), [
             $contextVariableName => $variable,
         ]);
 
@@ -160,19 +162,17 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
         return $context->loadPartial($templateName, parseIfMissing: $this->allowDynamicPartials());
     }
 
-    protected function buildPartialContext(Template $partial, RenderContext $context, array $variables = []): RenderContext
+    protected function setInnerContextVariables(RenderContext $context, array $variables = []): RenderContext
     {
-        $innerContext = $context->newIsolatedSubContext($partial->name);
-
         foreach ($variables as $key => $value) {
-            $innerContext->set($key, $value);
+            $context->set($key, $value);
         }
 
         foreach ($this->attributes as $key => $value) {
-            $innerContext->set($key, $context->evaluate($value));
+            $context->set($key, $context->evaluate($value));
         }
 
-        return $innerContext;
+        return $context;
     }
 
     protected function allowDynamicPartials(): bool

@@ -27,12 +27,7 @@ class ProfilerDisplayStartNode extends Node
             return null;
         }
 
-        $name = match ($this->type) {
-            ProfileType::Template => $context->getTemplateName(),
-            default => $this->name,
-        };
-
-        $profiler->enter($profile = new Profile($this->type, name: $name));
+        $profiler->enter($profile = new Profile($this->type, name: $this->name));
 
         return $profile;
     }

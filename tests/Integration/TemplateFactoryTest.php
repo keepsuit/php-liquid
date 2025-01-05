@@ -9,7 +9,7 @@ test('parse template from string', function () {
 
     $template = $environment->parseString('Hello World', 'foo');
 
-    expect($template->name)->toBe('foo');
+    expect($template->name())->toBe('foo');
     expect($template->render($environment->newRenderContext()))->toBe('Hello World');
 });
 
@@ -22,6 +22,6 @@ test('parse template from file', function () {
 
     $template = $environment->parseTemplate('foo');
 
-    expect($template->name)->toBe('foo');
+    expect($template->name())->toBe('foo');
     expect($template->render($environment->newRenderContext()))->toBe('Hello World');
 });

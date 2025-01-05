@@ -14,7 +14,6 @@ class Template
 
     public function __construct(
         public readonly Document $root,
-        public readonly ?string $name = null,
     ) {
         $this->state = new TemplateSharedState;
     }
@@ -25,11 +24,10 @@ class Template
     public static function parse(ParseContext $parseContext, string $source, ?string $name = null): Template
     {
         try {
-            $root = $parseContext->parse($parseContext->tokenize($source));
+            $root = $parseContext->parse($parseContext->tokenize($source), $name);
 
             $template = new Template(
                 root: $root,
-                name: $name,
             );
 
             if (! $parseContext->isPartial()) {
@@ -61,7 +59,7 @@ class Template
 
             return $this->root->render($context);
         } catch (LiquidException $e) {
-            $e->templateName = $e->templateName ?? $this->name;
+            $e->templateName = $e->templateName ?? $this->root->name;
             throw $e;
         } finally {
             $this->state->errors = $context->getErrors();
@@ -80,7 +78,7 @@ class Template
 
             yield from $this->root->stream($context);
         } catch (LiquidException $e) {
-            $e->templateName = $e->templateName ?? $this->name;
+            $e->templateName = $e->templateName ?? $this->root->name;
             throw $e;
         } finally {
             $this->state->errors = $context->getErrors();
@@ -96,5 +94,10 @@ class Template
     public function getErrors(): array
     {
         return $this->state->errors;
+    }
+
+    public function name(): ?string
+    {
+        return $this->root->name;
     }
 }

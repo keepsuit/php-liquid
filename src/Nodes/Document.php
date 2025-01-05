@@ -10,6 +10,7 @@ class Document extends Node implements CanBeStreamed
 {
     public function __construct(
         public readonly BodyNode $body,
+        public readonly ?string $name = null,
     ) {}
 
     /**
