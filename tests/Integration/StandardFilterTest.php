@@ -78,7 +78,7 @@ test('split', function () {
 test('escape', function () {
     expect($this->filters->invoke($this->context, 'escape', '<strong>'))->toBe('&lt;strong&gt;');
     expect($this->filters->invoke($this->context, 'escape', 1))->toBe('1');
-    //expect($this->filters->invoke($this->context,'escape',(new DateTime())->setDate(2001, 02, 03)))->toBe('2001-02-03');
+    // expect($this->filters->invoke($this->context,'escape',(new DateTime())->setDate(2001, 02, 03)))->toBe('2001-02-03');
     expect($this->filters->invoke($this->context, 'escape', null))->toBeNull;
 });
 
