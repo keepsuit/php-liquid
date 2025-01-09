@@ -141,6 +141,7 @@ final class EnvironmentFactory
     {
         $environment = new Environment(
             fileSystem: $this->fileSystem,
+            errorHandler: $this->errorHandler,
             defaultResourceLimits: $this->resourceLimits,
             defaultRenderContextOptions: $this->defaultRenderContextOptions,
             extensions: array_values($this->extensions),
