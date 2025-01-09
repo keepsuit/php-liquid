@@ -121,7 +121,7 @@ class Environment
      */
     public function parseString(string $source, ?string $name = null): Template
     {
-        return Template::parse($this->newParseContext(), $source, $name);
+        return $this->newParseContext()->parse($source, name: $name);
     }
 
     /**
@@ -131,7 +131,7 @@ class Environment
     {
         $source = $this->fileSystem->readTemplateFile($templateName);
 
-        return Template::parse($this->newParseContext(), $source, $templateName);
+        return $this->parseString($source, name: $templateName);
     }
 
     public function addExtension(LiquidExtension $extension): static

@@ -4,12 +4,13 @@ namespace Keepsuit\Liquid\Parse;
 
 use Closure;
 use Keepsuit\Liquid\Environment;
+use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Nodes\Document;
 use Keepsuit\Liquid\Support\OutputsBag;
 use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplateSharedState;
 
 class ParseContext
 {
@@ -58,15 +59,41 @@ class ParseContext
         return $this->lexer->tokenize($markup);
     }
 
-    public function parse(TokenStream $tokenStream, ?string $name = null): Document
+    public function parse(TokenStream|string $source, ?string $name = null): Template
     {
-        return $this->parser->parse($tokenStream, $name);
+        $this->partials = [];
+        $this->outputs = new OutputsBag;
+
+        try {
+            $tokenStream = $source instanceof TokenStream ? $source : $this->tokenize($source);
+
+            $root = $this->parser->parse($tokenStream, $name);
+
+            return new Template(
+                root: $root,
+                state: new TemplateSharedState(
+                    partials: $this->partials,
+                    outputs: (clone $this->outputs),
+                ),
+            );
+        } catch (LiquidException $e) {
+            $e->templateName = $e->templateName ?? $name;
+            $e->lineNumber = $e->lineNumber ?? $this->lineNumber;
+            throw $e;
+        } catch (\Throwable $e) {
+            $exception = new InternalException($e);
+            $exception->templateName = $exception->templateName ?? $name;
+            $exception->lineNumber = $exception->lineNumber ?? $this->lineNumber;
+            throw $exception;
+        }
     }
 
     public function loadPartial(string $templateName): Template
     {
         if ($cache = $this->environment->templatesCache->get($templateName)) {
-            $this->addPartial($templateName);
+            if (!in_array($templateName, $this->partials, true)) {
+                $this->partials[] = $templateName;
+            }
 
             return $cache;
         }
@@ -78,11 +105,11 @@ class ParseContext
         try {
             $source = $this->environment->fileSystem->readTemplateFile($templateName);
 
-            $template = Template::parse($partialParseContext, $source, $templateName);
+            $template = $partialParseContext->parse($source, name: $templateName);
 
-            $this->outputs->merge($partialParseContext->outputs);
+            $this->partials[] = $templateName;
             $this->environment->templatesCache->set($templateName, $template);
-            $this->addPartial($templateName);
+            $this->outputs->merge($partialParseContext->outputs);
 
             return $template;
         } catch (LiquidException $exception) {
@@ -90,19 +117,6 @@ class ParseContext
 
             throw $exception;
         }
-    }
-
-    public function getOutputs(): OutputsBag
-    {
-        return $this->outputs;
-    }
-
-    /**
-     * @return string[]
-     */
-    public function getPartials(): array
-    {
-        return $this->partials;
     }
 
     /**
@@ -125,13 +139,6 @@ class ParseContext
             return $callback($this);
         } finally {
             $this->depth -= 1;
-        }
-    }
-
-    protected function addPartial(string $templateName): void
-    {
-        if (! in_array($templateName, $this->partials)) {
-            $this->partials[] = $templateName;
         }
     }
 }

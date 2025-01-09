@@ -2,10 +2,8 @@
 
 namespace Keepsuit\Liquid;
 
-use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Nodes\Document;
-use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
 
 class Template
@@ -14,34 +12,6 @@ class Template
         public readonly Document $root,
         public readonly TemplateSharedState $state = new TemplateSharedState
     ) {}
-
-    /**
-     * @throws LiquidException
-     */
-    public static function parse(ParseContext $parseContext, string $source, ?string $name = null): Template
-    {
-        try {
-            $root = $parseContext->parse($parseContext->tokenize($source), $name);
-
-            $template = new Template(
-                root: $root,
-            );
-
-            $template->state->partials = $parseContext->getPartials();
-            $template->state->outputs = $parseContext->getOutputs();
-
-            return $template;
-        } catch (LiquidException $e) {
-            $e->templateName = $e->templateName ?? $name;
-            $e->lineNumber = $e->lineNumber ?? $parseContext->lineNumber;
-            throw $e;
-        } catch (\Throwable $e) {
-            $exception = new InternalException($e);
-            $exception->templateName = $exception->templateName ?? $name;
-            $exception->lineNumber = $exception->lineNumber ?? $parseContext->lineNumber;
-            throw $exception;
-        }
-    }
 
     /**
      * @throws LiquidException
