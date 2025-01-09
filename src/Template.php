@@ -10,13 +10,10 @@ use Keepsuit\Liquid\Render\RenderContext;
 
 class Template
 {
-    protected TemplateSharedState $state;
-
     public function __construct(
         public readonly Document $root,
-    ) {
-        $this->state = new TemplateSharedState;
-    }
+        public readonly TemplateSharedState $state = new TemplateSharedState
+    ) {}
 
     /**
      * @throws LiquidException
@@ -30,10 +27,8 @@ class Template
                 root: $root,
             );
 
-            if (! $parseContext->isPartial()) {
-                $template->state->partialsCache = $parseContext->getPartialsCache();
-                $template->state->outputs = $parseContext->getOutputs();
-            }
+            $template->state->partials = $parseContext->getPartials();
+            $template->state->outputs = $parseContext->getOutputs();
 
             return $template;
         } catch (LiquidException $e) {
@@ -54,7 +49,6 @@ class Template
     public function render(RenderContext $context): string
     {
         try {
-            $context->mergePartialsCache($this->state->partialsCache);
             $context->mergeOutputs($this->state->outputs);
 
             return $this->root->render($context);
@@ -73,7 +67,6 @@ class Template
     public function stream(RenderContext $context): \Generator
     {
         try {
-            $context->mergePartialsCache($this->state->partialsCache);
             $context->mergeOutputs($this->state->outputs);
 
             yield from $this->root->stream($context);

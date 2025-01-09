@@ -9,7 +9,6 @@ use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\Document;
 use Keepsuit\Liquid\Support\OutputsBag;
-use Keepsuit\Liquid\Support\PartialsCache;
 use Keepsuit\Liquid\Template;
 
 class ParseContext
@@ -22,7 +21,10 @@ class ParseContext
 
     protected bool $partial = false;
 
-    protected PartialsCache $partialsCache;
+    /**
+     * @var string[]
+     */
+    protected array $partials = [];
 
     protected OutputsBag $outputs;
 
@@ -39,7 +41,6 @@ class ParseContext
 
         $this->lineNumber = 1;
         $this->outputs = new OutputsBag;
-        $this->partialsCache = new PartialsCache;
         $this->lexer = new Lexer($this);
         $this->parser = new Parser($this);
     }
@@ -59,27 +60,29 @@ class ParseContext
 
     public function parse(TokenStream $tokenStream, ?string $name = null): Document
     {
-        return $this->parser->parse($tokenStream, name: $name);
+        return $this->parser->parse($tokenStream, $name);
     }
 
     public function loadPartial(string $templateName): Template
     {
-        if ($cache = $this->partialsCache->get($templateName)) {
+        if ($cache = $this->environment->templatesCache->get($templateName)) {
+            $this->addPartial($templateName);
+
             return $cache;
         }
 
         $partialParseContext = new ParseContext(environment: $this->environment);
         $partialParseContext->partial = true;
         $partialParseContext->depth = $this->depth;
-        $partialParseContext->outputs = $this->outputs;
-        $partialParseContext->partialsCache = $this->partialsCache;
 
         try {
             $source = $this->environment->fileSystem->readTemplateFile($templateName);
 
             $template = Template::parse($partialParseContext, $source, $templateName);
 
-            $this->partialsCache->set($templateName, $template);
+            $this->outputs->merge($partialParseContext->outputs);
+            $this->environment->templatesCache->set($templateName, $template);
+            $this->addPartial($templateName);
 
             return $template;
         } catch (LiquidException $exception) {
@@ -89,14 +92,17 @@ class ParseContext
         }
     }
 
-    public function getPartialsCache(): PartialsCache
-    {
-        return $this->partialsCache;
-    }
-
     public function getOutputs(): OutputsBag
     {
         return $this->outputs;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getPartials(): array
+    {
+        return $this->partials;
     }
 
     /**
@@ -119,6 +125,13 @@ class ParseContext
             return $callback($this);
         } finally {
             $this->depth -= 1;
+        }
+    }
+
+    protected function addPartial(string $templateName): void
+    {
+        if (! in_array($templateName, $this->partials)) {
+            $this->partials[] = $templateName;
         }
     }
 }

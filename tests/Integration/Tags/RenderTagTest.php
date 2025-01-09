@@ -88,16 +88,22 @@ test('render tag caches second read of some partial', function () {
     expect($fileSystem->fileReadCount)->toBe(1);
 });
 
-test('render tag does not cache partials across parsing', function () {
+test('render tag does cache partials across parsing', function () {
     $environment = EnvironmentFactory::new()
         ->setFilesystem($fileSystem = new StubFileSystem(['snippet' => 'my message']))
         ->build();
 
-    expect($environment->parseString('{% render "snippet" %}')->render($environment->newRenderContext()))->toBe('my message');
+    $template = $environment->parseString('{% render "snippet" %}');
+    expect($template)
+        ->state->partials->toBe(['snippet'])
+        ->render($environment->newRenderContext())->toBe('my message');
     expect($fileSystem->fileReadCount)->toBe(1);
 
-    expect($environment->parseString('{% render "snippet" %}')->render($environment->newRenderContext()))->toBe('my message');
-    expect($fileSystem->fileReadCount)->toBe(2);
+    $template = $environment->parseString('{% render "snippet" %}');
+    expect($template)
+        ->state->partials->toBe(['snippet'])
+        ->render($environment->newRenderContext())->toBe('my message');
+    expect($fileSystem->fileReadCount)->toBe(1);
 });
 
 test('render tag within if statement', function () {

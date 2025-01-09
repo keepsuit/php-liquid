@@ -24,7 +24,6 @@ use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\MissingValue;
 use Keepsuit\Liquid\Support\OutputsBag;
-use Keepsuit\Liquid\Support\PartialsCache;
 use Keepsuit\Liquid\Template;
 use RuntimeException;
 use Throwable;
@@ -314,7 +313,7 @@ final class RenderContext
 
     public function loadPartial(string $templateName, bool $parseIfMissing = false): Template
     {
-        if ($partial = $this->sharedState->partialsCache->get($templateName)) {
+        if ($partial = $this->environment->templatesCache->get($templateName)) {
             return $partial;
         }
 
@@ -326,17 +325,9 @@ final class RenderContext
 
         $template = $parseContext->loadPartial($templateName);
 
-        $this->sharedState->partialsCache->merge($parseContext->getPartialsCache());
         $this->sharedState->outputs->merge($parseContext->getOutputs());
 
         return $template;
-    }
-
-    public function mergePartialsCache(PartialsCache $partialsCache): RenderContext
-    {
-        $this->sharedState->partialsCache->merge($partialsCache);
-
-        return $this;
     }
 
     public function mergeOutputs(OutputsBag $outputs): RenderContext
