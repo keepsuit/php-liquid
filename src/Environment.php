@@ -129,9 +129,7 @@ class Environment
      */
     public function parseTemplate(string $templateName): Template
     {
-        $source = $this->fileSystem->readTemplateFile($templateName);
-
-        return $this->parseString($source, name: $templateName);
+        return $this->newParseContext()->parseTemplate($templateName);
     }
 
     public function addExtension(LiquidExtension $extension): static

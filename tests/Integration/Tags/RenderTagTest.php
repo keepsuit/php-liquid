@@ -98,12 +98,14 @@ test('render tag does cache partials across parsing', function () {
         ->state->partials->toBe(['snippet'])
         ->render($environment->newRenderContext())->toBe('my message');
     expect($fileSystem->fileReadCount)->toBe(1);
+    expect($environment->templatesCache->has('snippet'))->toBeTrue();
 
     $template = $environment->parseString('{% render "snippet" %}');
     expect($template)
         ->state->partials->toBe(['snippet'])
         ->render($environment->newRenderContext())->toBe('my message');
     expect($fileSystem->fileReadCount)->toBe(1);
+    expect($environment->templatesCache->has('snippet'))->toBeTrue();
 });
 
 test('render tag within if statement', function () {

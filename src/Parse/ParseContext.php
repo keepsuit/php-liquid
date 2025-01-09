@@ -59,6 +59,26 @@ class ParseContext
         return $this->lexer->tokenize($markup);
     }
 
+    /**
+     * @throws LiquidException
+     */
+    public function parseTemplate(string $templateName, bool $force = false): Template
+    {
+        $cachedTemplate = $this->environment->templatesCache->get($templateName);
+
+        if ($cachedTemplate !== null && ! $force) {
+            return $cachedTemplate;
+        }
+
+        $source = $this->environment->fileSystem->readTemplateFile($templateName);
+
+        $template = $this->parse($source, name: $templateName);
+
+        $this->environment->templatesCache->set($templateName, $template);
+
+        return $template;
+    }
+
     public function parse(TokenStream|string $source, ?string $name = null): Template
     {
         $this->partials = [];
@@ -90,26 +110,18 @@ class ParseContext
 
     public function loadPartial(string $templateName): Template
     {
-        if ($cache = $this->environment->templatesCache->get($templateName)) {
-            if (!in_array($templateName, $this->partials, true)) {
-                $this->partials[] = $templateName;
-            }
-
-            return $cache;
-        }
-
         $partialParseContext = new ParseContext(environment: $this->environment);
         $partialParseContext->partial = true;
         $partialParseContext->depth = $this->depth;
 
         try {
-            $source = $this->environment->fileSystem->readTemplateFile($templateName);
+            $template = $partialParseContext->parseTemplate($templateName);
 
-            $template = $partialParseContext->parse($source, name: $templateName);
-
-            $this->partials[] = $templateName;
-            $this->environment->templatesCache->set($templateName, $template);
             $this->outputs->merge($partialParseContext->outputs);
+
+            if (! in_array($templateName, $this->partials, true)) {
+                $this->partials[] = $templateName;
+            }
 
             return $template;
         } catch (LiquidException $exception) {
