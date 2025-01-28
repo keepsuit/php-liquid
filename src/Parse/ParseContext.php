@@ -153,4 +153,9 @@ class ParseContext
             $this->depth -= 1;
         }
     }
+
+    public function getOutputs(): OutputsBag
+    {
+        return $this->outputs;
+    }
 }
