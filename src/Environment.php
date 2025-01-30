@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid;
 use Keepsuit\Liquid\Contracts\LiquidErrorHandler;
 use Keepsuit\Liquid\Contracts\LiquidExtension;
 use Keepsuit\Liquid\Contracts\LiquidFileSystem;
+use Keepsuit\Liquid\Contracts\LiquidTemplatesCache;
 use Keepsuit\Liquid\ErrorHandlers\DefaultErrorHandler;
 use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Extensions\StandardExtension;
@@ -16,6 +17,7 @@ use Keepsuit\Liquid\Render\ResourceLimits;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\FilterRegistry;
 use Keepsuit\Liquid\Support\TagRegistry;
+use Keepsuit\Liquid\Support\TemplatesCache;
 
 class Environment
 {
@@ -29,6 +31,8 @@ class Environment
 
     public readonly LiquidErrorHandler $errorHandler;
 
+    public readonly LiquidTemplatesCache $templatesCache;
+
     public readonly ResourceLimits $defaultResourceLimits;
 
     public readonly RenderContextOptions $defaultRenderContextOptions;
@@ -41,6 +45,7 @@ class Environment
     public function __construct(
         ?LiquidFileSystem $fileSystem = null,
         ?LiquidErrorHandler $errorHandler = null,
+        ?LiquidTemplatesCache $templatesCache = null,
         ?ResourceLimits $defaultResourceLimits = null,
         ?RenderContextOptions $defaultRenderContextOptions = null,
         /** @var LiquidExtension[] $extensions */
@@ -50,6 +55,7 @@ class Environment
         $this->filterRegistry = new FilterRegistry;
         $this->fileSystem = $fileSystem ?? new BlankFileSystem;
         $this->errorHandler = $errorHandler ?? new DefaultErrorHandler;
+        $this->templatesCache = $templatesCache ?? new TemplatesCache;
         $this->defaultResourceLimits = $defaultResourceLimits ?? new ResourceLimits;
         $this->defaultRenderContextOptions = $defaultRenderContextOptions ?? new RenderContextOptions;
 
@@ -72,7 +78,7 @@ class Environment
     public function newParseContext(): ParseContext
     {
         return new ParseContext(
-            environment: $this
+            environment: $this,
         );
     }
 
@@ -115,7 +121,7 @@ class Environment
      */
     public function parseString(string $source, ?string $name = null): Template
     {
-        return Template::parse($this->newParseContext(), $source, $name);
+        return $this->newParseContext()->parse($source, name: $name);
     }
 
     /**
@@ -123,9 +129,7 @@ class Environment
      */
     public function parseTemplate(string $templateName): Template
     {
-        $source = $this->fileSystem->readTemplateFile($templateName);
-
-        return Template::parse($this->newParseContext(), $source, $templateName);
+        return $this->newParseContext()->parseTemplate($templateName);
     }
 
     public function addExtension(LiquidExtension $extension): static

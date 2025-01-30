@@ -5,18 +5,22 @@ namespace Keepsuit\Liquid;
 use Keepsuit\Liquid\Contracts\LiquidErrorHandler;
 use Keepsuit\Liquid\Contracts\LiquidExtension;
 use Keepsuit\Liquid\Contracts\LiquidFileSystem;
+use Keepsuit\Liquid\Contracts\LiquidTemplatesCache;
 use Keepsuit\Liquid\ErrorHandlers\DefaultErrorHandler;
 use Keepsuit\Liquid\Extensions\StandardExtension;
 use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Filters\FiltersProvider;
 use Keepsuit\Liquid\Render\RenderContextOptions;
 use Keepsuit\Liquid\Render\ResourceLimits;
+use Keepsuit\Liquid\Support\TemplatesCache;
 
 final class EnvironmentFactory
 {
     protected LiquidFileSystem $fileSystem;
 
     protected LiquidErrorHandler $errorHandler;
+
+    protected LiquidTemplatesCache $templatesCache;
 
     protected ResourceLimits $resourceLimits;
 
@@ -41,6 +45,7 @@ final class EnvironmentFactory
     {
         $this->fileSystem = new BlankFileSystem;
         $this->errorHandler = new DefaultErrorHandler;
+        $this->templatesCache = new TemplatesCache;
         $this->resourceLimits = new ResourceLimits;
         $this->defaultRenderContextOptions = new RenderContextOptions;
 
@@ -62,6 +67,13 @@ final class EnvironmentFactory
     public function setErrorHandler(LiquidErrorHandler $errorHandler): EnvironmentFactory
     {
         $this->errorHandler = $errorHandler;
+
+        return $this;
+    }
+
+    public function setTemplatesCache(LiquidTemplatesCache $templatesCache): EnvironmentFactory
+    {
+        $this->templatesCache = $templatesCache;
 
         return $this;
     }
@@ -142,6 +154,7 @@ final class EnvironmentFactory
         $environment = new Environment(
             fileSystem: $this->fileSystem,
             errorHandler: $this->errorHandler,
+            templatesCache: $this->templatesCache,
             defaultResourceLimits: $this->resourceLimits,
             defaultRenderContextOptions: $this->defaultRenderContextOptions,
             extensions: array_values($this->extensions),
