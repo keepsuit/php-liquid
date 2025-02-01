@@ -27,6 +27,11 @@ class TemplatesCache implements LiquidTemplatesCache
         return isset($this->cache[$name]);
     }
 
+    public function remove(string $name): void
+    {
+        unset($this->cache[$name]);
+    }
+
     /**
      * @return array<string,Template>
      */

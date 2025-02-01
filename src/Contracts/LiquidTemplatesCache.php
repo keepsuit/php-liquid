@@ -12,6 +12,8 @@ interface LiquidTemplatesCache
 
     public function has(string $name): bool;
 
+    public function remove(string $name): void;
+
     /**
      * @return array<string,Template>
      */
