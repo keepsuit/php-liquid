@@ -17,7 +17,7 @@ use Keepsuit\Liquid\Render\ResourceLimits;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\FilterRegistry;
 use Keepsuit\Liquid\Support\TagRegistry;
-use Keepsuit\Liquid\Support\TemplatesCache;
+use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
 
 class Environment
 {
@@ -55,7 +55,7 @@ class Environment
         $this->filterRegistry = new FilterRegistry;
         $this->fileSystem = $fileSystem ?? new BlankFileSystem;
         $this->errorHandler = $errorHandler ?? new DefaultErrorHandler;
-        $this->templatesCache = $templatesCache ?? new TemplatesCache;
+        $this->templatesCache = $templatesCache ?? new MemoryTemplatesCache;
         $this->defaultResourceLimits = $defaultResourceLimits ?? new ResourceLimits;
         $this->defaultRenderContextOptions = $defaultRenderContextOptions ?? new RenderContextOptions;
 

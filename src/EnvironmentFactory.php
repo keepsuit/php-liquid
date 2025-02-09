@@ -12,7 +12,7 @@ use Keepsuit\Liquid\FileSystems\BlankFileSystem;
 use Keepsuit\Liquid\Filters\FiltersProvider;
 use Keepsuit\Liquid\Render\RenderContextOptions;
 use Keepsuit\Liquid\Render\ResourceLimits;
-use Keepsuit\Liquid\Support\TemplatesCache;
+use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
 
 final class EnvironmentFactory
 {
@@ -45,7 +45,7 @@ final class EnvironmentFactory
     {
         $this->fileSystem = new BlankFileSystem;
         $this->errorHandler = new DefaultErrorHandler;
-        $this->templatesCache = new TemplatesCache;
+        $this->templatesCache = new MemoryTemplatesCache;
         $this->resourceLimits = new ResourceLimits;
         $this->defaultRenderContextOptions = new RenderContextOptions;
 

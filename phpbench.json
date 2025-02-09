@@ -1,5 +1,11 @@
 {
     "$schema": "./vendor/phpbench/phpbench/phpbench.schema.json",
     "runner.bootstrap": "vendor/autoload.php",
-    "runner.path": "performance/benchmarks"
+    "runner.path": "performance/benchmarks",
+    "runner.php_config": {
+        "opcache.enable": 1,
+        "opcache.enable_cli": 1,
+        "opcache.validate_timestamps": 1,
+        "opcache.revalidate_freq": 0
+    }
 }

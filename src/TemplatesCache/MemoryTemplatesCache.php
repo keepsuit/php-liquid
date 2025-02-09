@@ -1,11 +1,11 @@
 <?php
 
-namespace Keepsuit\Liquid\Support;
+namespace Keepsuit\Liquid\TemplatesCache;
 
 use Keepsuit\Liquid\Contracts\LiquidTemplatesCache;
 use Keepsuit\Liquid\Template;
 
-class TemplatesCache implements LiquidTemplatesCache
+class MemoryTemplatesCache implements LiquidTemplatesCache
 {
     /**
      * @var array<string,Template>
