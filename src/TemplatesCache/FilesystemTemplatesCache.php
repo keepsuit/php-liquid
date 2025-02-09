@@ -63,7 +63,7 @@ abstract class FilesystemTemplatesCache extends MemoryTemplatesCache
             }
 
             try {
-                $template = require $file->getPathname();
+                $template = $this->loadCompiledTemplate($file->getPathname());
 
                 if ($template instanceof Template && $template->name() !== null) {
                     $templates[$template->name()] = $template;
