@@ -1,6 +1,8 @@
 <?php
 
-test('templates cache', function (\Keepsuit\Liquid\Contracts\LiquidTemplatesCache $cache) {
+use Keepsuit\Liquid\Contracts\LiquidTemplatesCache;
+
+test('templates cache', function (LiquidTemplatesCache $cache) {
     $cache->clear();
 
     expect($cache)
