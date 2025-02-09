@@ -51,30 +51,6 @@ abstract class FilesystemTemplatesCache extends MemoryTemplatesCache
         unlink($this->getCompiledPath($name));
     }
 
-    public function all(): array
-    {
-        $files = new \FilesystemIterator($this->cachePath);
-
-        $templates = [];
-
-        foreach ($files as $file) {
-            if (! $file instanceof \SplFileInfo) {
-                continue;
-            }
-
-            try {
-                $template = $this->loadCompiledTemplate($file->getPathname());
-
-                if ($template instanceof Template && $template->name() !== null) {
-                    $templates[$template->name()] = $template;
-                }
-            } catch (\Throwable) {
-            }
-        }
-
-        return $templates;
-    }
-
     public function clear(): void
     {
         if ($this->keepInMemory) {

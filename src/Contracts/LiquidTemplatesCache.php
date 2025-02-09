@@ -14,10 +14,5 @@ interface LiquidTemplatesCache
 
     public function remove(string $name): void;
 
-    /**
-     * @return array<string,Template>
-     */
-    public function all(): array;
-
     public function clear(): void;
 }

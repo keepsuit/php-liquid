@@ -32,14 +32,6 @@ class MemoryTemplatesCache implements LiquidTemplatesCache
         unset($this->cache[$name]);
     }
 
-    /**
-     * @return array<string,Template>
-     */
-    public function all(): array
-    {
-        return $this->cache;
-    }
-
     public function clear(): void
     {
         $this->cache = [];
