@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Drops;
 
+use Keepsuit\Liquid\Attributes\DropDynamicProperties;
 use Keepsuit\Liquid\Attributes\Hidden;
 use Keepsuit\Liquid\Drop;
 
@@ -45,6 +46,7 @@ class TableRowLoopDrop extends Drop
         }
     }
 
+    #[DropDynamicProperties(['col', 'col0', 'col_first', 'col_last', 'first', 'index', 'index0', 'last', 'length', 'rindex', 'rindex0', 'row'])]
     public function liquidMethodMissing(string $name): mixed
     {
         return match ($name) {

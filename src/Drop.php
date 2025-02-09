@@ -29,6 +29,10 @@ class Drop implements IsContextAware
             $result[$property] = $this->{$property};
         }
 
+        foreach ($this->getMetadata()->dynamicProperties as $property) {
+            $result[$property] = $this->{$property};
+        }
+
         foreach ($this->getMetadata()->invokableMethods as $method) {
             $result[$method] = $this->{$method};
         }

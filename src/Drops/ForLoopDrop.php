@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Drops;
 
+use Keepsuit\Liquid\Attributes\DropDynamicProperties;
 use Keepsuit\Liquid\Attributes\Hidden;
 use Keepsuit\Liquid\Drop;
 
@@ -31,6 +32,7 @@ class ForLoopDrop extends Drop
         $this->index += 1;
     }
 
+    #[DropDynamicProperties(['first', 'last', 'index', 'index0', 'rindex', 'rindex0', 'length', 'parentloop'])]
     protected function liquidMethodMissing(string $name): mixed
     {
         return match ($name) {

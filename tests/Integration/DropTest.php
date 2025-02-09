@@ -121,6 +121,17 @@ test('drop toArray', function () {
         ->context->toBe($context);
 });
 
+test('drop toArray dynamic properties', function () {
+    $context = Environment::default()->newRenderContext();
+
+    $drop = new \Keepsuit\Liquid\Drops\ForLoopDrop('for', 10);
+    $drop->setContext($context);
+
+    expect($drop->toArray())
+        ->toHaveKeys(['length', 'index', 'index0', 'rindex', 'rindex0', 'first', 'last'])
+        ->not->toHaveKeys(['name', 'context']);
+});
+
 test('drop metadata', function () {
     expect(invade(new ProductDrop)->getMetadata())
         ->invokableMethods->toBe(['text', 'catchAll', 'context'])

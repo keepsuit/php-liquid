@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid\Support;
 
 use Keepsuit\Liquid\Attributes\Cache;
+use Keepsuit\Liquid\Attributes\DropDynamicProperties;
 use Keepsuit\Liquid\Attributes\Hidden;
 use Keepsuit\Liquid\Drop;
 use ReflectionClass;
@@ -23,9 +24,14 @@ final class DropMetadata
     protected static array $dropBaseMethods;
 
     public function __construct(
+        /** @var list<string> */
         public readonly array $invokableMethods = [],
+        /** @var list<string> */
         public readonly array $cacheableMethods = [],
+        /** @var list<string> */
         public readonly array $properties = [],
+        /** @var list<string> */
+        public readonly array $dynamicProperties = [],
     ) {}
 
     public static function init(Drop $drop): DropMetadata
@@ -77,10 +83,16 @@ final class DropMetadata
             )
         );
 
+        $dynamicProperties = array_unique(array_merge(...array_map(fn (\ReflectionAttribute $attribute) => $attribute->getArguments()[0], [
+            ...$classReflection->getAttributes(DropDynamicProperties::class),
+            ...$classReflection->getMethod('liquidMethodMissing')->getAttributes(DropDynamicProperties::class) ?? [],
+        ])));
+
         return self::$cache[get_class($drop)] = new DropMetadata(
             invokableMethods: array_values($invokableMethods),
             cacheableMethods: array_values($cacheableMethods),
-            properties: array_values($publicProperties)
+            properties: array_values($publicProperties),
+            dynamicProperties: array_values($dynamicProperties),
         );
     }
 }
