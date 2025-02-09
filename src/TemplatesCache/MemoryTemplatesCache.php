@@ -1,11 +1,11 @@
 <?php
 
-namespace Keepsuit\Liquid\Support;
+namespace Keepsuit\Liquid\TemplatesCache;
 
 use Keepsuit\Liquid\Contracts\LiquidTemplatesCache;
 use Keepsuit\Liquid\Template;
 
-class TemplatesCache implements LiquidTemplatesCache
+class MemoryTemplatesCache implements LiquidTemplatesCache
 {
     /**
      * @var array<string,Template>
@@ -30,14 +30,6 @@ class TemplatesCache implements LiquidTemplatesCache
     public function remove(string $name): void
     {
         unset($this->cache[$name]);
-    }
-
-    /**
-     * @return array<string,Template>
-     */
-    public function all(): array
-    {
-        return $this->cache;
     }
 
     public function clear(): void

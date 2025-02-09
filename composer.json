@@ -28,8 +28,9 @@
         "phpstan/phpstan-deprecation-rules": "^2.0",
         "spatie/invade": "^2.0",
         "spatie/ray": "^1.28",
-        "symfony/console": "^6.3 || ^7.0",
-        "symfony/yaml": "^6.0 || ^7.0"
+        "symfony/console": "^6.1 || ^7.0",
+        "symfony/var-exporter": "^6.1 || ^7.0",
+        "symfony/yaml": "^6.1 || ^7.0"
     },
     "autoload": {
         "psr-4": {
@@ -49,7 +50,7 @@
             "pint",
             "phpstan analyse"
         ],
-        "benchmark": "phpbench run --report=aggregate --php-config=\"opcache.enable: 1, opcache.enable_cli: 1\"",
+        "benchmark": "phpbench run --report=aggregate",
         "profile": "phpbench xdebug:profile"
     },
     "config": {
