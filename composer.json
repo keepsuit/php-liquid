@@ -28,8 +28,8 @@
         "phpstan/phpstan-deprecation-rules": "^2.0",
         "spatie/invade": "^2.0",
         "spatie/ray": "^1.28",
-        "symfony/console": "^6.3 || ^7.0",
-        "symfony/var-exporter": "^7.0",
+        "symfony/console": "^6.0 || ^7.0",
+        "symfony/var-exporter": "^6.0 || ^7.0",
         "symfony/yaml": "^6.0 || ^7.0"
     },
     "autoload": {
