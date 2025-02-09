@@ -57,7 +57,7 @@ class TemplateCacheBench
     public function setupVarExporter(): void
     {
         $this->environment = $this->environmentBuilder()
-            ->setTemplatesCache(new VarExportTemplatesCache(__DIR__.'/cache/var_export'))
+            ->setTemplatesCache(new VarExportTemplatesCache(__DIR__.'/cache/var_export', keepInMemory: false))
             ->build();
 
         $this->loadTemplates();
@@ -72,7 +72,7 @@ class TemplateCacheBench
     public function setupSerialize(): void
     {
         $this->environment = $this->environmentBuilder()
-            ->setTemplatesCache(new SerializeTemplatesCache(__DIR__.'/cache/serialize'))
+            ->setTemplatesCache(new SerializeTemplatesCache(__DIR__.'/cache/serialize', keepInMemory: false))
             ->build();
 
         $this->loadTemplates();
