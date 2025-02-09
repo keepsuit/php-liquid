@@ -24,9 +24,9 @@ class StandardFilters extends FiltersProvider
     /**
      * Adds a given string to the end of a string.
      */
-    public function append(string $input, string $append): string
+    public function append(?string $input, string $append): string
     {
-        return $input.$append;
+        return ($input ?? '').$append;
     }
 
     /**
@@ -70,8 +70,10 @@ class StandardFilters extends FiltersProvider
     /**
      * Capitalizes the first word in a string and downcases the remaining characters.
      */
-    public function capitalize(string $input): string
+    public function capitalize(?string $input): string
     {
+        $input = $input ?? '';
+
         return Str::upper(Str::substr($input, 0, 1)).Str::lower(Str::substr($input, 1));
     }
 
@@ -212,8 +214,12 @@ class StandardFilters extends FiltersProvider
     /**
      * Escape a string once, keeping all previous HTML entities intact
      */
-    public function escapeOnce(string $input): string
+    public function escapeOnce(?string $input): string
     {
+        if ($input === null) {
+            return '';
+        }
+
         return htmlentities($input, double_encode: false);
     }
 
@@ -315,7 +321,9 @@ class StandardFilters extends FiltersProvider
      */
     public function newlineToBr(?string $input): string
     {
-        return preg_replace('/\r?\n/', "<br />\n", $input ?? '') ?? $input ?? '';
+        $input = $input ?? '';
+
+        return preg_replace('/\r?\n/', "<br />\n", $input) ?? $input;
     }
 
     /**
@@ -329,57 +337,57 @@ class StandardFilters extends FiltersProvider
     /**
      * Adds a given string to the beginning of a string.
      */
-    public function prepend(string $input, string $prepend): string
+    public function prepend(?string $input, string $prepend): string
     {
-        return $prepend.$input;
+        return $prepend.($input ?? '');
     }
 
     /**
      * Removes any instance of a substring inside a string.
      */
-    public function remove(string $input, string $search): string
+    public function remove(?string $input, string $search): string
     {
-        return $this->replace($input, $search, '');
+        return $this->replace($input ?? '', $search, '');
     }
 
     /**
      * Removes the first instance of a substring inside a string.
      */
-    public function removeFirst(string $input, string $search): string
+    public function removeFirst(?string $input, string $search): string
     {
-        return $this->replaceFirst($input, $search, '');
+        return $this->replaceFirst($input ?? '', $search, '');
     }
 
     /**
      * Removes the last instance of a substring inside a string.
      */
-    public function removeLast(string $input, string $search): string
+    public function removeLast(?string $input, string $search): string
     {
-        return $this->replaceLast($input, $search, '');
+        return $this->replaceLast($input ?? '', $search, '');
     }
 
     /**
      * Replaces any instance of a substring inside a string with a given string.
      */
-    public function replace(string $input, string $search, string $replace): string
+    public function replace(?string $input, string $search, string $replace): string
     {
-        return str_replace($search, $replace, $input);
+        return str_replace($search, $replace, $input ?? '');
     }
 
     /**
      * Replaces the first instance of a substring inside a string with a given string.
      */
-    public function replaceFirst(string $input, string $search, string $replace): string
+    public function replaceFirst(?string $input, string $search, string $replace): string
     {
-        return Str::replaceFirst($search, $replace, $input);
+        return Str::replaceFirst($search, $replace, $input ?? '');
     }
 
     /**
      * Replaces the last instance of a substring inside a string with a given string.
      */
-    public function replaceLast(string $input, string $search, string $replace): string
+    public function replaceLast(?string $input, string $search, string $replace): string
     {
-        return Str::replaceLast($search, $replace, $input);
+        return Str::replaceLast($search, $replace, $input ?? '');
     }
 
     /**
