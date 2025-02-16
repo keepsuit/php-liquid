@@ -159,7 +159,7 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
             throw new SyntaxException('Template name must be a string');
         }
 
-        return $context->loadPartial($templateName, parseIfMissing: $this->allowDynamicPartials());
+        return $context->loadPartial($templateName);
     }
 
     protected function buildPartialContext(RenderContext $rootContext, string $templateName, array $variables = []): RenderContext

@@ -311,13 +311,13 @@ final class RenderContext
         return $this->templateName;
     }
 
-    public function loadPartial(string $templateName, bool $parseIfMissing = false): Template
+    public function loadPartial(string $templateName): Template
     {
         if ($partial = $this->environment->templatesCache->get($templateName)) {
             return $partial;
         }
 
-        if (! $parseIfMissing) {
+        if ($this->options->lazyParsing === false) {
             throw new StandardException(sprintf("The partial '%s' has not be loaded during parsing", $templateName));
         }
 
