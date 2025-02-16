@@ -119,7 +119,7 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
             $forLoop = new ForLoopDrop($templateName, count($variable));
 
             foreach ($variable as $value) {
-                $partialContext = $this->setInnerContextVariables($context->newIsolatedSubContext($templateName), [
+                $partialContext = $this->buildPartialContext($context, $templateName, [
                     'forloop' => $forLoop,
                     $contextVariableName => $value,
                 ]);
@@ -132,7 +132,7 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
             return;
         }
 
-        $partialContext = $this->setInnerContextVariables($context->newIsolatedSubContext($templateName), [
+        $partialContext = $this->buildPartialContext($context, $templateName, [
             $contextVariableName => $variable,
         ]);
 
@@ -162,17 +162,19 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
         return $context->loadPartial($templateName, parseIfMissing: $this->allowDynamicPartials());
     }
 
-    protected function setInnerContextVariables(RenderContext $context, array $variables = []): RenderContext
+    protected function buildPartialContext(RenderContext $rootContext, string $templateName, array $variables = []): RenderContext
     {
+        $partialContext = $rootContext->newIsolatedSubContext($templateName);
+
         foreach ($variables as $key => $value) {
-            $context->set($key, $value);
+            $partialContext->set($key, $value);
         }
 
         foreach ($this->attributes as $key => $value) {
-            $context->set($key, $context->evaluate($value));
+            $partialContext->set($key, $rootContext->evaluate($value));
         }
 
-        return $context;
+        return $partialContext;
     }
 
     protected function allowDynamicPartials(): bool

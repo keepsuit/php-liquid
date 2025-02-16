@@ -25,12 +25,14 @@ function parseTemplate(
 }
 
 function buildRenderContext(
-    array $assigns = [],
+    array $data = [],
+    array $staticData = [],
     array $registers = [],
     ?Environment $environment = null
 ) {
     $context = ($environment ?? Environment::default())->newRenderContext(
-        staticData: $assigns,
+        data: $data,
+        staticData: $staticData,
     );
 
     foreach ($registers as $key => $value) {
@@ -45,7 +47,8 @@ function buildRenderContext(
  */
 function renderTemplate(
     string $template,
-    array $assigns = [],
+    array $data = [],
+    array $staticData = [],
     array $registers = [],
     array $partials = [],
     bool $renderErrors = false,
@@ -61,7 +64,8 @@ function renderTemplate(
     $template = $environment->parseString($template);
 
     $context = buildRenderContext(
-        assigns: $assigns,
+        data: $data,
+        staticData: $staticData,
         registers: $registers,
         environment: $environment,
     );
@@ -76,7 +80,8 @@ function renderTemplate(
  */
 function streamTemplate(
     string $template,
-    array $assigns = [],
+    array $data = [],
+    array $staticData = [],
     array $registers = [],
     array $partials = [],
     bool $renderErrors = false,
@@ -92,7 +97,8 @@ function streamTemplate(
     $template = $environment->parseString($template);
 
     $context = buildRenderContext(
-        assigns: $assigns,
+        data: $data,
+        staticData: $staticData,
         registers: $registers,
         environment: $environment,
     );
@@ -103,7 +109,8 @@ function streamTemplate(
 function assertTemplateResult(
     string $expected,
     string $template,
-    array $assigns = [],
+    array $data = [],
+    array $staticData = [],
     array $registers = [],
     array $partials = [],
     bool $renderErrors = false,
@@ -112,7 +119,8 @@ function assertTemplateResult(
 ): void {
     expect(renderTemplate(
         template: $template,
-        assigns: $assigns,
+        data: $data,
+        staticData: $staticData,
         registers: $registers,
         partials: $partials,
         renderErrors: $renderErrors,
@@ -124,12 +132,13 @@ function assertTemplateResult(
 function assertMatchSyntaxError(
     string $error,
     string $template,
-    array $assigns = [],
+    array $data = [],
+    array $staticData = [],
     array $registers = [],
     array $partials = [],
 ): void {
     try {
-        renderTemplate(template: $template, assigns: $assigns, registers: $registers, partials: $partials);
+        renderTemplate(template: $template, data: $data, staticData: $staticData, registers: $registers, partials: $partials);
     } catch (SyntaxException $exception) {
         expect($exception->toLiquidErrorMessage())->toBe($error);
 

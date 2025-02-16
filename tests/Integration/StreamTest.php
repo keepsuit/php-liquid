@@ -21,7 +21,7 @@ test('stream generator variable', function () {
     $stream = streamTemplate(<<<'LIQUID'
     {{ var }}
     LIQUID,
-        assigns: [
+        staticData: [
             'var' => function () {
                 yield 'text1';
                 yield 'text2';
@@ -41,7 +41,7 @@ test('generator variable with filters is not streamed', function () {
     $stream = streamTemplate(<<<'LIQUID'
     {{ var | join: ',' }}
     LIQUID,
-        assigns: [
+        staticData: [
             'var' => function () {
                 yield 'text1';
                 yield 'text2';

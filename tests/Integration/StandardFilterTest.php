@@ -267,7 +267,7 @@ test('map calls context', function () {
     assertTemplateResult(
         '{test=>1234}',
         '{{ foo | map: "registers" }}',
-        assigns: [
+        staticData: [
             'foo' => $model,
         ],
         registers: [
@@ -280,7 +280,7 @@ test('map on hashes', function () {
     assertTemplateResult(
         '4217',
         '{{ thing | map: "foo" | map: "bar" }}',
-        assigns: ['thing' => ['foo' => [['bar' => 42], ['bar' => 17]]]]
+        staticData: ['thing' => ['foo' => [['bar' => 42], ['bar' => 17]]]]
     );
 });
 
@@ -288,7 +288,7 @@ test('legacy map on hashes with dynamic key', function () {
     assertTemplateResult(
         '42',
         '{% assign key = \'foo\' %}{{ thing | map: key | map: \'bar\' }}',
-        assigns: ['thing' => ['foo' => ['bar' => 42]]]
+        staticData: ['thing' => ['foo' => ['bar' => 42]]]
     );
 });
 
@@ -298,7 +298,7 @@ test('sort calls to liquid', function () {
     assertTemplateResult(
         'woot: 1',
         '{{ foo | sort: "whatever" }}',
-        assigns: ['foo' => [$t]]
+        staticData: ['foo' => [$t]]
     );
 
     expect($t->value)->toBe(1);
@@ -311,7 +311,7 @@ test('map over Closure', function () {
     assertTemplateResult(
         'testfoo',
         '{{ closures | map: "value" }}',
-        assigns: ['closures' => [$c]]
+        staticData: ['closures' => [$c]]
     );
 });
 
@@ -324,7 +324,7 @@ test('map over drops returning Closures', function () {
     assertTemplateResult(
         'foobar',
         '{{ drops | map: "closure" }}',
-        assigns: ['drops' => $drops]
+        staticData: ['drops' => $drops]
     );
 });
 
@@ -332,7 +332,7 @@ test('map works on iterator', function () {
     assertTemplateResult(
         '123',
         '{{ foo | map: "foo" }}',
-        assigns: ['foo' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop]
+        staticData: ['foo' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop]
     );
 });
 
@@ -360,7 +360,7 @@ test('sort works on iterator', function () {
     assertTemplateResult(
         '213',
         '{{ foo | sort: "bar" | map: "foo" }}',
-        assigns: ['foo' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop]
+        staticData: ['foo' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop]
     );
 });
 
@@ -368,12 +368,12 @@ test('first and last calls toLiquid', function () {
     assertTemplateResult(
         'foobar',
         '{{ foo | first }}',
-        assigns: ['foo' => [new \Keepsuit\Liquid\Tests\Stubs\ThingWithToLiquid]]
+        staticData: ['foo' => [new \Keepsuit\Liquid\Tests\Stubs\ThingWithToLiquid]]
     );
     assertTemplateResult(
         'foobar',
         '{{ foo | last }}',
-        assigns: ['foo' => [new \Keepsuit\Liquid\Tests\Stubs\ThingWithToLiquid]]
+        staticData: ['foo' => [new \Keepsuit\Liquid\Tests\Stubs\ThingWithToLiquid]]
     );
 });
 
@@ -381,7 +381,7 @@ test('truncate calls toLiquid', function () {
     assertTemplateResult(
         'wo...',
         '{{ foo | truncate: 5 }}',
-        assigns: ['foo' => new ThingWithParamToLiquid]
+        staticData: ['foo' => new ThingWithParamToLiquid]
     );
 });
 
@@ -469,42 +469,42 @@ test('pipes in string arguments', function () {
 });
 
 test('strip', function () {
-    assertTemplateResult('ab c', '{{ source | strip }}', assigns: ['source' => ' ab c  ']);
-    assertTemplateResult('ab c', '{{ source | strip }}', assigns: ['source' => " \tab c  \n \t"]);
+    assertTemplateResult('ab c', '{{ source | strip }}', staticData: ['source' => ' ab c  ']);
+    assertTemplateResult('ab c', '{{ source | strip }}', staticData: ['source' => " \tab c  \n \t"]);
 });
 
 test('lstrip', function () {
-    assertTemplateResult('ab c  ', '{{ source | lstrip }}', assigns: ['source' => ' ab c  ']);
-    assertTemplateResult("ab c  \n \t", '{{ source | lstrip }}', assigns: ['source' => " \tab c  \n \t"]);
+    assertTemplateResult('ab c  ', '{{ source | lstrip }}', staticData: ['source' => ' ab c  ']);
+    assertTemplateResult("ab c  \n \t", '{{ source | lstrip }}', staticData: ['source' => " \tab c  \n \t"]);
 });
 
 test('rstrip', function () {
-    assertTemplateResult(' ab c', '{{ source | rstrip }}', assigns: ['source' => ' ab c  ']);
-    assertTemplateResult(" \tab c", '{{ source | rstrip }}', assigns: ['source' => " \tab c  \n \t"]);
+    assertTemplateResult(' ab c', '{{ source | rstrip }}', staticData: ['source' => ' ab c  ']);
+    assertTemplateResult(" \tab c", '{{ source | rstrip }}', staticData: ['source' => " \tab c  \n \t"]);
 });
 
 test('strip new lines', function () {
-    assertTemplateResult('abc', '{{ source | strip_newlines }}', assigns: ['source' => "a\nb\nc"]);
-    assertTemplateResult('abc', '{{ source | strip_newlines }}', assigns: ['source' => "a\r\nb\nc"]);
+    assertTemplateResult('abc', '{{ source | strip_newlines }}', staticData: ['source' => "a\nb\nc"]);
+    assertTemplateResult('abc', '{{ source | strip_newlines }}', staticData: ['source' => "a\r\nb\nc"]);
 });
 
 test('new lines to br', function () {
-    assertTemplateResult("a<br />\nb<br />\nc", '{{ source | newline_to_br }}', assigns: ['source' => "a\nb\nc"]);
-    assertTemplateResult("a<br />\nb<br />\nc", '{{ source | newline_to_br }}', assigns: ['source' => "a\r\nb\nc"]);
+    assertTemplateResult("a<br />\nb<br />\nc", '{{ source | newline_to_br }}', staticData: ['source' => "a\nb\nc"]);
+    assertTemplateResult("a<br />\nb<br />\nc", '{{ source | newline_to_br }}', staticData: ['source' => "a\r\nb\nc"]);
 });
 
 test('plus', function () {
     assertTemplateResult('2', '{{ 1 | plus:1 }}');
     assertTemplateResult('2.1', "{{ '1' | plus:'1.1' }}");
 
-    assertTemplateResult('5', "{{ price | plus:'2' }}", assigns: ['price' => new NumberDrop(3)]);
+    assertTemplateResult('5', "{{ price | plus:'2' }}", staticData: ['price' => new NumberDrop(3)]);
 });
 
 test('minus', function () {
     assertTemplateResult('4', '{{ 5 | minus:1 }}');
     assertTemplateResult('2.3', "{{ '4.3' | minus:'2' }}");
 
-    assertTemplateResult('5', "{{ price | minus:'2' }}", assigns: ['price' => new NumberDrop(7)]);
+    assertTemplateResult('5', "{{ price | minus:'2' }}", staticData: ['price' => new NumberDrop(7)]);
 });
 
 test('abs', function () {
@@ -762,7 +762,7 @@ test('sum with unindexable values', function () {
 test('sum without property calls to liquid', function () {
     $t = new ThingWithParamToLiquid;
 
-    renderTemplate('{{ foo | sum }}', assigns: ['foo' => [$t]]);
+    renderTemplate('{{ foo | sum }}', staticData: ['foo' => [$t]]);
 
     expect($t->value)->toBe(1);
 });
@@ -770,7 +770,7 @@ test('sum without property calls to liquid', function () {
 test('sum with property calls to liquid on property values', function () {
     $t = new ThingWithParamToLiquid;
 
-    renderTemplate('{{ foo | sum: "quantity" }}', assigns: ['foo' => [['quantity' => $t]]]);
+    renderTemplate('{{ foo | sum: "quantity" }}', staticData: ['foo' => [['quantity' => $t]]]);
 
     expect($t->value)->toBe(1);
 });

@@ -17,8 +17,17 @@ test('render passes named arguments into inner scope', function () {
     assertTemplateResult(
         'My Product',
         '{% render "product", inner_product: outer_product %}',
-        assigns: ['outer_product' => ['title' => 'My Product']],
+        staticData: ['outer_product' => ['title' => 'My Product']],
         partials: ['product' => '{{ inner_product.title }}'],
+    );
+});
+
+test('render passes parent variable as named arguments into inner scope', function () {
+    assertTemplateResult(
+        'My Product',
+        '{% render "product", product: a %}',
+        data: ['a' => ['title' => 'My Product']],
+        partials: ['product' => '{{ product.title }}'],
     );
 });
 
@@ -149,7 +158,7 @@ test('render tag with', function () {
     assertTemplateResult(
         'Product: Draft 151cm ',
         "{% render 'product' with products[0] %}",
-        assigns: [
+        staticData: [
             'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
         ],
         partials: [
@@ -162,7 +171,7 @@ test('render tag with alias', function () {
     assertTemplateResult(
         'Product: Draft 151cm ',
         "{% render 'product_alias' with products[0] as product %}",
-        assigns: [
+        staticData: [
             'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
         ],
         partials: [
@@ -175,7 +184,7 @@ test('render tag for', function () {
     assertTemplateResult(
         'Product: Draft 151cm Product: Element 155cm ',
         "{% render 'product' for products %}",
-        assigns: [
+        staticData: [
             'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
         ],
         partials: [
@@ -188,7 +197,7 @@ test('render tag for alias', function () {
     assertTemplateResult(
         'Product: Draft 151cm Product: Element 155cm ',
         "{% render 'product_alias' for products as product %}",
-        assigns: [
+        staticData: [
             'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
         ],
         partials: [
@@ -201,7 +210,7 @@ test('render tag forloop', function () {
     assertTemplateResult(
         'Product: Draft 151cm first  index:1 Product: Element 155cm  last index:2 ',
         "{% render 'product' for products %}",
-        assigns: [
+        staticData: [
             'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
         ],
         partials: [
@@ -214,7 +223,7 @@ test('render tag for drop', function () {
     assertTemplateResult(
         '123',
         "{% render 'loop' for iterator as value %}",
-        assigns: [
+        staticData: [
             'iterator' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop,
         ],
         partials: [
@@ -227,7 +236,7 @@ test('render tag with drop', function () {
     assertTemplateResult(
         '1',
         "{% render 'loop' with data as value %}",
-        assigns: [
+        staticData: [
             'data' => 1,
         ],
         partials: [
@@ -240,7 +249,7 @@ test('render tag renders error with template name', function () {
     assertTemplateResult(
         'Liquid error (foo line 1): Standard error',
         "{% render 'foo' with errors %}",
-        assigns: [
+        staticData: [
             'errors' => new \Keepsuit\Liquid\Tests\Stubs\ErrorDrop,
         ],
         partials: [
@@ -253,7 +262,7 @@ test('render tag renders error with template name', function () {
 test('render stream', function () {
     $stream = streamTemplate(
         "{% render 'product' for products %}",
-        assigns: [
+        staticData: [
             'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
         ],
         partials: [
