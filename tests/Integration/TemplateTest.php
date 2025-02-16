@@ -211,7 +211,7 @@ test('undefined drop method', function (bool $strict) {
 
 test('undefined drop method throw exception', function (bool $strict) {
     $environment = EnvironmentFactory::new()
-        ->setRethrowErrors()
+        ->setRethrowErrors(true)
         ->setStrictVariables($strict)
         ->build();
 
@@ -264,7 +264,7 @@ test('undefined filter', function (bool $strict) {
 
 test('undefined filter throw exception', function (bool $strict) {
     $environment = EnvironmentFactory::new()
-        ->setRethrowErrors()
+        ->setRethrowErrors(true)
         ->setStrictFilters($strict)
         ->build();
 

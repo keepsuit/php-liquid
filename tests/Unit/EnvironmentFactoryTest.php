@@ -37,9 +37,9 @@ test('get registered tags', function () {
 
 test('default render options settings', function () {
     $environment = EnvironmentFactory::new()
-        ->setRethrowErrors()
-        ->setStrictVariables()
-        ->setStrictFilters()
+        ->setRethrowErrors(true)
+        ->setStrictVariables(true)
+        ->setStrictFilters(true)
         ->build();
 
     expect($environment)

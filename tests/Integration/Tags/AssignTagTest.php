@@ -69,7 +69,7 @@ test('assign score exceeding resource limit', function () {
 
 test('assign score exceeding resource limit from composite object', function () {
     $environment = EnvironmentFactory::new()
-        ->setRethrowErrors()
+        ->setRethrowErrors(true)
         ->build();
 
     $template = $environment->parseString("{% assign foo = 'aaaa' | split: '' %}");

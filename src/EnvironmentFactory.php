@@ -85,7 +85,7 @@ final class EnvironmentFactory
         return $this;
     }
 
-    public function setRethrowErrors(bool $rethrowErrors = true): EnvironmentFactory
+    public function setRethrowErrors(bool $rethrowErrors): EnvironmentFactory
     {
         $this->defaultRenderContextOptions = $this->defaultRenderContextOptions->cloneWith(
             rethrowErrors: $rethrowErrors,
@@ -94,7 +94,7 @@ final class EnvironmentFactory
         return $this;
     }
 
-    public function setStrictVariables(bool $strictVariables = true): EnvironmentFactory
+    public function setStrictVariables(bool $strictVariables): EnvironmentFactory
     {
         $this->defaultRenderContextOptions = $this->defaultRenderContextOptions->cloneWith(
             strictVariables: $strictVariables,
@@ -103,7 +103,7 @@ final class EnvironmentFactory
         return $this;
     }
 
-    public function setStrictFilters(bool $strictFilters = true): EnvironmentFactory
+    public function setStrictFilters(bool $strictFilters): EnvironmentFactory
     {
         $this->defaultRenderContextOptions = $this->defaultRenderContextOptions->cloneWith(
             strictFilters: $strictFilters,
@@ -112,7 +112,7 @@ final class EnvironmentFactory
         return $this;
     }
 
-    public function setLazyParsing(bool $lazyParsing = true): EnvironmentFactory
+    public function setLazyParsing(bool $lazyParsing): EnvironmentFactory
     {
         $this->defaultRenderContextOptions = $this->defaultRenderContextOptions->cloneWith(
             lazyParsing: $lazyParsing,
