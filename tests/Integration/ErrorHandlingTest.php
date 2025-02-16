@@ -38,7 +38,7 @@ test('template parsed with line numbers renders them in errors', function () {
         Bla.
         HTML;
 
-    assertTemplateResult($expected, $template, assigns: ['errors' => new ErrorDrop], renderErrors: true);
+    assertTemplateResult($expected, $template, staticData: ['errors' => new ErrorDrop], renderErrors: true);
 });
 
 test('standard error', function () {

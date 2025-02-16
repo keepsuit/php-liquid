@@ -25,7 +25,7 @@ test('unless in loop', function () {
     assertTemplateResult(
         '23',
         '{% for i in choices %}{% unless i %}{{ forloop.index }}{% endunless %}{% endfor %}',
-        assigns: ['choices' => [1, null, false]]
+        staticData: ['choices' => [1, null, false]]
     );
 });
 
@@ -33,6 +33,6 @@ test('unless else in loop', function () {
     assertTemplateResult(
         ' TRUE  2  3 ',
         '{% for i in choices %}{% unless i %} {{ forloop.index }} {% else %} TRUE {% endunless %}{% endfor %}',
-        assigns: ['choices' => [1, null, false]]
+        staticData: ['choices' => [1, null, false]]
     );
 });

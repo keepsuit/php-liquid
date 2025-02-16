@@ -46,13 +46,13 @@ test('if or with operators', function () {
 test('comparison of strings containing and or or', function () {
     $awfulMarkup = "a == 'and' and b == 'or' and c == 'foo and bar' and d == 'bar or baz' and e == 'foo' and foo and bar";
     $assigns = ['a' => 'and', 'b' => 'or', 'c' => 'foo and bar', 'd' => 'bar or baz', 'e' => 'foo', 'foo' => true, 'bar' => true];
-    assertTemplateResult(' YES ', "{% if $awfulMarkup %} YES {% endif %}", assigns: $assigns);
+    assertTemplateResult(' YES ', "{% if $awfulMarkup %} YES {% endif %}", staticData: $assigns);
 });
 
 test('comparison of expressions starting with and or or', function () {
     $assigns = ['order' => ['items_count' => 0], 'android' => ['name' => 'Roy']];
-    assertTemplateResult('YES', "{% if android.name == 'Roy' %}YES{% endif %}", assigns: $assigns);
-    assertTemplateResult('YES', '{% if order.items_count == 0 %}YES{% endif %}', assigns: $assigns);
+    assertTemplateResult('YES', "{% if android.name == 'Roy' %}YES{% endif %}", staticData: $assigns);
+    assertTemplateResult('YES', '{% if order.items_count == 0 %}YES{% endif %}', staticData: $assigns);
 });
 
 test('if and', function () {
@@ -62,7 +62,7 @@ test('if and', function () {
 });
 
 test('hash miss generates false', function () {
-    assertTemplateResult('', '{% if foo.bar %} NO {% endif %}', assigns: ['foo' => []]);
+    assertTemplateResult('', '{% if foo.bar %} NO {% endif %}', staticData: ['foo' => []]);
 });
 
 test('if from variable', function () {
@@ -145,7 +145,7 @@ test('operators are isolated', function () {
 });
 
 test('multiple conditions', function (string $result, array $assigns) {
-    assertTemplateResult($result, '{% if a or b and c %}true{% else %}false{% endif %}', assigns: $assigns);
+    assertTemplateResult($result, '{% if a or b and c %}true{% else %}false{% endif %}', staticData: $assigns);
 })->with([
     ['true', ['a' => true, 'b' => true, 'c' => true]],
     ['true', ['a' => true, 'b' => true, 'c' => false]],

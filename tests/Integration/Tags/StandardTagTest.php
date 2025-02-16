@@ -53,7 +53,7 @@ test('hyphenated assign', function () {
     assertTemplateResult(
         'a-b:1 a-b:2',
         'a-b:{{a-b}} {%assign a-b = 2 %}a-b:{{a-b}}',
-        assigns: ['a-b' => '1']
+        staticData: ['a-b' => '1']
     );
 });
 
@@ -61,7 +61,7 @@ test('assign with colon and spaces', function () {
     assertTemplateResult(
         'var2: 1',
         '{%assign var2 = var["a:b c"].paged %}var2: {{var2}}',
-        assigns: ['var' => ['a:b c' => ['paged' => '1']]]
+        staticData: ['var' => ['a:b c' => ['paged' => '1']]]
     );
 });
 
@@ -69,7 +69,7 @@ test('capture', function () {
     assertTemplateResult(
         'content foo content foo ',
         '{{ var2 }}{% capture var2 %}{{ var }} foo {% endcapture %}{{ var2 }}{{ var2 }}',
-        assigns: ['var' => 'content']
+        staticData: ['var' => 'content']
     );
 });
 
@@ -77,7 +77,7 @@ test('capture detects bad syntax', function () {
     assertMatchSyntaxError(
         'Liquid syntax error (line 1): Syntax Error in \'capture\' - Valid syntax: capture [var]',
         '{{ var2 }}{% capture %}{{ var }} foo {% endcapture %}{{ var2 }}{{ var2 }}',
-        assigns: ['var' => 'content']
+        staticData: ['var' => 'content']
     );
 });
 
@@ -85,28 +85,28 @@ test('case', function () {
     assertTemplateResult(
         ' its 2 ',
         '{% case condition %}{% when 1 %} its 1 {% when 2 %} its 2 {% endcase %}',
-        assigns: ['condition' => 2]
+        staticData: ['condition' => 2]
     );
     assertTemplateResult(
         ' its 1 ',
         '{% case condition %}{% when 1 %} its 1 {% when 2 %} its 2 {% endcase %}',
-        assigns: ['condition' => 1]
+        staticData: ['condition' => 1]
     );
     assertTemplateResult(
         '',
         '{% case condition %}{% when 1 %} its 1 {% when 2 %} its 2 {% endcase %}',
-        assigns: ['condition' => 3]
+        staticData: ['condition' => 3]
     );
 
     assertTemplateResult(
         ' hit ',
         '{% case condition %}{% when "string here" %} hit {% endcase %}',
-        assigns: ['condition' => 'string here']
+        staticData: ['condition' => 'string here']
     );
     assertTemplateResult(
         '',
         '{% case condition %}{% when "string here" %} hit {% endcase %}',
-        assigns: ['condition' => 'bad string here']
+        staticData: ['condition' => 'bad string here']
     );
 });
 
@@ -114,17 +114,17 @@ test('case with else', function () {
     assertTemplateResult(
         ' hit ',
         '{% case condition %}{% when 5 %} hit {% else %} else {% endcase %}',
-        assigns: ['condition' => 5]
+        staticData: ['condition' => 5]
     );
     assertTemplateResult(
         ' else ',
         '{% case condition %}{% when 5 %} hit {% else %} else {% endcase %}',
-        assigns: ['condition' => 6]
+        staticData: ['condition' => 6]
     );
     assertTemplateResult(
         ' else ',
         '{% case condition %} {% when 5 %} hit {% else %} else {% endcase %}',
-        assigns: ['condition' => 6]
+        staticData: ['condition' => 6]
     );
 });
 
@@ -141,32 +141,32 @@ test('case on size with else', function () {
     assertTemplateResult(
         'else',
         '{% case a.size %}{% when 1 %}1{% when 2 %}2{% else %}else{% endcase %}',
-        assigns: ['a' => []],
+        staticData: ['a' => []],
     );
     assertTemplateResult(
         '1',
         '{% case a.size %}{% when 1 %}1{% when 2 %}2{% else %}else{% endcase %}',
-        assigns: ['a' => [1]],
+        staticData: ['a' => [1]],
     );
     assertTemplateResult(
         '2',
         '{% case a.size %}{% when 1 %}1{% when 2 %}2{% else %}else{% endcase %}',
-        assigns: ['a' => [1, 1]],
+        staticData: ['a' => [1, 1]],
     );
     assertTemplateResult(
         'else',
         '{% case a.size %}{% when 1 %}1{% when 2 %}2{% else %}else{% endcase %}',
-        assigns: ['a' => [1, 1, 1]],
+        staticData: ['a' => [1, 1, 1]],
     );
     assertTemplateResult(
         'else',
         '{% case a.size %}{% when 1 %}1{% when 2 %}2{% else %}else{% endcase %}',
-        assigns: ['a' => [1, 1, 1, 1]],
+        staticData: ['a' => [1, 1, 1, 1]],
     );
     assertTemplateResult(
         'else',
         '{% case a.size %}{% when 1 %}1{% when 2 %}2{% else %}else{% endcase %}',
-        assigns: ['a' => [1, 1, 1, 1, 1]],
+        staticData: ['a' => [1, 1, 1, 1, 1]],
     );
 });
 
@@ -243,7 +243,7 @@ test('case when comma and blank body', function () {
     assertTemplateResult(
         'result',
         '{% case condition %}{% when 1, 2 %} {% assign r = "result" %} {% endcase %}{{ r }}',
-        assigns: ['condition' => 2]
+        staticData: ['condition' => 2]
     );
 });
 
@@ -255,7 +255,7 @@ test('assign unassigned', function () {
     assertTemplateResult(
         'var2:  var2:content',
         'var2:{{var2}} {%assign var2 = var%} var2:{{var2}}',
-        assigns: ['var' => 'content']
+        staticData: ['var' => 'content']
     );
 });
 
@@ -298,7 +298,7 @@ test('multiple named cycle with name from context', function () {
     assertTemplateResult(
         'one one two two one one',
         '{%cycle var1: "one", "two" %} {%cycle var2: "one", "two" %} {%cycle var1: "one", "two" %} {%cycle var2: "one", "two" %} {%cycle var1: "one", "two" %} {%cycle var2: "one", "two" %}',
-        assigns: ['var1' => 1, 'var2' => 2],
+        staticData: ['var1' => 1, 'var2' => 2],
     );
 });
 
@@ -306,7 +306,7 @@ test('size of array', function () {
     assertTemplateResult(
         'array has 4 elements',
         'array has {{ array.size }} elements',
-        assigns: ['array' => [1, 2, 3, 4]],
+        staticData: ['array' => [1, 2, 3, 4]],
     );
 });
 
@@ -314,7 +314,7 @@ test('size of hash', function () {
     assertTemplateResult(
         'hash has 4 elements',
         'hash has {{ hash.size }} elements',
-        assigns: ['hash' => ['a' => 1, 'b' => 2, 'c' => 3, 'd' => 4]],
+        staticData: ['hash' => ['a' => 1, 'b' => 2, 'c' => 3, 'd' => 4]],
     );
 });
 
@@ -322,7 +322,7 @@ test('size of iterable', function () {
     assertTemplateResult(
         'array has 4 elements',
         'array has {{ array.size }} elements',
-        assigns: ['array' => new \Keepsuit\Liquid\Tests\Stubs\Collection([1, 2, 3, 4])],
+        staticData: ['array' => new \Keepsuit\Liquid\Tests\Stubs\Collection([1, 2, 3, 4])],
     );
 });
 
@@ -337,13 +337,13 @@ test('ifchanged', function () {
     assertTemplateResult(
         '123',
         '{%for item in array%}{%ifchanged%}{{item}}{% endifchanged %}{%endfor%}',
-        assigns: ['array' => [1, 1, 2, 2, 3, 3]]
+        staticData: ['array' => [1, 1, 2, 2, 3, 3]]
     );
 
     assertTemplateResult(
         '1',
         '{%for item in array%}{%ifchanged%}{{item}}{% endifchanged %}{%endfor%}',
-        assigns: ['array' => [1, 1, 1, 1]]
+        staticData: ['array' => [1, 1, 1, 1]]
     );
 });
 

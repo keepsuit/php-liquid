@@ -5,7 +5,7 @@ test('liquid tag', function () {
     {%- liquid
         echo array | join: " "
     -%}
-    LIQUID, assigns: ['array' => [1, 2, 3]]);
+    LIQUID, staticData: ['array' => [1, 2, 3]]);
 
     assertTemplateResult('1 2 3', <<<'LIQUID'
     {%- liquid
@@ -16,7 +16,7 @@ test('liquid tag', function () {
             endunless
         endfor
     -%}
-    LIQUID, assigns: ['array' => [1, 2, 3]]);
+    LIQUID, staticData: ['array' => [1, 2, 3]]);
 
     assertTemplateResult('2', <<<'LIQUID'
     {%- liquid
@@ -31,7 +31,7 @@ test('liquid tag', function () {
                 echo "else"
         endcase
     -%}
-    LIQUID, assigns: ['value' => 2]);
+    LIQUID, staticData: ['value' => 2]);
 
     assertTemplateResult('4 8 12 6', <<<'LIQUID'
     {%- liquid
@@ -46,7 +46,7 @@ test('liquid tag', function () {
         echo " "
         echo double_value
     -%}
-    LIQUID, assigns: ['array' => [1, 2, 3]]);
+    LIQUID, staticData: ['array' => [1, 2, 3]]);
 
     assertTemplateResult('abc', <<<'LIQUID'
     {%- liquid echo "a" -%}

@@ -20,13 +20,13 @@ test('assigned variable', function () {
     assertTemplateResult(
         '.foo.',
         '{% assign foo = values %}.{{ foo[0] }}.',
-        assigns: ['values' => ['foo', 'bar', 'baz']]
+        staticData: ['values' => ['foo', 'bar', 'baz']]
     );
 
     assertTemplateResult(
         '.bar.',
         '{% assign foo = values %}.{{ foo[1] }}.',
-        assigns: ['values' => ['foo', 'bar', 'baz']]
+        staticData: ['values' => ['foo', 'bar', 'baz']]
     );
 });
 
@@ -34,7 +34,7 @@ test('assigned with filter', function () {
     assertTemplateResult(
         '.bar.',
         '{% assign foo = values | split: "," %}.{{ foo[1] }}.',
-        assigns: ['values' => 'foo,bar,baz']
+        staticData: ['values' => 'foo,bar,baz']
     );
 });
 
@@ -50,7 +50,7 @@ test('expression with whitespace in square brackets', function () {
     assertTemplateResult(
         'result',
         "{% assign r = a[ 'b' ] %}{{ r }}",
-        assigns: ['a' => ['b' => 'result']]
+        staticData: ['a' => ['b' => 'result']]
     );
 });
 
