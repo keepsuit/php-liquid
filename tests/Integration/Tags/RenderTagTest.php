@@ -22,6 +22,15 @@ test('render passes named arguments into inner scope', function () {
     );
 });
 
+test('render passes parent variable as named arguments into inner scope', function () {
+    assertTemplateResult(
+        'My Product',
+        '{% render "product", product: a %}',
+        data: ['a' => ['title' => 'My Product']],
+        partials: ['product' => '{{ product.title }}'],
+    );
+});
+
 test('render accepts literals as arguments', function () {
     assertTemplateResult(
         '123',
