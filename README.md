@@ -41,11 +41,13 @@ Create a new environment factory instance:
 ```php
 $environment = \Keepsuit\Liquid\EnvironmentFactory::new()
     // enable strict variables mode
-    ->setStrictVariables()
+    ->setStrictVariables(true)
     // enable strict filters mode
-    ->setStrictFilters()
+    ->setStrictFilters(true)
     // rethrow exceptions instead of rendering them
-    ->setRethrowErrors()
+    ->setRethrowErrors(true)
+    // disable lazy parsing (enabled by default)
+    ->setLazyParsing(false)
     // replace the default error handler
     ->setErrorHandler(new \Keepsuit\Liquid\ErrorHandlers\DefaultErrorHandler())
     // set filesystem used to load templates
