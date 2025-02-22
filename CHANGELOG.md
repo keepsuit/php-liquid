@@ -2,6 +2,33 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.7.0 - 2025-02-22
+
+### Breaking Changes
+
+* Introduced `Environment` concept to allow multiple liquid instances with different settings, tags and filters. This was partially possible with `TemplateFactory` previously.
+* `TemplateFactory` has been removed and replaced by `EnvironmentFactory`, some methods (`newParseContext`, `newRenderContext`, `parseString`, `parseTemplate`) have been moved to `Environment` and default values of setters has been removed.
+* Renamed `environment` and `staticEnvironment` parameters of `RenderContext` to `data` and `staticData` to avoid confusion with `Environment` object.
+* Share parsed templates globally (in the environment), so we can skip re-parsing of partials used in multiple templates. Removed `PartialsCache`. The `Template` state now contains only the template name instead of the parsed `Template`.
+* Moved default tags and filters to `StandardExtension` that is registered by default.
+* Refactored profiling and moved to `ProfilerExtension`.
+* Added option to `RenderContext` to enable parsing of templates at render time.
+
+### What's Changed
+
+* Shopify liquid 5.6 changes by @cappuc in https://github.com/keepsuit/php-liquid/pull/28
+* customisable error handler by @cappuc in https://github.com/keepsuit/php-liquid/pull/29
+* Extensions by @cappuc in https://github.com/keepsuit/php-liquid/pull/30
+* Dynamic render tag by @cappuc in https://github.com/keepsuit/php-liquid/pull/31
+* Ternary filter by @cappuc in https://github.com/keepsuit/php-liquid/pull/32
+* Shared templates cache by @cappuc in https://github.com/keepsuit/php-liquid/pull/33
+* Template cache options by @cappuc in https://github.com/keepsuit/php-liquid/pull/37
+* Fix render variables by @cappuc in https://github.com/keepsuit/php-liquid/pull/38
+* lazy template parsing by @cappuc in https://github.com/keepsuit/php-liquid/pull/39
+* Removed default values on `EnvironmentFactory` setters
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.6.6...v0.7.0
+
 ## v0.6.6 - 2024-11-11
 
 ### What's changed
