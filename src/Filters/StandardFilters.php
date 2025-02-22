@@ -675,34 +675,69 @@ class StandardFilters extends FiltersProvider
     /**
      * Filters an array to include only items with a specific property value.
      */
-    public function where(iterable $input, ?string $property = null, mixed $targetValue = null): array
+    public function where(iterable $input, string $property, mixed $targetValue = null): array
     {
-        $input = $this->mapToLiquid($input);
+        $input = $this->iterableToList($input);
 
-        if ($input === []) {
-            return [];
+        return array_values(array_filter($input, fn (mixed $item) => $this->objectHasPropertyWithValue($item, $property, $targetValue)));
+    }
+
+    /**
+     * Filters an array to exclude items with a specific property value.
+     */
+    public function reject(iterable $input, string $property, mixed $targetValue = null): array
+    {
+        $input = $this->iterableToList($input);
+
+        return array_values(array_filter($input, fn (mixed $item) => ! $this->objectHasPropertyWithValue($item, $property, $targetValue)));
+    }
+
+    /**
+     * Tests if any item in an array has a specific property value.
+     */
+    public function has(iterable $input, string $property, mixed $targetValue = null): bool
+    {
+        $input = $this->iterableToList($input);
+
+        foreach ($input as $item) {
+            if ($this->objectHasPropertyWithValue($item, $property, $targetValue)) {
+                return true;
+            }
         }
 
-        $input = array_is_list($input) ? $input : [$input];
+        return false;
+    }
 
-        $result = array_filter($input, function (mixed $value) use ($property, $targetValue) {
-            if ($targetValue === null) {
-                return match (true) {
-                    is_string($value) && $property !== null => str_starts_with($value, $property),
-                    is_array($value) && $property !== null => (bool) ($value[$property] ?? null),
-                    is_object($value) && $property !== null => (bool) ($value->$property ?? null),
-                    default => (bool) $value,
-                };
+    /**
+     * Returns the first item in an array with a specific property value.
+     */
+    public function find(iterable $input, string $property, mixed $targetValue = null): mixed
+    {
+        $input = $this->iterableToList($input);
+
+        foreach ($input as $item) {
+            if ($this->objectHasPropertyWithValue($item, $property, $targetValue)) {
+                return $item;
             }
+        }
 
-            return match (true) {
-                is_array($value) && $property !== null => ($value[$property] ?? null) === $targetValue,
-                is_object($value) && $property !== null => ($value->$property ?? null) === $targetValue,
-                default => false,
-            };
-        });
+        return null;
+    }
 
-        return array_values($result);
+    /**
+     * Returns the index of the first item in an array with a specific property value.
+     */
+    public function findIndex(iterable $input, string $property, mixed $targetValue = null): ?int
+    {
+        $input = $this->iterableToList($input);
+
+        foreach ($input as $index => $item) {
+            if ($this->objectHasPropertyWithValue($item, $property, $targetValue)) {
+                return $index;
+            }
+        }
+
+        return null;
     }
 
     protected function mapToLiquid(iterable $input): array
@@ -716,5 +751,39 @@ class StandardFilters extends FiltersProvider
 
             return $value;
         });
+    }
+
+    /**
+     * Convert an iterable to a list.
+     */
+    protected function iterableToList(iterable $input): array
+    {
+        $input = $this->mapToLiquid($input);
+
+        if ($input === []) {
+            return [];
+        }
+
+        return array_is_list($input) ? $input : [$input];
+    }
+
+    /**
+     * Check if an object has a property with a specific value.
+     * If item is a string, check if it starts with the property name.
+     */
+    protected function objectHasPropertyWithValue(mixed $item, string $property, mixed $targetValue = null): bool
+    {
+        $value = match (true) {
+            is_array($item) => ($item[$property] ?? null),
+            is_object($item) => ($item->$property ?? null),
+            $targetValue === null && is_string($item) && str_starts_with($item, $property) => true,
+            default => null,
+        };
+
+        if ($targetValue === null) {
+            return $value !== false && $value !== null && $value !== '' && $value !== [];
+        } else {
+            return $value === $targetValue;
+        }
     }
 }
