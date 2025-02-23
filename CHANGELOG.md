@@ -2,6 +2,14 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.8.0 - 2025-02-23
+
+### What's Changed
+
+* Shopify liquid 5.7 changes by @cappuc in https://github.com/keepsuit/php-liquid/pull/40
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.7.0...v0.8.0
+
 ## v0.7.0 - 2025-02-22
 
 ### Breaking Changes
