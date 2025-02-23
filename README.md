@@ -18,6 +18,7 @@ Liquid is a template engine with interesting advantages:
 
 |  PHP Liquid | Shopify Liquid |
 |------------:|---------------:|
+|        v0.8 |           v5.7 |
 |        v0.7 |           v5.6 |
 | v0.1 - v0.6 |           v5.5 |
 
@@ -40,11 +41,11 @@ Create a new environment factory instance:
 
 ```php
 $environment = \Keepsuit\Liquid\EnvironmentFactory::new()
-    // enable strict variables mode
+    // enable strict variables mode (disabled by default)
     ->setStrictVariables(true)
-    // enable strict filters mode
+    // enable strict filters mode (disabled by default)
     ->setStrictFilters(true)
-    // rethrow exceptions instead of rendering them
+    // rethrow exceptions instead of rendering them (disabled by default)
     ->setRethrowErrors(true)
     // disable lazy parsing (enabled by default)
     ->setLazyParsing(false)

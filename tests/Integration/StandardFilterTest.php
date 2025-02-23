@@ -652,9 +652,35 @@ test('where', function () {
         ['handle' => 'alpha', 'ok' => true],
         ['handle' => 'delta', 'ok' => true],
     ];
-
     expect($this->filters->invoke($this->context, 'where', $input, ['ok', true]))->toBe($expectation);
     expect($this->filters->invoke($this->context, 'where', $input, ['ok']))->toBe($expectation);
+
+    $template = "{{ array | where: 'ok' | map: 'handle' | join: ' ' }}";
+    assertTemplateResult('alpha delta', $template, ['array' => $input]);
+});
+
+test('where with value', function () {
+    $input = [
+        ['handle' => 'alpha', 'ok' => true],
+        ['handle' => 'beta', 'ok' => false],
+        ['handle' => 'gamma', 'ok' => false],
+        ['handle' => 'delta', 'ok' => true],
+    ];
+
+    $template = "{{ array | where: 'ok', true | map: 'handle' | join: ' ' }}";
+    assertTemplateResult('alpha delta', $template, ['array' => $input]);
+});
+
+test('where with false value', function () {
+    $input = [
+        ['handle' => 'alpha', 'ok' => true],
+        ['handle' => 'beta', 'ok' => false],
+        ['handle' => 'gamma', 'ok' => false],
+        ['handle' => 'delta', 'ok' => true],
+    ];
+
+    $template = "{{ array | where: 'ok', false | map: 'handle' | join: ' ' }}";
+    assertTemplateResult('beta gamma', $template, ['array' => $input]);
 });
 
 test('where string keys', function () {
@@ -773,4 +799,205 @@ test('sum with property calls to liquid on property values', function () {
     renderTemplate('{{ foo | sum: "quantity" }}', staticData: ['foo' => [['quantity' => $t]]]);
 
     expect($t->value)->toBe(1);
+});
+
+test('find with value', function () {
+    $products = [
+        ['title' => 'Pro goggles', 'price' => 1299],
+        ['title' => 'Thermal gloves', 'price' => 1499],
+        ['title' => 'Alpine jacket', 'price' => 3999],
+        ['title' => 'Mountain boots', 'price' => 3899],
+        ['title' => 'Safety helmet', 'price' => 1999],
+    ];
+
+    $template = <<<'LIQUID'
+        {%- assign product = products | find: 'price', 3999 -%}
+        {{- product.title -}}
+        LIQUID;
+
+    assertTemplateResult('Alpine jacket', $template, ['products' => $products]);
+});
+
+test('find on empty array', function () {
+    expect($this->filters->invoke($this->context, 'find', [], ['foo', 'bar']))->toBeNull();
+
+    $template = <<<'LIQUID'
+        {%- assign product = products | find: 'title.content', 'Not found' -%}
+        {%- unless product -%}
+        Product not found.
+        {%- endunless -%}
+        LIQUID;
+
+    assertTemplateResult('Product not found.', $template, ['products' => []]);
+});
+
+test('find index with value', function () {
+    $products = [
+        ['title' => 'Pro goggles', 'price' => 1299],
+        ['title' => 'Thermal gloves', 'price' => 1499],
+        ['title' => 'Alpine jacket', 'price' => 3999],
+        ['title' => 'Mountain boots', 'price' => 3899],
+        ['title' => 'Safety helmet', 'price' => 1999],
+    ];
+
+    $template = <<<'LIQUID'
+        {%- assign index = products | find_index: 'price', 3999 -%}
+        {{- index -}}
+        LIQUID;
+
+    assertTemplateResult('2', $template, ['products' => $products]);
+});
+
+test('find index on empty array', function () {
+    expect($this->filters->invoke($this->context, 'find_index', [], ['foo', 'bar']))->toBeNull();
+
+    $template = <<<'LIQUID'
+        {%- assign index = products | find_index: 'title.content', 'Not found' -%}
+        {%- unless index -%}
+        Index not found.
+        {%- endunless -%}
+        LIQUID;
+
+    assertTemplateResult('Index not found.', $template, ['products' => []]);
+});
+
+test('has', function () {
+    $input = [
+        ['handle' => 'alpha', 'ok' => true],
+        ['handle' => 'beta', 'ok' => false],
+        ['handle' => 'gamma', 'ok' => false],
+        ['handle' => 'delta', 'ok' => true],
+    ];
+
+    assertTemplateResult(
+        'true',
+        '{{ array | has: "ok" }}',
+        ['array' => $input],
+    );
+
+    assertTemplateResult(
+        'true',
+        '{{ array | has: "ok", true }}',
+        ['array' => $input],
+    );
+});
+
+test('has when does not have it', function () {
+    $input = [
+        ['handle' => 'alpha', 'ok' => false],
+        ['handle' => 'beta', 'ok' => false],
+        ['handle' => 'gamma', 'ok' => false],
+        ['handle' => 'delta', 'ok' => false],
+    ];
+
+    assertTemplateResult(
+        'false',
+        '{{ array | has: "ok" }}',
+        ['array' => $input],
+    );
+
+    assertTemplateResult(
+        'false',
+        '{{ array | has: "ok", true }}',
+        ['array' => $input],
+    );
+});
+
+test('has on empty array', function () {
+    expect($this->filters->invoke($this->context, 'has', [], ['foo', 'bar']))->toBe(false);
+
+    $template = <<<'LIQUID'
+        {%- assign has_product = products | has: 'title.content', 'Not found' -%}
+        {%- unless has_product -%}
+        Product not found.
+        {%- endunless -%}
+        LIQUID;
+    assertTemplateResult('Product not found.', $template, ['products' => []]);
+});
+
+test('has with false value', function () {
+    $input = [
+        ['handle' => 'alpha', 'ok' => true],
+        ['handle' => 'beta', 'ok' => false],
+        ['handle' => 'gamma', 'ok' => false],
+        ['handle' => 'delta', 'ok' => true],
+    ];
+
+    assertTemplateResult(
+        'true',
+        '{{ array | has: "ok", false }}',
+        ['array' => $input],
+    );
+});
+
+test('has with false value when does not have it', function () {
+    $input = [
+        ['handle' => 'alpha', 'ok' => true],
+        ['handle' => 'beta', 'ok' => true],
+        ['handle' => 'gamma', 'ok' => true],
+        ['handle' => 'delta', 'ok' => true],
+    ];
+
+    assertTemplateResult(
+        'false',
+        '{{ array | has: "ok", false }}',
+        ['array' => $input],
+    );
+});
+
+test('join calls to liquid on each element', function () {
+    $drop = new class implements \Keepsuit\Liquid\Contracts\MapsToLiquid
+    {
+        public function toLiquid(): string
+        {
+            return 'i did it';
+        }
+    };
+
+    expect($this->filters->invoke($this->context, 'join', [$drop, $drop], [', ']))->toBe('i did it, i did it');
+});
+
+test('reject', function () {
+    $input = [
+        ['handle' => 'alpha', 'ok' => true],
+        ['handle' => 'beta', 'ok' => false],
+        ['handle' => 'gamma', 'ok' => false],
+        ['handle' => 'delta', 'ok' => true],
+    ];
+
+    assertTemplateResult(
+        'beta gamma',
+        '{{ array | reject: "ok" | map: "handle" | join: " " }}',
+        ['array' => $input],
+    );
+});
+
+test('reject with value', function () {
+    $input = [
+        ['handle' => 'alpha', 'ok' => true],
+        ['handle' => 'beta', 'ok' => false],
+        ['handle' => 'gamma', 'ok' => false],
+        ['handle' => 'delta', 'ok' => true],
+    ];
+
+    assertTemplateResult(
+        'beta gamma',
+        '{{ array | reject: "ok", true | map: "handle" | join: " " }}',
+        ['array' => $input],
+    );
+});
+
+test('reject with false value', function () {
+    $input = [
+        ['handle' => 'alpha', 'ok' => true],
+        ['handle' => 'beta', 'ok' => false],
+        ['handle' => 'gamma', 'ok' => false],
+        ['handle' => 'delta', 'ok' => true],
+    ];
+
+    assertTemplateResult(
+        'alpha delta',
+        '{{ array | reject: "ok", false | map: "handle" | join: " " }}',
+        ['array' => $input],
+    );
 });
