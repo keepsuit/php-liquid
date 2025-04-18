@@ -199,6 +199,7 @@ final class RenderContext
                 is_array($scope) && array_key_exists($key, $scope) => $scope[$key],
                 $scope instanceof Drop => $scope->{$key},
                 is_object($scope) && property_exists($scope, (string) $key) => $scope->{$key},
+                is_object($scope) && (isset($scope->{$key}) || is_null($scope->{$key} ?? false)) => $scope->{$key},
                 default => new MissingValue,
             };
         } catch (UndefinedDropMethodException) {

@@ -10,6 +10,8 @@ use Keepsuit\Liquid\Tests\Stubs\CentsDrop;
 use Keepsuit\Liquid\Tests\Stubs\ContextSensitiveDrop;
 use Keepsuit\Liquid\Tests\Stubs\CounterDrop;
 use Keepsuit\Liquid\Tests\Stubs\HundredCents;
+use Keepsuit\Liquid\Tests\Stubs\MagicClass;
+use Keepsuit\Liquid\Tests\Stubs\SimpleClass;
 
 test('variables', function (bool $strict) {
     $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
@@ -687,6 +689,45 @@ test('has key will not add an error for missing keys', function (bool $strict) {
     $context->has('unknown');
 
     expect($context->getErrors())->toBe([]);
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
+
+test('internal context lookup with simple object', function (bool $strict) {
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
+    $context->set('object', new SimpleClass());
+
+    expect($context->get('object.simpleProperty'))->toBe('foo');
+    expect($context->get('object.nullProperty'))->toBe(null);
+    expect(fn() => $context->get('object.protectedProperty'))->toThrow(Error::class);
+
+    if ($strict) {
+        expect($context->get('object.nonExistingProperty'))->toBeInstanceOf(UndefinedVariable::class);
+        expect($context->get('object.simpleMethod'))->toBeInstanceOf(UndefinedVariable::class);
+    } else {
+        expect($context->get('object.nonExistingProperty'))->toBe(null);
+        expect($context->get('object.simpleMethod'))->toBe(null);
+    }
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
+
+test('internal context lookup magic object', function (bool $strict) {
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
+    $context->set('object', new MagicClass());
+
+    expect($context->get('object.simpleProperty'))->toBe('foo');
+    expect($context->get('object.nullProperty'))->toBe(null);
+
+    if ($strict) {
+        expect($context->get('object.nonExistingProperty'))->toBeInstanceOf(UndefinedVariable::class);
+        expect($context->get('object.simpleMethod'))->toBeInstanceOf(UndefinedVariable::class);
+    } else {
+        expect($context->get('object.nonExistingProperty'))->toBe(null);
+        expect($context->get('object.simpleMethod'))->toBe(null);
+    }
 })->with([
     'default' => false,
     'strict' => true,
