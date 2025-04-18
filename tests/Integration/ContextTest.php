@@ -696,11 +696,11 @@ test('has key will not add an error for missing keys', function (bool $strict) {
 
 test('internal context lookup with simple object', function (bool $strict) {
     $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
-    $context->set('object', new SimpleClass());
+    $context->set('object', new SimpleClass);
 
     expect($context->get('object.simpleProperty'))->toBe('foo');
     expect($context->get('object.nullProperty'))->toBe(null);
-    expect(fn() => $context->get('object.protectedProperty'))->toThrow(Error::class);
+    expect(fn () => $context->get('object.protectedProperty'))->toThrow(Error::class);
 
     if ($strict) {
         expect($context->get('object.nonExistingProperty'))->toBeInstanceOf(UndefinedVariable::class);
@@ -716,7 +716,7 @@ test('internal context lookup with simple object', function (bool $strict) {
 
 test('internal context lookup magic object', function (bool $strict) {
     $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
-    $context->set('object', new MagicClass());
+    $context->set('object', new MagicClass);
 
     expect($context->get('object.simpleProperty'))->toBe('foo');
     expect($context->get('object.nullProperty'))->toBe(null);
