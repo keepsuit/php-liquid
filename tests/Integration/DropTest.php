@@ -114,10 +114,10 @@ test('drop toArray', function () {
     $drop = new ProductDrop;
     $drop->setContext($context);
     expect($drop->toArray())
-        ->toHaveKeys(['productName', 'text', 'catchAll', 'context'])
-        ->productName->toBe('Product')
+        ->toHaveKeys(['product_name', 'text', 'catch_all', 'context'])
+        ->product_name->toBe('Product')
         ->text->toBeInstanceOf(\Keepsuit\Liquid\Tests\Stubs\TextDrop::class)
-        ->catchAll->toBeInstanceOf(\Keepsuit\Liquid\Tests\Stubs\CatchAllDrop::class)
+        ->catch_all->toBeInstanceOf(\Keepsuit\Liquid\Tests\Stubs\CatchAllDrop::class)
         ->context->toBe($context);
 });
 
