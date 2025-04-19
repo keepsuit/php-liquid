@@ -196,9 +196,9 @@ final class RenderContext
     {
         try {
             $value = match (true) {
-                is_array($scope) && array_key_exists($key, $scope) => $scope[$key],
                 $scope instanceof Drop => $scope->{$key},
-                is_object($scope) && property_exists($scope, (string) $key) => $scope->{$key},
+                is_array($scope) && array_key_exists($key, $scope) => $scope[$key],
+                is_object($scope) && $this->objectHasProperty($scope, (string) $key) => $scope->{$key},
                 default => new MissingValue,
             };
         } catch (UndefinedDropMethodException) {
@@ -206,6 +206,25 @@ final class RenderContext
         }
 
         return $this->normalizeValue($value);
+    }
+
+    protected function objectHasProperty(object $object, string $property): bool
+    {
+        try {
+            // Check if the property is a public property
+            if (array_key_exists($property, get_object_vars($object))) {
+                return true;
+            }
+
+            // Check if the property is accessible via __get() and __isset()
+            if (isset($object->{$property})) {
+                return true;
+            }
+
+            return false;
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     public function normalizeValue(mixed $value): mixed
