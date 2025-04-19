@@ -210,17 +210,21 @@ final class RenderContext
 
     protected function objectHasProperty(object $object, string $property): bool
     {
-        if (property_exists($object, $property) || method_exists($object, '__get')) {
-            try {
-                $value = $object->{$property};
-
+        try {
+            // Check if the property is a public property
+            if (array_key_exists($property, get_object_vars($object))) {
                 return true;
-            } catch (Throwable) {
-                return false;
             }
-        }
 
-        return false;
+            // Check if the property is accessible via __get() and __isset()
+            if (isset($object->{$property})) {
+                return true;
+            }
+
+            return false;
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     public function normalizeValue(mixed $value): mixed
