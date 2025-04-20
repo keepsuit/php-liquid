@@ -10,6 +10,10 @@ class SimpleClass
 
     protected string $protectedProperty = 'foo';
 
+    public static string $staticProperty = 'foo';
+
+    public static ?string $staticNullProperty = null;
+
     public function simpleMethod(): string
     {
         return 'foo';

@@ -700,6 +700,8 @@ test('internal context lookup with simple object', function (bool $strict) {
 
     expect($context->get('object.simpleProperty'))->toBe('foo');
     expect($context->get('object.nullProperty'))->toBe(null);
+    expect($context->get('object.staticProperty'))->toBe('foo');
+    expect($context->get('object.staticNullProperty'))->toBe(null);
 
     if ($strict) {
         expect($context->get('object.protectedProperty'))->toBeInstanceOf(UndefinedVariable::class);

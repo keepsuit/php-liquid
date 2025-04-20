@@ -199,6 +199,7 @@ final class RenderContext
                 $scope instanceof Drop => $scope->{$key},
                 is_array($scope) && array_key_exists($key, $scope) => $scope[$key],
                 is_object($scope) && $this->objectHasProperty($scope, (string) $key) => $scope->{$key},
+                is_object($scope) && $this->objectHasStaticProperty($scope, (string) $key) => $scope::$$key,
                 default => new MissingValue,
             };
         } catch (UndefinedDropMethodException) {
@@ -225,6 +226,14 @@ final class RenderContext
         } catch (Throwable) {
             return false;
         }
+    }
+
+    protected function objectHasStaticProperty(object $object, string $property): bool
+    {
+        $className = get_class($object);
+        $staticProperties = get_class_vars($className);
+
+        return array_key_exists($property, $staticProperties);
     }
 
     public function normalizeValue(mixed $value): mixed
