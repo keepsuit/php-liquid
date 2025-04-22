@@ -2,6 +2,15 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.8.1 - 2025-04-22
+
+### What's Changed
+
+* Resolve properties of classes with magic getters by @tillschander in https://github.com/keepsuit/php-liquid/pull/42
+* map drop keys to snake case in toArray by @cappuc in https://github.com/keepsuit/php-liquid/pull/43
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.8.0...v0.8.1
+
 ## v0.8.0 - 2025-02-23
 
 ### What's Changed
