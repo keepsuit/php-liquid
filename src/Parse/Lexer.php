@@ -119,8 +119,9 @@ class Lexer
         $this->pushToken(TokenType::TextData, $textBeforeToken);
         $this->moveCursor($text.$position[0]);
 
-        switch (rtrim($this->positions[$this->position][0], LexerOptions::WhitespaceTrim->value)) {
+        switch ($this->positions[$this->position][0]) {
             case LexerOptions::TagBlockStart->value:
+            case LexerOptions::TagBlockStart->value.LexerOptions::WhitespaceTrim->value:
                 // {% comment %}
                 if (preg_match(LexerOptions::blockCommentStartRegex(), $this->source, $matches, offset: $this->cursor) === 1) {
                     $this->moveCursor($matches[0]);
@@ -133,6 +134,7 @@ class Lexer
                 $this->currentVarBlockLine = $this->lineNumber;
                 break;
             case LexerOptions::TagVariableStart->value:
+            case LexerOptions::TagVariableStart->value.LexerOptions::WhitespaceTrim->value:
                 $this->pushToken(TokenType::VariableStart);
                 $this->pushState(LexerState::Variable);
                 $this->currentVarBlockLine = $this->lineNumber;
