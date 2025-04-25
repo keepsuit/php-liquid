@@ -256,7 +256,7 @@ class Lexer
         }
     }
 
-    private function laxRawBodyTag(string $tag): void
+    protected function laxRawBodyTag(string $tag): void
     {
         if (preg_match(LexerOptions::blockRawBodyTagDataRegex($tag), $this->source, $matches, flags: PREG_OFFSET_CAPTURE, offset: $this->cursor) !== 1) {
             throw SyntaxException::tagBlockNeverClosed($tag);

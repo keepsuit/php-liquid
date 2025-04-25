@@ -11,7 +11,7 @@ use Keepsuit\Liquid\TagBlock;
 
 class DocTag extends TagBlock
 {
-    protected Raw $body;
+    public readonly Raw $body;
 
     public static function tagName(): string
     {
