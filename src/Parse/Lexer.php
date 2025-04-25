@@ -153,7 +153,7 @@ class Lexer
             $this->popState();
 
             // trim?
-            if (trim($matches[0])[0] === LexerOptions::WhitespaceTrim->value) {
+            if ($matches[1][0] === LexerOptions::WhitespaceTrim->value) {
                 $this->trimWhitespaces();
             }
         } else {
@@ -183,7 +183,7 @@ class Lexer
         $this->moveCursor($matches[0]);
 
         // trim?
-        if (trim($matches[0])[0] === LexerOptions::WhitespaceTrim->value) {
+        if ($matches[1][0] === LexerOptions::WhitespaceTrim->value) {
             $this->trimWhitespaces();
         }
 

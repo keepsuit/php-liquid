@@ -53,7 +53,7 @@ enum LexerOptions: string
 
         if ($regex === null) {
             $regex = sprintf(
-                '{\s*(?:%s|%s)}Ax',
+                '{\s*(%s|%s)}Ax',
                 preg_quote(LexerOptions::WhitespaceTrim->value.LexerOptions::TagVariableEnd->value),
                 preg_quote(LexerOptions::TagVariableEnd->value),
             );
@@ -68,7 +68,7 @@ enum LexerOptions: string
 
         if ($regex === null) {
             $regex = sprintf(
-                '{\s*(?:%s|%s)}Ax',
+                '{\s*(%s|%s)}Ax',
                 preg_quote(LexerOptions::WhitespaceTrim->value.LexerOptions::TagBlockEnd->value),
                 preg_quote(LexerOptions::TagBlockEnd->value),
             );
