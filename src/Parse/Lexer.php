@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid\Parse;
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\TagBlock;
 use RuntimeException;
 
 class Lexer
@@ -36,6 +37,11 @@ class Lexer
 
     protected int $position;
 
+    /**
+     * @var string[]
+     */
+    protected array $rawBodyTags;
+
     public function __construct(
         protected ParseContext $parseContext,
     ) {}
@@ -52,6 +58,14 @@ class Lexer
         $this->states = [];
         $this->state = LexerState::Data;
         $this->tokens = [];
+
+        $this->rawBodyTags = array_keys(array_filter($this->parseContext->environment->tagRegistry->all(), function ($tag) {
+            if (! is_subclass_of($tag, TagBlock::class)) {
+                return false;
+            }
+
+            return $tag::hasRawBody();
+        }));
 
         $this->parseContext->lineNumber = 1;
 
@@ -159,18 +173,41 @@ class Lexer
      */
     protected function lexBlock(): void
     {
-        if (preg_match(LexerOptions::blockEndRegex(), $this->source, $matches, offset: $this->cursor) === 1) {
-            $this->pushToken(TokenType::BlockEnd);
-            $this->moveCursor($matches[0]);
-            $this->popState();
+        $tag = null;
 
-            // trim?
-            if (trim($matches[0])[0] === LexerOptions::WhitespaceTrim->value) {
-                preg_match('/\s+/A', $this->source, $matches, offset: $this->cursor);
-                $this->moveCursor($matches[0] ?? '');
-            }
-        } else {
+        // Parse the full expression inside {% ... %}
+        while (preg_match(LexerOptions::blockEndRegex(), $this->source, $matches, offset: $this->cursor) !== 1) {
             $this->lexExpression();
+
+            $lastToken = $this->tokens[array_key_last($this->tokens)];
+
+            if ($tag === null && $lastToken->type === TokenType::Identifier) {
+                $tag = $lastToken;
+            }
+        }
+
+        // Move the cursor to the end of the block
+        $this->moveCursor($matches[0]);
+
+        // trim?
+        if (trim($matches[0])[0] === LexerOptions::WhitespaceTrim->value) {
+            preg_match('/\s+/A', $this->source, $matches, offset: $this->cursor);
+            $this->moveCursor($matches[0] ?? '');
+        }
+
+        // If the last token is a block start, we remove the node
+        $lastToken = $this->tokens[array_key_last($this->tokens)];
+        if ($lastToken->type === TokenType::BlockStart) {
+            array_pop($this->tokens);
+        } else {
+            $this->pushToken(TokenType::BlockEnd);
+        }
+
+        $this->popState();
+
+        // If the tag is a raw body tag, we need to lex the body as raw data instead of liquid blocks
+        if ($tag !== null && in_array($tag->data, $this->rawBodyTags, true)) {
+            $this->laxRawBodyTag($tag->data);
         }
     }
 
@@ -227,6 +264,19 @@ class Lexer
         }
     }
 
+    private function laxRawBodyTag(string $tag): void
+    {
+        if (preg_match(LexerOptions::blockRawBodyTagDataRegex($tag), $this->source, $matches, flags: PREG_OFFSET_CAPTURE, offset: $this->cursor) !== 1) {
+            throw SyntaxException::tagBlockNeverClosed($tag);
+        }
+
+        $rawBody = substr($this->source, $this->cursor, $matches[0][1] - $this->cursor);
+
+        $this->moveCursor($rawBody);
+
+        $this->pushToken(TokenType::RawData, $rawBody);
+    }
+
     protected function lexRawData(): void
     {
         if (preg_match(LexerOptions::blockRawDataRegex(), $this->source, $matches, flags: PREG_OFFSET_CAPTURE, offset: $this->cursor) !== 1) {
@@ -265,24 +315,7 @@ class Lexer
 
         $text = substr($this->source, $this->cursor, $matches[0][1] - $this->cursor);
 
-        $this->moveCursor($text.$matches[0][0]);
-
-        if ($matches[1][0] === "\n") {
-            return;
-        }
-
-        $lastToken = $this->tokens[count($this->tokens) - 1] ?? null;
-
-        if ($lastToken?->type === TokenType::BlockStart) {
-            array_pop($this->tokens);
-        } else {
-            $this->pushToken(TokenType::BlockEnd);
-        }
-
-        if ($matches[1][0] === LexerOptions::WhitespaceTrim->value) {
-            preg_match('/\s+/A', $this->source, $matches2, offset: $this->cursor);
-            $this->moveCursor($matches2[0] ?? '');
-        }
+        $this->moveCursor($text);
     }
 
     protected function pushToken(TokenType $type, string $value = ''): void

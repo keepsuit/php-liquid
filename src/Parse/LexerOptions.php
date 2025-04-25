@@ -33,21 +33,6 @@ enum LexerOptions: string
         return $regex;
     }
 
-    public static function commentBlockRegex(): string
-    {
-        static $regex;
-
-        if ($regex === null) {
-            $regex = sprintf(
-                "{\s*comment\s*(?:%s|%s')}Asx",
-                preg_quote(LexerOptions::WhitespaceTrim->value.LexerOptions::TagBlockEnd->value),
-                preg_quote(LexerOptions::TagBlockEnd->value),
-            );
-        }
-
-        return $regex;
-    }
-
     public static function variableEndRegex(): string
     {
         static $regex;
@@ -71,6 +56,24 @@ enum LexerOptions: string
             $regex = sprintf(
                 '{\s*(?:%s|%s)}Ax',
                 preg_quote(LexerOptions::WhitespaceTrim->value.LexerOptions::TagBlockEnd->value),
+                preg_quote(LexerOptions::TagBlockEnd->value),
+            );
+        }
+
+        return $regex;
+    }
+
+    public static function blockRawBodyTagDataRegex(string $tag): string
+    {
+        static $regex;
+
+        if ($regex === null) {
+            $regex = sprintf(
+                '{%s(%s)?\s*end%s\s*(%s)?%s}sx',
+                preg_quote(LexerOptions::TagBlockStart->value),
+                LexerOptions::WhitespaceTrim->value,
+                preg_quote($tag),
+                LexerOptions::WhitespaceTrim->value,
                 preg_quote(LexerOptions::TagBlockEnd->value),
             );
         }

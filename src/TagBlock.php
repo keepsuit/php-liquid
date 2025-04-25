@@ -20,4 +20,9 @@ abstract class TagBlock extends Tag implements HasParseTreeVisitorChildren
     {
         return [];
     }
+
+    public static function hasRawBody(): bool
+    {
+        return false;
+    }
 }
