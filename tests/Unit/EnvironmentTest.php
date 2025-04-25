@@ -15,7 +15,7 @@ test('default environment has standard tags registered', function () {
 
     $tags = $env->tagRegistry->all();
 
-    expect($tags)->toHaveCount(17)
+    expect($tags)->toHaveCount(18)
         ->toHaveKey('assign')
         ->toHaveKey('break')
         ->toHaveKey('capture')
@@ -29,6 +29,7 @@ test('default environment has standard tags registered', function () {
         ->toHaveKey('if')
         ->toHaveKey('increment')
         ->toHaveKey('liquid')
+        ->toHaveKey('raw')
         ->toHaveKey('render')
         ->toHaveKey('tablerow')
         ->toHaveKey('unless');

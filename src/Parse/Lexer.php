@@ -31,7 +31,7 @@ class Lexer
     protected array $tokens;
 
     /**
-     * @var array<int, array<int, array{0:string,1:int}>>
+     * @var array<int, array{0:string,1:int}>
      */
     protected array $positions;
 
@@ -69,8 +69,7 @@ class Lexer
 
         $this->parseContext->lineNumber = 1;
 
-        preg_match_all(LexerOptions::tokenStartRegex(), $this->source, $matches, PREG_OFFSET_CAPTURE);
-        $this->positions = $matches;
+        $this->positions = $this->extractTokenStarts($this->source);
         $this->position = -1;
 
         while ($this->cursor < $this->end) {
@@ -93,7 +92,7 @@ class Lexer
     protected function lexData(): void
     {
         // if no matches are left we return the rest of the template as simple text token
-        if ($this->position == count($this->positions[0]) - 1) {
+        if ($this->position == count($this->positions) - 1) {
             $this->pushToken(TokenType::TextData, substr($this->source, $this->cursor));
             $this->cursor = $this->end;
 
@@ -101,34 +100,27 @@ class Lexer
         }
 
         // Find the first token after the current cursor
-        $position = $this->positions[0][++$this->position];
+        $position = $this->positions[++$this->position];
         while ($position[1] < $this->cursor) {
-            if ($this->position == count($this->positions[0]) - 1) {
+            if ($this->position == count($this->positions) - 1) {
                 return;
             }
-            $position = $this->positions[0][++$this->position];
+            $position = $this->positions[++$this->position];
         }
 
         // push the template text before the token first
         $text = $textBeforeToken = substr($this->source, $this->cursor, $position[1] - $this->cursor);
 
         // trim?
-        if ($this->positions[2][$this->position][0] === LexerOptions::WhitespaceTrim->value) {
+        if (($this->positions[$this->position][0][2] ?? null) === LexerOptions::WhitespaceTrim->value) {
             $textBeforeToken = rtrim($textBeforeToken);
         }
 
         $this->pushToken(TokenType::TextData, $textBeforeToken);
         $this->moveCursor($text.$position[0]);
 
-        switch ($this->positions[1][$this->position][0]) {
+        switch (rtrim($this->positions[$this->position][0], LexerOptions::WhitespaceTrim->value)) {
             case LexerOptions::TagBlockStart->value:
-                // {% raw %}
-                if (preg_match(LexerOptions::blockRawStartRegex(), $this->source, $matches, offset: $this->cursor) === 1) {
-                    $this->moveCursor($matches[0]);
-                    $this->lexRawData();
-                    break;
-                }
-
                 // {% comment %}
                 if (preg_match(LexerOptions::blockCommentStartRegex(), $this->source, $matches, offset: $this->cursor) === 1) {
                     $this->moveCursor($matches[0]);
@@ -160,8 +152,7 @@ class Lexer
 
             // trim?
             if (trim($matches[0])[0] === LexerOptions::WhitespaceTrim->value) {
-                preg_match('/\s+/A', $this->source, $matches, offset: $this->cursor);
-                $this->moveCursor($matches[0] ?? '');
+                $this->trimWhitespaces();
             }
         } else {
             $this->lexExpression();
@@ -191,8 +182,7 @@ class Lexer
 
         // trim?
         if (trim($matches[0])[0] === LexerOptions::WhitespaceTrim->value) {
-            preg_match('/\s+/A', $this->source, $matches, offset: $this->cursor);
-            $this->moveCursor($matches[0] ?? '');
+            $this->trimWhitespaces();
         }
 
         // If the last token is a block start, we remove the node
@@ -274,26 +264,17 @@ class Lexer
 
         $this->moveCursor($rawBody);
 
-        $this->pushToken(TokenType::RawData, $rawBody);
-    }
-
-    protected function lexRawData(): void
-    {
-        if (preg_match(LexerOptions::blockRawDataRegex(), $this->source, $matches, flags: PREG_OFFSET_CAPTURE, offset: $this->cursor) !== 1) {
-            throw SyntaxException::tagBlockNeverClosed('raw');
+        // inner trim?
+        if (($matches[1][0][2] ?? null) === LexerOptions::WhitespaceTrim->value) {
+            $rawBody = rtrim($rawBody);
         }
 
-        $text = substr($this->source, $this->cursor, $matches[0][1] - $this->cursor);
-
-        $this->moveCursor($text.$matches[0][0]);
+        $this->pushToken(TokenType::RawData, $rawBody);
 
         // trim?
-        if (isset($matches[2][0])) {
-            preg_match('/\s+/A', $this->source, $matches2, offset: $this->cursor);
-            $this->moveCursor($matches2[0] ?? '');
+        if ($matches[2][0][0] === LexerOptions::WhitespaceTrim->value) {
+            $this->trimWhitespaces();
         }
-
-        $this->pushToken(TokenType::RawData, $text);
     }
 
     protected function lexComment(): void
@@ -354,5 +335,25 @@ class Lexer
         }
 
         $this->state = $state;
+    }
+
+    protected function trimWhitespaces(): void
+    {
+        preg_match('/\s+/A', $this->source, $matches, offset: $this->cursor);
+        $this->moveCursor($matches[0] ?? '');
+    }
+
+    /**
+     * @return array<int,array{0:string,1:int}>
+     */
+    protected function extractTokenStarts(string $source): array
+    {
+        preg_match_all(LexerOptions::blockStartRegex(), $source, $blocks, PREG_OFFSET_CAPTURE);
+        preg_match_all(LexerOptions::variableStartRegex(), $source, $variables, PREG_OFFSET_CAPTURE);
+
+        $positions = array_merge($blocks[0], $variables[0]);
+        usort($positions, fn (array $a, array $b) => $a[1] <=> $b[1]);
+
+        return $positions;
     }
 }

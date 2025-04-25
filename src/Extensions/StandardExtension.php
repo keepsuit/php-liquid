@@ -24,6 +24,7 @@ class StandardExtension extends Extension
             Tags\IfTag::class,
             Tags\IncrementTag::class,
             Tags\LiquidTag::class,
+            Tags\RawTag::class,
             Tags\RenderTag::class,
             Tags\TableRowTag::class,
             Tags\UnlessTag::class,

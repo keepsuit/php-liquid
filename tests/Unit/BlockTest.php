@@ -69,7 +69,7 @@ test('with block', function () {
 });
 
 test('doc tag with block', function () {
-    $template = parseTemplate("  {% doc %} {% enddoc %} ");
+    $template = parseTemplate('  {% doc %} {% enddoc %} ');
 
     expect($template->root->body->children())
         ->toHaveCount(3)

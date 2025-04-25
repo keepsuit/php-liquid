@@ -9,8 +9,9 @@ test('tag in raw', function () {
 
 test('output in raw', function () {
     assertTemplateResult('>{{ test }}<', '> {%- raw -%}{{ test }}{%- endraw -%} <');
-    assertTemplateResult('> inner  <', '> {%- raw -%} inner {%- endraw %} <');
-    assertTemplateResult('> inner <', '> {%- raw -%} inner {%- endraw -%} <');
+    assertTemplateResult('>inner <', '> {%- raw -%} inner {%- endraw %} <');
+    assertTemplateResult('>inner<', '> {%- raw -%} inner {%- endraw -%} <');
+    assertTemplateResult('{Hello}', '{% raw %}{{% endraw %}Hello{% raw %}}{% endraw %}');
 });
 
 test('open tag in raw', function () {
