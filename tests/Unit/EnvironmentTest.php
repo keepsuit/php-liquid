@@ -15,13 +15,14 @@ test('default environment has standard tags registered', function () {
 
     $tags = $env->tagRegistry->all();
 
-    expect($tags)->toHaveCount(16)
+    expect($tags)->toHaveCount(17)
         ->toHaveKey('assign')
         ->toHaveKey('break')
         ->toHaveKey('capture')
         ->toHaveKey('case')
         ->toHaveKey('cycle')
         ->toHaveKey('decrement')
+        ->toHaveKey('doc')
         ->toHaveKey('echo')
         ->toHaveKey('for')
         ->toHaveKey('ifchanged')

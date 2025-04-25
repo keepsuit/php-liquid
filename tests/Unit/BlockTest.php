@@ -2,6 +2,7 @@
 
 use Keepsuit\Liquid\Nodes\Text;
 use Keepsuit\Liquid\Nodes\Variable;
+use Keepsuit\Liquid\Tags\DocTag;
 use Keepsuit\Liquid\Tags\IfTag;
 
 test('blankspace', function () {
@@ -64,5 +65,15 @@ test('with block', function () {
         ->{1}->toBeInstanceOf(IfTag::class)
         ->{1}->children()->{0}->children()->toHaveCount(1)
         ->{1}->children()->{0}->children()->{0}->toBeInstanceOf(Text::class)
+        ->{2}->toBeInstanceOf(Text::class);
+});
+
+test('doc tag with block', function () {
+    $template = parseTemplate("  {% doc %} {% enddoc %} ");
+
+    expect($template->root->body->children())
+        ->toHaveCount(3)
+        ->{0}->toBeInstanceOf(Text::class)
+        ->{1}->toBeInstanceOf(DocTag::class)
         ->{2}->toBeInstanceOf(Text::class);
 });

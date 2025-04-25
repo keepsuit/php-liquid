@@ -17,6 +17,7 @@ class StandardExtension extends Extension
             Tags\ContinueTag::class,
             Tags\CycleTag::class,
             Tags\DecrementTag::class,
+            Tags\DocTag::class,
             Tags\EchoTag::class,
             Tags\ForTag::class,
             Tags\IfChanged::class,
