@@ -152,6 +152,10 @@ test('preserve tree structure', function () {
         ]);
 });
 
+test('doc', function () {
+    expect(visit('{% doc %}{{ test }}{% enddoc %}'))->toBe([]);
+});
+
 function traversal(string $source): ParseTreeVisitor
 {
     $environment = EnvironmentFactory::new()
