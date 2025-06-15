@@ -18,6 +18,7 @@ Liquid is a template engine with interesting advantages:
 
 |  PHP Liquid | Shopify Liquid |
 |------------:|---------------:|
+|        v0.9 |           v5.8 |
 |        v0.8 |           v5.7 |
 |        v0.7 |           v5.6 |
 | v0.1 - v0.6 |           v5.5 |
