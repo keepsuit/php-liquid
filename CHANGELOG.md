@@ -2,6 +2,15 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.9.0 - 2025-06-15
+
+### What's Changed
+
+* Bump dependabot/fetch-metadata from 2.3.0 to 2.4.0 by @dependabot in https://github.com/keepsuit/php-liquid/pull/45
+* Shopify liquid 5.8 compatibility by @cappuc in https://github.com/keepsuit/php-liquid/pull/44
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.8.1...v0.9.0
+
 ## v0.8.1 - 2025-04-22
 
 ### What's Changed
