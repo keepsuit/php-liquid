@@ -11,7 +11,7 @@ use Keepsuit\Liquid\TagBlock;
 
 class DocTag extends TagBlock
 {
-    public readonly Raw $body;
+    protected Raw $body;
 
     public static function tagName(): string
     {
@@ -53,5 +53,10 @@ class DocTag extends TagBlock
         if (preg_match('/{%-?\s*doc\s*-?%}/', $this->body->value) === 1) {
             throw new SyntaxException('Nested doc tags are not allowed');
         }
+    }
+
+    public function getBody(): Raw
+    {
+        return $this->body;
     }
 }

@@ -140,3 +140,23 @@ test('doc tag delimiter handling', function () {
     assertMatchSyntaxError("Liquid syntax error (line 1): 'doc' tag was never closed", '{% doc %}123{% enddoc xyz %}');
     assertTemplateResult('', "{% doc %}123{% enddoc\n   xyz %}{% enddoc %}");
 });
+
+test('access doc tag body', function () {
+    $content = <<<'EOF'
+    Renders loading-spinner.
+    @param {string} foo - some foo
+    @param {string} [bar] - optional bar
+    EOF;
+
+    $template = <<<LIQUID
+    {% doc %}$content{% enddoc %}
+    LIQUID;
+
+    $template = parseTemplate($template);
+    $docTag = $template->root->body->children()[0] ?? null;
+
+    expect($docTag)
+        ->toBeInstanceOf(\Keepsuit\Liquid\Tags\DocTag::class)
+        ->getBody()->toBeInstanceOf(\Keepsuit\Liquid\Nodes\Raw::class)
+        ->getBody()->value->toBe($content);
+});

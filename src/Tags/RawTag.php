@@ -42,4 +42,9 @@ class RawTag extends TagBlock
     {
         return $this->body->render($context);
     }
+
+    public function getBody(): Raw
+    {
+        return $this->body;
+    }
 }
