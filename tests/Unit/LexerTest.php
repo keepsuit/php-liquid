@@ -134,7 +134,7 @@ it('[blocks]', function () {
 });
 
 test('[comment] whitespace trim', function () {
-    expect(tokenize("{%- comment -%}123{%- endcomment -%}     Hello!")->consume())
+    expect(tokenize('{%- comment -%}123{%- endcomment -%}     Hello!')->consume())
         ->type->toBe(TokenType::TextData)
         ->data->toBe('Hello!');
 
@@ -144,7 +144,7 @@ test('[comment] whitespace trim', function () {
 });
 
 test('[comment] without whitespace trim', function () {
-    expect(tokenize("{% comment %}123{% endcomment %}     Hello!")->consume())
+    expect(tokenize('{% comment %}123{% endcomment %}     Hello!')->consume())
         ->type->toBe(TokenType::TextData)
         ->data->toBe('     Hello!');
 
