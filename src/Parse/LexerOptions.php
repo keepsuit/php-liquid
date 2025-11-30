@@ -116,10 +116,10 @@ enum LexerOptions: string
 
         if ($regex === null) {
             $regex = sprintf(
-                '{%s(%s)?\s*endcomment\s*(?:%s|%s)}sx',
+                '{(%s%s?)\s*endcomment\s*(%s?%s)}sx',
                 preg_quote(LexerOptions::TagBlockStart->value),
                 LexerOptions::WhitespaceTrim->value,
-                preg_quote(LexerOptions::WhitespaceTrim->value.LexerOptions::TagBlockEnd->value),
+                LexerOptions::WhitespaceTrim->value,
                 preg_quote(LexerOptions::TagBlockEnd->value),
             );
         }

@@ -288,6 +288,10 @@ class Lexer
         $text = substr($this->source, $this->cursor, $matches[0][1] - $this->cursor);
 
         $this->moveCursor($text.$matches[0][0]);
+
+        if ($matches[2][0][0] === LexerOptions::WhitespaceTrim->value) {
+            $this->trimWhitespaces();
+        }
     }
 
     protected function lexInlineComment(): void
