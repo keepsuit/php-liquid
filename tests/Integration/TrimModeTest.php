@@ -488,6 +488,27 @@ test('whitespace trim tags', function () {
     </div>
     HTML;
     assertTemplateResult($expected, $source);
+
+    $source = <<<'LIQUID'
+          {%- comment -%}123{%- endcomment -%}Hello!
+    LIQUID;
+    assertTemplateResult('Hello!', $source);
+
+    $source = <<<'LIQUID'
+    {%- comment -%}123{%- endcomment -%}     Hello!
+    LIQUID;
+    assertTemplateResult('Hello!', $source);
+
+    $source = <<<'LIQUID'
+          {%- comment -%}123{%- endcomment -%}     Hello!
+    LIQUID;
+    assertTemplateResult('Hello!', $source);
+
+    $source = <<<'LIQUID'
+    {%- comment %}Whitespace control!{% endcomment -%}
+    Hello!
+    LIQUID;
+    assertTemplateResult('Hello!', $source);
 });
 
 test('complex trim output', function () {
