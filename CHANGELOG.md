@@ -2,6 +2,18 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.9.1 - 2025-12-01
+
+### What's Changed
+
+* Fix whitespace trim not working on {%- endcomment -%} tag. by @ryo-morimoto in https://github.com/keepsuit/php-liquid/pull/53
+
+### New Contributors
+
+* @ryo-morimoto made their first contribution
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.9.0...v0.9.1
+
 ## v0.9.0 - 2025-06-15
 
 ### What's Changed
