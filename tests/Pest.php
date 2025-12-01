@@ -9,11 +9,6 @@ use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 use PHPUnit\Framework\ExpectationFailedException;
 
-function fixture(string $path): string
-{
-    return __DIR__.'/fixtures/'.$path;
-}
-
 /**
  * @throws SyntaxException
  */
