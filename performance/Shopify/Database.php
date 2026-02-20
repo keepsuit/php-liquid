@@ -48,7 +48,9 @@ class Database
         $tables['collection'] = Arr::first($database['collections']);
         $tables['product'] = Arr::first($database['products']);
         $tables['blog'] = Arr::first($database['blogs']);
-        $tables['article'] = Arr::first($tables['blog']['articles'] ?? []);
+        $articles = $tables['blog']['articles'] ?? [];
+        assert(is_array($articles));
+        $tables['article'] = Arr::first($articles);
 
         $tables['cart'] = [
             'total_price' => array_reduce($tables['line_items'], fn (int $total, array $item) => $total + $item['line_price'] * $item['quantity'], 0),

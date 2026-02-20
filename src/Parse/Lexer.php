@@ -209,7 +209,7 @@ class Lexer
     protected function lexExpression(): void
     {
         if (preg_match('/\G\s+/A', $this->source, $matches, offset: $this->cursor) === 1) {
-            $this->moveCursor($matches[0] ?? '');
+            $this->moveCursor($matches[0]);
         }
 
         $this->ensureStreamNotEnded();
@@ -221,10 +221,10 @@ class Lexer
         }
 
         $token = match (true) {
-            preg_match(LexerOptions::comparisonOperatorRegex(), $this->source, $matches, offset: $this->cursor) === 1 => [TokenType::Comparison, $matches[0]],
-            preg_match(LexerOptions::identifierRegex(), $this->source, $matches, offset: $this->cursor) === 1 => [TokenType::Identifier, $matches[0]],
-            preg_match(LexerOptions::stringLiteralRegex(), $this->source, $matches, offset: $this->cursor) === 1 => [TokenType::String, $matches[0]],
-            preg_match(LexerOptions::numberLiteralRegex(), $this->source, $matches, offset: $this->cursor) === 1 => [TokenType::Number, $matches[0]],
+            preg_match(LexerOptions::comparisonOperatorRegex(), $this->source, $matches, offset: $this->cursor) === 1 => [TokenType::Comparison, $matches[0] ?? ''],
+            preg_match(LexerOptions::identifierRegex(), $this->source, $matches, offset: $this->cursor) === 1 => [TokenType::Identifier, $matches[0] ?? ''],
+            preg_match(LexerOptions::stringLiteralRegex(), $this->source, $matches, offset: $this->cursor) === 1 => [TokenType::String, $matches[0] ?? ''],
+            preg_match(LexerOptions::numberLiteralRegex(), $this->source, $matches, offset: $this->cursor) === 1 => [TokenType::Number, $matches[0] ?? ''],
             $this->cursor + 1 < $this->end && $this->source[$this->cursor] === '.' && $this->source[$this->cursor + 1] === '.' => [TokenType::DotDot, '..'],
             array_key_exists($this->source[$this->cursor], LexerOptions::specialCharacters()) => [LexerOptions::specialCharacters()[$this->source[$this->cursor]], $this->source[$this->cursor]],
             default => throw SyntaxException::unexpectedCharacter($this->source[$this->cursor]),

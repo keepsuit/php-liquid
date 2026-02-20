@@ -71,6 +71,7 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
         $register = $context->getRegister('cycle') ?? [];
         assert(is_array($register));
         $key = $context->evaluate($this->name);
+        assert(is_string($key) || is_int($key));
 
         $iteration = match (true) {
             isset($register[$key]) && is_int($register[$key]) => $register[$key],
