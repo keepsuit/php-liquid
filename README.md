@@ -18,14 +18,14 @@ Liquid is a template engine with interesting advantages:
 
 |  PHP Liquid | Shopify Liquid |
 |------------:|---------------:|
-|        v0.9 |           v5.8 |
+|        v0.9 |          v5.12 |
 |        v0.8 |           v5.7 |
 |        v0.7 |           v5.6 |
 | v0.1 - v0.6 |           v5.5 |
 
 #### Differences from Shopify Liquid
 
-- **Error Modes** are not implemented, the parsing is always strict.
+- Shopify parse error modes (`lax`, `strict`, `rigid`, `strict2`) are not implemented. PHP Liquid always uses strict parsing.
 - `include` tag is not implemented because it is deprecated and can be replaced with `render`.
 
 ## Installation
@@ -55,7 +55,13 @@ $environment = \Keepsuit\Liquid\EnvironmentFactory::new()
     // set filesystem used to load templates
     ->setFilesystem(new \Keepsuit\Liquid\FileSystems\LocalFileSystem(__DIR__ . '/views'))
     // set the resource limits
-    ->setResourceLimits(new \Keepsuit\Liquid\ResourceLimits())
+    ->setResourceLimits(new \Keepsuit\Liquid\Render\ResourceLimits(
+        renderLengthLimit: 100_000,
+        renderScoreLimit: 50_000,
+        assignScoreLimit: 5_000,
+        cumulativeRenderScoreLimit: 100_000,
+        cumulativeAssignScoreLimit: 10_000,
+    ))
     // register a custom extension
     ->addExtension(new CustomExtension())
     // register a custom tag
@@ -285,6 +291,18 @@ $environment = \Keepsuit\Liquid\EnvironmentFactory::new()
 $environment->addExtension(new CustomExtension());
 ```
 
+## Resource limits
+
+`Keepsuit\Liquid\Render\ResourceLimits` supports both per-render limits and cumulative resource limits.
+
+- `renderLengthLimit`: limits the rendered output size for a render pass.
+- `renderScoreLimit`: limits render work for a render pass.
+- `assignScoreLimit`: limits assignment and capture work for a render pass.
+- `cumulativeRenderScoreLimit`: limits total render work across a full render tree, including partial renders.
+- `cumulativeAssignScoreLimit`: limits total assignment and capture work across a full render tree, including partial renders.
+
+Per-render counters can be reset between renders. Cumulative counters are intended for a full render lifecycle so repeated partial renders can share the same budget.
+
 ## Custom tags and filters
 
 By default, only the standard liquid tags and filters are available.
@@ -295,6 +313,8 @@ But this package provides some custom tags and filters that you can use.
 - `DynamicRender`: This tag replace the default `Render` tag and allows to render dynamic templates (eg. read template name from a variable).
 
 ### Filters
+
+- Standard filters include Shopify Liquid's `squish`, which trims surrounding whitespace and collapses internal whitespace runs to single spaces.
 
 - `TernaryFilter`
   - `ternary`: adds a ternary operator.
