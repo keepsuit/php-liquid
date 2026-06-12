@@ -136,6 +136,23 @@ test('offset and limit', function () {
         '{% tablerow n in numbers cols:3 offset:1 limit:6%} {{n}} {% endtablerow %}',
         ['numbers' => [0, 1, 2, 3, 4, 5, 6, 7]],
     );
+
+    assertTemplateResult(
+        <<<'HTML'
+        <tr class="row1">
+        <td class="col1"> 1 </td>
+        <td class="col2"> 2 </td>
+        <td class="col3"> 3 </td>
+        </tr>
+        <tr class="row2">
+        <td class="col1"> 4 </td>
+        <td class="col2"> 5 </td>
+        <td class="col3"> 6 </td>
+        </tr>
+        HTML,
+        '{% tablerow n in numbers, cols:3, offset:1, limit:6 %} {{n}} {% endtablerow %}',
+        ['numbers' => [0, 1, 2, 3, 4, 5, 6, 7]],
+    );
 });
 
 test('blank string not iterable', function () {
@@ -267,6 +284,19 @@ test('tablerow renders correct error message for invalid parameters', function (
         'Liquid error (line 1): invalid integer',
         '{% tablerow n in (1..10) cols:true %} {{n}} {% endtablerow %}',
         renderErrors: true,
+    );
+});
+
+test('tablerow strict parsing rejects malformed params', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Expected :, got Number',
+        '{% tablerow n in numbers cols 3 %}{% endtablerow %}',
+        ['numbers' => [1, 2, 3]],
+    );
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Unexpected end of template',
+        '{% tablerow n in numbers cols: 3, limit %}{% endtablerow %}',
+        ['numbers' => [1, 2, 3]],
     );
 });
 

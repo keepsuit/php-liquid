@@ -143,3 +143,16 @@ test('can parse data keyword args', function () {
     expect(parseTemplate("{{ 'img' | html_tag: data-src: 'src', data-widths: '100, 200' }}")->render($context))
         ->toBe("data-src='src' data-widths='100, 200'");
 });
+
+test('filter strict parsing rejects trailing commas', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Unexpected end of template',
+        '{{ value | default: "fallback", }}',
+        ['value' => null],
+    );
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Unexpected end of template',
+        '{{ value | substitute: first_name: "john", }}',
+        ['value' => 'hello %{first_name}'],
+    );
+});

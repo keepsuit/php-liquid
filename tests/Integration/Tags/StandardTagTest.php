@@ -247,6 +247,24 @@ test('case when comma and blank body', function () {
     );
 });
 
+test('case strict parsing rejects trailing tokens', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Unexpected token Identifier: "extra"',
+        '{% case condition extra %}{% when 1 %} hit {% endcase %}',
+        staticData: ['condition' => 1],
+    );
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Unexpected token Identifier: "extra"',
+        '{% case condition %}{% when 1 extra %} hit {% endcase %}',
+        staticData: ['condition' => 1],
+    );
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Unexpected end of template',
+        '{% case condition %}{% when 1, %} hit {% endcase %}',
+        staticData: ['condition' => 1],
+    );
+});
+
 test('assign', function () {
     assertTemplateResult('variable', '{% assign a = "variable"%}{{a}}');
 });
@@ -299,6 +317,13 @@ test('multiple named cycle with name from context', function () {
         'one one two two one one',
         '{%cycle var1: "one", "two" %} {%cycle var2: "one", "two" %} {%cycle var1: "one", "two" %} {%cycle var2: "one", "two" %} {%cycle var1: "one", "two" %} {%cycle var2: "one", "two" %}',
         staticData: ['var1' => 1, 'var2' => 2],
+    );
+});
+
+test('cycle strict parsing rejects trailing tokens', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Unexpected token Identifier: "extra"',
+        '{% cycle "one", "two" extra %}',
     );
 });
 

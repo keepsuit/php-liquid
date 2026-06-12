@@ -39,6 +39,10 @@ class VariableParser
         $filterArgs = [$this->tokenStream->argument()];
 
         while ($this->tokenStream->consumeOrFalse(TokenType::Comma)) {
+            if ($this->tokenStream->isEnd() || $this->tokenStream->look(TokenType::Pipe) || $this->tokenStream->look(TokenType::VariableEnd)) {
+                throw SyntaxException::unexpectedEndOfTemplate();
+            }
+
             $filterArgs[] = $this->tokenStream->argument();
         }
 

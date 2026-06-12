@@ -34,6 +34,7 @@ class CaseTag extends TagBlock
     {
         if ($context->tag === 'case') {
             $this->left = $context->params->expression();
+            $context->params->assertEnd();
         } else {
             $this->conditions[] = $this->mapBodySectionToCondition($context);
         }
@@ -104,6 +105,10 @@ class CaseTag extends TagBlock
         $condition = new Condition($this->left, '==', $bodySection->params->expression());
 
         if ($bodySection->params->idOrFalse('or') || $bodySection->params->consumeOrFalse(TokenType::Comma)) {
+            if ($bodySection->params->isEnd()) {
+                throw SyntaxException::unexpectedEndOfTemplate();
+            }
+
             $condition->or($this->recordWhenCondition($bodySection));
         }
 

@@ -18,6 +18,10 @@ class ArgumentParser
      */
     public function parseArgument(): mixed
     {
+        if ($this->tokenStream->isEnd() || $this->tokenStream->look(TokenType::Comma) || $this->tokenStream->look(TokenType::Pipe)) {
+            throw SyntaxException::unexpectedEndOfTemplate();
+        }
+
         if (
             $this->tokenStream->look(TokenType::Identifier)
             && $this->tokenStream->look(TokenType::Colon, 1)
