@@ -483,6 +483,12 @@ test('rstrip', function () {
     assertTemplateResult(" \tab c", '{{ source | rstrip }}', staticData: ['source' => " \tab c  \n \t"]);
 });
 
+test('squish', function () {
+    assertTemplateResult('foo bar boo', '{{ source | squish }}', staticData: ['source' => " foo   bar\n\t   boo   "]);
+    assertTemplateResult('', '{{ source | squish }}', staticData: ['source' => null]);
+    assertTemplateResult('', '{{ source | squish }}', staticData: ['source' => ' ']);
+});
+
 test('strip new lines', function () {
     assertTemplateResult('abc', '{{ source | strip_newlines }}', staticData: ['source' => "a\nb\nc"]);
     assertTemplateResult('abc', '{{ source | strip_newlines }}', staticData: ['source' => "a\r\nb\nc"]);

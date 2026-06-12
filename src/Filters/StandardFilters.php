@@ -552,6 +552,20 @@ class StandardFilters extends FiltersProvider
     }
 
     /**
+     * Trims surrounding whitespace and collapses internal whitespace runs to single spaces.
+     */
+    public function squish(?string $input): string
+    {
+        $input = trim($input ?? '');
+
+        if ($input === '') {
+            return '';
+        }
+
+        return preg_replace('/\s+/', ' ', $input) ?? $input;
+    }
+
+    /**
      * Strips all HTML tags from a string.
      */
     public function stripHtml(?string $input): string
