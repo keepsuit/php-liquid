@@ -9,7 +9,11 @@ class ResourceLimits
 {
     protected int $renderScore = 0;
 
+    protected int $cumulativeRenderScore = 0;
+
     protected int $assignScore = 0;
+
+    protected int $cumulativeAssignScore = 0;
 
     protected ?int $lastCaptureLength = null;
 
@@ -19,6 +23,8 @@ class ResourceLimits
         public readonly ?int $renderLengthLimit = null,
         public readonly ?int $renderScoreLimit = null,
         public readonly ?int $assignScoreLimit = null,
+        public readonly ?int $cumulativeRenderScoreLimit = null,
+        public readonly ?int $cumulativeAssignScoreLimit = null,
     ) {}
 
     public static function clone(ResourceLimits $limits): ResourceLimits
@@ -27,6 +33,8 @@ class ResourceLimits
             renderLengthLimit: $limits->renderLengthLimit,
             renderScoreLimit: $limits->renderScoreLimit,
             assignScoreLimit: $limits->assignScoreLimit,
+            cumulativeRenderScoreLimit: $limits->cumulativeRenderScoreLimit,
+            cumulativeAssignScoreLimit: $limits->cumulativeAssignScoreLimit,
         );
     }
 
@@ -36,8 +44,13 @@ class ResourceLimits
     public function incrementRenderScore(int $amount = 1): ResourceLimits
     {
         $this->renderScore += $amount;
+        $this->cumulativeRenderScore += $amount;
 
         if ($this->renderScoreLimit != null && $this->renderScoreLimit < $this->renderScore) {
+            $this->throwLimitReachedException();
+        }
+
+        if ($this->cumulativeRenderScoreLimit != null && $this->cumulativeRenderScoreLimit < $this->cumulativeRenderScore) {
             $this->throwLimitReachedException();
         }
 
@@ -50,8 +63,13 @@ class ResourceLimits
     public function incrementAssignScore(int $amount = 1): ResourceLimits
     {
         $this->assignScore += $amount;
+        $this->cumulativeAssignScore += $amount;
 
         if ($this->assignScoreLimit != null && $this->assignScoreLimit < $this->assignScore) {
+            $this->throwLimitReachedException();
+        }
+
+        if ($this->cumulativeAssignScoreLimit != null && $this->cumulativeAssignScoreLimit < $this->cumulativeAssignScore) {
             $this->throwLimitReachedException();
         }
 
@@ -106,9 +124,19 @@ class ResourceLimits
         return $this->assignScore;
     }
 
+    public function getCumulativeAssignScore(): int
+    {
+        return $this->cumulativeAssignScore;
+    }
+
     public function getRenderScore(): int
     {
         return $this->renderScore;
+    }
+
+    public function getCumulativeRenderScore(): int
+    {
+        return $this->cumulativeRenderScore;
     }
 
     public function withCapture(Closure $closure): mixed
