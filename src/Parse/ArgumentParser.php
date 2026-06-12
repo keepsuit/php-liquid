@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid\Parse;
 
+use Keepsuit\Liquid\Exceptions\SyntaxException;
+
 /**
  * @phpstan-import-type Expression from ExpressionParser
  *

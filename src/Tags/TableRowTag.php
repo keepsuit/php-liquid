@@ -39,7 +39,7 @@ class TableRowTag extends TagBlock
         $context->params->id('in');
         $this->collectionName = $context->params->expression();
 
-        while (! $context->params->isEnd()) {
+        while (true) {
             $context->params->consumeOrFalse(TokenType::Comma);
 
             if ($context->params->isEnd()) {

@@ -286,7 +286,7 @@ final class RenderContext
 
     public function setToActiveScope(string $key, mixed $value): array
     {
-        $index = array_key_last($this->scopes);
+        $index = count($this->scopes) - 1;
 
         return $this->scopes[$index] = [
             ...$this->scopes[$index],
