@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid\Parse;
 
+use Keepsuit\Liquid\Exceptions\SyntaxException;
+
 /**
  * @phpstan-import-type Expression from ExpressionParser
  *
@@ -15,9 +17,15 @@ class ArgumentParser
 
     /**
      * @return Argument
+     *
+     * @throws SyntaxException
      */
     public function parseArgument(): mixed
     {
+        if ($this->tokenStream->isEnd()) {
+            throw SyntaxException::unexpectedEndOfTemplate();
+        }
+
         if (
             $this->tokenStream->look(TokenType::Identifier)
             && $this->tokenStream->look(TokenType::Colon, 1)

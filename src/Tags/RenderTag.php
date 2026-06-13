@@ -43,6 +43,7 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
     {
         $this->isForLoop = false;
         $this->variableNameExpression = null;
+        $this->attributes = [];
 
         $context->getParseContext()->nested(function () use ($context) {
             $templateNameExpression = $context->params->expression();
@@ -52,12 +53,16 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
                 default => throw new SyntaxException('Template name must be a string'),
             };
 
+            $context->params->consumeOrFalse(TokenType::Comma);
+
             if ($context->params->idOrFalse('for')) {
                 $this->isForLoop = true;
                 $this->variableNameExpression = $context->params->expression();
             } elseif ($context->params->idOrFalse('with')) {
                 $this->variableNameExpression = $context->params->expression();
             }
+
+            $context->params->consumeOrFalse(TokenType::Comma);
 
             if ($context->params->idOrFalse('as')) {
                 $aliasName = $context->params->expression();
@@ -69,7 +74,9 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
                 $this->aliasName = null;
             }
 
-            while ($context->params->consumeOrFalse(TokenType::Comma)) {
+            while (! $context->params->isEnd()) {
+                $context->params->consumeOrFalse(TokenType::Comma);
+
                 $attributeName = $context->params->expression();
                 if (! (is_string($attributeName) || $attributeName instanceof VariableLookup)) {
                     throw new SyntaxException('Attribute name must be a valid variable name');

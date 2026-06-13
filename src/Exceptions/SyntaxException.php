@@ -57,7 +57,7 @@ class SyntaxException extends LiquidException
 
     public static function invalidExpression(string $expression): SyntaxException
     {
-        return new SyntaxException(sprintf('%s is not a valid expression', $expression));
+        return new SyntaxException(sprintf('`%s` is not a valid expression', $expression));
     }
 
     public static function unexpectedCharacter(string $character): SyntaxException

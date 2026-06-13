@@ -7,6 +7,7 @@ use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Render\RenderContextOptions;
 use Keepsuit\Liquid\Render\ResourceLimits;
+use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
 test('assigns persist on same context between renders', function () {
     $template = parseTemplate("{{ foo }}{% assign foo = 'foo' %}{{ foo }}");
@@ -97,7 +98,43 @@ test('resource limits get updated even if no limits are set', function () {
     expect($context->resourceLimits)
         ->reached()->toBeFalse()
         ->getAssignScore()->toBeGreaterThan(0)
-        ->getRenderScore()->toBeGreaterThan(0);
+        ->getCumulativeAssignScore()->toBeGreaterThan(0)
+        ->getRenderScore()->toBeGreaterThan(0)
+        ->getCumulativeRenderScore()->toBeGreaterThan(0);
+});
+
+test('cumulative render score accumulates across repeated partial renders', function () {
+    $environment = EnvironmentFactory::new()
+        ->setFilesystem(new StubFileSystem(['snippet' => 'x']))
+        ->build();
+
+    $template = $environment->parseString('{% render "snippet" %}');
+    $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(cumulativeRenderScoreLimit: 3));
+
+    expect($template->render($context))->toBe('x');
+    expect($context->resourceLimits->getRenderScore())->toBeGreaterThan(0)
+        ->and($context->resourceLimits->getCumulativeRenderScore())->toBeGreaterThan(0);
+
+    $context->resourceLimits->reset();
+
+    expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
+});
+
+test('cumulative assign score accumulates across repeated partial renders', function () {
+    $environment = EnvironmentFactory::new()
+        ->setFilesystem(new StubFileSystem(['snippet' => '{% capture foo %}ab{% endcapture %}']))
+        ->build();
+
+    $template = $environment->parseString('{% render "snippet" %}');
+    $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(cumulativeAssignScoreLimit: 3));
+
+    expect($template->render($context))->toBe('');
+    expect($context->resourceLimits->getAssignScore())->toBe(2)
+        ->and($context->resourceLimits->getCumulativeAssignScore())->toBe(2);
+
+    $context->resourceLimits->reset();
+
+    expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
 });
 
 test('render length persists between blocks', function () {

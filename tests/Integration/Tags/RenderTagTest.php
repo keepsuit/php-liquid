@@ -47,6 +47,40 @@ test('render accepts multiple named arguments', function () {
     );
 });
 
+test('render accepts multiple named arguments without commas', function () {
+    assertTemplateResult(
+        '1 2',
+        '{% render "snippet" one: 1 two: 2 %}',
+        partials: ['snippet' => '{{ one }} {{ two }}'],
+    );
+});
+
+test('render accepts optional commas around with alias and named arguments', function () {
+    assertTemplateResult(
+        'Product: Draft 151cm override',
+        "{% render 'product', with products[0], as item, note: 'override' %}",
+        staticData: [
+            'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
+        ],
+        partials: [
+            'product' => 'Product: {{ item.title }} {{ note }}',
+        ],
+    );
+});
+
+test('render named arguments override with value', function () {
+    assertTemplateResult(
+        'Element 155cm',
+        "{% render 'product' with products[0], product: products[1] %}",
+        staticData: [
+            'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
+        ],
+        partials: [
+            'product' => '{{ product.title }}',
+        ],
+    );
+});
+
 test('render does not inherit parent scope variables', function () {
     assertTemplateResult(
         '',
@@ -81,6 +115,16 @@ test('recursively rendered template does not produce endless loop', function () 
 
 test('dynamically choosen templates are not allowed', function () {
     expect(fn () => renderTemplate("{% assign name = 'snippet' %}{% render name %}"))
+        ->toThrow(SyntaxException::class);
+});
+
+test('render with filters on template name is invalid', function () {
+    expect(fn () => parseTemplate('{% render "snippet" | upcase %}'))
+        ->toThrow(SyntaxException::class);
+});
+
+test('render invalid trailing syntax fails during parse', function () {
+    expect(fn () => parseTemplate('{% render "snippet", one: 1, two %}'))
         ->toThrow(SyntaxException::class);
 });
 

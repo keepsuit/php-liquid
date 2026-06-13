@@ -39,7 +39,13 @@ class TableRowTag extends TagBlock
         $context->params->id('in');
         $this->collectionName = $context->params->expression();
 
-        while ($context->params->look(TokenType::Identifier)) {
+        while (true) {
+            $context->params->consumeOrFalse(TokenType::Comma);
+
+            if ($context->params->isEnd()) {
+                break;
+            }
+
             $attribute = $context->params->consume(TokenType::Identifier)->data;
             $context->params->consume(TokenType::Colon);
             $value = $context->params->expression();

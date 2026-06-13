@@ -61,6 +61,8 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
             $this->name = json_encode($this->variables, JSON_THROW_ON_ERROR);
         }
 
+        $context->params->assertEnd();
+
         return $this;
     }
 

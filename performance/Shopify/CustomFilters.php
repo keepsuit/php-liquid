@@ -75,8 +75,9 @@ class CustomFilters extends FiltersProvider
 
     public function linkToAddTag(string|int|float $label, string $tag): string
     {
-        $currentTags = $this->context->get('current_tags') ?? [];
-        assert(is_array($currentTags));
+        $currentTags = $this->context->get('current_tags');
+        $currentTags = is_array($currentTags) ? $currentTags : [];
+        $currentTags = array_values(array_filter($currentTags, is_string(...)));
         $tags = array_unique([...$currentTags, $tag]);
 
         return sprintf(
@@ -90,9 +91,10 @@ class CustomFilters extends FiltersProvider
 
     public function linkToRemoveTag(string|int|float $label, string $tag): string
     {
-        $currentTags = $this->context->get('current_tags') ?? [];
-        assert(is_array($currentTags));
-        $tags = array_filter($currentTags, fn ($t) => $t !== $tag);
+        $currentTags = $this->context->get('current_tags');
+        $currentTags = is_array($currentTags) ? $currentTags : [];
+        $currentTags = array_values(array_filter($currentTags, is_string(...)));
+        $tags = array_values(array_filter($currentTags, fn (string $currentTag) => $currentTag !== $tag));
 
         return sprintf(
             '<a title="Show tag %s" href="/collections/%s/%s">%s</a>',

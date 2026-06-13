@@ -115,5 +115,5 @@ test('invalid expression', function () {
     $tokenStream->consume(TokenType::VariableStart);
 
     expect(fn () => $tokenStream->expression())
-        ->toThrow(SyntaxException::class, '== is not a valid expression');
+        ->toThrow(SyntaxException::class, '`==` is not a valid expression');
 });

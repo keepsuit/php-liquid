@@ -115,7 +115,7 @@ class Variable extends Node implements CanBeEvaluated, CanBeStreamed, HasParseTr
         }
 
         if (is_array($output)) {
-            return implode('', $output);
+            return implode('', array_map($this->renderOutput(...), $output));
         }
 
         if (is_object($output) && method_exists($output, '__toString')) {

@@ -29,7 +29,7 @@ test('throw exception on label and no close bracket percent', function () {
 test('throw exception on empty filter', function () {
     assertTemplateResult('', '{{test}}');
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): | is not a valid expression',
+        'Liquid syntax error (line 1): `|` is not a valid expression',
         '{{|test}}'
     );
     assertMatchSyntaxError(

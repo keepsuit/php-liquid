@@ -58,7 +58,10 @@ class Arr
             $array = &$array[$key];
         }
 
-        $array[array_shift($keys)] = $value;
+        $lastKey = array_shift($keys);
+        assert($lastKey !== null);
+
+        $array[$lastKey] = $value;
 
         return $array;
     }
