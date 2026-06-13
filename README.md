@@ -18,14 +18,15 @@ Liquid is a template engine with interesting advantages:
 
 |  PHP Liquid | Shopify Liquid |
 |------------:|---------------:|
-|        v0.9 |          v5.12 |
+|       v0.10 |          v5.12 |
+|        v0.9 |           v5.8 |
 |        v0.8 |           v5.7 |
 |        v0.7 |           v5.6 |
 | v0.1 - v0.6 |           v5.5 |
 
 #### Differences from Shopify Liquid
 
-- Shopify parse error modes (`lax`, `strict`, `rigid`, `strict2`) are not implemented. PHP Liquid always uses strict parsing.
+- **Error Modes** are not implemented, the parsing is always strict.
 - `include` tag is not implemented because it is deprecated and can be replaced with `render`.
 
 ## Installation
@@ -313,8 +314,6 @@ But this package provides some custom tags and filters that you can use.
 - `DynamicRender`: This tag replace the default `Render` tag and allows to render dynamic templates (eg. read template name from a variable).
 
 ### Filters
-
-- Standard filters include Shopify Liquid's `squish`, which trims surrounding whitespace and collapses internal whitespace runs to single spaces.
 
 - `TernaryFilter`
   - `ternary`: adds a ternary operator.
