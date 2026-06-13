@@ -81,6 +81,9 @@ class CaseTag extends TagBlock
         return true;
     }
 
+    /**
+     * @throws SyntaxException
+     */
     protected function mapBodySectionToCondition(TagParseContext $bodySection): Condition
     {
         $condition = match ($bodySection->tag) {
@@ -100,15 +103,18 @@ class CaseTag extends TagBlock
         return $condition;
     }
 
+    /**
+     * @throws SyntaxException
+     */
     protected function recordWhenCondition(TagParseContext $bodySection): Condition
     {
+        if ($bodySection->params->isEnd()) {
+            throw SyntaxException::unexpectedEndOfTemplate();
+        }
+
         $condition = new Condition($this->left, '==', $bodySection->params->expression());
 
         if ($bodySection->params->idOrFalse('or') || $bodySection->params->consumeOrFalse(TokenType::Comma)) {
-            if ($bodySection->params->isEnd()) {
-                throw SyntaxException::unexpectedEndOfTemplate();
-            }
-
             $condition->or($this->recordWhenCondition($bodySection));
         }
 
@@ -117,6 +123,9 @@ class CaseTag extends TagBlock
         return $condition;
     }
 
+    /**
+     * @throws SyntaxException
+     */
     protected function recordElseCondition(TagParseContext $bodySection): Condition
     {
         $bodySection->params->assertEnd();

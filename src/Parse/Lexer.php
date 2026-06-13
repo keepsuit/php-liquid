@@ -172,12 +172,10 @@ class Lexer
         while (preg_match(LexerOptions::blockEndRegex(), $this->source, $matches, offset: $this->cursor) !== 1) {
             $this->lexExpression();
 
-            $lastTokenIndex = array_key_last($this->tokens);
-            if ($lastTokenIndex === null) {
-                continue;
+            $lastToken = array_last($this->tokens);
+            if ($lastToken === null) {
+                throw SyntaxException::unexpectedEndOfTemplate();
             }
-
-            $lastToken = $this->tokens[$lastTokenIndex];
 
             if ($tag === null && $lastToken->type === TokenType::Identifier) {
                 $tag = $lastToken;
@@ -193,14 +191,11 @@ class Lexer
         }
 
         // If the last token is a block start, we remove the node
-        $lastTokenIndex = array_key_last($this->tokens);
-        if ($lastTokenIndex === null) {
-            $this->popState();
-
-            return;
+        $lastToken = array_last($this->tokens);
+        if ($lastToken === null) {
+            throw SyntaxException::unexpectedEndOfTemplate();
         }
 
-        $lastToken = $this->tokens[$lastTokenIndex];
         if ($lastToken->type === TokenType::BlockStart) {
             array_pop($this->tokens);
         } else {

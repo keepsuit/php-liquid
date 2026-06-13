@@ -145,6 +145,8 @@ class TokenStream
 
     /**
      * @return Argument
+     *
+     * @throws SyntaxException
      */
     public function argument(): mixed
     {
