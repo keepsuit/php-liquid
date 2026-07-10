@@ -2,8 +2,6 @@
 
 namespace Keepsuit\Liquid\Tags;
 
-use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tag;
@@ -19,11 +17,7 @@ class IncrementTag extends Tag
 
     public function parse(TagParseContext $context): static
     {
-        $variableName = $context->params->expression();
-        $this->variableName = match (true) {
-            $variableName instanceof VariableLookup && $variableName->lookups === [] => $variableName->name,
-            default => throw new SyntaxException('Invalid variable name'),
-        };
+        $this->variableName = $context->params->simpleVariableName('Invalid variable name');
 
         $context->params->assertEnd();
 

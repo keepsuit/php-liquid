@@ -2,9 +2,7 @@
 
 namespace Keepsuit\Liquid\Tags;
 
-use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\BodyNode;
-use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\TagBlock;
@@ -23,12 +21,7 @@ class CaptureTag extends TagBlock
 
         $this->body = $context->body;
 
-        $to = $context->params->expression();
-        $this->to = match (true) {
-            $to instanceof VariableLookup && $to->lookups === [] => $to->name,
-            is_string($to) => $to,
-            default => throw new SyntaxException(self::SYNTAX_ERROR),
-        };
+        $this->to = $context->params->simpleVariableName(self::SYNTAX_ERROR);
 
         $context->params->assertEnd();
 

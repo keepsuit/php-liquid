@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid\Parse;
 use Closure;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\Variable;
+use Keepsuit\Liquid\Nodes\VariableLookup;
 
 /**
  * @phpstan-import-type Argument from ArgumentParser
@@ -141,6 +142,20 @@ class TokenStream
     public function expression(): mixed
     {
         return $this->expressionParser->parseExpression();
+    }
+
+    /**
+     * @throws SyntaxException
+     */
+    public function simpleVariableName(string $error): string
+    {
+        $expression = $this->expression();
+
+        if ($expression instanceof VariableLookup && $expression->lookups === []) {
+            return $expression->name;
+        }
+
+        throw new SyntaxException($error);
     }
 
     /**

@@ -3,7 +3,7 @@
 use Keepsuit\Liquid\Render\RenderContext;
 
 test('capture block content in variable', function () {
-    assertTemplateResult('test string', "{% capture 'var' %}test string{% endcapture %}{{var}}");
+    assertTemplateResult('test string', '{% capture var %}test string{% endcapture %}{{var}}');
 });
 
 test('capture with hyphen in variable name', function () {
@@ -55,6 +55,13 @@ test('capture strict parsing rejects bracketed target', function () {
     assertMatchSyntaxError(
         "Liquid syntax error (line 1): Syntax Error in 'capture' - Valid syntax: capture [var]",
         '{% capture foo[bar] %}x{% endcapture %}',
+    );
+});
+
+test('capture strict parsing rejects quoted string target', function () {
+    assertMatchSyntaxError(
+        "Liquid syntax error (line 1): Syntax Error in 'capture' - Valid syntax: capture [var]",
+        "{% capture 'foo' %}x{% endcapture %}",
     );
 });
 

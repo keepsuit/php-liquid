@@ -5,7 +5,6 @@ namespace Keepsuit\Liquid\Tags;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\Variable;
-use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\ExpressionParser;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Parse\TokenType;
@@ -32,11 +31,7 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
     public function parse(TagParseContext $context): static
     {
         try {
-            $to = $context->params->expression();
-            $this->to = match (true) {
-                $to instanceof VariableLookup && $to->lookups === [] => $to->name,
-                default => throw new SyntaxException(self::SYNTAX_ERROR),
-            };
+            $this->to = $context->params->simpleVariableName(self::SYNTAX_ERROR);
 
             $context->params->consume(TokenType::Equals);
 
