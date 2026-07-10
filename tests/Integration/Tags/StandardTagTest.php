@@ -75,7 +75,7 @@ test('capture', function () {
 
 test('capture detects bad syntax', function () {
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Expected a simple variable name - Valid syntax: capture [var]',
+        'Liquid syntax error (line 1): Unexpected end of template - Valid syntax: capture [var]',
         '{{ var2 }}{% capture %}{{ var }} foo {% endcapture %}{{ var2 }}{{ var2 }}',
         staticData: ['var' => 'content']
     );

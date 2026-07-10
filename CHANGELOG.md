@@ -2,16 +2,6 @@
 
 All notable changes to `liquid` will be documented in this file.
 
-## v0.11.0 - 2026-07-10
-
-### What's Changed
-
-* Add Shopify Liquid 5.13 compatibility by @cappuc
-  * Add `self` drop: templates can now use `{{ self.var }}`, `{{ self[key] }}`, and pass `self` across `render` boundaries. The implicit `self` in a partial is isolated to that partial's scope; an explicit `self: self` argument retains the caller's context.
-  * Parser hardening: `assign`, `capture`, `increment`, and `decrement` now reject dotted or bracketed targets (e.g. `{% assign foo.bar = "x" %}`) at parse time.
-
-**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.10.0...v0.11.0
-
 ## v0.10.0 - 2026-06-13
 
 ### What's Changed

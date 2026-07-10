@@ -24,7 +24,9 @@ final class SelfDrop
 
     public function __isset(string $name): bool
     {
-        return true;
+        $variables = $this->context->findVariables($name);
+
+        return $variables !== [];
     }
 
     public function __toString(): string

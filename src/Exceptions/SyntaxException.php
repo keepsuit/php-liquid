@@ -79,16 +79,9 @@ class SyntaxException extends LiquidException
         ));
     }
 
-    public static function expectedSimpleVariable(): SyntaxException
+    public static function tagSyntaxException(string $tagName, string $validSyntax, SyntaxException $original): SyntaxException
     {
-        return new SyntaxException('Expected a simple variable name');
-    }
-
-    public static function tagSyntaxException(string $tagName, string $validSyntax, SyntaxException|string $original): SyntaxException
-    {
-        $originalMessage = $original instanceof SyntaxException ? $original->getMessage() : $original;
-        $previous = $original instanceof SyntaxException ? $original : null;
-        $exception = new SyntaxException($originalMessage.' - Valid syntax: '.$validSyntax, 0, E_ERROR, '', 0, $previous);
+        $exception = new SyntaxException(sprintf('%s - Valid syntax: %s', $original->getMessage(), $validSyntax), previous: $original);
         $exception->tagName = $tagName;
 
         return $exception;

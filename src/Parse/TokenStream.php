@@ -5,7 +5,6 @@ namespace Keepsuit\Liquid\Parse;
 use Closure;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\Variable;
-use Keepsuit\Liquid\Nodes\VariableLookup;
 
 /**
  * @phpstan-import-type Argument from ArgumentParser
@@ -93,8 +92,6 @@ class TokenStream
 
     /**
      * @throws SyntaxException
-     *
-     * @phpstan-impure
      */
     public function id(string $identifier): Token
     {
@@ -149,13 +146,7 @@ class TokenStream
      */
     public function simpleVariableName(): string
     {
-        $expression = $this->expression();
-
-        if ($expression instanceof VariableLookup && $expression->lookups === []) {
-            return $expression->name;
-        }
-
-        throw SyntaxException::expectedSimpleVariable();
+        return $this->consume(TokenType::Identifier)->data;
     }
 
     /**

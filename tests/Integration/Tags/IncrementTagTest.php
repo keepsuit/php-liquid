@@ -35,28 +35,28 @@ test('decrement', function () {
 
 test('increment strict parsing rejects dotted target', function () {
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Expected a simple variable name - Valid syntax: increment [var]',
+        'Liquid syntax error (line 1): Unexpected token .: "." - Valid syntax: increment [var]',
         '{% increment foo.bar %}',
     );
 });
 
 test('increment strict parsing rejects bracketed target', function () {
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Expected a simple variable name - Valid syntax: increment [var]',
+        'Liquid syntax error (line 1): Unexpected token [: "[" - Valid syntax: increment [var]',
         '{% increment foo[bar] %}',
     );
 });
 
 test('decrement strict parsing rejects dotted target', function () {
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Expected a simple variable name - Valid syntax: decrement [var]',
+        'Liquid syntax error (line 1): Unexpected token .: "." - Valid syntax: decrement [var]',
         '{% decrement foo.bar %}',
     );
 });
 
 test('decrement strict parsing rejects bracketed target', function () {
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Expected a simple variable name - Valid syntax: decrement [var]',
+        'Liquid syntax error (line 1): Unexpected token [: "[" - Valid syntax: decrement [var]',
         '{% decrement foo[bar] %}',
     );
 });
