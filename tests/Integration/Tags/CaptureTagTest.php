@@ -44,6 +44,20 @@ test('assigning from capture', function () {
     assertTemplateResult('3-3', $source);
 });
 
+test('capture strict parsing rejects dotted target', function () {
+    assertMatchSyntaxError(
+        "Liquid syntax error (line 1): Syntax Error in 'capture' - Valid syntax: capture [var]",
+        '{% capture foo.bar %}x{% endcapture %}',
+    );
+});
+
+test('capture strict parsing rejects bracketed target', function () {
+    assertMatchSyntaxError(
+        "Liquid syntax error (line 1): Syntax Error in 'capture' - Valid syntax: capture [var]",
+        '{% capture foo[bar] %}x{% endcapture %}',
+    );
+});
+
 test('increment assign score by bytes', function () {
     $context = new RenderContext;
     parseTemplate('{% capture foo %}すごい{% endcapture %}')->render($context);

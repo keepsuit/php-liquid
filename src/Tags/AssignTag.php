@@ -34,7 +34,7 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
         try {
             $to = $context->params->expression();
             $this->to = match (true) {
-                $to instanceof VariableLookup, is_string($to) => (string) $to,
+                $to instanceof VariableLookup && $to->lookups === [] => $to->name,
                 default => throw new SyntaxException(self::SYNTAX_ERROR),
             };
 

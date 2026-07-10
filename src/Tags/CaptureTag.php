@@ -25,7 +25,8 @@ class CaptureTag extends TagBlock
 
         $to = $context->params->expression();
         $this->to = match (true) {
-            is_string($to), $to instanceof VariableLookup => (string) $to,
+            $to instanceof VariableLookup && $to->lookups === [] => $to->name,
+            is_string($to) => $to,
             default => throw new SyntaxException(self::SYNTAX_ERROR),
         };
 

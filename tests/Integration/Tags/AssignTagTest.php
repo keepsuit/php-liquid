@@ -84,6 +84,20 @@ test('assign score exceeding resource limit from composite object', function () 
     expect($context->resourceLimits->getAssignScore())->toBe(5);
 });
 
+test('assign strict parsing rejects dotted target', function () {
+    assertMatchSyntaxError(
+        "Liquid syntax error (line 1): Syntax Error in 'assign' - Valid syntax: assign [var] = [source]",
+        '{% assign foo.bar = "x" %}',
+    );
+});
+
+test('assign strict parsing rejects bracketed target', function () {
+    assertMatchSyntaxError(
+        "Liquid syntax error (line 1): Syntax Error in 'assign' - Valid syntax: assign [var] = [source]",
+        '{% assign foo[bar] = "x" %}',
+    );
+});
+
 test('assign score of int', function () {
     expect(assignScoreOf(123))->toBe(1);
 });

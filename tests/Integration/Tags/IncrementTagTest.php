@@ -32,3 +32,31 @@ test('decrement', function () {
         LIQUID
     );
 });
+
+test('increment strict parsing rejects dotted target', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Invalid variable name',
+        '{% increment foo.bar %}',
+    );
+});
+
+test('increment strict parsing rejects bracketed target', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Invalid variable name',
+        '{% increment foo[bar] %}',
+    );
+});
+
+test('decrement strict parsing rejects dotted target', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Invalid variable name',
+        '{% decrement foo.bar %}',
+    );
+});
+
+test('decrement strict parsing rejects bracketed target', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Invalid variable name',
+        '{% decrement foo[bar] %}',
+    );
+});

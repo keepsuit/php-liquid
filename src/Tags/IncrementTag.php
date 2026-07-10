@@ -21,7 +21,7 @@ class IncrementTag extends Tag
     {
         $variableName = $context->params->expression();
         $this->variableName = match (true) {
-            $variableName instanceof VariableLookup || is_string($variableName) => (string) $variableName,
+            $variableName instanceof VariableLookup && $variableName->lookups === [] => $variableName->name,
             default => throw new SyntaxException('Invalid variable name'),
         };
 
