@@ -21,7 +21,7 @@ test('doc tag does not support extra arguments', function () {
     {% enddoc %}
     LIQUID;
 
-    assertMatchSyntaxError('Liquid syntax error (line 2): Unexpected token Identifier: "extra"', $template);
+    assertMatchSyntaxError('Liquid syntax error (line 2): Unexpected token Identifier: "extra" - Valid syntax: doc', $template);
 });
 
 test('doc tag must support valid tags', function () {
@@ -65,7 +65,7 @@ test('doc tag does not allow nested docs', function () {
     {% enddoc %}
     LIQUID;
 
-    assertMatchSyntaxError('Liquid syntax error (line 4): Nested doc tags are not allowed', $template);
+    assertMatchSyntaxError('Liquid syntax error (line 4): Nested doc tags are not allowed - Valid syntax: doc', $template);
 });
 
 test('doc tag ignores nested raw tags', function () {

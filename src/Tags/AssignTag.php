@@ -5,7 +5,6 @@ namespace Keepsuit\Liquid\Tags;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\Variable;
-use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\ExpressionParser;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Parse\TokenType;
@@ -18,8 +17,6 @@ use Keepsuit\Liquid\Tag;
  */
 class AssignTag extends Tag implements HasParseTreeVisitorChildren
 {
-    protected const SYNTAX_ERROR = "Syntax Error in 'assign' - Valid syntax: assign [var] = [source]";
-
     protected string $to;
 
     protected Variable $from;
@@ -32,11 +29,7 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
     public function parse(TagParseContext $context): static
     {
         try {
-            $to = $context->params->expression();
-            $this->to = match (true) {
-                $to instanceof VariableLookup, is_string($to) => (string) $to,
-                default => throw new SyntaxException(self::SYNTAX_ERROR),
-            };
+            $this->to = $context->params->simpleVariableName();
 
             $context->params->consume(TokenType::Equals);
 
@@ -44,7 +37,7 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
 
             $context->params->assertEnd();
         } catch (SyntaxException $e) {
-            throw new SyntaxException(self::SYNTAX_ERROR);
+            throw SyntaxException::tagSyntaxException('assign', 'assign <var> = <source>', $e);
         }
 
         return $this;

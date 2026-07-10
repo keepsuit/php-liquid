@@ -39,6 +39,13 @@ test('range', function () {
     );
 });
 
+test('bare bracket is not a valid expression', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): `[` is not a valid expression',
+        '{{ [foo] }}',
+    );
+});
+
 function assertExpressionResult(mixed $expected, string $markup, ...$assigns): void
 {
     $liquid = "{% if expect == $markup %}pass{% else %}got {{ $markup }}{% endif %}";

@@ -92,8 +92,6 @@ class TokenStream
 
     /**
      * @throws SyntaxException
-     *
-     * @phpstan-impure
      */
     public function id(string $identifier): Token
     {
@@ -141,6 +139,14 @@ class TokenStream
     public function expression(): mixed
     {
         return $this->expressionParser->parseExpression();
+    }
+
+    /**
+     * @throws SyntaxException
+     */
+    public function simpleVariableName(): string
+    {
+        return $this->consume(TokenType::Identifier)->data;
     }
 
     /**

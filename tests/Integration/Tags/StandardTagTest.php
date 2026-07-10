@@ -75,7 +75,7 @@ test('capture', function () {
 
 test('capture detects bad syntax', function () {
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Syntax Error in \'capture\' - Valid syntax: capture [var]',
+        'Liquid syntax error (line 1): Unexpected end of template - Valid syntax: capture <var>',
         '{{ var2 }}{% capture %}{{ var }} foo {% endcapture %}{{ var2 }}{{ var2 }}',
         staticData: ['var' => 'content']
     );
@@ -249,17 +249,17 @@ test('case when comma and blank body', function () {
 
 test('case strict parsing rejects trailing tokens', function () {
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Unexpected token Identifier: "extra"',
+        'Liquid syntax error (line 1): Unexpected token Identifier: "extra" - Valid syntax: case <expression>',
         '{% case condition extra %}{% when 1 %} hit {% endcase %}',
         staticData: ['condition' => 1],
     );
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Unexpected token Identifier: "extra"',
+        'Liquid syntax error (line 1): Unexpected token Identifier: "extra" - Valid syntax: when <expression> [, <expression>...]',
         '{% case condition %}{% when 1 extra %} hit {% endcase %}',
         staticData: ['condition' => 1],
     );
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Unexpected end of template',
+        'Liquid syntax error (line 1): Unexpected end of template - Valid syntax: when <expression> [, <expression>...]',
         '{% case condition %}{% when 1, %} hit {% endcase %}',
         staticData: ['condition' => 1],
     );
@@ -322,7 +322,7 @@ test('multiple named cycle with name from context', function () {
 
 test('cycle strict parsing rejects trailing tokens', function () {
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Unexpected token Identifier: "extra"',
+        'Liquid syntax error (line 1): Unexpected token Identifier: "extra" - Valid syntax: cycle [<name>:] <value>[, <value>...]',
         '{% cycle "one", "two" extra %}',
     );
 });

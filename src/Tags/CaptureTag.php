@@ -4,15 +4,12 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\BodyNode;
-use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\TagBlock;
 
 class CaptureTag extends TagBlock
 {
-    protected const SYNTAX_ERROR = "Syntax Error in 'capture' - Valid syntax: capture [var]";
-
     protected string $to;
 
     protected BodyNode $body;
@@ -23,13 +20,13 @@ class CaptureTag extends TagBlock
 
         $this->body = $context->body;
 
-        $to = $context->params->expression();
-        $this->to = match (true) {
-            is_string($to), $to instanceof VariableLookup => (string) $to,
-            default => throw new SyntaxException(self::SYNTAX_ERROR),
-        };
+        try {
+            $this->to = $context->params->simpleVariableName();
 
-        $context->params->assertEnd();
+            $context->params->assertEnd();
+        } catch (SyntaxException $e) {
+            throw SyntaxException::tagSyntaxException('capture', 'capture <var>', $e);
+        }
 
         return $this;
     }

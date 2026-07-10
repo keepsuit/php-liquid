@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Interrupts\ContinueInterrupt;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
@@ -16,7 +17,11 @@ class ContinueTag extends Tag
 
     public function parse(TagParseContext $context): static
     {
-        $context->params->assertEnd();
+        try {
+            $context->params->assertEnd();
+        } catch (SyntaxException $e) {
+            throw SyntaxException::tagSyntaxException(static::tagName(), 'continue', $e);
+        }
 
         return $this;
     }

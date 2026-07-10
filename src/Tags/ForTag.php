@@ -54,11 +54,19 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
 
     public function parse(TagParseContext $context): static
     {
-        match ($context->tag) {
-            'for' => $this->parseForBlock($context),
-            'else' => $this->parseElseBlock($context),
-            default => throw new SyntaxException('Invalid tag'),
-        };
+        try {
+            match ($context->tag) {
+                'for' => $this->parseForBlock($context),
+                'else' => $this->parseElseBlock($context),
+                default => throw new SyntaxException('Invalid tag'),
+            };
+        } catch (SyntaxException $e) {
+            throw SyntaxException::tagSyntaxException(static::tagName(), match ($context->tag) {
+                'for' => 'for <var> in <collection> [attributes...]',
+                'else' => 'else',
+                default => ''
+            }, $e);
+        }
 
         return $this;
     }

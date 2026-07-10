@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
+use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
@@ -14,9 +15,13 @@ class EchoTag extends Tag implements HasParseTreeVisitorChildren
 
     public function parse(TagParseContext $context): static
     {
-        $this->variable = $context->params->variable();
+        try {
+            $this->variable = $context->params->variable();
 
-        $context->params->assertEnd();
+            $context->params->assertEnd();
+        } catch (SyntaxException $e) {
+            throw SyntaxException::tagSyntaxException(static::tagName(), 'echo <expression>', $e);
+        }
 
         return $this;
     }

@@ -79,6 +79,14 @@ class SyntaxException extends LiquidException
         ));
     }
 
+    public static function tagSyntaxException(string $tagName, string $validSyntax, SyntaxException $original): SyntaxException
+    {
+        $exception = new SyntaxException(sprintf('%s - Valid syntax: %s', $original->getMessage(), $validSyntax), previous: $original);
+        $exception->tagName = $tagName;
+
+        return $exception;
+    }
+
     protected function messagePrefix(): string
     {
         return 'Liquid syntax error';

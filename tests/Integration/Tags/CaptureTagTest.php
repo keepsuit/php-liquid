@@ -3,7 +3,7 @@
 use Keepsuit\Liquid\Render\RenderContext;
 
 test('capture block content in variable', function () {
-    assertTemplateResult('test string', "{% capture 'var' %}test string{% endcapture %}{{var}}");
+    assertTemplateResult('test string', '{% capture var %}test string{% endcapture %}{{var}}');
 });
 
 test('capture with hyphen in variable name', function () {
@@ -42,6 +42,27 @@ test('assigning from capture', function () {
         LIQUID;
 
     assertTemplateResult('3-3', $source);
+});
+
+test('capture strict parsing rejects dotted target', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Unexpected token .: "." - Valid syntax: capture <var>',
+        '{% capture foo.bar %}x{% endcapture %}',
+    );
+});
+
+test('capture strict parsing rejects bracketed target', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Unexpected token [: "[" - Valid syntax: capture <var>',
+        '{% capture foo[bar] %}x{% endcapture %}',
+    );
+});
+
+test('capture strict parsing rejects quoted string target', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Expected Identifier, got String - Valid syntax: capture <var>',
+        "{% capture 'foo' %}x{% endcapture %}",
+    );
 });
 
 test('increment assign score by bytes', function () {

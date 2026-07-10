@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Condition\ElseCondition;
+use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\RenderContext;
@@ -22,7 +23,16 @@ class IfTag extends TagBlock
 
     public function parse(TagParseContext $context): static
     {
-        $this->conditions[] = $this->mapBodySectionToCondition($context);
+        try {
+            $this->conditions[] = $this->mapBodySectionToCondition($context);
+        } catch (SyntaxException $e) {
+            throw SyntaxException::tagSyntaxException(static::tagName(), match ($context->tag) {
+                'if' => 'if <condition>',
+                'elsif' => 'elsif <condition>',
+                'else' => 'else',
+                default => ''
+            }, $e);
+        }
 
         return $this;
     }
@@ -46,6 +56,9 @@ class IfTag extends TagBlock
         return $this->conditions;
     }
 
+    /**
+     * @throws SyntaxException
+     */
     protected function mapBodySectionToCondition(TagParseContext $bodySection): Condition
     {
         $condition = match ($bodySection->tag) {
@@ -85,11 +98,17 @@ class IfTag extends TagBlock
         return in_array($tagName, ['else', 'elsif'], true);
     }
 
+    /**
+     * @throws SyntaxException
+     */
     protected function parseCondition(TagParseContext $bodySection): Condition
     {
         return $this->parseBinaryComparison($bodySection);
     }
 
+    /**
+     * @throws SyntaxException
+     */
     protected function parseBinaryComparison(TagParseContext $bodySection): Condition
     {
         $condition = $this->parseComparison($bodySection);
@@ -104,6 +123,9 @@ class IfTag extends TagBlock
         return $firstCondition;
     }
 
+    /**
+     * @throws SyntaxException
+     */
     protected function parseComparison(TagParseContext $bodySection): Condition
     {
         $a = $bodySection->params->expression();

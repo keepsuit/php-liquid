@@ -12,8 +12,6 @@ use Keepsuit\Liquid\Tag;
 
 class CycleTag extends Tag implements HasParseTreeVisitorChildren
 {
-    protected const SYNTAX_ERROR = "Syntax Error in 'cycle' - Valid syntax: cycle [name :] var [, var2, var3 ...]";
-
     /**
      * @var (string|int|float)[]
      */
@@ -28,40 +26,49 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
 
     public function parse(TagParseContext $context): static
     {
-        $this->name = null;
-        $this->variables = [];
+        try {
+            $this->name = null;
+            $this->variables = [];
 
-        if ($context->params->look(TokenType::Colon, 1)) {
-            if (! in_array($context->params->current()?->type, [TokenType::String, TokenType::Number, TokenType::Identifier])) {
-                throw new SyntaxException(self::SYNTAX_ERROR);
+            if ($context->params->look(TokenType::Colon, 1)) {
+                $currentToken = $context->params->current();
+
+                $name = $context->params->expression();
+                $this->name = match (true) {
+                    is_string($name), is_numeric($name), $name instanceof VariableLookup => (string) $name,
+                    $currentToken === null => throw SyntaxException::unexpectedEndOfTemplate(),
+                    default => throw SyntaxException::unexpectedToken($currentToken),
+                };
+
+                $context->params->consume(TokenType::Colon);
             }
 
-            $name = $context->params->expression();
-            $this->name = match (true) {
-                is_string($name), is_numeric($name), $name instanceof VariableLookup => (string) $name,
-                default => throw new SyntaxException(self::SYNTAX_ERROR),
-            };
+            do {
+                $currentToken = $context->params->current();
 
-            $context->params->consume(TokenType::Colon);
-        }
+                if (! $currentToken) {
+                    throw SyntaxException::unexpectedEndOfTemplate();
+                }
 
-        do {
-            if (! in_array($context->params->current()?->type, [TokenType::String, TokenType::Number])) {
-                throw new SyntaxException(self::SYNTAX_ERROR);
+                if (! in_array($currentToken->type, [TokenType::String, TokenType::Number])) {
+                    throw SyntaxException::unexpectedToken($currentToken);
+                }
+
+                $variable = $context->params->expression();
+                $this->variables[] = match (true) {
+                    is_string($variable), is_numeric($variable) => $variable,
+                    default => throw SyntaxException::unexpectedToken($currentToken)
+                };
+            } while ($context->params->consumeOrFalse(TokenType::Comma));
+
+            if ($this->name === null) {
+                $this->name = json_encode($this->variables, JSON_THROW_ON_ERROR);
             }
 
-            $variable = $context->params->expression();
-            $this->variables[] = match (true) {
-                is_string($variable), is_numeric($variable) => $variable,
-                default => throw new SyntaxException(self::SYNTAX_ERROR),
-            };
-        } while ($context->params->consumeOrFalse(TokenType::Comma));
-
-        if ($this->name === null) {
-            $this->name = json_encode($this->variables, JSON_THROW_ON_ERROR);
+            $context->params->assertEnd();
+        } catch (SyntaxException $e) {
+            throw SyntaxException::tagSyntaxException(static::tagName(), 'cycle [<name>:] <value>[, <value>...]', $e);
         }
-
-        $context->params->assertEnd();
 
         return $this;
     }

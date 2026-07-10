@@ -32,11 +32,20 @@ class CaseTag extends TagBlock
 
     public function parse(TagParseContext $context): static
     {
-        if ($context->tag === 'case') {
-            $this->left = $context->params->expression();
-            $context->params->assertEnd();
-        } else {
-            $this->conditions[] = $this->mapBodySectionToCondition($context);
+        try {
+            if ($context->tag === 'case') {
+                $this->left = $context->params->expression();
+                $context->params->assertEnd();
+            } else {
+                $this->conditions[] = $this->mapBodySectionToCondition($context);
+            }
+        } catch (SyntaxException $e) {
+            throw SyntaxException::tagSyntaxException(static::tagName(), match ($context->tag) {
+                'case' => 'case <expression>',
+                'when' => 'when <expression> [, <expression>...]',
+                'else' => 'else',
+                default => ''
+            }, $e);
         }
 
         return $this;
