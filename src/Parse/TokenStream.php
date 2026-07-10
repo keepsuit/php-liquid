@@ -147,7 +147,7 @@ class TokenStream
     /**
      * @throws SyntaxException
      */
-    public function simpleVariableName(string $error): string
+    public function simpleVariableName(): string
     {
         $expression = $this->expression();
 
@@ -155,7 +155,7 @@ class TokenStream
             return $expression->name;
         }
 
-        throw new SyntaxException($error);
+        throw SyntaxException::expectedSimpleVariable();
     }
 
     /**

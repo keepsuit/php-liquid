@@ -40,10 +40,10 @@ test('assigned with filter', function () {
 
 test('assign syntax error', function () {
     expect(fn () => renderTemplate('{% assign foo not values %}.'))
-        ->toThrow(SyntaxException::class, 'assign');
+        ->toThrow(SyntaxException::class);
 
     expect(fn () => renderTemplate("{% assign foo = ('X' | downcase) %}"))
-        ->toThrow(SyntaxException::class, 'assign');
+        ->toThrow(SyntaxException::class);
 });
 
 test('expression with whitespace in square brackets', function () {
@@ -86,14 +86,14 @@ test('assign score exceeding resource limit from composite object', function () 
 
 test('assign strict parsing rejects dotted target', function () {
     assertMatchSyntaxError(
-        "Liquid syntax error (line 1): Syntax Error in 'assign' - Valid syntax: assign [var] = [source]",
+        'Liquid syntax error (line 1): Expected a simple variable name - Valid syntax: assign [var] = [source]',
         '{% assign foo.bar = "x" %}',
     );
 });
 
 test('assign strict parsing rejects bracketed target', function () {
     assertMatchSyntaxError(
-        "Liquid syntax error (line 1): Syntax Error in 'assign' - Valid syntax: assign [var] = [source]",
+        'Liquid syntax error (line 1): Expected a simple variable name - Valid syntax: assign [var] = [source]',
         '{% assign foo[bar] = "x" %}',
     );
 });

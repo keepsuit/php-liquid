@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tag;
@@ -17,9 +18,13 @@ class IncrementTag extends Tag
 
     public function parse(TagParseContext $context): static
     {
-        $this->variableName = $context->params->simpleVariableName('Invalid variable name');
+        try {
+            $this->variableName = $context->params->simpleVariableName();
 
-        $context->params->assertEnd();
+            $context->params->assertEnd();
+        } catch (SyntaxException $e) {
+            throw SyntaxException::tagSyntaxException(static::tagName(), sprintf('%s [var]', static::tagName()), $e);
+        }
 
         return $this;
     }
