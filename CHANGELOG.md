@@ -2,6 +2,16 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.11.0 - 2026-07-10
+
+### What's Changed
+
+* Bump actions/checkout from 6 to 7 by @dependabot[bot] in https://github.com/keepsuit/php-liquid/pull/60
+* Bump actions/cache from 5 to 6 by @dependabot[bot] in https://github.com/keepsuit/php-liquid/pull/61
+* Add Shopify Liquid v5.13 compatibility by @cappuc in https://github.com/keepsuit/php-liquid/pull/62
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.10.0...v0.11.0
+
 ## v0.10.0 - 2026-06-13
 
 ### What's Changed
