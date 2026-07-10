@@ -25,17 +25,21 @@ class DocTag extends TagBlock
 
     public function parse(TagParseContext $context): static
     {
-        $context->params->assertEnd();
+        try {
+            $context->params->assertEnd();
 
-        assert($context->body instanceof BodyNode);
+            assert($context->body instanceof BodyNode);
 
-        $body = $context->body->children()[0] ?? null;
-        $this->body = match (true) {
-            $body instanceof Raw => $body,
-            default => throw new SyntaxException('doc tag must have a single raw body'),
-        };
+            $body = $context->body->children()[0] ?? null;
+            $this->body = match (true) {
+                $body instanceof Raw => $body,
+                default => throw new SyntaxException('must have a single raw body'),
+            };
 
-        $this->ensureNoNestedDocTags();
+            $this->ensureNoNestedDocTags();
+        } catch (SyntaxException $e) {
+            throw SyntaxException::tagSyntaxException(static::tagName(), 'doc', $e);
+        }
 
         return $this;
     }

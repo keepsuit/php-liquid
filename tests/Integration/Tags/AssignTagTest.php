@@ -86,14 +86,14 @@ test('assign score exceeding resource limit from composite object', function () 
 
 test('assign strict parsing rejects dotted target', function () {
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Expected ==, got . - Valid syntax: assign [var] = [source]',
+        'Liquid syntax error (line 1): Expected ==, got . - Valid syntax: assign <var> = <source>',
         '{% assign foo.bar = "x" %}',
     );
 });
 
 test('assign strict parsing rejects bracketed target', function () {
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Expected ==, got [ - Valid syntax: assign [var] = [source]',
+        'Liquid syntax error (line 1): Expected ==, got [ - Valid syntax: assign <var> = <source>',
         '{% assign foo[bar] = "x" %}',
     );
 });

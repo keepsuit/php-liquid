@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Drops\TableRowLoopDrop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
+use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Interrupts\BreakInterrupt;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Nodes\Range;
@@ -31,28 +32,32 @@ class TableRowTag extends TagBlock
 
     public function parse(TagParseContext $context): static
     {
-        assert($context->body !== null);
+        try {
+            assert($context->body !== null);
 
-        $this->body = $context->body;
+            $this->body = $context->body;
 
-        $this->variableName = $context->params->consume(TokenType::Identifier)->data;
-        $context->params->id('in');
-        $this->collectionName = $context->params->expression();
+            $this->variableName = $context->params->consume(TokenType::Identifier)->data;
+            $context->params->id('in');
+            $this->collectionName = $context->params->expression();
 
-        while (true) {
-            $context->params->consumeOrFalse(TokenType::Comma);
+            while (true) {
+                $context->params->consumeOrFalse(TokenType::Comma);
 
-            if ($context->params->isEnd()) {
-                break;
+                if ($context->params->isEnd()) {
+                    break;
+                }
+
+                $attribute = $context->params->consume(TokenType::Identifier)->data;
+                $context->params->consume(TokenType::Colon);
+                $value = $context->params->expression();
+                $this->attributes[$attribute] = $value;
             }
 
-            $attribute = $context->params->consume(TokenType::Identifier)->data;
-            $context->params->consume(TokenType::Colon);
-            $value = $context->params->expression();
-            $this->attributes[$attribute] = $value;
+            $context->params->assertEnd();
+        } catch (SyntaxException $e) {
+            throw SyntaxException::tagSyntaxException(static::tagName(), 'tablerow <var> in <collection> [attributes...]', $e);
         }
-
-        $context->params->assertEnd();
 
         return $this;
     }

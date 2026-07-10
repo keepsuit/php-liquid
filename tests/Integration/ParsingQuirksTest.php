@@ -40,7 +40,7 @@ test('throw exception on empty filter', function () {
 
 test('meaningless parens error', function () {
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Invalid range syntax, correct syntax is (start..end)',
+        'Liquid syntax error (line 1): Invalid range syntax, correct syntax is (start..end) - Valid syntax: if <condition>',
         "{% if a == 'foo' or (b == 'bar' and c == 'baz') or false %} YES {% endif %}"
     );
 });
@@ -51,7 +51,7 @@ test('unexpected characters', function () {
         '{% if true && false %} YES {% endif %}'
     );
     assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Unexpected token |: "|"',
+        'Liquid syntax error (line 1): Unexpected token |: "|" - Valid syntax: if <condition>',
         '{% if true || false %} YES {% endif %}'
     );
 });

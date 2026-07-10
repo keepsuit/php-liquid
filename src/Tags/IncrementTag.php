@@ -23,7 +23,7 @@ class IncrementTag extends Tag
 
             $context->params->assertEnd();
         } catch (SyntaxException $e) {
-            throw SyntaxException::tagSyntaxException(static::tagName(), sprintf('%s [var]', static::tagName()), $e);
+            throw SyntaxException::tagSyntaxException(static::tagName(), sprintf('%s <var>', static::tagName()), $e);
         }
 
         return $this;

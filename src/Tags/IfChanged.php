@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
@@ -22,7 +23,11 @@ class IfChanged extends TagBlock
 
         $this->body = $context->body;
 
-        $context->params->assertEnd();
+        try {
+            $context->params->assertEnd();
+        } catch (SyntaxException $e) {
+            throw SyntaxException::tagSyntaxException(static::tagName(), 'ifchanged', $e);
+        }
 
         return $this;
     }

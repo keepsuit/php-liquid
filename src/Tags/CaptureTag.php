@@ -25,7 +25,7 @@ class CaptureTag extends TagBlock
 
             $context->params->assertEnd();
         } catch (SyntaxException $e) {
-            throw SyntaxException::tagSyntaxException('capture', 'capture [var]', $e);
+            throw SyntaxException::tagSyntaxException('capture', 'capture <var>', $e);
         }
 
         return $this;

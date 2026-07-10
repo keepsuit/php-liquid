@@ -37,7 +37,7 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
 
             $context->params->assertEnd();
         } catch (SyntaxException $e) {
-            throw SyntaxException::tagSyntaxException('assign', 'assign [var] = [source]', $e);
+            throw SyntaxException::tagSyntaxException('assign', 'assign <var> = <source>', $e);
         }
 
         return $this;
