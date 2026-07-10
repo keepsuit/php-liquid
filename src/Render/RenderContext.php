@@ -9,6 +9,7 @@ use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Contracts\LiquidErrorHandler;
 use Keepsuit\Liquid\Contracts\MapsToLiquid;
 use Keepsuit\Liquid\Drop;
+use Keepsuit\Liquid\Drops\SelfDrop;
 use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\ErrorHandlers\RethrowErrorHandler;
 use Keepsuit\Liquid\Exceptions\ArithmeticException;
@@ -58,6 +59,8 @@ final class RenderContext
      * @var array<Interrupt>
      */
     protected array $interrupts = [];
+
+    private ?SelfDrop $selfDrop = null;
 
     public function __construct(
         /**
@@ -183,6 +186,13 @@ final class RenderContext
 
         $variables = array_values(array_filter($variables, fn (mixed $value) => ! $value instanceof MissingValue));
 
+        // Inject the implicit self drop only when no value (including explicit null) was found.
+        // An explicit `self = nil` leaves [null] in $variables, so the fallback is skipped,
+        // correctly distinguishing defined-null from undefined.
+        if ($variables === [] && $key === 'self') {
+            return [$this->getSelfDrop()];
+        }
+
         foreach ($variables as $variable) {
             if ($variable instanceof IsContextAware) {
                 $variable->setContext($this);
@@ -190,6 +200,11 @@ final class RenderContext
         }
 
         return $variables;
+    }
+
+    public function getSelfDrop(): SelfDrop
+    {
+        return $this->selfDrop ??= new SelfDrop($this);
     }
 
     public function internalContextLookup(mixed $scope, int|string $key): mixed
