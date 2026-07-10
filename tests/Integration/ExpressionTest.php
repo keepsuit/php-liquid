@@ -41,7 +41,7 @@ test('range', function () {
 
 test('bare bracket is not a valid expression', function () {
     assertMatchSyntaxError(
-        "Liquid syntax error (line 1): `[` is not a valid expression",
+        'Liquid syntax error (line 1): `[` is not a valid expression',
         '{{ [foo] }}',
     );
 });
