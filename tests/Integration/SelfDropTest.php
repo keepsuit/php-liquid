@@ -77,6 +77,11 @@ test('repeated self lookups compare equal', function () {
     assertTemplateResult('yes', '{% if self == self %}yes{% endif %}');
 });
 
+// Upstream: test_assigned_self_drop_compares_equal_to_itself
+test('assigned self drop compares equal to itself', function () {
+    assertTemplateResult('T', '{% assign s = self %}{% if s == s %}T{% else %}F{% endif %}');
+});
+
 // US 13: two variables assigned from same self context compare equal
 test('two variables from same self context compare equal', function () {
     assertTemplateResult('yes', '{% assign a = self %}{% assign b = self %}{% if a == b %}yes{% endif %}');
@@ -87,6 +92,38 @@ test('self missing property renders blank under strict variables', function () {
     $factory = new EnvironmentFactory;
     $factory->setStrictVariables(true);
     assertTemplateResult('', '{{ self.missing_key }}', factory: $factory);
+});
+
+// Upstream: test_self_drop_with_strict_variables_does_not_raise_for_defined_var
+test('self defined property resolves correctly under strict variables', function () {
+    $factory = new EnvironmentFactory;
+    $factory->setStrictVariables(true);
+    assertTemplateResult('42', '{{ self.x }}', staticData: ['x' => 42], factory: $factory);
+});
+
+// Upstream: test_self_drop_passed_as_render_param_preserves_original_scope
+// Both the caller and partial use the same variable name; the passed self must hold
+// the caller's value while the partial's implicit self holds the partial's own.
+test('self passed as render param preserves original scope when variable name collides', function () {
+    assertTemplateResult('42|43',
+        '{%- assign var = 42 -%}{%- assign s = self -%}{%- render "snippet", other_self: s -%}',
+        partials: [
+            'snippet' => '{%- assign var = 43 -%}{{- other_self.var }}|{{ self.var -}}',
+        ]
+    );
+});
+
+// Upstream: test_self_drop_passed_to_nested_renders_preserves_each_level
+// Three levels all shadow the same variable `a`; each passed self must resolve
+// to its own level's value independently.
+test('self passed to nested renders preserves each level independently', function () {
+    assertTemplateResult('1|2|3',
+        '{%- assign a = 1 -%}{%- assign s1 = self -%}{%- render "snippet1", outer: s1 -%}',
+        partials: [
+            'snippet1' => '{%- assign a = 2 -%}{%- assign s2 = self -%}{%- render "snippet2", outer: outer, middle: s2 -%}',
+            'snippet2' => '{%- assign a = 3 -%}{{- outer.a }}|{{ middle.a }}|{{ self.a -}}',
+        ]
+    );
 });
 
 // US 15: explicit null self is not confused with missing self
