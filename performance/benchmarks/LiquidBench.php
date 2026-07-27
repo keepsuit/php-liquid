@@ -27,6 +27,11 @@ class LiquidBench
         $this->themeRunner = $this->getThemeRunner();
     }
 
+    public function benchTokenize(): void
+    {
+        $this->themeRunner->tokenize();
+    }
+
     public function benchParsing(): void
     {
         $this->themeRunner->compile();

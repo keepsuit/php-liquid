@@ -45,6 +45,16 @@ class ThemeRunner
         $this->compileAllTests();
     }
 
+    public function tokenize(): void
+    {
+        foreach ($this->tests as $test) {
+            $this->environment->newParseContext()->tokenize($test->liquid);
+            if ($test->layoutLiquid !== null) {
+                $this->environment->newParseContext()->tokenize($test->layoutLiquid);
+            }
+        }
+    }
+
     public function compile(): void
     {
         foreach ($this->tests as $test) {
