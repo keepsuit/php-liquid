@@ -62,7 +62,13 @@ class TokenStream
      */
     public function next(): Token
     {
-        return $this->consume();
+        $token = $this->tokens[$this->cursor++] ?? null;
+
+        if ($token === null) {
+            throw SyntaxException::unexpectedEndOfTemplate();
+        }
+
+        return $token;
     }
 
     /**

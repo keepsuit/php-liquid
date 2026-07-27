@@ -16,6 +16,18 @@ test('consume', function () {
         ->isEnd()->toBeTrue();
 });
 
+test('next', function () {
+    $tokenStream = tokenize('{{ wat }}');
+
+    expect($tokenStream->next()->type)->toBe(TokenType::VariableStart);
+
+    $tokenStream->consume();
+    $tokenStream->consume();
+
+    expect(fn () => $tokenStream->next())
+        ->toThrow(SyntaxException::class);
+});
+
 test('jump', function () {
     $tokenStream = tokenize('{{ wat: 7 }}');
 
