@@ -8,11 +8,15 @@ use RuntimeException;
 
 class Lexer
 {
+    private const WHITESPACE = " \t\n\r\v\f";
+
     protected string $source;
 
     protected int $cursor;
 
     protected int $end;
+
+    protected ?string $current;
 
     protected int $lineNumber;
 
@@ -31,13 +35,6 @@ class Lexer
     protected array $tokens;
 
     /**
-     * @var array<int, array{0:string,1:int}>
-     */
-    protected array $positions;
-
-    protected int $position;
-
-    /**
      * @var string[]
      */
     protected array $rawBodyTags;
@@ -53,8 +50,9 @@ class Lexer
     {
         $this->source = str_replace(["\r\n", "\r"], "\n", $source);
         $this->cursor = 0;
-        $this->lineNumber = 1;
         $this->end = strlen($this->source);
+        $this->current = $this->charAt(0);
+        $this->lineNumber = 1;
         $this->states = [];
         $this->state = LexerState::Data;
         $this->tokens = [];
@@ -69,10 +67,7 @@ class Lexer
 
         $this->parseContext->lineNumber = 1;
 
-        $this->positions = $this->extractTokenStarts($this->source);
-        $this->position = -1;
-
-        while ($this->cursor < $this->end) {
+        while ($this->current !== null) {
             switch ($this->state) {
                 case LexerState::Data:
                     $this->lexData();
@@ -91,55 +86,51 @@ class Lexer
 
     protected function lexData(): void
     {
-        // if no matches are left we return the rest of the template as simple text token
-        if ($this->position == count($this->positions) - 1) {
-            $this->pushToken(TokenType::TextData, substr($this->source, $this->cursor));
-            $this->cursor = $this->end;
+        $offset = $this->cursor;
+
+        while (true) {
+            $offset += strcspn($this->source, '{', $offset);
+
+            if ($offset >= $this->end) {
+                $this->pushToken(TokenType::TextData, substr($this->source, $this->cursor));
+                $this->skip($this->end - $this->cursor);
+
+                return;
+            }
+
+            $next = $this->charAt($offset + 1);
+            if ($next === '{' || $next === '%') {
+                break;
+            }
+
+            $offset++;
+        }
+
+        $text = substr($this->source, $this->cursor, $offset - $this->cursor);
+        $trim = $this->charAt($offset + 2) === LexerOptions::WhitespaceTrim->value;
+
+        $this->pushToken(TokenType::TextData, $trim ? rtrim($text) : $text);
+        $this->skip($offset - $this->cursor + 2 + ($trim ? 1 : 0));
+
+        if ($next === '%') {
+            $commentStartLength = $this->commentStartLength();
+            if ($commentStartLength !== null) {
+                $this->skip($commentStartLength);
+                $this->lexComment();
+
+                return;
+            }
+
+            $this->pushToken(TokenType::BlockStart);
+            $this->pushState(LexerState::Block);
+            $this->currentVarBlockLine = $this->lineNumber;
 
             return;
         }
 
-        // Find the first token after the current cursor
-        $position = $this->positions[++$this->position];
-        while ($position[1] < $this->cursor) {
-            if ($this->position == count($this->positions) - 1) {
-                return;
-            }
-            $position = $this->positions[++$this->position];
-        }
-
-        // push the template text before the token first
-        $text = $textBeforeToken = substr($this->source, $this->cursor, $position[1] - $this->cursor);
-
-        // trim?
-        if (($this->positions[$this->position][0][2] ?? null) === LexerOptions::WhitespaceTrim->value) {
-            $textBeforeToken = rtrim($textBeforeToken);
-        }
-
-        $this->pushToken(TokenType::TextData, $textBeforeToken);
-        $this->moveCursor($text.$position[0]);
-
-        switch ($this->positions[$this->position][0]) {
-            case LexerOptions::TagBlockStart->value:
-            case LexerOptions::TagBlockStart->value.LexerOptions::WhitespaceTrim->value:
-                // {% comment %}
-                if (preg_match(LexerOptions::blockCommentStartRegex(), $this->source, $matches, offset: $this->cursor) === 1) {
-                    $this->moveCursor($matches[0]);
-                    $this->lexComment();
-                    break;
-                }
-
-                $this->pushToken(TokenType::BlockStart);
-                $this->pushState(LexerState::Block);
-                $this->currentVarBlockLine = $this->lineNumber;
-                break;
-            case LexerOptions::TagVariableStart->value:
-            case LexerOptions::TagVariableStart->value.LexerOptions::WhitespaceTrim->value:
-                $this->pushToken(TokenType::VariableStart);
-                $this->pushState(LexerState::Variable);
-                $this->currentVarBlockLine = $this->lineNumber;
-                break;
-        }
+        $this->pushToken(TokenType::VariableStart);
+        $this->pushState(LexerState::Variable);
+        $this->currentVarBlockLine = $this->lineNumber;
     }
 
     /**
@@ -147,18 +138,20 @@ class Lexer
      */
     protected function lexVariable(): void
     {
-        if (preg_match(LexerOptions::variableEndRegex(), $this->source, $matches, offset: $this->cursor) === 1) {
+        $terminator = $this->terminatorLength(LexerOptions::TagVariableEnd->value);
+        if ($terminator !== null) {
             $this->pushToken(TokenType::VariableEnd);
-            $this->moveCursor($matches[0]);
+            $this->skip($terminator['length']);
             $this->popState();
 
-            // trim?
-            if ($matches[1][0] === LexerOptions::WhitespaceTrim->value) {
+            if ($terminator['trim']) {
                 $this->trimWhitespaces();
             }
-        } else {
-            $this->lexExpression();
+
+            return;
         }
+
+        $this->lexExpression();
     }
 
     /**
@@ -168,8 +161,7 @@ class Lexer
     {
         $tag = null;
 
-        // Parse the full expression inside {% ... %}
-        while (preg_match(LexerOptions::blockEndRegex(), $this->source, $matches, offset: $this->cursor) !== 1) {
+        while (($terminator = $this->terminatorLength(LexerOptions::TagBlockEnd->value)) === null) {
             $this->lexExpression();
 
             $lastToken = array_last($this->tokens);
@@ -182,15 +174,12 @@ class Lexer
             }
         }
 
-        // Move the cursor to the end of the block
-        $this->moveCursor($matches[0]);
+        $this->skip($terminator['length']);
 
-        // trim?
-        if ($matches[1][0] === LexerOptions::WhitespaceTrim->value) {
+        if ($terminator['trim']) {
             $this->trimWhitespaces();
         }
 
-        // If the last token is a block start, we remove the node
         $lastToken = array_last($this->tokens);
         if ($lastToken === null) {
             throw SyntaxException::unexpectedEndOfTemplate();
@@ -204,9 +193,8 @@ class Lexer
 
         $this->popState();
 
-        // If the tag is a raw body tag, we need to lex the body as raw data instead of liquid blocks
         if ($tag !== null && in_array($tag->data, $this->rawBodyTags, true)) {
-            $this->laxRawBodyTag($tag->data);
+            $this->lexRawBodyTag($tag->data);
         }
     }
 
@@ -215,30 +203,36 @@ class Lexer
      */
     protected function lexExpression(): void
     {
-        if (preg_match('/\G\s+/A', $this->source, $matches, offset: $this->cursor) === 1) {
-            $this->moveCursor($matches[0]);
-        }
+        $this->skipWhitespace();
 
         $this->ensureStreamNotEnded();
 
-        if ($this->source[$this->cursor] === '#') {
+        if ($this->current === LexerOptions::InlineComment->value) {
             $this->lexInlineComment();
 
             return;
         }
 
-        $token = match (true) {
-            preg_match(LexerOptions::comparisonOperatorRegex(), $this->source, $matches, offset: $this->cursor) === 1 => [TokenType::Comparison, $matches[0] ?? ''],
-            preg_match(LexerOptions::identifierRegex(), $this->source, $matches, offset: $this->cursor) === 1 => [TokenType::Identifier, $matches[0] ?? ''],
-            preg_match(LexerOptions::stringLiteralRegex(), $this->source, $matches, offset: $this->cursor) === 1 => [TokenType::String, $matches[0] ?? ''],
-            preg_match(LexerOptions::numberLiteralRegex(), $this->source, $matches, offset: $this->cursor) === 1 => [TokenType::Number, $matches[0] ?? ''],
-            $this->cursor + 1 < $this->end && $this->source[$this->cursor] === '.' && $this->source[$this->cursor + 1] === '.' => [TokenType::DotDot, '..'],
-            array_key_exists($this->source[$this->cursor], LexerOptions::specialCharacters()) => [LexerOptions::specialCharacters()[$this->source[$this->cursor]], $this->source[$this->cursor]],
-            default => throw SyntaxException::unexpectedCharacter($this->source[$this->cursor]),
-        };
+        $specialCharacters = LexerOptions::specialCharacters();
 
-        $this->pushToken($token[0], $token[1]);
-        $this->moveCursor($token[1]);
+        match (true) {
+            $this->current === '"' || $this->current === '\'' => $this->lexString(),
+            $this->isDigit($this->current) => $this->lexNumber(),
+            $this->current === '-' && $this->isDigit($this->seek(1)) => $this->lexNumber(),
+            $this->isAsciiLetterOrUnderscore($this->current) => $this->lexIdentifier(),
+            $this->current === '=' && $this->comesNext('==') => $this->pushToken(TokenType::Comparison, $this->consume(2)),
+            $this->current === '=' => $this->pushToken(TokenType::Equals, $this->consume()),
+            $this->current === '!' && $this->comesNext('!=') => $this->pushToken(TokenType::Comparison, $this->consume(2)),
+            $this->current === '!' => throw SyntaxException::unexpectedCharacter('!'),
+            $this->current === '<' && $this->comesNext('<>') => $this->pushToken(TokenType::Comparison, $this->consume(2)),
+            $this->current === '<' && $this->comesNext('<=') => $this->pushToken(TokenType::Comparison, $this->consume(2)),
+            $this->current === '<' => $this->pushToken(TokenType::Comparison, $this->consume()),
+            $this->current === '>' && $this->comesNext('>=') => $this->pushToken(TokenType::Comparison, $this->consume(2)),
+            $this->current === '>' => $this->pushToken(TokenType::Comparison, $this->consume()),
+            $this->current === '.' && $this->comesNext('..') => $this->pushToken(TokenType::DotDot, $this->consume(2)),
+            $this->current !== null && array_key_exists($this->current, $specialCharacters) => $this->pushToken($specialCharacters[$this->current], $this->consume()),
+            default => throw SyntaxException::unexpectedCharacter($this->current ?? ''),
+        };
 
         $this->ensureStreamNotEnded();
     }
@@ -248,7 +242,7 @@ class Lexer
      */
     protected function ensureStreamNotEnded(): void
     {
-        if ($this->cursor >= $this->end) {
+        if ($this->current === null) {
             $exception = match ($this->state) {
                 LexerState::Variable => SyntaxException::missingVariableTerminator(),
                 LexerState::Block => SyntaxException::missingTagTerminator(),
@@ -263,53 +257,74 @@ class Lexer
         }
     }
 
-    protected function laxRawBodyTag(string $tag): void
+    protected function lexRawBodyTag(string $tag): void
     {
-        if (preg_match(LexerOptions::blockRawBodyTagDataRegex($tag), $this->source, $matches, flags: PREG_OFFSET_CAPTURE, offset: $this->cursor) !== 1) {
+        $endTag = $this->findEndTag($tag);
+        if ($endTag === null) {
             throw SyntaxException::tagBlockNeverClosed($tag);
         }
 
-        $rawBody = substr($this->source, $this->cursor, $matches[0][1] - $this->cursor);
+        $rawBody = substr($this->source, $this->cursor, $endTag['start'] - $this->cursor);
+        $this->skip($endTag['start'] - $this->cursor);
 
-        $this->moveCursor($rawBody);
-
-        // inner trim?
-        if (($matches[1][0][2] ?? null) === LexerOptions::WhitespaceTrim->value) {
+        if ($endTag['innerTrim']) {
             $rawBody = rtrim($rawBody);
         }
 
         $this->pushToken(TokenType::RawData, $rawBody);
 
-        // trim?
-        if ($matches[2][0][0] === LexerOptions::WhitespaceTrim->value) {
+        if ($endTag['outerTrim']) {
             $this->trimWhitespaces();
         }
     }
 
     protected function lexComment(): void
     {
-        if (preg_match(LexerOptions::blockCommentDataRegex(), $this->source, $matches, flags: PREG_OFFSET_CAPTURE, offset: $this->cursor) !== 1) {
+        $endTag = $this->findEndTag('comment');
+        if ($endTag === null) {
             throw SyntaxException::tagBlockNeverClosed('comment');
         }
 
-        $text = substr($this->source, $this->cursor, $matches[0][1] - $this->cursor);
+        $this->skip($endTag['end'] - $this->cursor);
 
-        $this->moveCursor($text.$matches[0][0]);
-
-        if ($matches[2][0][0] === LexerOptions::WhitespaceTrim->value) {
+        if ($endTag['outerTrim']) {
             $this->trimWhitespaces();
         }
     }
 
     protected function lexInlineComment(): void
     {
-        if (preg_match(LexerOptions::inlineCommentDataRegex(), $this->source, $matches, flags: PREG_OFFSET_CAPTURE, offset: $this->cursor) !== 1) {
-            throw SyntaxException::tagBlockNeverClosed('#');
+        $offset = $this->cursor;
+
+        while (true) {
+            $offset += strcspn($this->source, "\n%", $offset);
+
+            if ($offset >= $this->end) {
+                throw SyntaxException::tagBlockNeverClosed('#');
+            }
+
+            if ($this->charAt($offset) === "\n") {
+                $terminator = $offset;
+                break;
+            }
+
+            if ($this->comesNext(LexerOptions::TagBlockEnd->value, $offset)) {
+                $terminator = $this->charAt($offset - 1) === LexerOptions::WhitespaceTrim->value
+                    ? $offset - 1
+                    : $offset;
+
+                break;
+            }
+
+            $offset++;
         }
 
-        $text = substr($this->source, $this->cursor, $matches[0][1] - $this->cursor);
+        $start = $terminator;
+        while ($start > $this->cursor && $this->isWhitespace($this->charAt($start - 1))) {
+            $start--;
+        }
 
-        $this->moveCursor($text);
+        $this->skip($start - $this->cursor);
     }
 
     protected function pushToken(TokenType $type, string $value = ''): void
@@ -321,16 +336,48 @@ class Lexer
         $this->tokens[] = new Token($type, $value, $this->lineNumber);
     }
 
-    protected function moveCursor(string $text): void
+    protected function comesNext(string $needle, ?int $at = null): bool
     {
-        if ($text === '') {
+        $at ??= $this->cursor;
+
+        return $at >= 0
+            && $at + strlen($needle) <= $this->end
+            && substr_compare($this->source, $needle, $at, strlen($needle)) === 0;
+    }
+
+    protected function seek(int $offset = 0): ?string
+    {
+        return $this->charAt($this->cursor + $offset);
+    }
+
+    protected function consume(int $length = 1): string
+    {
+        if ($length === 0) {
+            return '';
+        }
+
+        $text = substr($this->source, $this->cursor, $length);
+        $this->skip($length);
+
+        return $text;
+    }
+
+    protected function skip(int $length): void
+    {
+        if ($length === 0) {
             return;
         }
 
-        $this->cursor += strlen($text);
-        $this->lineNumber += substr_count($text, "\n");
+        $this->lineNumber += substr_count($this->source, "\n", $this->cursor, $length);
+        $this->cursor += $length;
+        $this->current = $this->charAt($this->cursor);
 
         $this->parseContext->lineNumber = $this->lineNumber;
+    }
+
+    protected function skipWhitespace(): void
+    {
+        $this->skip(strspn($this->source, self::WHITESPACE, $this->cursor));
     }
 
     protected function pushState(LexerState $state): void
@@ -352,21 +399,216 @@ class Lexer
 
     protected function trimWhitespaces(): void
     {
-        preg_match('/\s+/A', $this->source, $matches, offset: $this->cursor);
-        $this->moveCursor($matches[0] ?? '');
+        $this->skipWhitespace();
     }
 
     /**
-     * @return array<int,array{0:string,1:int}>
+     * @return array{start:int, end:int, innerTrim:bool, outerTrim:bool}|null
      */
-    protected function extractTokenStarts(string $source): array
+    protected function findEndTag(string $tag): ?array
     {
-        preg_match_all(LexerOptions::blockStartRegex(), $source, $blocks, PREG_OFFSET_CAPTURE);
-        preg_match_all(LexerOptions::variableStartRegex(), $source, $variables, PREG_OFFSET_CAPTURE);
+        $offset = $this->cursor;
 
-        $positions = array_merge($blocks[0], $variables[0]);
-        usort($positions, fn (array $a, array $b) => $a[1] <=> $b[1]);
+        while (true) {
+            $offset += strcspn($this->source, '{', $offset);
 
-        return $positions;
+            if ($offset >= $this->end) {
+                return null;
+            }
+
+            if (! $this->comesNext(LexerOptions::TagBlockStart->value, $offset)) {
+                $offset++;
+                continue;
+            }
+
+            $probe = $offset + strlen(LexerOptions::TagBlockStart->value);
+            $innerTrim = false;
+
+            if ($this->charAt($probe) === LexerOptions::WhitespaceTrim->value) {
+                $innerTrim = true;
+                $probe++;
+            }
+
+            $probe += strspn($this->source, self::WHITESPACE, $probe);
+
+            if (! $this->comesNext('end'.$tag, $probe)) {
+                $offset++;
+                continue;
+            }
+
+            $probe += strlen('end'.$tag);
+            $probe += strspn($this->source, self::WHITESPACE, $probe);
+            $outerTrim = false;
+
+            if ($this->charAt($probe) === LexerOptions::WhitespaceTrim->value) {
+                $outerTrim = true;
+                $probe++;
+            }
+
+            if (! $this->comesNext(LexerOptions::TagBlockEnd->value, $probe)) {
+                $offset++;
+                continue;
+            }
+
+            return [
+                'start' => $offset,
+                'end' => $probe + strlen(LexerOptions::TagBlockEnd->value),
+                'innerTrim' => $innerTrim,
+                'outerTrim' => $outerTrim,
+            ];
+        }
+    }
+
+    protected function commentStartLength(): ?int
+    {
+        $offset = $this->cursor + strspn($this->source, self::WHITESPACE, $this->cursor);
+
+        if (! $this->comesNext('comment', $offset)) {
+            return null;
+        }
+
+        $offset += strlen('comment');
+        $offset += strspn($this->source, self::WHITESPACE, $offset);
+
+        if ($this->comesNext(LexerOptions::WhitespaceTrim->value.LexerOptions::TagBlockEnd->value, $offset)) {
+            return $offset + strlen(LexerOptions::WhitespaceTrim->value.LexerOptions::TagBlockEnd->value) - $this->cursor;
+        }
+
+        if ($this->comesNext(LexerOptions::TagBlockEnd->value, $offset)) {
+            return $offset + strlen(LexerOptions::TagBlockEnd->value) - $this->cursor;
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{length:int, trim:bool}|null
+     */
+    protected function terminatorLength(string $terminator): ?array
+    {
+        $offset = $this->cursor + strspn($this->source, self::WHITESPACE, $this->cursor);
+
+        if ($this->comesNext(LexerOptions::WhitespaceTrim->value.$terminator, $offset)) {
+            return [
+                'length' => $offset + strlen(LexerOptions::WhitespaceTrim->value.$terminator) - $this->cursor,
+                'trim' => true,
+            ];
+        }
+
+        if ($this->comesNext($terminator, $offset)) {
+            return [
+                'length' => $offset + strlen($terminator) - $this->cursor,
+                'trim' => false,
+            ];
+        }
+
+        return null;
+    }
+
+    protected function lexIdentifier(): void
+    {
+        $start = $this->cursor;
+        $offset = $start + 1;
+
+        while (true) {
+            $current = $this->charAt($offset);
+
+            if ($this->isAsciiWord($current)) {
+                $offset++;
+                continue;
+            }
+
+            if ($current === '-' && $this->isAsciiWord($this->charAt($offset + 1))) {
+                $offset += 2;
+                continue;
+            }
+
+            break;
+        }
+
+        if ($this->charAt($offset) === '?') {
+            $offset++;
+        }
+
+        $value = substr($this->source, $start, $offset - $start);
+        $type = $value === 'contains' && $this->isWhitespace($this->charAt($offset))
+            ? TokenType::Comparison
+            : TokenType::Identifier;
+
+        $this->pushToken($type, $value);
+        $this->skip($offset - $start);
+    }
+
+    protected function lexString(): void
+    {
+        $quote = $this->current;
+        assert($quote !== null);
+
+        $offset = $this->cursor + 1;
+        $offset += strcspn($this->source, $quote, $offset);
+
+        if ($this->charAt($offset) !== $quote) {
+            throw SyntaxException::unexpectedCharacter($quote);
+        }
+
+        $value = substr($this->source, $this->cursor, $offset + 1 - $this->cursor);
+
+        $this->pushToken(TokenType::String, $value);
+        $this->skip(strlen($value));
+    }
+
+    protected function lexNumber(): void
+    {
+        $start = $this->cursor;
+        $offset = $start;
+
+        if ($this->charAt($offset) === '-') {
+            $offset++;
+        }
+
+        $offset += strspn($this->source, '0123456789', $offset);
+
+        if ($this->charAt($offset) === '.' && $this->isDigit($this->charAt($offset + 1))) {
+            $offset++;
+            $offset += strspn($this->source, '0123456789', $offset);
+        }
+
+        $value = substr($this->source, $start, $offset - $start);
+
+        $this->pushToken(TokenType::Number, $value);
+        $this->skip($offset - $start);
+    }
+
+    protected function charAt(int $offset): ?string
+    {
+        if ($offset < 0 || $offset >= $this->end) {
+            return null;
+        }
+
+        return $this->source[$offset];
+    }
+
+    protected function isAsciiLetterOrUnderscore(?string $character): bool
+    {
+        return $character !== null && (
+            ($character >= 'a' && $character <= 'z')
+            || ($character >= 'A' && $character <= 'Z')
+            || $character === '_'
+        );
+    }
+
+    protected function isAsciiWord(?string $character): bool
+    {
+        return $this->isAsciiLetterOrUnderscore($character) || $this->isDigit($character);
+    }
+
+    protected function isDigit(?string $character): bool
+    {
+        return $character !== null && $character >= '0' && $character <= '9';
+    }
+
+    protected function isWhitespace(?string $character): bool
+    {
+        return $character !== null && str_contains(self::WHITESPACE, $character);
     }
 }
