@@ -10,6 +10,8 @@ class Lexer
 {
     private const WHITESPACE = " \t\n\r\v\f";
 
+    private const WORD = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_';
+
     protected string $source;
 
     protected int $cursor;
@@ -213,24 +215,40 @@ class Lexer
             return;
         }
 
-        $specialCharacters = LexerOptions::specialCharacters();
-
-        match (true) {
-            $this->current === '"' || $this->current === '\'' => $this->lexString(),
-            $this->isDigit($this->current) => $this->lexNumber(),
-            $this->current === '-' && $this->isDigit($this->seek(1)) => $this->lexNumber(),
-            $this->isAsciiLetterOrUnderscore($this->current) => $this->lexIdentifier(),
-            $this->current === '=' && $this->comesNext('==') => $this->pushToken(TokenType::Comparison, $this->consume(2)),
-            $this->current === '=' => $this->pushToken(TokenType::Equals, $this->consume()),
-            $this->current === '!' && $this->comesNext('!=') => $this->pushToken(TokenType::Comparison, $this->consume(2)),
-            $this->current === '!' => throw SyntaxException::unexpectedCharacter('!'),
-            $this->current === '<' && $this->comesNext('<>') => $this->pushToken(TokenType::Comparison, $this->consume(2)),
-            $this->current === '<' && $this->comesNext('<=') => $this->pushToken(TokenType::Comparison, $this->consume(2)),
-            $this->current === '<' => $this->pushToken(TokenType::Comparison, $this->consume()),
-            $this->current === '>' && $this->comesNext('>=') => $this->pushToken(TokenType::Comparison, $this->consume(2)),
-            $this->current === '>' => $this->pushToken(TokenType::Comparison, $this->consume()),
-            $this->current === '.' && $this->comesNext('..') => $this->pushToken(TokenType::DotDot, $this->consume(2)),
-            $this->current !== null && array_key_exists($this->current, $specialCharacters) => $this->pushToken($specialCharacters[$this->current], $this->consume()),
+        match ($this->current) {
+            '"', '\'' => $this->lexString(),
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' => $this->lexNumber(),
+            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+            'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+            'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+            '_' => $this->lexIdentifier(),
+            '-' => $this->isDigit($this->seek(1))
+                ? $this->lexNumber()
+                : $this->pushToken(TokenType::Dash, $this->consume()),
+            '=' => $this->comesNext('==')
+                ? $this->pushToken(TokenType::Comparison, $this->consume(2))
+                : $this->pushToken(TokenType::Equals, $this->consume()),
+            '!' => $this->comesNext('!=')
+                ? $this->pushToken(TokenType::Comparison, $this->consume(2))
+                : throw SyntaxException::unexpectedCharacter('!'),
+            '<' => $this->comesNext('<>') || $this->comesNext('<=')
+                ? $this->pushToken(TokenType::Comparison, $this->consume(2))
+                : $this->pushToken(TokenType::Comparison, $this->consume()),
+            '>' => $this->comesNext('>=')
+                ? $this->pushToken(TokenType::Comparison, $this->consume(2))
+                : $this->pushToken(TokenType::Comparison, $this->consume()),
+            '.' => $this->comesNext('..')
+                ? $this->pushToken(TokenType::DotDot, $this->consume(2))
+                : $this->pushToken(TokenType::Dot, $this->consume()),
+            '|' => $this->pushToken(TokenType::Pipe, $this->consume()),
+            ':' => $this->pushToken(TokenType::Colon, $this->consume()),
+            ',' => $this->pushToken(TokenType::Comma, $this->consume()),
+            '[' => $this->pushToken(TokenType::OpenSquare, $this->consume()),
+            ']' => $this->pushToken(TokenType::CloseSquare, $this->consume()),
+            '(' => $this->pushToken(TokenType::OpenRound, $this->consume()),
+            ')' => $this->pushToken(TokenType::CloseRound, $this->consume()),
+            '?' => $this->pushToken(TokenType::QuestionMark, $this->consume()),
             default => throw SyntaxException::unexpectedCharacter($this->current ?? ''),
         };
 
@@ -368,11 +386,17 @@ class Lexer
             return;
         }
 
-        $this->lineNumber += substr_count($this->source, "\n", $this->cursor, $length);
-        $this->cursor += $length;
-        $this->current = $this->charAt($this->cursor);
+        $newLines = $length === 1
+            ? ($this->source[$this->cursor] === "\n" ? 1 : 0)
+            : substr_count($this->source, "\n", $this->cursor, $length);
 
-        $this->parseContext->lineNumber = $this->lineNumber;
+        $this->cursor += $length;
+        $this->current = $this->cursor < $this->end ? $this->source[$this->cursor] : null;
+
+        if ($newLines !== 0) {
+            $this->lineNumber += $newLines;
+            $this->parseContext->lineNumber = $this->lineNumber;
+        }
     }
 
     protected function skipWhitespace(): void
@@ -490,22 +514,19 @@ class Lexer
     protected function terminatorLength(string $terminator): ?array
     {
         $offset = $this->cursor + strspn($this->source, self::WHITESPACE, $this->cursor);
+        $source = $this->source;
 
-        if ($this->comesNext(LexerOptions::WhitespaceTrim->value.$terminator, $offset)) {
-            return [
-                'length' => $offset + strlen(LexerOptions::WhitespaceTrim->value.$terminator) - $this->cursor,
-                'trim' => true,
-            ];
+        $trim = ($source[$offset] ?? null) === LexerOptions::WhitespaceTrim->value;
+        $at = $trim ? $offset + 1 : $offset;
+
+        if (($source[$at] ?? null) !== $terminator[0] || ($source[$at + 1] ?? null) !== $terminator[1]) {
+            return null;
         }
 
-        if ($this->comesNext($terminator, $offset)) {
-            return [
-                'length' => $offset + strlen($terminator) - $this->cursor,
-                'trim' => false,
-            ];
-        }
-
-        return null;
+        return [
+            'length' => $at + 2 - $this->cursor,
+            'trim' => $trim,
+        ];
     }
 
     protected function lexIdentifier(): void
@@ -513,22 +534,13 @@ class Lexer
         $start = $this->cursor;
         $offset = $start + 1;
 
-        while (true) {
-            $current = $this->charAt($offset);
+        $offset += strspn($this->source, self::WORD, $offset);
 
-            if ($this->isAsciiWord($current)) {
-                $offset++;
-
-                continue;
-            }
-
-            if ($current === '-' && $this->isAsciiWord($this->charAt($offset + 1))) {
-                $offset += 2;
-
-                continue;
-            }
-
-            break;
+        while (
+            ($this->source[$offset] ?? null) === '-'
+            && strspn($this->source, self::WORD, $offset + 1, 1) === 1
+        ) {
+            $offset += 1 + strspn($this->source, self::WORD, $offset + 1);
         }
 
         if ($this->charAt($offset) === '?') {
