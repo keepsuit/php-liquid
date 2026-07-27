@@ -41,7 +41,7 @@ foreach ($sharedNames as $name) {
     $pr = $prBenchmarks[$name];
 
     $deltaPercent = null;
-    if ($base['mean'] != 0.0) {
+    if (abs($base['mean']) > PHP_FLOAT_EPSILON) {
         $deltaPercent = (($pr['mean'] - $base['mean']) / $base['mean']) * 100;
         $percentChanges[] = $deltaPercent;
 
@@ -291,7 +291,7 @@ function formatPercent(?float $value): string
 
 function formatBytesSigned(float $value): string
 {
-    if ($value === 0.0) {
+    if (abs($value) < PHP_FLOAT_EPSILON) {
         return '0 B';
     }
 
