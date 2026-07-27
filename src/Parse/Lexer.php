@@ -166,7 +166,7 @@ class Lexer
         while (($terminator = $this->terminatorLength(LexerOptions::TagBlockEnd->value)) === null) {
             $this->lexExpression();
 
-            $lastToken = array_last($this->tokens);
+            $lastToken = $this->tokens[count($this->tokens) - 1] ?? null;
             if ($lastToken === null) {
                 throw SyntaxException::unexpectedEndOfTemplate();
             }
@@ -182,7 +182,7 @@ class Lexer
             $this->trimWhitespaces();
         }
 
-        $lastToken = array_last($this->tokens);
+        $lastToken = $this->tokens[count($this->tokens) - 1] ?? null;
         if ($lastToken === null) {
             throw SyntaxException::unexpectedEndOfTemplate();
         }
