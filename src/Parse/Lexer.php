@@ -418,6 +418,7 @@ class Lexer
 
             if (! $this->comesNext(LexerOptions::TagBlockStart->value, $offset)) {
                 $offset++;
+
                 continue;
             }
 
@@ -433,6 +434,7 @@ class Lexer
 
             if (! $this->comesNext('end'.$tag, $probe)) {
                 $offset++;
+
                 continue;
             }
 
@@ -447,6 +449,7 @@ class Lexer
 
             if (! $this->comesNext(LexerOptions::TagBlockEnd->value, $probe)) {
                 $offset++;
+
                 continue;
             }
 
@@ -515,11 +518,13 @@ class Lexer
 
             if ($this->isAsciiWord($current)) {
                 $offset++;
+
                 continue;
             }
 
             if ($current === '-' && $this->isAsciiWord($this->charAt($offset + 1))) {
                 $offset += 2;
+
                 continue;
             }
 
