@@ -189,8 +189,20 @@ class TokenStream
     public function sliceUntil(Closure|TokenType $check): TokenStream
     {
         if ($check instanceof TokenType) {
-            $tokenType = $check;
-            $check = fn (Token $token) => $token->type === $tokenType;
+            $tokens = [];
+
+            while (! $this->isEnd()) {
+                $token = $this->consume();
+
+                if ($token->type === $check) {
+                    $this->jump(-1);
+                    break;
+                }
+
+                $tokens[] = $token;
+            }
+
+            return new TokenStream($tokens);
         }
 
         $tokens = [];

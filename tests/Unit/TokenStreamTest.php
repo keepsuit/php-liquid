@@ -1,6 +1,7 @@
 <?php
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Parse\Token;
 use Keepsuit\Liquid\Parse\TokenType;
 
 test('consume', function () {
@@ -116,4 +117,25 @@ test('invalid expression', function () {
 
     expect(fn () => $tokenStream->expression())
         ->toThrow(SyntaxException::class, '`==` is not a valid expression');
+});
+
+test('sliceUntil preserves the delimiter for token types and closures', function () {
+    $tokenStream = tokenize('{% assign foo = bar %}');
+    $tokenStream->consume(TokenType::BlockStart);
+    $tokenStream->consume(TokenType::Identifier);
+
+    $slice = $tokenStream->sliceUntil(TokenType::BlockEnd);
+
+    expect(array_map(fn (Token $token) => $token->data, $slice->toArray()))
+        ->toBe(['foo', '=', 'bar']);
+    expect($tokenStream->current()?->type)->toBe(TokenType::BlockEnd);
+
+    $tokenStream = tokenize('{{ value }}');
+    $tokenStream->consume(TokenType::VariableStart);
+
+    $slice = $tokenStream->sliceUntil(fn (Token $token) => $token->type === TokenType::VariableEnd);
+
+    expect(array_map(fn (Token $token) => $token->data, $slice->toArray()))
+        ->toBe(['value']);
+    expect($tokenStream->current()?->type)->toBe(TokenType::VariableEnd);
 });
