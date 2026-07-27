@@ -66,9 +66,10 @@ foreach ($sharedNames as $name) {
     ];
 }
 
-$averageChange = $percentChanges === []
+$changeCount = count($percentChanges);
+$averageChange = $changeCount === 0
     ? null
-    : array_sum($percentChanges) / count($percentChanges);
+    : array_sum($percentChanges) / $changeCount;
 
 $lines = [];
 $lines[] = '| Benchmark | Base (mean) | PR (mean) | Δ time | Δ memory |';

@@ -67,8 +67,9 @@ jobs:
           set -euo pipefail
 
           ARGS=()
-          if [ -f phpbench.ci.json ]; then
-            ARGS+=(--config=phpbench.ci.json)
+          CONFIG_FILE="$PWD/phpbench.ci.json"
+          if [ -f "$CONFIG_FILE" ]; then
+            ARGS+=(--config="$CONFIG_FILE")
           fi
 
           vendor/bin/phpbench run \
@@ -82,8 +83,9 @@ jobs:
           set -euo pipefail
 
           ARGS=()
-          if [ -f phpbench.ci.json ]; then
-            ARGS+=(--config=phpbench.ci.json)
+          CONFIG_FILE="$PWD/phpbench.ci.json"
+          if [ -f "$CONFIG_FILE" ]; then
+            ARGS+=(--config="$CONFIG_FILE")
           fi
 
           vendor/bin/phpbench run \
