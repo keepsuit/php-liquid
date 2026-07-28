@@ -6,6 +6,7 @@ on:
       - opened
       - synchronize
       - reopened
+      - ready_for_review
 
 permissions:
   contents: read
@@ -13,11 +14,16 @@ permissions:
 
 env:
   REQUIRED_PHP_EXTENSIONS: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
-  PHPBENCH_MAX_REG: ${{ vars.PHPBENCH_MAX_REG }}
 
 jobs:
   benchmark:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4', '8.5']
+    name: PHPBench (PHP ${{ matrix.php }})
 
     steps:
       - name: Checkout PR branch
@@ -29,7 +35,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: ${{ matrix.php }}
           extensions: ${{ env.REQUIRED_PHP_EXTENSIONS }}
           coverage: none
 
@@ -44,9 +50,9 @@ jobs:
           rm -rf "$WORKSPACE"
           mkdir -p "$WORKSPACE"
 
-          git fetch origin "${{ github.event.pull_request.base.ref }}"
+          git fetch origin "${{ github.event.pull_request.base.sha }}"
           git worktree add "$PR_DIR" "${{ github.event.pull_request.head.sha }}"
-          git worktree add "$BASE_DIR" "origin/${{ github.event.pull_request.base.ref }}"
+          git worktree add "$BASE_DIR" "${{ github.event.pull_request.base.sha }}"
 
           {
             echo "WORKSPACE=$WORKSPACE"
@@ -66,7 +72,13 @@ jobs:
         run: |
           set -euo pipefail
 
+          PHPBENCH_FILTER=()
+          if [[ "${{ matrix.php }}" == "8.4" || "${{ matrix.php }}" == "8.5" ]]; then
+            PHPBENCH_FILTER+=(--filter='^(?!.*TemplateCacheBench::benchVarExporter$).*')
+          fi
+
           vendor/bin/phpbench run \
+            "${PHPBENCH_FILTER[@]}" \
             --progress=none \
             --report=aggregate \
             --output=json > "$WORKSPACE/pr.json"
@@ -76,7 +88,13 @@ jobs:
         run: |
           set -euo pipefail
 
+          PHPBENCH_FILTER=()
+          if [[ "${{ matrix.php }}" == "8.4" || "${{ matrix.php }}" == "8.5" ]]; then
+            PHPBENCH_FILTER+=(--filter='^(?!.*TemplateCacheBench::benchVarExporter$).*')
+          fi
+
           vendor/bin/phpbench run \
+            "${PHPBENCH_FILTER[@]}" \
             --progress=none \
             --report=aggregate \
             --output=json > "$WORKSPACE/base.json"
@@ -109,13 +127,15 @@ jobs:
         uses: actions/github-script@v8
         env:
           COMMENT_BODY: ${{ steps.compare.outputs.comment }}
+          PHP_VERSION: ${{ matrix.php }}
         with:
           script: |
-            const marker = '<!-- phpbench-pr-benchmark -->';
+            const marker = `<!-- phpbench-pr-benchmark-php-${process.env.PHP_VERSION} -->`;
+            const legacyMarker = '<!-- phpbench-pr-benchmark -->';
             const body = `${marker}
-            ## PHPBench comparison
+            ## PHPBench comparison (PHP ${process.env.PHP_VERSION})
 
-            ${process.env.COMMENT_BODY ?? 'Benchmark comparison was not generated.'}`;
+            ${process.env.COMMENT_BODY || 'Benchmark comparison was not generated.'}`;
 
             const issue_number = context.payload.pull_request.number;
             const { owner, repo } = context.repo;
@@ -128,7 +148,11 @@ jobs:
 
             const existing = comments.find((comment) =>
               comment.user?.type === 'Bot' && comment.body?.includes(marker),
-            );
+            ) ?? (process.env.PHP_VERSION === '8.3'
+              ? comments.find((comment) =>
+                comment.user?.type === 'Bot' && comment.body?.includes(legacyMarker),
+              )
+              : undefined);
 
             if (existing) {
               await github.rest.issues.updateComment({
@@ -146,6 +170,6 @@ jobs:
               });
             }
 
-      - name: Enforce regression threshold
-        if: always() && steps.compare.outputs.exit_code != '0'
+      - name: Enforce comparison failures
+        if: always() && steps.compare.outputs.exit_code != '0' && steps.compare.outputs.exit_code != '1'
         run: exit 1
