@@ -45,10 +45,6 @@ class Parser
      */
     protected function subparse(): BodyNode
     {
-        if ($this->currentToken() === null) {
-            return new BodyNode([]);
-        }
-
         $nodes = [];
 
         while (! $this->tokenStream->isEnd()) {
@@ -67,14 +63,13 @@ class Parser
 
                     break;
                 case TokenType::BlockStart:
-                    try {
-                        $tagName = $this->tokenStream->consume(TokenType::Identifier)->data;
-                        $this->tokenStream->jump(-1);
-                    } catch (SyntaxException $e) {
+                    $tagToken = $this->tokenStream->current();
+
+                    if ($tagToken === null || $tagToken->type !== TokenType::Identifier) {
                         throw new SyntaxException('A block must start with a tag name.');
                     }
 
-                    if ($this->isEndOrSubTagOfCurrentBlock($tagName)) {
+                    if ($this->isEndOrSubTagOfCurrentBlock($tagToken->data)) {
                         return new BodyNode($nodes);
                     }
 
@@ -107,9 +102,9 @@ class Parser
         $tagName = $this->tokenStream->consume(TokenType::Identifier)->data;
 
         /** @var class-string<Tag>|null $tagClass */
-        $tagClass = $this->parseContext->environment->tagRegistry->get($tagName) ?? null;
+        $tagClass = $this->parseContext->environment->tagRegistry->get($tagName);
 
-        if ($tagClass === null || ! class_exists($tagClass)) {
+        if ($tagClass === null) {
             $blockTagName = $this->currentBlockScope() ? $this->currentBlockScope()::tagName() : null;
 
             throw SyntaxException::unknownTag($tagName, $blockTagName);

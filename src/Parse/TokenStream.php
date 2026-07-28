@@ -14,20 +14,25 @@ class TokenStream
 {
     protected int $cursor = 0;
 
-    protected ExpressionParser $expressionParser;
+    protected int $end;
 
-    protected ArgumentParser $argumentParser;
+    /**
+     * Parsers are only needed by streams that hold expressions, and every tag
+     * slices off a fresh stream, so they are built on first use rather than
+     * per stream.
+     */
+    protected ?ExpressionParser $expressionParser = null;
 
-    protected VariableParser $variableParser;
+    protected ?ArgumentParser $argumentParser = null;
+
+    protected ?VariableParser $variableParser = null;
 
     public function __construct(
         /** @var Token[] */
         protected array $tokens,
         protected ?string $source = null,
     ) {
-        $this->expressionParser = new ExpressionParser($this);
-        $this->argumentParser = new ArgumentParser($this);
-        $this->variableParser = new VariableParser($this);
+        $this->end = count($tokens);
     }
 
     /**
@@ -39,7 +44,7 @@ class TokenStream
     {
         $newCursor = $this->cursor + $offset;
 
-        if ($newCursor < 0 || $newCursor > count($this->tokens)) {
+        if ($newCursor < 0 || $newCursor > $this->end) {
             throw new SyntaxException("Invalid jump offset: $offset");
         }
 
@@ -87,7 +92,15 @@ class TokenStream
 
     public function consumeOrFalse(TokenType $type): Token|false
     {
-        return $this->look($type) ? $this->consume($type) : false;
+        $token = $this->tokens[$this->cursor] ?? null;
+
+        if ($token === null || $token->type !== $type) {
+            return false;
+        }
+
+        $this->cursor++;
+
+        return $token;
     }
 
     /**
@@ -128,7 +141,7 @@ class TokenStream
 
     public function isEnd(): bool
     {
-        return $this->cursor >= count($this->tokens);
+        return $this->cursor >= $this->end;
     }
 
     /**
@@ -138,7 +151,7 @@ class TokenStream
      */
     public function expression(): mixed
     {
-        return $this->expressionParser->parseExpression();
+        return ($this->expressionParser ??= new ExpressionParser($this))->parseExpression();
     }
 
     /**
@@ -156,12 +169,12 @@ class TokenStream
      */
     public function argument(): mixed
     {
-        return $this->argumentParser->parseArgument();
+        return ($this->argumentParser ??= new ArgumentParser($this))->parseArgument();
     }
 
     public function variable(): Variable
     {
-        return $this->variableParser->parseVariable();
+        return ($this->variableParser ??= new VariableParser($this))->parseVariable();
     }
 
     /**
@@ -188,24 +201,23 @@ class TokenStream
      */
     public function sliceUntil(Closure|TokenType $check): TokenStream
     {
+        $start = $this->cursor;
+        $cursor = $start;
+        $end = $this->end;
+        $tokens = $this->tokens;
+
         if ($check instanceof TokenType) {
-            $tokenType = $check;
-            $check = static fn (Token $token) => $token->type === $tokenType;
-        }
-
-        $tokens = [];
-
-        while (! $this->isEnd()) {
-            $token = $this->consume();
-
-            if ($check($token)) {
-                $this->jump(-1);
-                break;
+            while ($cursor < $end && $tokens[$cursor]->type !== $check) {
+                $cursor++;
             }
-
-            $tokens[] = $token;
+        } else {
+            while ($cursor < $end && ! $check($tokens[$cursor])) {
+                $cursor++;
+            }
         }
 
-        return new TokenStream($tokens);
+        $this->cursor = $cursor;
+
+        return new TokenStream(array_slice($tokens, $start, $cursor - $start));
     }
 }
