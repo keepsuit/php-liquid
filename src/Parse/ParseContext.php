@@ -110,14 +110,22 @@ class ParseContext
 
     public function loadPartial(string $templateName): Template
     {
-        $partialParseContext = new ParseContext(environment: $this->environment);
-        $partialParseContext->partial = true;
-        $partialParseContext->depth = $this->depth;
-
         try {
-            $template = $partialParseContext->parseTemplate($templateName);
+            // parseTemplate() consults this cache too, but only after we have built
+            // a whole ParseContext along with its Lexer, Parser and OutputsBag. A
+            // cached partial never fills an outputs bag, so the merge below has
+            // nothing to do for it either.
+            $template = $this->environment->templatesCache->get($templateName);
 
-            $this->outputs->merge($partialParseContext->outputs);
+            if ($template === null) {
+                $partialParseContext = new ParseContext(environment: $this->environment);
+                $partialParseContext->partial = true;
+                $partialParseContext->depth = $this->depth;
+
+                $template = $partialParseContext->parseTemplate($templateName);
+
+                $this->outputs->merge($partialParseContext->outputs);
+            }
 
             if (! in_array($templateName, $this->partials, true)) {
                 $this->partials[] = $templateName;

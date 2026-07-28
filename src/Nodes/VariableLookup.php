@@ -29,7 +29,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
     ) {
         $lookupFilters = [];
         foreach ($this->lookups as $i => $lookup) {
-            if (in_array($lookup, self::FILTER_METHODS)) {
+            if (in_array($lookup, self::FILTER_METHODS, true)) {
                 $lookupFilters[] = $i;
             }
         }
@@ -107,7 +107,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 
                 $nextObject = $context->evaluate($context->internalContextLookup($object, $key));
 
-                if ($nextObject instanceof MissingValue && is_iterable($object) && in_array($i, $this->lookupFilters)) {
+                if ($nextObject instanceof MissingValue && is_iterable($object) && in_array($i, $this->lookupFilters, true)) {
                     $nextObject = $context->applyFilter($lookup, $object);
                 }
 
