@@ -310,10 +310,6 @@ class Lexer
         }
 
         $this->pushToken(TokenType::RawData, $rawBody);
-
-        if ($endTag['outerTrim']) {
-            $this->skipWhitespace();
-        }
     }
 
     protected function lexComment(): void

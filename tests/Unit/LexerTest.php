@@ -39,6 +39,16 @@ test('[variable] integer', function () {
     expect($tokens->isEnd())->toBeTrue();
 });
 
+test('[variable] multiline terminator line number', function () {
+    $tokens = tokenize("{{ x \n }}");
+
+    $tokens->consume(TokenType::VariableStart);
+    $tokens->consume(TokenType::Identifier);
+
+    expect($tokens->consume(TokenType::VariableEnd))
+        ->lineNumber->toBe(1);
+});
+
 test('[variable] float', function () {
     $tokens = tokenize('{{ 5.0 -2.7 }}');
 
