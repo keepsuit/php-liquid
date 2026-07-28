@@ -125,6 +125,33 @@ class TokenStream
         return $token;
     }
 
+    /**
+     * @param  TokenType|Closure(Token $token):bool  $check
+     *
+     * @throws SyntaxException
+     */
+    public function sliceUntil(Closure|TokenType $check): TokenStream
+    {
+        $start = $this->cursor;
+        $cursor = $start;
+        $end = $this->end;
+        $tokens = $this->tokens;
+
+        if ($check instanceof TokenType) {
+            while ($cursor < $end && $tokens[$cursor]->type !== $check) {
+                $cursor++;
+            }
+        } else {
+            while ($cursor < $end && ! $check($tokens[$cursor])) {
+                $cursor++;
+            }
+        }
+
+        $this->cursor = $cursor;
+
+        return new TokenStream(array_slice($tokens, $start, $cursor - $start));
+    }
+
     public function current(): ?Token
     {
         return $this->tokens[$this->cursor] ?? null;
@@ -133,6 +160,18 @@ class TokenStream
     public function isEnd(): bool
     {
         return $this->cursor >= $this->end;
+    }
+
+    /**
+     * @throws SyntaxException
+     */
+    public function assertEnd(): void
+    {
+        if (! $this->isEnd()) {
+            $token = $this->current();
+            assert($token !== null);
+            throw SyntaxException::unexpectedToken($token);
+        }
     }
 
     /**
@@ -168,47 +207,8 @@ class TokenStream
         return ($this->variableParser ??= new VariableParser($this))->parseVariable();
     }
 
-    /**
-     * @throws SyntaxException
-     */
-    public function assertEnd(): void
-    {
-        if (! $this->isEnd()) {
-            $token = $this->current();
-            assert($token !== null);
-            throw SyntaxException::unexpectedToken($token);
-        }
-    }
-
     public function toArray(): array
     {
         return $this->tokens;
-    }
-
-    /**
-     * @param  TokenType|Closure(Token $token):bool  $check
-     *
-     * @throws SyntaxException
-     */
-    public function sliceUntil(Closure|TokenType $check): TokenStream
-    {
-        $start = $this->cursor;
-        $cursor = $start;
-        $end = $this->end;
-        $tokens = $this->tokens;
-
-        if ($check instanceof TokenType) {
-            while ($cursor < $end && $tokens[$cursor]->type !== $check) {
-                $cursor++;
-            }
-        } else {
-            while ($cursor < $end && ! $check($tokens[$cursor])) {
-                $cursor++;
-            }
-        }
-
-        $this->cursor = $cursor;
-
-        return new TokenStream(array_slice($tokens, $start, $cursor - $start));
     }
 }
