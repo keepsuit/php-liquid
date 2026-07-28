@@ -3,24 +3,15 @@
 
 declare(strict_types=1);
 
-if ($argc < 3) {
-    fwrite(STDERR, "Usage: php tools/phpbench-compare.php <base.json> <pr.json> [output.md]\n");
+if ($argc !== 3) {
+    fwrite(STDERR, "Usage: php tools/phpbench-compare.php <base.json> <pr.json>\n");
     exit(2);
 }
 
-[$script, $basePath, $prPath] = $argv;
-$outputPath = $argv[3] ?? null;
+[, $basePath, $prPath] = $argv;
 
-$baseData = loadJson($basePath);
-$prData = loadJson($prPath);
-
-$baseBenchmarks = extractBenchmarks($baseData);
-$prBenchmarks = extractBenchmarks($prData);
-
-if ($baseBenchmarks === [] || $prBenchmarks === []) {
-    fwrite(STDERR, "Unable to extract comparable benchmarks from JSON output.\n");
-    exit(2);
-}
+$baseBenchmarks = loadBenchmarks($basePath);
+$prBenchmarks = loadBenchmarks($prPath);
 
 $sharedNames = array_values(array_intersect(array_keys($baseBenchmarks), array_keys($prBenchmarks)));
 sort($sharedNames);
@@ -41,8 +32,8 @@ foreach ($sharedNames as $name) {
     $pr = $prBenchmarks[$name];
 
     $deltaPercent = null;
-    if (abs($base['mean']) > PHP_FLOAT_EPSILON) {
-        $deltaPercent = (($pr['mean'] - $base['mean']) / $base['mean']) * 100;
+    if (abs($base['time']) > PHP_FLOAT_EPSILON) {
+        $deltaPercent = (($pr['time'] - $base['time']) / $base['time']) * 100;
         $percentChanges[] = $deltaPercent;
 
         if ($deltaPercent < 0) {
@@ -57,8 +48,8 @@ foreach ($sharedNames as $name) {
 
     $rows[] = [
         'name' => $name,
-        'baseMean' => $base['mean'],
-        'prMean' => $pr['mean'],
+        'baseTime' => $base['time'],
+        'prTime' => $pr['time'],
         'deltaPercent' => $deltaPercent,
         'baseMemory' => $base['memory'],
         'prMemory' => $pr['memory'],
@@ -72,14 +63,14 @@ $averageChange = $changeCount === 0
     : array_sum($percentChanges) / $changeCount;
 
 $lines = [];
-$lines[] = '| Benchmark | Base (mean) | PR (mean) | Δ time | Δ memory |';
+$lines[] = '| Benchmark | Base (mode) | PR (mode) | Delta time | Delta memory |';
 $lines[] = '|-----------|-------------|-----------|-------:|---------:|';
 foreach ($rows as $row) {
     $lines[] = sprintf(
         '| %s | %s | %s | %s | %s |',
         escapePipe($row['name']),
-        formatDuration($row['baseMean']),
-        formatDuration($row['prMean']),
+        formatDuration($row['baseTime']),
+        formatDuration($row['prTime']),
         formatPercent($row['deltaPercent']),
         formatBytesSigned($row['memoryDelta'])
     );
@@ -132,13 +123,12 @@ if ($threshold !== false && $threshold !== '') {
 $markdown = implode("\n", $lines)."\n";
 echo $markdown;
 
-if ($outputPath !== null) {
-    file_put_contents($outputPath, $markdown);
-}
-
 exit($thresholdExceeded ? 1 : 0);
 
-function loadJson(string $path): array
+/**
+ * @return array<string, array{time: float, memory: float}>
+ */
+function loadBenchmarks(string $path): array
 {
     if (! is_file($path)) {
         fwrite(STDERR, "File not found: {$path}\n");
@@ -158,115 +148,40 @@ function loadJson(string $path): array
         exit(2);
     }
 
-    if (! is_array($decoded)) {
+    if (! is_array($decoded) || ! array_is_list($decoded)) {
         fwrite(STDERR, "Unexpected JSON structure in {$path}\n");
         exit(2);
     }
 
-    return $decoded;
-}
+    $benchmarks = [];
+    foreach ($decoded as $row) {
+        if (! is_array($row)
+            || ! is_string($row['benchmark'] ?? null)
+            || ! is_string($row['subject'] ?? null)
+            || ! is_string($row['set'] ?? '')
+            || ! is_numeric($row['mode'] ?? null)
+            || ! is_numeric($row['mem_peak'] ?? null)) {
+            fwrite(STDERR, "Unexpected PHPBench aggregate JSON in {$path}\n");
+            exit(2);
+        }
 
-/**
- * @return array<string, array{mean: float, memory: float}>
- */
-function extractBenchmarks(array $root): array
-{
-    $result = [];
-    walkNode($root, $result);
+        $name = $row['benchmark'].'::'.$row['subject'];
+        if ($row['set'] !== '') {
+            $name .= ' ('.$row['set'].')';
+        }
 
-    return $result;
-}
-
-/**
- * @param  array<string, array{mean: float, memory: float}>  $result
- */
-function walkNode(mixed $node, array &$result): void
-{
-    if (! is_array($node)) {
-        return;
-    }
-
-    $name = extractName($node);
-    $mean = extractMetric($node, ['mean', 'mean_time', 'time_avg', 'avg', 'mode']);
-
-    if ($name !== null && $mean !== null) {
-        $memory = extractMetric($node, ['mem_peak', 'memory_peak', 'memory', 'mem', 'peak_memory']) ?? 0.0;
-        $result[$name] = [
-            'mean' => $mean,
-            'memory' => $memory,
+        $benchmarks[$name] = [
+            'time' => (float) $row['mode'],
+            'memory' => (float) $row['mem_peak'],
         ];
     }
 
-    foreach ($node as $value) {
-        if (is_array($value)) {
-            walkNode($value, $result);
-        }
-    }
-}
-
-function extractName(array $node): ?string
-{
-    $candidates = [];
-
-    if (isset($node['benchmark']) && is_string($node['benchmark'])) {
-        $candidates[] = $node['benchmark'];
+    if ($benchmarks === []) {
+        fwrite(STDERR, "No benchmarks found in {$path}\n");
+        exit(2);
     }
 
-    if (isset($node['subject']) && is_string($node['subject'])) {
-        $candidates[] = $node['subject'];
-    }
-
-    if (isset($node['name']) && is_string($node['name'])) {
-        $candidates[] = $node['name'];
-    }
-
-    if (isset($node['class'], $node['subject']) && is_string($node['class']) && is_string($node['subject'])) {
-        $candidates[] = $node['class'].'::'.$node['subject'];
-    }
-
-    foreach ($candidates as $candidate) {
-        $value = trim($candidate);
-        if ($value !== '') {
-            return $value;
-        }
-    }
-
-    return null;
-}
-
-function extractMetric(array $node, array $keys): ?float
-{
-    foreach ($keys as $key) {
-        if (! array_key_exists($key, $node)) {
-            continue;
-        }
-
-        $value = $node[$key];
-        if (is_numeric($value)) {
-            return (float) $value;
-        }
-
-        if (is_array($value)) {
-            foreach ($value as $nestedValue) {
-                if (is_numeric($nestedValue)) {
-                    return (float) $nestedValue;
-                }
-            }
-        }
-    }
-
-    foreach ($node as $value) {
-        if (! is_array($value)) {
-            continue;
-        }
-
-        $nested = extractMetric($value, $keys);
-        if ($nested !== null) {
-            return $nested;
-        }
-    }
-
-    return null;
+    return $benchmarks;
 }
 
 function formatDuration(float $microseconds): string
@@ -279,7 +194,7 @@ function formatDuration(float $microseconds): string
         return number_format($microseconds / 1_000, 2).' ms';
     }
 
-    return number_format($microseconds, 2).' μs';
+    return number_format($microseconds, 2).' us';
 }
 
 function formatPercent(?float $value): string

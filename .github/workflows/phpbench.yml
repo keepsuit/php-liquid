@@ -66,32 +66,20 @@ jobs:
         run: |
           set -euo pipefail
 
-          ARGS=()
-          CONFIG_FILE="$PWD/phpbench.ci.json"
-          if [ -f "$CONFIG_FILE" ]; then
-            ARGS+=(--config="$CONFIG_FILE")
-          fi
-
           vendor/bin/phpbench run \
-            --output-format=json \
-            --output="$WORKSPACE/pr.json" \
-            "${ARGS[@]}"
+            --progress=none \
+            --report=aggregate \
+            --output=json > "$WORKSPACE/pr.json"
         working-directory: ${{ env.PR_DIR }}
 
       - name: Run PHPBench (base)
         run: |
           set -euo pipefail
 
-          ARGS=()
-          CONFIG_FILE="$PWD/phpbench.ci.json"
-          if [ -f "$CONFIG_FILE" ]; then
-            ARGS+=(--config="$CONFIG_FILE")
-          fi
-
           vendor/bin/phpbench run \
-            --output-format=json \
-            --output="$WORKSPACE/base.json" \
-            "${ARGS[@]}"
+            --progress=none \
+            --report=aggregate \
+            --output=json > "$WORKSPACE/base.json"
         working-directory: ${{ env.BASE_DIR }}
 
       - name: Compare benchmark results
@@ -99,7 +87,7 @@ jobs:
         continue-on-error: true
         run: |
           set +e
-          php tools/phpbench-compare.php "$WORKSPACE/base.json" "$WORKSPACE/pr.json" "$WORKSPACE/summary.md"
+          php "$GITHUB_WORKSPACE/tools/phpbench-compare.php" "$WORKSPACE/base.json" "$WORKSPACE/pr.json" > "$WORKSPACE/summary.md"
           STATUS=$?
           set -e
 
@@ -117,7 +105,7 @@ jobs:
           exit "$STATUS"
 
       - name: Post benchmark comment
-        if: always()
+        if: always() && github.event.pull_request.head.repo.fork == false
         uses: actions/github-script@v8
         env:
           COMMENT_BODY: ${{ steps.compare.outputs.comment }}
