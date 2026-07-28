@@ -16,11 +16,6 @@ class TokenStream
 
     protected int $end;
 
-    /**
-     * Parsers are only needed by streams that hold expressions, and every tag
-     * slices off a fresh stream, so they are built on first use rather than
-     * per stream.
-     */
     protected ?ExpressionParser $expressionParser = null;
 
     protected ?ArgumentParser $argumentParser = null;

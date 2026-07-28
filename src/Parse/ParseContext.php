@@ -111,10 +111,7 @@ class ParseContext
     public function loadPartial(string $templateName): Template
     {
         try {
-            // parseTemplate() consults this cache too, but only after we have built
-            // a whole ParseContext along with its Lexer, Parser and OutputsBag. A
-            // cached partial never fills an outputs bag, so the merge below has
-            // nothing to do for it either.
+            // Check if template is already available in the cache
             $template = $this->environment->templatesCache->get($templateName);
 
             if ($template === null) {

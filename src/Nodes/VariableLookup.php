@@ -47,9 +47,6 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
             return new VariableLookup($markup);
         }
 
-        // PREG_UNMATCHED_AS_NULL so the alternative that fired can be picked with
-        // ??: the groups hold '' otherwise, and ?: would then discard a captured
-        // "0" and fall through to the next, empty group.
         preg_match_all(self::LOOKUP_REGEX, $lookupsString, $matches, PREG_UNMATCHED_AS_NULL);
 
         // preg_match_all() skips whatever it cannot match, so the matches have to
