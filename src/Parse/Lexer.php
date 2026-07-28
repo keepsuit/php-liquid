@@ -3,13 +3,24 @@
 namespace Keepsuit\Liquid\Parse;
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use RuntimeException;
 
 class Lexer
 {
     private const WHITESPACE = " \t\n\r\v\f";
 
     private const WORD = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_';
+
+    private const VARIABLE_END = '}}';
+
+    private const BLOCK_START = '{%';
+
+    private const BLOCK_END = '%}';
+
+    private const TRIM = '-';
+
+    private const TRIM_BLOCK_END = self::TRIM.self::BLOCK_END;
+
+    private const INLINE_COMMENT = '#';
 
     protected string $source;
 
@@ -22,11 +33,6 @@ class Lexer
     protected int $lineNumber;
 
     protected int $currentVarBlockLine;
-
-    /**
-     * @var LexerState[]
-     */
-    protected array $states;
 
     protected LexerState $state;
 
@@ -59,7 +65,6 @@ class Lexer
         $this->end = strlen($this->source);
         $this->current = $this->charAt(0);
         $this->lineNumber = 1;
-        $this->states = [];
         $this->state = LexerState::Data;
         $this->tokens = [];
 
@@ -107,7 +112,7 @@ class Lexer
         }
 
         $text = substr($this->source, $this->cursor, $offset - $this->cursor);
-        $trim = ($this->source[$offset + 2] ?? null) === LexerOptions::WhitespaceTrim->value;
+        $trim = ($this->source[$offset + 2] ?? null) === self::TRIM;
 
         $this->pushToken(TokenType::TextData, $trim ? rtrim($text) : $text);
         $this->skip($offset - $this->cursor + 2 + ($trim ? 1 : 0));
@@ -122,14 +127,14 @@ class Lexer
             }
 
             $this->pushToken(TokenType::BlockStart);
-            $this->pushState(LexerState::Block);
+            $this->state = LexerState::Block;
             $this->currentVarBlockLine = $this->lineNumber;
 
             return;
         }
 
         $this->pushToken(TokenType::VariableStart);
-        $this->pushState(LexerState::Variable);
+        $this->state = LexerState::Variable;
         $this->currentVarBlockLine = $this->lineNumber;
     }
 
@@ -146,14 +151,14 @@ class Lexer
 
         $this->skipWhitespace();
 
-        $terminator = $this->terminatorLength(LexerOptions::TagVariableEnd->value);
+        $terminator = $this->terminatorLength(self::VARIABLE_END);
         if ($terminator !== null) {
             $this->tokens[] = new Token(TokenType::VariableEnd, '', $lineNumber);
             $this->skip($terminator);
-            $this->popState();
+            $this->state = LexerState::Data;
 
             if ($this->terminatorTrim) {
-                $this->trimWhitespaces();
+                $this->skipWhitespace();
             }
 
             return;
@@ -171,7 +176,7 @@ class Lexer
 
         $this->skipWhitespace();
 
-        while (($terminator = $this->terminatorLength(LexerOptions::TagBlockEnd->value)) === null) {
+        while (($terminator = $this->terminatorLength(self::BLOCK_END)) === null) {
             $this->lexExpression();
             $this->skipWhitespace();
 
@@ -188,7 +193,7 @@ class Lexer
         $this->skip($terminator);
 
         if ($this->terminatorTrim) {
-            $this->trimWhitespaces();
+            $this->skipWhitespace();
         }
 
         $lastToken = $this->tokens[count($this->tokens) - 1] ?? null;
@@ -202,7 +207,7 @@ class Lexer
             $this->pushToken(TokenType::BlockEnd);
         }
 
-        $this->popState();
+        $this->state = LexerState::Data;
 
         if ($tag !== null && isset($this->rawBodyTags[$tag->data])) {
             $this->lexRawBodyTag($tag->data);
@@ -221,7 +226,7 @@ class Lexer
             $this->throwUnexpectedEnd();
         }
 
-        if ($this->current === LexerOptions::InlineComment->value) {
+        if ($this->current === self::INLINE_COMMENT) {
             $this->lexInlineComment();
 
             return;
@@ -307,7 +312,7 @@ class Lexer
         $this->pushToken(TokenType::RawData, $rawBody);
 
         if ($endTag['outerTrim']) {
-            $this->trimWhitespaces();
+            $this->skipWhitespace();
         }
     }
 
@@ -321,7 +326,7 @@ class Lexer
         $this->skip($endTag['end'] - $this->cursor);
 
         if ($endTag['outerTrim']) {
-            $this->trimWhitespaces();
+            $this->skipWhitespace();
         }
     }
 
@@ -341,8 +346,8 @@ class Lexer
                 break;
             }
 
-            if ($this->comesNext(LexerOptions::TagBlockEnd->value, $offset)) {
-                $terminator = $this->charAt($offset - 1) === LexerOptions::WhitespaceTrim->value
+            if ($this->comesNext(self::BLOCK_END, $offset)) {
+                $terminator = $this->charAt($offset - 1) === self::TRIM
                     ? $offset - 1
                     : $offset;
 
@@ -442,28 +447,6 @@ class Lexer
         }
     }
 
-    protected function pushState(LexerState $state): void
-    {
-        $this->states[] = $this->state;
-        $this->state = $state;
-    }
-
-    protected function popState(): void
-    {
-        $state = array_pop($this->states);
-
-        if ($state === null) {
-            throw new RuntimeException('Cannot pop state without a previous state');
-        }
-
-        $this->state = $state;
-    }
-
-    protected function trimWhitespaces(): void
-    {
-        $this->skipWhitespace();
-    }
-
     /**
      * @return array{start:int, end:int, innerTrim:bool, outerTrim:bool}|null
      */
@@ -478,16 +461,16 @@ class Lexer
                 return null;
             }
 
-            if (! $this->comesNext(LexerOptions::TagBlockStart->value, $offset)) {
+            if (! $this->comesNext(self::BLOCK_START, $offset)) {
                 $offset++;
 
                 continue;
             }
 
-            $probe = $offset + strlen(LexerOptions::TagBlockStart->value);
+            $probe = $offset + strlen(self::BLOCK_START);
             $innerTrim = false;
 
-            if ($this->charAt($probe) === LexerOptions::WhitespaceTrim->value) {
+            if ($this->charAt($probe) === self::TRIM) {
                 $innerTrim = true;
                 $probe++;
             }
@@ -504,12 +487,12 @@ class Lexer
             $probe += strspn($this->source, self::WHITESPACE, $probe);
             $outerTrim = false;
 
-            if ($this->charAt($probe) === LexerOptions::WhitespaceTrim->value) {
+            if ($this->charAt($probe) === self::TRIM) {
                 $outerTrim = true;
                 $probe++;
             }
 
-            if (! $this->comesNext(LexerOptions::TagBlockEnd->value, $probe)) {
+            if (! $this->comesNext(self::BLOCK_END, $probe)) {
                 $offset++;
 
                 continue;
@@ -517,7 +500,7 @@ class Lexer
 
             return [
                 'start' => $offset,
-                'end' => $probe + strlen(LexerOptions::TagBlockEnd->value),
+                'end' => $probe + strlen(self::BLOCK_END),
                 'innerTrim' => $innerTrim,
                 'outerTrim' => $outerTrim,
             ];
@@ -535,12 +518,12 @@ class Lexer
         $offset += strlen('comment');
         $offset += strspn($this->source, self::WHITESPACE, $offset);
 
-        if ($this->comesNext(LexerOptions::WhitespaceTrim->value.LexerOptions::TagBlockEnd->value, $offset)) {
-            return $offset + strlen(LexerOptions::WhitespaceTrim->value.LexerOptions::TagBlockEnd->value) - $this->cursor;
+        if ($this->comesNext(self::TRIM_BLOCK_END, $offset)) {
+            return $offset + strlen(self::TRIM_BLOCK_END) - $this->cursor;
         }
 
-        if ($this->comesNext(LexerOptions::TagBlockEnd->value, $offset)) {
-            return $offset + strlen(LexerOptions::TagBlockEnd->value) - $this->cursor;
+        if ($this->comesNext(self::BLOCK_END, $offset)) {
+            return $offset + strlen(self::BLOCK_END) - $this->cursor;
         }
 
         return null;
@@ -557,7 +540,7 @@ class Lexer
         $source = $this->source;
         $offset = $this->cursor;
 
-        $trim = ($source[$offset] ?? null) === LexerOptions::WhitespaceTrim->value;
+        $trim = ($source[$offset] ?? null) === self::TRIM;
         $at = $trim ? $offset + 1 : $offset;
 
         if (($source[$at] ?? null) !== $terminator[0] || ($source[$at + 1] ?? null) !== $terminator[1]) {
@@ -647,20 +630,6 @@ class Lexer
         }
 
         return $this->source[$offset];
-    }
-
-    protected function isAsciiLetterOrUnderscore(?string $character): bool
-    {
-        return $character !== null && (
-            ($character >= 'a' && $character <= 'z')
-            || ($character >= 'A' && $character <= 'Z')
-            || $character === '_'
-        );
-    }
-
-    protected function isAsciiWord(?string $character): bool
-    {
-        return $this->isAsciiLetterOrUnderscore($character) || $this->isDigit($character);
     }
 
     protected function isDigit(?string $character): bool
