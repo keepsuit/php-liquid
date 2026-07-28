@@ -167,6 +167,36 @@ test('variable lookup interface', function () {
         ->lookups->toBe(['b', 'c']);
 });
 
+test('variable lookup from markup', function (string $markup, string $name, array $lookups) {
+    expect(VariableLookup::fromMarkup($markup))
+        ->name->toBe($name)
+        ->lookups->toBe($lookups);
+})->with([
+    ['handle', 'handle', []],
+    ['comment.errors', 'comment', ['errors']],
+    ['a.b.c', 'a', ['b', 'c']],
+    ['a.b[1].c', 'a', ['b', '1', 'c']],
+    ['a["b-c"]', 'a', ['b-c']],
+    // "0" is falsy, so the regex implementation these replaced dropped it and
+    // returned an empty lookup for every form below except the bare a[0].
+    ['a[0]', 'a', ['0']],
+    ['a.0', 'a', ['0']],
+    ['a["0"]', 'a', ['0']],
+    ["a['0']", 'a', ['0']],
+]);
+
+test('variable lookup from invalid markup', function (string $markup) {
+    expect(fn () => VariableLookup::fromMarkup($markup))
+        ->toThrow(SyntaxException::class);
+})->with([
+    ['a.'],
+    ['a[]'],
+    ['a[0'],
+    ['a["b]'],
+    // Trailing junk used to be skipped silently, yielding just ['b'].
+    ['a.b!!'],
+]);
+
 function createVariable(string $markup): Variable
 {
     $template = parse(sprintf('{{ %s }}', $markup));

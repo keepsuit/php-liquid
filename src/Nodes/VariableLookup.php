@@ -8,14 +8,13 @@ use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\MissingValue;
-use Keepsuit\Liquid\Support\Str;
 use Keepsuit\Liquid\Support\UndefinedVariable;
 
 class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 {
     const FILTER_METHODS = ['size', 'first', 'last'];
 
-    private const LOOKUP_REGEX = '{\.([\w\-]+)|\["([\w\-]+)"\]|\[\'([\w\-]+)\'\]|\[(\d+)\]}';
+    private const LOOKUP_WORD = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-';
 
     /**
      * @var int[]
@@ -36,28 +35,75 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
         $this->lookupFilters = $lookupFilters;
     }
 
+    /**
+     * Parses "a.b[0]["c"]" into a name plus its lookups.
+     *
+     * Hand scanned rather than matched with preg_match_all(): the pattern needed
+     * four alternatives with one capture group each, and picking the group that
+     * fired used `?:`, which treats a captured "0" as absent -- so "a.0" and
+     * a["0"] used to yield an empty lookup. Scanning also rejects trailing junk
+     * instead of silently skipping it.
+     */
     public static function fromMarkup(string $markup): VariableLookup
     {
-        $variable = Str::beforeFirst($markup, ['.', '[']);
+        $length = strlen($markup);
+        $nameLength = strcspn($markup, '.[');
 
-        $lookupsString = substr($markup, strlen($variable));
-
-        if ($lookupsString === '') {
-            return new VariableLookup($variable);
-        }
-
-        $count = preg_match_all(self::LOOKUP_REGEX, $lookupsString, $matches);
-
-        if ($count === 0) {
-            throw new SyntaxException('Invalid variable lookup: '.$lookupsString);
+        if ($nameLength === $length) {
+            return new VariableLookup($markup);
         }
 
         $lookups = [];
-        foreach (range(0, $count - 1) as $i) {
-            $lookups[] = $matches[1][$i] ?: $matches[2][$i] ?: $matches[3][$i] ?: $matches[4][$i];
+        $offset = $nameLength;
+
+        while ($offset < $length) {
+            if ($markup[$offset] === '.') {
+                $offset++;
+                $start = $offset;
+                $offset += strspn($markup, self::LOOKUP_WORD, $offset);
+
+                if ($offset === $start) {
+                    throw new SyntaxException('Invalid variable lookup: '.substr($markup, $nameLength));
+                }
+
+                $lookups[] = substr($markup, $start, $offset - $start);
+
+                continue;
+            }
+
+            if ($markup[$offset] !== '[') {
+                throw new SyntaxException('Invalid variable lookup: '.substr($markup, $nameLength));
+            }
+
+            $offset++;
+            $quote = $markup[$offset] ?? '';
+            $quoted = $quote === '"' || $quote === "'";
+
+            if ($quoted) {
+                $offset++;
+            }
+
+            $start = $offset;
+            $offset += strspn($markup, $quoted ? self::LOOKUP_WORD : '0123456789', $offset);
+            $key = substr($markup, $start, $offset - $start);
+
+            if ($quoted) {
+                if (($markup[$offset] ?? '') !== $quote) {
+                    throw new SyntaxException('Invalid variable lookup: '.substr($markup, $nameLength));
+                }
+
+                $offset++;
+            }
+
+            if ($key === '' || ($markup[$offset] ?? '') !== ']') {
+                throw new SyntaxException('Invalid variable lookup: '.substr($markup, $nameLength));
+            }
+
+            $offset++;
+            $lookups[] = $key;
         }
 
-        return new VariableLookup($variable, $lookups);
+        return new VariableLookup(substr($markup, 0, $nameLength), $lookups);
     }
 
     public function toString(): string
