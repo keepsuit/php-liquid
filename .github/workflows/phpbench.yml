@@ -14,6 +14,11 @@ permissions:
 
 env:
   REQUIRED_PHP_EXTENSIONS: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
+  # TemplateCacheBench::benchVarExporter segfaults on CI for PHP 8.4/8.5. Exclude it on
+  # every version, not just those two: a benchmark set that varies per PHP version makes
+  # the per-version comparison summaries incomparable with each other. Local runs are
+  # unfiltered, so the benchmark still exists — it just does not gate PRs.
+  PHPBENCH_FILTER: '^(?!.*TemplateCacheBench::benchVarExporter$).*'
 
 jobs:
   benchmark:
@@ -72,15 +77,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          PHPBENCH_FILTER=()
-          if [[ "${{ matrix.php }}" == "8.4" || "${{ matrix.php }}" == "8.5" ]]; then
-            PHPBENCH_FILTER+=(--filter='^(?!.*TemplateCacheBench::benchVarExporter$).*')
-          fi
-
           vendor/bin/phpbench run \
-            "${PHPBENCH_FILTER[@]}" \
+            --filter="$PHPBENCH_FILTER" \
             --progress=none \
             --warmup=1 \
+            --retry-threshold=5 \
             --report=aggregate \
             --output=json > "$WORKSPACE/pr.json"
         working-directory: ${{ env.PR_DIR }}
@@ -89,15 +90,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          PHPBENCH_FILTER=()
-          if [[ "${{ matrix.php }}" == "8.4" || "${{ matrix.php }}" == "8.5" ]]; then
-            PHPBENCH_FILTER+=(--filter='^(?!.*TemplateCacheBench::benchVarExporter$).*')
-          fi
-
           vendor/bin/phpbench run \
-            "${PHPBENCH_FILTER[@]}" \
+            --filter="$PHPBENCH_FILTER" \
             --progress=none \
             --warmup=1 \
+            --retry-threshold=5 \
             --report=aggregate \
             --output=json > "$WORKSPACE/base.json"
         working-directory: ${{ env.BASE_DIR }}
