@@ -64,10 +64,12 @@ class ParseContext
      */
     public function parseTemplate(string $templateName, bool $force = false): Template
     {
-        $cachedTemplate = $this->environment->templatesCache->get($templateName);
+        if (! $force) {
+            $cachedTemplate = $this->environment->templatesCache->get($templateName);
 
-        if ($cachedTemplate !== null && ! $force) {
-            return $cachedTemplate;
+            if ($cachedTemplate !== null) {
+                return $cachedTemplate;
+            }
         }
 
         $source = $this->environment->fileSystem->readTemplateFile($templateName);
@@ -119,7 +121,7 @@ class ParseContext
                 $partialParseContext->partial = true;
                 $partialParseContext->depth = $this->depth;
 
-                $template = $partialParseContext->parseTemplate($templateName);
+                $template = $partialParseContext->parseTemplate($templateName, force: true);
 
                 $this->outputs->merge($partialParseContext->outputs);
             }

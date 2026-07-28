@@ -103,6 +103,14 @@ class IfTag extends TagBlock
      */
     protected function parseCondition(TagParseContext $bodySection): Condition
     {
+        return $this->parseBinaryComparison($bodySection);
+    }
+
+    /**
+     * @throws SyntaxException
+     */
+    protected function parseBinaryComparison(TagParseContext $bodySection): Condition
+    {
         $condition = $this->parseComparison($bodySection);
         $firstCondition = $condition;
 
