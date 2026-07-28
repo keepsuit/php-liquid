@@ -73,7 +73,6 @@ jobs:
           set -euo pipefail
 
           vendor/bin/phpbench run \
-            --progress=none \
             --warmup=1 \
             --report=aggregate \
             --output=json > "$WORKSPACE/pr.json"
@@ -84,7 +83,6 @@ jobs:
           set -euo pipefail
 
           vendor/bin/phpbench run \
-            --progress=none \
             --warmup=1 \
             --report=aggregate \
             --output=json > "$WORKSPACE/base.json"
