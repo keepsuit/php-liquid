@@ -1,0 +1,172 @@
+name: PHPBench PR Benchmark
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  REQUIRED_PHP_EXTENSIONS: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
+
+jobs:
+  benchmark:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4', '8.5']
+    name: PHPBench (PHP ${{ matrix.php }})
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: ${{ env.REQUIRED_PHP_EXTENSIONS }}
+          coverage: none
+
+      - name: Prepare benchmark worktrees
+        run: |
+          set -euo pipefail
+
+          WORKSPACE="$RUNNER_TEMP/phpbench-workspace"
+          BASE_DIR="$WORKSPACE/base"
+          PR_DIR="$WORKSPACE/pr"
+
+          rm -rf "$WORKSPACE"
+          mkdir -p "$WORKSPACE"
+
+          git fetch origin "${{ github.event.pull_request.base.sha }}"
+          git worktree add "$PR_DIR" "${{ github.event.pull_request.head.sha }}"
+          git worktree add "$BASE_DIR" "${{ github.event.pull_request.base.sha }}"
+
+          {
+            echo "WORKSPACE=$WORKSPACE"
+            echo "BASE_DIR=$BASE_DIR"
+            echo "PR_DIR=$PR_DIR"
+          } >> "$GITHUB_ENV"
+
+      - name: Install dependencies (PR)
+        run: composer install --no-interaction --prefer-dist --no-progress
+        working-directory: ${{ env.PR_DIR }}
+
+      - name: Install dependencies (base)
+        run: composer install --no-interaction --prefer-dist --no-progress
+        working-directory: ${{ env.BASE_DIR }}
+
+      - name: Run PHPBench (PR)
+        run: |
+          set -euo pipefail
+
+          PHPBENCH_FILTER=()
+          if [[ "${{ matrix.php }}" == "8.4" || "${{ matrix.php }}" == "8.5" ]]; then
+            PHPBENCH_FILTER+=(--filter='^(?!.*TemplateCacheBench::benchVarExporter$).*')
+          fi
+
+          vendor/bin/phpbench run \
+            "${PHPBENCH_FILTER[@]}" \
+            --progress=none \
+            --warmup=1 \
+            --report=aggregate \
+            --output=json > "$WORKSPACE/pr.json"
+        working-directory: ${{ env.PR_DIR }}
+
+      - name: Run PHPBench (base)
+        run: |
+          set -euo pipefail
+
+          PHPBENCH_FILTER=()
+          if [[ "${{ matrix.php }}" == "8.4" || "${{ matrix.php }}" == "8.5" ]]; then
+            PHPBENCH_FILTER+=(--filter='^(?!.*TemplateCacheBench::benchVarExporter$).*')
+          fi
+
+          vendor/bin/phpbench run \
+            "${PHPBENCH_FILTER[@]}" \
+            --progress=none \
+            --warmup=1 \
+            --report=aggregate \
+            --output=json > "$WORKSPACE/base.json"
+        working-directory: ${{ env.BASE_DIR }}
+
+      - name: Compare benchmark results
+        id: compare
+        continue-on-error: true
+        run: |
+          set +e
+          php "$GITHUB_WORKSPACE/tools/phpbench-compare.php" "$WORKSPACE/base.json" "$WORKSPACE/pr.json" > "$WORKSPACE/summary.md"
+          STATUS=$?
+          set -e
+
+          {
+            echo "comment<<EOF"
+            if [ -f "$WORKSPACE/summary.md" ]; then
+              cat "$WORKSPACE/summary.md"
+            else
+              echo "Benchmark comparison could not be generated."
+            fi
+            echo "EOF"
+            echo "exit_code=$STATUS"
+          } >> "$GITHUB_OUTPUT"
+
+          exit "$STATUS"
+
+      - name: Post benchmark comment
+        if: always() && github.event.pull_request.head.repo.fork == false
+        uses: actions/github-script@v8
+        env:
+          COMMENT_BODY: ${{ steps.compare.outputs.comment }}
+          PHP_VERSION: ${{ matrix.php }}
+        with:
+          script: |
+            const marker = `<!-- phpbench-pr-benchmark-php-${process.env.PHP_VERSION} -->`;
+            const body = `${marker}
+            ## PHPBench comparison (PHP ${process.env.PHP_VERSION})
+
+            ${process.env.COMMENT_BODY || 'Benchmark comparison was not generated.'}`;
+
+            const issue_number = context.payload.pull_request.number;
+            const { owner, repo } = context.repo;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+
+            const existing = comments.find((comment) =>
+              comment.user?.type === 'Bot' && comment.body?.includes(marker),
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }
+
+      - name: Enforce comparison failures
+        if: always() && steps.compare.outputs.exit_code != '0' && steps.compare.outputs.exit_code != '1'
+        run: exit 1
