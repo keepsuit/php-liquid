@@ -14,7 +14,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 {
     const FILTER_METHODS = ['size', 'first', 'last'];
 
-    private const LOOKUP_WORD = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-';
+    private const LOOKUP_REGEX = '{\.([\w\-]+)|\["([\w\-]+)"\]|\[\'([\w\-]+)\'\]|\[(\d+)\]}';
 
     /**
      * @var int[]
@@ -36,71 +36,35 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
     }
 
     /**
-     * Parses "a.b[0]["c"]" into a name plus its lookups.
-     *
-     * Hand scanned rather than matched with preg_match_all(): the pattern needed
-     * four alternatives with one capture group each, and picking the group that
-     * fired used `?:`, which treats a captured "0" as absent -- so "a.0" and
-     * a["0"] used to yield an empty lookup. Scanning also rejects trailing junk
-     * instead of silently skipping it.
+     * Parses `a.b[0]["c"]` into a name plus its lookups.
      */
     public static function fromMarkup(string $markup): VariableLookup
     {
-        $length = strlen($markup);
         $nameLength = strcspn($markup, '.[');
+        $lookupsString = substr($markup, $nameLength);
 
-        if ($nameLength === $length) {
+        if ($lookupsString === '') {
             return new VariableLookup($markup);
         }
 
+        // PREG_UNMATCHED_AS_NULL so the alternative that fired can be picked with
+        // ??: the groups hold '' otherwise, and ?: would then discard a captured
+        // "0" and fall through to the next, empty group.
+        preg_match_all(self::LOOKUP_REGEX, $lookupsString, $matches, PREG_UNMATCHED_AS_NULL);
+
+        // preg_match_all() skips whatever it cannot match, so the matches have to
+        // account for the whole string or there was junk between or after them.
+        if (implode('', $matches[0]) !== $lookupsString) {
+            throw new SyntaxException('Invalid variable lookup: '.$lookupsString);
+        }
+
         $lookups = [];
-        $offset = $nameLength;
+        foreach (array_keys($matches[0]) as $i) {
+            // Every alternative in the pattern captures, so one of them is set.
+            $lookup = $matches[1][$i] ?? $matches[2][$i] ?? $matches[3][$i] ?? $matches[4][$i];
+            assert($lookup !== null);
 
-        while ($offset < $length) {
-            if ($markup[$offset] === '.') {
-                $offset++;
-                $start = $offset;
-                $offset += strspn($markup, self::LOOKUP_WORD, $offset);
-
-                if ($offset === $start) {
-                    throw new SyntaxException('Invalid variable lookup: '.substr($markup, $nameLength));
-                }
-
-                $lookups[] = substr($markup, $start, $offset - $start);
-
-                continue;
-            }
-
-            if ($markup[$offset] !== '[') {
-                throw new SyntaxException('Invalid variable lookup: '.substr($markup, $nameLength));
-            }
-
-            $offset++;
-            $quote = $markup[$offset] ?? '';
-            $quoted = $quote === '"' || $quote === "'";
-
-            if ($quoted) {
-                $offset++;
-            }
-
-            $start = $offset;
-            $offset += strspn($markup, $quoted ? self::LOOKUP_WORD : '0123456789', $offset);
-            $key = substr($markup, $start, $offset - $start);
-
-            if ($quoted) {
-                if (($markup[$offset] ?? '') !== $quote) {
-                    throw new SyntaxException('Invalid variable lookup: '.substr($markup, $nameLength));
-                }
-
-                $offset++;
-            }
-
-            if ($key === '' || ($markup[$offset] ?? '') !== ']') {
-                throw new SyntaxException('Invalid variable lookup: '.substr($markup, $nameLength));
-            }
-
-            $offset++;
-            $lookups[] = $key;
+            $lookups[] = $lookup;
         }
 
         return new VariableLookup(substr($markup, 0, $nameLength), $lookups);
