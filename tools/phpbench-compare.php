@@ -51,6 +51,12 @@ foreach ($sharedNames as $name) {
         }
     }
 
+    $memoryDeltaPercent = null;
+    if (abs($base['memory']) > PHP_FLOAT_EPSILON) {
+        $memoryDeltaPercent = (($pr['memory'] - $base['memory']) / $base['memory']) * 100;
+        $memoryPercentChanges[] = $memoryDeltaPercent;
+    }
+
     $rows[] = [
         'name' => $name,
         'baseOpsPerSecond' => $baseOpsPerSecond,
@@ -61,34 +67,36 @@ foreach ($sharedNames as $name) {
         'baseMemory' => $base['memory'],
         'prMemory' => $pr['memory'],
         'memoryDelta' => $pr['memory'] - $base['memory'],
+        'memoryDeltaPercent' => $memoryDeltaPercent,
     ];
-
-    if (abs($base['memory']) > PHP_FLOAT_EPSILON) {
-        $memoryPercentChanges[] = (($pr['memory'] - $base['memory']) / $base['memory']) * 100;
-    }
 }
 
-$changeCount = count($percentChanges);
-$averageChange = $changeCount === 0
-    ? null
-    : array_sum($percentChanges) / $changeCount;
+$medianChange = median($percentChanges);
 $memoryChangeCount = count($memoryPercentChanges);
 $averageMemoryChange = $memoryChangeCount === 0
     ? null
     : array_sum($memoryPercentChanges) / $memoryChangeCount;
 
 $lines = [];
-$lines[] = '| Benchmark | Base ops/s | PR ops/s | Delta ops/s | RSD (base / PR) | Delta memory |';
-$lines[] = '|-----------|-----------:|---------:|------------:|----------------:|-------------:|';
+$context = benchmarkContext($baseBenchmarks[$sharedNames[0]]);
+if ($context !== null) {
+    $lines[] = $context;
+    $lines[] = '';
+}
+$lines[] = '> Positive ops/s is faster. RSD above 5% is marked high.';
+$lines[] = '';
+$lines[] = '| Benchmark | Base ops/s | PR ops/s | Delta ops/s | RSD (base / PR) | Delta memory | Memory % |';
+$lines[] = '|-----------|-----------:|---------:|------------:|----------------:|-------------:|---------:|';
 foreach ($rows as $row) {
     $lines[] = sprintf(
-        '| %s | %s | %s | %s | %s | %s |',
+        '| %s | %s | %s | %s | %s | %s | %s |',
         escapePipe($row['name']),
         formatOperationsPerSecond($row['baseOpsPerSecond']),
         formatOperationsPerSecond($row['prOpsPerSecond']),
         formatPercent($row['deltaPercent']),
         formatRstdev($row['baseRstdev'], $row['prRstdev']),
-        formatBytesSigned($row['memoryDelta'])
+        formatBytesSigned($row['memoryDelta']),
+        formatPercent($row['memoryDeltaPercent'])
     );
 }
 
@@ -96,12 +104,12 @@ $lines[] = '';
 $lines[] = sprintf('- Improved benchmarks: **%d**', $improved);
 $lines[] = sprintf('- Regressions: **%d**', $regressions);
 $lines[] = sprintf(
-    '- Worst regression: **%s**',
+    '- Worst throughput regression: **%s**',
     $worstRegression === null
         ? 'n/a'
         : sprintf('%s (%s)', $worstRegression['name'], formatPercent($worstRegression['delta']))
 );
-$lines[] = sprintf('- Average throughput change: **%s**', formatPercent($averageChange));
+$lines[] = sprintf('- Median throughput change: **%s**', formatPercent($medianChange));
 $lines[] = sprintf('- Average memory change: **%s**', formatPercent($averageMemoryChange));
 
 $missingInPr = array_values(array_diff(array_keys($baseBenchmarks), array_keys($prBenchmarks)));
@@ -143,7 +151,7 @@ echo $markdown;
 exit($thresholdExceeded ? 1 : 0);
 
 /**
- * @return array<string, array{time: float, memory: float, rstdev: float}>
+ * @return array<string, array{time: float, memory: float, rstdev: float, iterations: int, revolutions: int}>
  */
 function loadBenchmarks(string $path): array
 {
@@ -176,6 +184,8 @@ function loadBenchmarks(string $path): array
             || ! is_string($row['benchmark'] ?? null)
             || ! is_string($row['subject'] ?? null)
             || ! is_string($row['set'] ?? '')
+            || ! is_numeric($row['its'] ?? null)
+            || ! is_numeric($row['revs'] ?? null)
             || ! is_numeric($row['mode'] ?? null)
             || ! is_numeric($row['mem_peak'] ?? null)
             || ! is_numeric($row['rstdev'] ?? null)) {
@@ -192,6 +202,8 @@ function loadBenchmarks(string $path): array
             'time' => (float) $row['mode'],
             'memory' => (float) $row['mem_peak'],
             'rstdev' => (float) $row['rstdev'],
+            'iterations' => (int) $row['its'],
+            'revolutions' => (int) $row['revs'],
         ];
     }
 
@@ -214,7 +226,53 @@ function formatOperationsPerSecond(?float $operationsPerSecond): string
 
 function formatRstdev(float $baseRstdev, float $prRstdev): string
 {
-    return sprintf('%.2f%% / %.2f%%', $baseRstdev, $prRstdev);
+    $value = sprintf('%.2f%% / %.2f%%', $baseRstdev, $prRstdev);
+
+    return $baseRstdev > 5 || $prRstdev > 5 ? $value.' (high)' : $value;
+}
+
+/**
+ * @param  array{iterations: int, revolutions: int}  $benchmark
+ */
+function benchmarkContext(array $benchmark): ?string
+{
+    $phpVersion = getenv('PHPBENCH_PHP_VERSION');
+    $runner = getenv('PHPBENCH_RUNNER');
+    $baseSha = getenv('PHPBENCH_BASE_SHA');
+    $prSha = getenv('PHPBENCH_PR_SHA');
+    $warmup = getenv('PHPBENCH_WARMUP');
+
+    if ($phpVersion === false || $runner === false || $baseSha === false || $prSha === false || $warmup === false) {
+        return null;
+    }
+
+    return sprintf(
+        'PHP %s | Runner %s | Base `%s` | PR `%s` | %d iterations x %d revs | %s warmup',
+        $phpVersion,
+        $runner,
+        substr($baseSha, 0, 7),
+        substr($prSha, 0, 7),
+        $benchmark['iterations'],
+        $benchmark['revolutions'],
+        $warmup,
+    );
+}
+
+/**
+ * @param  list<float>  $values
+ */
+function median(array $values): ?float
+{
+    if ($values === []) {
+        return null;
+    }
+
+    sort($values, SORT_NUMERIC);
+    $middle = intdiv(count($values), 2);
+
+    return count($values) % 2 === 0
+        ? ($values[$middle - 1] + $values[$middle]) / 2
+        : $values[$middle];
 }
 
 function formatPercent(?float $value): string
