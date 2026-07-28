@@ -26,53 +26,77 @@ $improved = 0;
 $regressions = 0;
 $worstRegression = null;
 $percentChanges = [];
+$memoryPercentChanges = [];
 
 foreach ($sharedNames as $name) {
     $base = $baseBenchmarks[$name];
     $pr = $prBenchmarks[$name];
 
     $deltaPercent = null;
-    if (abs($base['time']) > PHP_FLOAT_EPSILON) {
-        $deltaPercent = (($pr['time'] - $base['time']) / $base['time']) * 100;
+    $baseOpsPerSecond = null;
+    $prOpsPerSecond = null;
+    if (abs($base['time']) > PHP_FLOAT_EPSILON && abs($pr['time']) > PHP_FLOAT_EPSILON) {
+        $baseOpsPerSecond = 1_000_000 / $base['time'];
+        $prOpsPerSecond = 1_000_000 / $pr['time'];
+        $deltaPercent = (($prOpsPerSecond - $baseOpsPerSecond) / $baseOpsPerSecond) * 100;
         $percentChanges[] = $deltaPercent;
 
-        if ($deltaPercent < 0) {
+        if ($deltaPercent > 0) {
             $improved++;
-        } elseif ($deltaPercent > 0) {
+        } elseif ($deltaPercent < 0) {
             $regressions++;
-            if ($worstRegression === null || $deltaPercent > $worstRegression['delta']) {
+            if ($worstRegression === null || $deltaPercent < $worstRegression['delta']) {
                 $worstRegression = ['name' => $name, 'delta' => $deltaPercent];
             }
         }
     }
 
+    $memoryDeltaPercent = null;
+    if (abs($base['memory']) > PHP_FLOAT_EPSILON) {
+        $memoryDeltaPercent = (($pr['memory'] - $base['memory']) / $base['memory']) * 100;
+        $memoryPercentChanges[] = $memoryDeltaPercent;
+    }
+
     $rows[] = [
         'name' => $name,
-        'baseTime' => $base['time'],
-        'prTime' => $pr['time'],
+        'baseOpsPerSecond' => $baseOpsPerSecond,
+        'prOpsPerSecond' => $prOpsPerSecond,
         'deltaPercent' => $deltaPercent,
+        'baseRstdev' => $base['rstdev'],
+        'prRstdev' => $pr['rstdev'],
         'baseMemory' => $base['memory'],
         'prMemory' => $pr['memory'],
         'memoryDelta' => $pr['memory'] - $base['memory'],
+        'memoryDeltaPercent' => $memoryDeltaPercent,
     ];
 }
 
-$changeCount = count($percentChanges);
-$averageChange = $changeCount === 0
+$medianChange = median($percentChanges);
+$memoryChangeCount = count($memoryPercentChanges);
+$averageMemoryChange = $memoryChangeCount === 0
     ? null
-    : array_sum($percentChanges) / $changeCount;
+    : array_sum($memoryPercentChanges) / $memoryChangeCount;
 
 $lines = [];
-$lines[] = '| Benchmark | Base (mode) | PR (mode) | Delta time | Delta memory |';
-$lines[] = '|-----------|-------------|-----------|-------:|---------:|';
+$context = benchmarkContext($baseBenchmarks[$sharedNames[0]]);
+if ($context !== null) {
+    $lines[] = $context;
+    $lines[] = '';
+}
+$lines[] = '> Positive ops/s is faster. RSD above 5% is marked high.';
+$lines[] = '';
+$lines[] = '| Benchmark | Base ops/s | PR ops/s | Delta ops/s | RSD (base / PR) | Delta memory | Memory % |';
+$lines[] = '|-----------|-----------:|---------:|------------:|----------------:|-------------:|---------:|';
 foreach ($rows as $row) {
     $lines[] = sprintf(
-        '| %s | %s | %s | %s | %s |',
+        '| %s | %s | %s | %s | %s | %s | %s |',
         escapePipe($row['name']),
-        formatDuration($row['baseTime']),
-        formatDuration($row['prTime']),
+        formatOperationsPerSecond($row['baseOpsPerSecond']),
+        formatOperationsPerSecond($row['prOpsPerSecond']),
         formatPercent($row['deltaPercent']),
-        formatBytesSigned($row['memoryDelta'])
+        formatRstdev($row['baseRstdev'], $row['prRstdev']),
+        formatBytesSigned($row['memoryDelta']),
+        formatPercent($row['memoryDeltaPercent'])
     );
 }
 
@@ -80,12 +104,13 @@ $lines[] = '';
 $lines[] = sprintf('- Improved benchmarks: **%d**', $improved);
 $lines[] = sprintf('- Regressions: **%d**', $regressions);
 $lines[] = sprintf(
-    '- Worst regression: **%s**',
+    '- Worst throughput regression: **%s**',
     $worstRegression === null
         ? 'n/a'
         : sprintf('%s (%s)', $worstRegression['name'], formatPercent($worstRegression['delta']))
 );
-$lines[] = sprintf('- Average change: **%s**', formatPercent($averageChange));
+$lines[] = sprintf('- Median throughput change: **%s**', formatPercent($medianChange));
+$lines[] = sprintf('- Average memory change: **%s**', formatPercent($averageMemoryChange));
 
 $missingInPr = array_values(array_diff(array_keys($baseBenchmarks), array_keys($prBenchmarks)));
 $missingInBase = array_values(array_diff(array_keys($prBenchmarks), array_keys($baseBenchmarks)));
@@ -110,7 +135,7 @@ if ($threshold !== false && $threshold !== '') {
         exit(2);
     }
 
-    $worst = $worstRegression['delta'] ?? 0.0;
+    $worst = abs($worstRegression['delta'] ?? 0.0);
     if ($worst > $thresholdValue) {
         $thresholdExceeded = true;
     }
@@ -126,7 +151,7 @@ echo $markdown;
 exit($thresholdExceeded ? 1 : 0);
 
 /**
- * @return array<string, array{time: float, memory: float}>
+ * @return array<string, array{time: float, memory: float, rstdev: float, iterations: int, revolutions: int}>
  */
 function loadBenchmarks(string $path): array
 {
@@ -159,8 +184,11 @@ function loadBenchmarks(string $path): array
             || ! is_string($row['benchmark'] ?? null)
             || ! is_string($row['subject'] ?? null)
             || ! is_string($row['set'] ?? '')
+            || ! is_numeric($row['its'] ?? null)
+            || ! is_numeric($row['revs'] ?? null)
             || ! is_numeric($row['mode'] ?? null)
-            || ! is_numeric($row['mem_peak'] ?? null)) {
+            || ! is_numeric($row['mem_peak'] ?? null)
+            || ! is_numeric($row['rstdev'] ?? null)) {
             fwrite(STDERR, "Unexpected PHPBench aggregate JSON in {$path}\n");
             exit(2);
         }
@@ -173,6 +201,9 @@ function loadBenchmarks(string $path): array
         $benchmarks[$name] = [
             'time' => (float) $row['mode'],
             'memory' => (float) $row['mem_peak'],
+            'rstdev' => (float) $row['rstdev'],
+            'iterations' => (int) $row['its'],
+            'revolutions' => (int) $row['revs'],
         ];
     }
 
@@ -184,17 +215,64 @@ function loadBenchmarks(string $path): array
     return $benchmarks;
 }
 
-function formatDuration(float $microseconds): string
+function formatOperationsPerSecond(?float $operationsPerSecond): string
 {
-    if ($microseconds >= 1_000_000) {
-        return number_format($microseconds / 1_000_000, 2).' s';
+    if ($operationsPerSecond === null) {
+        return 'n/a';
     }
 
-    if ($microseconds >= 1_000) {
-        return number_format($microseconds / 1_000, 2).' ms';
+    return number_format($operationsPerSecond, 2).' ops/s';
+}
+
+function formatRstdev(float $baseRstdev, float $prRstdev): string
+{
+    $value = sprintf('%.2f%% / %.2f%%', $baseRstdev, $prRstdev);
+
+    return $baseRstdev > 5 || $prRstdev > 5 ? $value.' (high)' : $value;
+}
+
+/**
+ * @param  array{iterations: int, revolutions: int}  $benchmark
+ */
+function benchmarkContext(array $benchmark): ?string
+{
+    $phpVersion = getenv('PHPBENCH_PHP_VERSION');
+    $runner = getenv('PHPBENCH_RUNNER');
+    $baseSha = getenv('PHPBENCH_BASE_SHA');
+    $prSha = getenv('PHPBENCH_PR_SHA');
+    $warmup = getenv('PHPBENCH_WARMUP');
+
+    if ($phpVersion === false || $runner === false || $baseSha === false || $prSha === false || $warmup === false) {
+        return null;
     }
 
-    return number_format($microseconds, 2).' us';
+    return sprintf(
+        'PHP %s | Runner %s | Base `%s` | PR `%s` | %d iterations x %d revs | %s warmup',
+        $phpVersion,
+        $runner,
+        substr($baseSha, 0, 7),
+        substr($prSha, 0, 7),
+        $benchmark['iterations'],
+        $benchmark['revolutions'],
+        $warmup,
+    );
+}
+
+/**
+ * @param  list<float>  $values
+ */
+function median(array $values): ?float
+{
+    if ($values === []) {
+        return null;
+    }
+
+    sort($values, SORT_NUMERIC);
+    $middle = intdiv(count($values), 2);
+
+    return count($values) % 2 === 0
+        ? ($values[$middle - 1] + $values[$middle]) / 2
+        : $values[$middle];
 }
 
 function formatPercent(?float $value): string

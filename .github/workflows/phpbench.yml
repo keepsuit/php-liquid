@@ -105,8 +105,14 @@ jobs:
       - name: Compare benchmark results
         id: compare
         continue-on-error: true
+        env:
+          PHPBENCH_PHP_VERSION: ${{ matrix.php }}
+          PHPBENCH_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PHPBENCH_PR_SHA: ${{ github.event.pull_request.head.sha }}
+          PHPBENCH_WARMUP: '1'
         run: |
           set +e
+          export PHPBENCH_RUNNER="${ImageOS:-$RUNNER_OS}"
           php "$GITHUB_WORKSPACE/tools/phpbench-compare.php" "$WORKSPACE/base.json" "$WORKSPACE/pr.json" > "$WORKSPACE/summary.md"
           STATUS=$?
           set -e
