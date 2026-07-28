@@ -33,25 +33,25 @@ class ExpressionParser
      */
     public function parseExpression(): mixed
     {
-        $token = $this->tokenStream->current();
+        $token = $this->tokenStream->currentRaw();
 
         if ($token === null) {
             return null;
         }
 
-        return match ($token->type) {
+        return match ($token[0]) {
             TokenType::OpenRound => $this->parseRange(),
             TokenType::String => $this->parseString(),
             TokenType::Number => $this->parseNumber(),
-            TokenType::Identifier => array_key_exists($token->data, self::LITERALS) ? $this->parseLiteral() : $this->parseVariable(),
+            TokenType::Identifier => array_key_exists($token[1], self::LITERALS) ? $this->parseLiteral() : $this->parseVariable(),
             TokenType::VariableEnd => null,
-            default => throw SyntaxException::invalidExpression($token->data),
+            default => throw SyntaxException::invalidExpression($token[1]),
         };
     }
 
     protected function parseVariable(): VariableLookup
     {
-        $name = $this->tokenStream->consume(TokenType::Identifier)->data;
+        $name = $this->tokenStream->consumeData(TokenType::Identifier);
         $lookups = $this->parseVariableLookups();
 
         return new VariableLookup(
@@ -68,12 +68,12 @@ class ExpressionParser
         $lookups = [];
 
         while (true) {
-            if ($this->tokenStream->consumeOrFalse(TokenType::Dot)) {
-                $lookups[] = $this->tokenStream->consume(TokenType::Identifier)->data;
+            if ($this->tokenStream->consumeIf(TokenType::Dot)) {
+                $lookups[] = $this->tokenStream->consumeData(TokenType::Identifier);
 
                 continue;
             }
-            if ($this->tokenStream->consumeOrFalse(TokenType::OpenSquare)) {
+            if ($this->tokenStream->consumeIf(TokenType::OpenSquare)) {
                 $lookups[] = $this->tokenStream->expression();
                 $this->tokenStream->consume(TokenType::CloseSquare);
 
@@ -105,29 +105,27 @@ class ExpressionParser
 
     protected function parseString(): string
     {
-        $token = $this->tokenStream->consume(TokenType::String);
+        $data = $this->tokenStream->consumeData(TokenType::String);
 
         if (
-            (str_starts_with($token->data, '"') && str_ends_with($token->data, '"')) ||
-            (str_starts_with($token->data, "'") && str_ends_with($token->data, "'"))
+            (str_starts_with($data, '"') && str_ends_with($data, '"')) ||
+            (str_starts_with($data, "'") && str_ends_with($data, "'"))
         ) {
-            return substr($token->data, 1, -1);
+            return substr($data, 1, -1);
         }
 
-        return $token->data;
+        return $data;
     }
 
     protected function parseNumber(): int|float
     {
-        $token = $this->tokenStream->consume(TokenType::Number);
+        $data = $this->tokenStream->consumeData(TokenType::Number);
 
-        return str_contains($token->data, '.') ? (float) $token->data : (int) $token->data;
+        return str_contains($data, '.') ? (float) $data : (int) $data;
     }
 
     protected function parseLiteral(): mixed
     {
-        $token = $this->tokenStream->consume(TokenType::Identifier);
-
-        return self::LITERALS[$token->data];
+        return self::LITERALS[$this->tokenStream->consumeData(TokenType::Identifier)];
     }
 }

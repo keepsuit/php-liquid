@@ -37,19 +37,19 @@ class TableRowTag extends TagBlock
 
             $this->body = $context->body;
 
-            $this->variableName = $context->params->consume(TokenType::Identifier)->data;
+            $this->variableName = $context->params->consumeData(TokenType::Identifier);
             $context->params->id('in');
             $this->collectionName = $context->params->expression();
 
             while (true) {
-                $context->params->consumeOrFalse(TokenType::Comma);
+                $context->params->consumeIf(TokenType::Comma);
 
                 if ($context->params->isEnd()) {
                     break;
                 }
 
-                $attribute = $context->params->consume(TokenType::Identifier)->data;
-                $context->params->consume(TokenType::Colon);
+                $attribute = $context->params->consumeData(TokenType::Identifier);
+                $context->params->consumeRaw(TokenType::Colon);
                 $value = $context->params->expression();
                 $this->attributes[$attribute] = $value;
             }

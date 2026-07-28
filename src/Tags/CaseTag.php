@@ -123,7 +123,7 @@ class CaseTag extends TagBlock
 
         $condition = new Condition($this->left, '==', $bodySection->params->expression());
 
-        if ($bodySection->params->idOrFalse('or') || $bodySection->params->consumeOrFalse(TokenType::Comma)) {
+        if ($bodySection->params->idIf('or') || $bodySection->params->consumeIf(TokenType::Comma)) {
             $condition->or($this->recordWhenCondition($bodySection));
         }
 

@@ -31,7 +31,7 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
         try {
             $this->to = $context->params->simpleVariableName();
 
-            $context->params->consume(TokenType::Equals);
+            $context->params->consumeRaw(TokenType::Equals);
 
             $this->from = $context->params->variable();
 

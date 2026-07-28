@@ -52,15 +52,15 @@ class Parser
         $nodes = [];
 
         while (! $this->tokenStream->isEnd()) {
-            $token = $this->tokenStream->next();
-            $this->parseContext->lineNumber = $token->lineNumber;
+            $token = $this->tokenStream->nextRaw();
+            $this->parseContext->lineNumber = $token[2];
 
-            switch ($token->type) {
+            switch ($token[0]) {
                 case TokenType::TextData:
-                    $nodes[] = (new Text($token->data))->setLineNumber($this->parseContext->lineNumber);
+                    $nodes[] = (new Text($token[1]))->setLineNumber($this->parseContext->lineNumber);
                     break;
                 case TokenType::RawData:
-                    $nodes[] = (new Raw($token->data))->setLineNumber($this->parseContext->lineNumber);
+                    $nodes[] = (new Raw($token[1]))->setLineNumber($this->parseContext->lineNumber);
                     break;
                 case TokenType::VariableStart:
                     $nodes[] = $this->parseVariable();
@@ -68,7 +68,7 @@ class Parser
                     break;
                 case TokenType::BlockStart:
                     try {
-                        $tagName = $this->tokenStream->consume(TokenType::Identifier)->data;
+                        $tagName = $this->tokenStream->consumeData(TokenType::Identifier);
                         $this->tokenStream->jump(-1);
                     } catch (SyntaxException $e) {
                         throw new SyntaxException('A block must start with a tag name.');
@@ -81,7 +81,7 @@ class Parser
                     $nodes[] = $this->parseBlock();
                     break;
                 default:
-                    throw new SyntaxException('Unexpected token type: '.$token->type->toString());
+                    throw new SyntaxException('Unexpected token type: '.$token[0]->toString());
             }
         }
 
@@ -102,9 +102,9 @@ class Parser
      */
     protected function parseBlock(): Tag
     {
-        $currentToken = $this->tokenStream->current();
+        $currentLineNumber = $this->tokenStream->currentLineNumber();
 
-        $tagName = $this->tokenStream->consume(TokenType::Identifier)->data;
+        $tagName = $this->tokenStream->consumeData(TokenType::Identifier);
 
         /** @var class-string<Tag>|null $tagClass */
         $tagClass = $this->parseContext->environment->tagRegistry->get($tagName) ?? null;
@@ -115,7 +115,7 @@ class Parser
             throw SyntaxException::unknownTag($tagName, $blockTagName);
         }
 
-        $tag = (new $tagClass)->setLineNumber($currentToken?->lineNumber);
+        $tag = (new $tagClass)->setLineNumber($currentLineNumber);
 
         if ($tag instanceof TagBlock) {
             $this->blockScopes[] = $tag;
@@ -131,7 +131,7 @@ class Parser
                 $tag->parse($tagParseContext);
 
                 try {
-                    $currentTagName = $this->tokenStream->consume(TokenType::Identifier)->data;
+                    $currentTagName = $this->tokenStream->consumeData(TokenType::Identifier);
                 } catch (SyntaxException $e) {
                     throw SyntaxException::tagBlockNeverClosed($tag::tagName());
                 }

@@ -16,25 +16,25 @@ class VariableParser
      */
     public function parseVariable(): Variable
     {
-        $currentToken = $this->tokenStream->current();
+        $lineNumber = $this->tokenStream->currentLineNumber();
 
-        if ($currentToken === null) {
+        if ($lineNumber === null) {
             throw SyntaxException::unexpectedEndOfTemplate();
         }
 
         $expression = $this->tokenStream->expression();
 
         $filters = [];
-        while ($this->tokenStream->consumeOrFalse(TokenType::Pipe)) {
-            $filterName = $this->tokenStream->consume(TokenType::Identifier)->data;
-            $filterArgs = $this->tokenStream->consumeOrFalse(TokenType::Colon) ? $this->parseFilterArgs() : [];
+        while ($this->tokenStream->consumeIf(TokenType::Pipe)) {
+            $filterName = $this->tokenStream->consumeData(TokenType::Identifier);
+            $filterArgs = $this->tokenStream->consumeIf(TokenType::Colon) ? $this->parseFilterArgs() : [];
             $filters[] = $this->parseFilterExpressions($filterName, $filterArgs);
         }
 
         return (new Variable(
             name: $expression,
             filters: $filters,
-        ))->setLineNumber($currentToken->lineNumber);
+        ))->setLineNumber($lineNumber);
     }
 
     /**
@@ -44,7 +44,7 @@ class VariableParser
     {
         $filterArgs = [$this->tokenStream->argument()];
 
-        while ($this->tokenStream->consumeOrFalse(TokenType::Comma)) {
+        while ($this->tokenStream->consumeIf(TokenType::Comma)) {
             if ($this->tokenStream->isEnd() || $this->tokenStream->look(TokenType::VariableEnd)) {
                 throw SyntaxException::unexpectedEndOfTemplate();
             }

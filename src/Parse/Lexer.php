@@ -31,7 +31,10 @@ class Lexer
     protected LexerState $state;
 
     /**
-     * @var Token[]
+     * Raw token triples: [TokenType, data, lineNumber]. Kept as arrays rather
+     * than Token objects because object allocation dominated tokenize time.
+     *
+     * @var list<array{0: TokenType, 1: string, 2: int}>
      */
     protected array $tokens;
 
@@ -148,7 +151,7 @@ class Lexer
 
         $terminator = $this->terminatorLength(LexerOptions::TagVariableEnd->value);
         if ($terminator !== null) {
-            $this->tokens[] = new Token(TokenType::VariableEnd, '', $lineNumber);
+            $this->tokens[] = [TokenType::VariableEnd, '', $lineNumber];
             $this->skip($terminator);
             $this->popState();
 
@@ -180,7 +183,7 @@ class Lexer
                 throw SyntaxException::unexpectedEndOfTemplate();
             }
 
-            if ($tag === null && $lastToken->type === TokenType::Identifier) {
+            if ($tag === null && $lastToken[0] === TokenType::Identifier) {
                 $tag = $lastToken;
             }
         }
@@ -196,7 +199,7 @@ class Lexer
             throw SyntaxException::unexpectedEndOfTemplate();
         }
 
-        if ($lastToken->type === TokenType::BlockStart) {
+        if ($lastToken[0] === TokenType::BlockStart) {
             array_pop($this->tokens);
         } else {
             $this->pushToken(TokenType::BlockEnd);
@@ -204,8 +207,8 @@ class Lexer
 
         $this->popState();
 
-        if ($tag !== null && isset($this->rawBodyTags[$tag->data])) {
-            $this->lexRawBodyTag($tag->data);
+        if ($tag !== null && isset($this->rawBodyTags[$tag[1]])) {
+            $this->lexRawBodyTag($tag[1]);
         }
     }
 
@@ -366,7 +369,7 @@ class Lexer
             return;
         }
 
-        $this->tokens[] = new Token($type, $value, $this->lineNumber);
+        $this->tokens[] = [$type, $value, $this->lineNumber];
     }
 
     /**
@@ -379,7 +382,7 @@ class Lexer
     protected function pushPunctuation(TokenType $type): void
     {
         $cursor = $this->cursor;
-        $this->tokens[] = new Token($type, $this->source[$cursor], $this->lineNumber);
+        $this->tokens[] = [$type, $this->source[$cursor], $this->lineNumber];
 
         $cursor++;
         $this->cursor = $cursor;
@@ -595,7 +598,7 @@ class Lexer
         // Identifiers are the most common token and can never span a newline, so
         // advance directly rather than paying for pushToken() + skip() and the
         // newline scan skip() would run.
-        $this->tokens[] = new Token($type, $value, $this->lineNumber);
+        $this->tokens[] = [$type, $value, $this->lineNumber];
         $this->cursor = $offset;
         $this->current = $offset < $this->end ? $this->source[$offset] : null;
     }

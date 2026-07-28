@@ -30,10 +30,10 @@ class ArgumentParser
             $this->tokenStream->look(TokenType::Identifier)
             && $this->tokenStream->look(TokenType::Colon, 1)
         ) {
-            $identifier = $this->tokenStream->consume(TokenType::Identifier);
+            $identifier = $this->tokenStream->consumeData(TokenType::Identifier);
             $this->tokenStream->consume(TokenType::Colon);
 
-            return [$identifier->data => $this->tokenStream->expression()];
+            return [$identifier => $this->tokenStream->expression()];
         }
 
         return $this->tokenStream->expression();

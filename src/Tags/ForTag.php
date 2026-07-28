@@ -220,7 +220,7 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
             default => throw new SyntaxException('Invalid variable name'),
         };
 
-        if (! $context->params->idOrFalse('in')) {
+        if (! $context->params->idIf('in')) {
             throw new SyntaxException("For loops require an 'in' clause");
         }
 
@@ -231,10 +231,10 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
         };
 
         $this->name = sprintf('%s-%s', $this->variableName, $this->collection);
-        $this->reversed = $context->params->idOrFalse('reversed') !== false;
+        $this->reversed = $context->params->idIf('reversed');
 
         while ($context->params->look(TokenType::Comma) || $context->params->look(TokenType::Identifier)) {
-            $context->params->consumeOrFalse(TokenType::Comma);
+            $context->params->consumeIf(TokenType::Comma);
 
             $attribute = $context->params->idOrFalse('limit') ?: $context->params->idOrFalse('offset');
 
@@ -242,7 +242,7 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
                 throw new SyntaxException('Invalid attribute in for loop. Valid attributes are limit and offset');
             }
 
-            $context->params->consume(TokenType::Colon);
+            $context->params->consumeRaw(TokenType::Colon);
 
             $this->setAttribute($attribute->data, $context->params);
         }

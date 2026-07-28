@@ -54,18 +54,18 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
                     default => throw new SyntaxException('Template name must be a string'),
                 };
 
-                $context->params->consumeOrFalse(TokenType::Comma);
+                $context->params->consumeIf(TokenType::Comma);
 
-                if ($context->params->idOrFalse('for')) {
+                if ($context->params->idIf('for')) {
                     $this->isForLoop = true;
                     $this->variableNameExpression = $context->params->expression();
-                } elseif ($context->params->idOrFalse('with')) {
+                } elseif ($context->params->idIf('with')) {
                     $this->variableNameExpression = $context->params->expression();
                 }
 
-                $context->params->consumeOrFalse(TokenType::Comma);
+                $context->params->consumeIf(TokenType::Comma);
 
-                if ($context->params->idOrFalse('as')) {
+                if ($context->params->idIf('as')) {
                     $aliasName = $context->params->expression();
                     $this->aliasName = match (true) {
                         is_string($aliasName), $aliasName instanceof VariableLookup => (string) $aliasName,
@@ -76,14 +76,14 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
                 }
 
                 while (! $context->params->isEnd()) {
-                    $context->params->consumeOrFalse(TokenType::Comma);
+                    $context->params->consumeIf(TokenType::Comma);
 
                     $attributeName = $context->params->expression();
                     if (! (is_string($attributeName) || $attributeName instanceof VariableLookup)) {
                         throw new SyntaxException('Attribute name must be a valid variable name');
                     }
 
-                    $context->params->consume(TokenType::Colon);
+                    $context->params->consumeRaw(TokenType::Colon);
                     $attributeValue = $context->params->expression();
 
                     $this->attributes[(string) $attributeName] = $attributeValue;

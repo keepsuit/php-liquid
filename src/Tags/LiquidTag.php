@@ -45,7 +45,7 @@ class LiquidTag extends Tag
 
         $context->getParseContext()->lineNumber = $currentToken->lineNumber;
 
-        $tagName = $tokens->consume(TokenType::Identifier)->data;
+        $tagName = $tokens->consumeData(TokenType::Identifier);
 
         /** @var class-string<Tag>|null $tagClass */
         $tagClass = $context->getParseContext()->environment->tagRegistry->get($tagName) ?? null;

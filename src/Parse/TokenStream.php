@@ -7,8 +7,16 @@ use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\Variable;
 
 /**
+ * Tokens are stored as raw [TokenType, data, lineNumber] triples rather than
+ * Token objects: the lexer emits thousands per template and the allocation was
+ * measurable. Token instances are materialised on demand by current(), next(),
+ * consume() and toArray(); hot paths use the allocation-free accessors
+ * (consumeData(), currentType(), nextRaw(), consumeIf()).
+ *
  * @phpstan-import-type Argument from ArgumentParser
  * @phpstan-import-type Expression from ExpressionParser
+ *
+ * @phpstan-type RawToken array{0: TokenType, 1: string, 2: int}
  */
 class TokenStream
 {
@@ -21,7 +29,7 @@ class TokenStream
     protected VariableParser $variableParser;
 
     public function __construct(
-        /** @var Token[] */
+        /** @var list<RawToken> */
         protected array $tokens,
         protected ?string $source = null,
     ) {
@@ -48,19 +56,25 @@ class TokenStream
 
     public function look(TokenType $type, int $offset = 0): bool
     {
-        $token = $this->tokens[$this->cursor + $offset] ?? null;
-
-        if ($token === null) {
-            return false;
-        }
-
-        return $token->type === $type;
+        return ($this->tokens[$this->cursor + $offset][0] ?? null) === $type;
     }
 
     /**
      * @throws SyntaxException
      */
     public function next(): Token
+    {
+        return Token::fromRaw($this->nextRaw());
+    }
+
+    /**
+     * Allocation-free next(): returns the raw triple.
+     *
+     * @return RawToken
+     *
+     * @throws SyntaxException
+     */
+    public function nextRaw(): array
     {
         $token = $this->tokens[$this->cursor++] ?? null;
 
@@ -78,17 +92,55 @@ class TokenStream
      */
     public function consume(?TokenType $type = null): Token
     {
+        return Token::fromRaw($this->consumeRaw($type));
+    }
+
+    /**
+     * Allocation-free consume(): returns the raw triple.
+     *
+     * @return RawToken
+     *
+     * @throws SyntaxException
+     */
+    public function consumeRaw(?TokenType $type = null): array
+    {
         $token = $this->tokens[$this->cursor++] ?? null;
 
         if ($token === null) {
             throw SyntaxException::unexpectedEndOfTemplate();
         }
 
-        if ($type !== null && $token->type !== $type) {
-            throw SyntaxException::unexpectedTokenType($type, $token->type);
+        if ($type !== null && $token[0] !== $type) {
+            throw SyntaxException::unexpectedTokenType($type, $token[0]);
         }
 
         return $token;
+    }
+
+    /**
+     * Consume a token and return only its data. The common case in the parsers,
+     * and the reason none of them need a Token instance.
+     *
+     * @throws SyntaxException
+     */
+    public function consumeData(?TokenType $type = null): string
+    {
+        return $this->consumeRaw($type)[1];
+    }
+
+    /**
+     * Allocation-free consumeOrFalse() for callers that only need to know
+     * whether the token was there.
+     */
+    public function consumeIf(TokenType $type): bool
+    {
+        if (($this->tokens[$this->cursor][0] ?? null) !== $type) {
+            return false;
+        }
+
+        $this->cursor++;
+
+        return true;
     }
 
     public function consumeOrFalse(TokenType $type): Token|false
@@ -101,35 +153,71 @@ class TokenStream
      */
     public function id(string $identifier): Token
     {
-        $token = $this->consume(TokenType::Identifier);
+        $token = $this->consumeRaw(TokenType::Identifier);
 
-        if ($token->data !== $identifier) {
-            throw SyntaxException::unexpectedIdentifier($identifier, $token->data);
+        if ($token[1] !== $identifier) {
+            throw SyntaxException::unexpectedIdentifier($identifier, $token[1]);
         }
 
-        return $token;
+        return Token::fromRaw($token);
+    }
+
+    /**
+     * Allocation-free idOrFalse() for callers that only need a yes/no.
+     */
+    public function idIf(string $identifier): bool
+    {
+        $token = $this->tokens[$this->cursor] ?? null;
+
+        if ($token === null || $token[0] !== TokenType::Identifier || $token[1] !== $identifier) {
+            return false;
+        }
+
+        $this->cursor++;
+
+        return true;
     }
 
     public function idOrFalse(string $identifier): Token|false
     {
-        $token = $this->consumeOrFalse(TokenType::Identifier);
-
-        if ($token === false) {
+        if (($this->tokens[$this->cursor][0] ?? null) !== TokenType::Identifier) {
             return false;
         }
 
-        if ($token->data === $identifier) {
-            return $token;
+        $token = $this->tokens[$this->cursor];
+
+        if ($token[1] !== $identifier) {
+            return false;
         }
 
-        $this->jump(-1);
+        $this->cursor++;
 
-        return false;
+        return Token::fromRaw($token);
     }
 
     public function current(): ?Token
     {
+        $token = $this->tokens[$this->cursor] ?? null;
+
+        return $token === null ? null : Token::fromRaw($token);
+    }
+
+    /**
+     * @return RawToken|null
+     */
+    public function currentRaw(): ?array
+    {
         return $this->tokens[$this->cursor] ?? null;
+    }
+
+    public function currentType(): ?TokenType
+    {
+        return $this->tokens[$this->cursor][0] ?? null;
+    }
+
+    public function currentLineNumber(): ?int
+    {
+        return $this->tokens[$this->cursor][2] ?? null;
     }
 
     public function isEnd(): bool
@@ -152,7 +240,7 @@ class TokenStream
      */
     public function simpleVariableName(): string
     {
-        return $this->consume(TokenType::Identifier)->data;
+        return $this->consumeData(TokenType::Identifier);
     }
 
     /**
@@ -182,7 +270,18 @@ class TokenStream
         }
     }
 
+    /**
+     * @return list<Token>
+     */
     public function toArray(): array
+    {
+        return array_map(Token::fromRaw(...), $this->tokens);
+    }
+
+    /**
+     * @return list<RawToken>
+     */
+    public function toRawArray(): array
     {
         return $this->tokens;
     }
@@ -195,29 +294,28 @@ class TokenStream
     public function sliceUntil(Closure|TokenType $check): TokenStream
     {
         if ($check instanceof TokenType) {
-            $tokens = [];
+            $start = $this->cursor;
+            $cursor = $start;
+            $end = count($this->tokens);
 
-            while (! $this->isEnd()) {
-                $token = $this->consume();
-
-                if ($token->type === $check) {
-                    $this->jump(-1);
-                    break;
-                }
-
-                $tokens[] = $token;
+            while ($cursor < $end && $this->tokens[$cursor][0] !== $check) {
+                $cursor++;
             }
 
-            return new TokenStream($tokens);
+            $this->cursor = $cursor;
+
+            return new TokenStream(array_slice($this->tokens, $start, $cursor - $start));
         }
 
+        // Closure form receives a materialised Token; it is only used by tags
+        // such as {% liquid %}, so the allocation is not on a hot path.
         $tokens = [];
 
         while (! $this->isEnd()) {
-            $token = $this->consume();
+            $token = $this->tokens[$this->cursor++];
 
-            if ($check($token)) {
-                $this->jump(-1);
+            if ($check(Token::fromRaw($token))) {
+                $this->cursor--;
                 break;
             }
 

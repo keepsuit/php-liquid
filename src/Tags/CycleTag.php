@@ -40,7 +40,7 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
                     default => throw SyntaxException::unexpectedToken($currentToken),
                 };
 
-                $context->params->consume(TokenType::Colon);
+                $context->params->consumeRaw(TokenType::Colon);
             }
 
             do {
@@ -59,7 +59,7 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
                     is_string($variable), is_numeric($variable) => $variable,
                     default => throw SyntaxException::unexpectedToken($currentToken)
                 };
-            } while ($context->params->consumeOrFalse(TokenType::Comma));
+            } while ($context->params->consumeIf(TokenType::Comma));
 
             if ($this->name === null) {
                 $this->name = json_encode($this->variables, JSON_THROW_ON_ERROR);
