@@ -12,6 +12,8 @@ use Keepsuit\Liquid\Nodes\Variable;
  */
 class TokenStream
 {
+    protected int $start;
+
     protected int $cursor = 0;
 
     protected int $end;
@@ -26,8 +28,12 @@ class TokenStream
         /** @var Token[] */
         protected array $tokens,
         protected ?string $source = null,
+        int $start = 0,
+        ?int $end = null,
     ) {
-        $this->end = count($tokens);
+        $this->start = $start;
+        $this->cursor = $start;
+        $this->end = $end ?? count($tokens);
     }
 
     /**
@@ -39,7 +45,7 @@ class TokenStream
     {
         $newCursor = $this->cursor + $offset;
 
-        if ($newCursor < 0 || $newCursor > $this->end) {
+        if ($newCursor < $this->start || $newCursor > $this->end) {
             throw new SyntaxException("Invalid jump offset: $offset");
         }
 
@@ -48,7 +54,10 @@ class TokenStream
 
     public function look(TokenType $type, int $offset = 0): bool
     {
-        $token = $this->tokens[$this->cursor + $offset] ?? null;
+        $index = $this->cursor + $offset;
+        $token = $index >= $this->start && $index < $this->end
+            ? ($this->tokens[$index] ?? null)
+            : null;
 
         if ($token === null) {
             return false;
@@ -72,7 +81,10 @@ class TokenStream
      */
     public function consume(?TokenType $type = null): Token
     {
-        $token = $this->tokens[$this->cursor++] ?? null;
+        $token = $this->cursor < $this->end
+            ? ($this->tokens[$this->cursor] ?? null)
+            : null;
+        $this->cursor++;
 
         if ($token === null) {
             throw SyntaxException::unexpectedEndOfTemplate();
@@ -87,7 +99,7 @@ class TokenStream
 
     public function consumeOrFalse(TokenType $type): Token|false
     {
-        $token = $this->tokens[$this->cursor] ?? null;
+        $token = $this->cursor < $this->end ? ($this->tokens[$this->cursor] ?? null) : null;
 
         if ($token === null || $token->type !== $type) {
             return false;
@@ -114,7 +126,7 @@ class TokenStream
 
     public function idOrFalse(string $identifier): Token|false
     {
-        $token = $this->tokens[$this->cursor] ?? null;
+        $token = $this->cursor < $this->end ? ($this->tokens[$this->cursor] ?? null) : null;
 
         if ($token === null || $token->type !== TokenType::Identifier || $token->data !== $identifier) {
             return false;
@@ -149,12 +161,12 @@ class TokenStream
 
         $this->cursor = $cursor;
 
-        return new TokenStream(array_slice($tokens, $start, $cursor - $start));
+        return new TokenStream($tokens, $this->source, $start, $cursor);
     }
 
     public function current(): ?Token
     {
-        return $this->tokens[$this->cursor] ?? null;
+        return $this->cursor < $this->end ? ($this->tokens[$this->cursor] ?? null) : null;
     }
 
     public function isEnd(): bool
@@ -209,6 +221,6 @@ class TokenStream
 
     public function toArray(): array
     {
-        return $this->tokens;
+        return array_slice($this->tokens, $this->start, $this->end - $this->start);
     }
 }

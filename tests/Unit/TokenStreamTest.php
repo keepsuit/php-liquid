@@ -151,3 +151,41 @@ test('sliceUntil preserves the delimiter for token types and closures', function
         ->toBe(['value']);
     expect($tokenStream->current()?->type)->toBe(TokenType::VariableEnd);
 });
+
+test('sliceUntil keeps navigation within the slice bounds', function () {
+    $tokenStream = tokenize('{{ first second }}');
+    $tokenStream->consume(TokenType::VariableStart);
+
+    $slice = $tokenStream->sliceUntil(TokenType::VariableEnd);
+
+    expect($slice->toArray())->toHaveCount(2)
+        ->and($slice->current()?->data)->toBe('first');
+
+    $slice->jump(2);
+
+    expect($slice->current())->toBeNull()
+        ->and($slice->isEnd())->toBeTrue();
+    expect(fn () => $slice->consume())->toThrow(SyntaxException::class);
+    $slice->jump(-1);
+    expect($slice->isEnd())->toBeTrue();
+    expect(fn () => $slice->jump(1))->toThrow(SyntaxException::class);
+});
+
+test('nested slices preserve current and relative bounds', function () {
+    $tokenStream = tokenize('{{ first second }}');
+    $tokenStream->consume(TokenType::VariableStart);
+
+    $slice = $tokenStream->sliceUntil(TokenType::VariableEnd);
+    $slice->consume(TokenType::Identifier);
+    $nested = $slice->sliceUntil(TokenType::VariableEnd);
+
+    expect(array_map(fn (Token $token) => $token->data, $nested->toArray()))
+        ->toBe(['second'])
+        ->and($nested->current()?->data)->toBe('second');
+
+    $nested->consume(TokenType::Identifier);
+
+    expect($nested->isEnd())->toBeTrue()
+        ->and($tokenStream->current()?->type)->toBe(TokenType::VariableEnd);
+    expect(fn () => $nested->consume())->toThrow(SyntaxException::class);
+});
