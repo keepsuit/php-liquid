@@ -62,13 +62,7 @@ class TokenStream
      */
     public function next(): Token
     {
-        $token = $this->tokens[$this->cursor++] ?? null;
-
-        if ($token === null) {
-            throw SyntaxException::unexpectedEndOfTemplate();
-        }
-
-        return $token;
+        return $this->consume();
     }
 
     /**
@@ -195,20 +189,8 @@ class TokenStream
     public function sliceUntil(Closure|TokenType $check): TokenStream
     {
         if ($check instanceof TokenType) {
-            $tokens = [];
-
-            while (! $this->isEnd()) {
-                $token = $this->consume();
-
-                if ($token->type === $check) {
-                    $this->jump(-1);
-                    break;
-                }
-
-                $tokens[] = $token;
-            }
-
-            return new TokenStream($tokens);
+            $tokenType = $check;
+            $check = fn (Token $token) => $token->type === $tokenType;
         }
 
         $tokens = [];
