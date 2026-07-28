@@ -72,6 +72,8 @@ class Lexer
 
         $this->parseContext->lineNumber = 1;
 
+        // Each state advances the shared cursor and either remains in that state
+        // for the next token or returns to Data after consuming its terminator.
         while ($this->current !== null) {
             switch ($this->state) {
                 case LexerState::Data:
@@ -93,6 +95,7 @@ class Lexer
     {
         $offset = $this->cursor;
 
+        // A lone "{" is ordinary text; only "{{" and "{%" start Liquid markup.
         while (true) {
             $offset += strcspn($this->source, '{', $offset);
 
@@ -114,10 +117,14 @@ class Lexer
         $text = substr($this->source, $this->cursor, $offset - $this->cursor);
         $trim = ($this->source[$offset + 2] ?? null) === self::TRIM;
 
+        // An opening trim marker belongs to the delimiter and trims the text
+        // immediately before it.
         $this->pushToken(TokenType::TextData, $trim ? rtrim($text) : $text);
         $this->skip($offset - $this->cursor + 2 + ($trim ? 1 : 0));
 
         if ($next === '%') {
+            // Full comment blocks never expose their contents as tokens, so skip
+            // them directly instead of entering the normal Block state.
             $commentStartLength = $this->commentStartLength();
             if ($commentStartLength !== null) {
                 $this->skip($commentStartLength);
@@ -185,6 +192,8 @@ class Lexer
                 throw SyntaxException::unexpectedEndOfTemplate();
             }
 
+            // The first identifier names the tag and determines whether its body
+            // must later be treated as opaque raw data.
             if ($tag === null && $lastToken->type === TokenType::Identifier) {
                 $tag = $lastToken;
             }
@@ -302,6 +311,8 @@ class Lexer
             throw SyntaxException::tagBlockNeverClosed($tag);
         }
 
+        // Leave the closing tag at the cursor: the normal Data/Block flow still
+        // needs to emit its tokens for the parser.
         $rawBody = substr($this->source, $this->cursor, $endTag['start'] - $this->cursor);
         $this->skip($endTag['start'] - $this->cursor);
 
@@ -319,6 +330,7 @@ class Lexer
             throw SyntaxException::tagBlockNeverClosed('comment');
         }
 
+        // Comments emit no tokens, including for their closing tag.
         $this->skip($endTag['end'] - $this->cursor);
 
         if ($endTag['outerTrim']) {
@@ -330,6 +342,8 @@ class Lexer
     {
         $offset = $this->cursor;
 
+        // Inline comments stop at a block terminator or newline. Leave that
+        // boundary untouched so lexBlock() can resume normal tokenization.
         while (true) {
             $offset += strcspn($this->source, "\n%", $offset);
 
@@ -450,6 +464,8 @@ class Lexer
     {
         $offset = $this->cursor;
 
+        // Return both sides of the closing tag: raw bodies stop at `start`, while
+        // comments skip through `end`. The trim flags apply inside and outside it.
         while (true) {
             $offset += strcspn($this->source, '{', $offset);
 
