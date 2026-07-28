@@ -72,13 +72,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          PHPBENCH_FILTER=()
-          if [[ "${{ matrix.php }}" == "8.4" || "${{ matrix.php }}" == "8.5" ]]; then
-            PHPBENCH_FILTER+=(--filter='^(?!.*TemplateCacheBench::benchVarExporter$).*')
-          fi
-
           vendor/bin/phpbench run \
-            "${PHPBENCH_FILTER[@]}" \
             --progress=none \
             --warmup=1 \
             --report=aggregate \
@@ -89,13 +83,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          PHPBENCH_FILTER=()
-          if [[ "${{ matrix.php }}" == "8.4" || "${{ matrix.php }}" == "8.5" ]]; then
-            PHPBENCH_FILTER+=(--filter='^(?!.*TemplateCacheBench::benchVarExporter$).*')
-          fi
-
           vendor/bin/phpbench run \
-            "${PHPBENCH_FILTER[@]}" \
             --progress=none \
             --warmup=1 \
             --report=aggregate \
