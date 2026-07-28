@@ -80,6 +80,7 @@ jobs:
           vendor/bin/phpbench run \
             "${PHPBENCH_FILTER[@]}" \
             --progress=none \
+            --warmup=1 \
             --report=aggregate \
             --output=json > "$WORKSPACE/pr.json"
         working-directory: ${{ env.PR_DIR }}
@@ -96,6 +97,7 @@ jobs:
           vendor/bin/phpbench run \
             "${PHPBENCH_FILTER[@]}" \
             --progress=none \
+            --warmup=1 \
             --report=aggregate \
             --output=json > "$WORKSPACE/base.json"
         working-directory: ${{ env.BASE_DIR }}
