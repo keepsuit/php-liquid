@@ -126,14 +126,4 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 
         return $context->options->strictVariables ? new UndefinedVariable($this->toString()) : null;
     }
-
-    protected function applyFilter(RenderContext $context, mixed $object, string $filter): mixed
-    {
-        return match ($filter) {
-            'size' => $context->applyFilter('size', $object),
-            'first' => $context->applyFilter('first', $object),
-            'last' => $context->applyFilter('last', $object),
-            default => throw new \RuntimeException(sprintf('Unknown command: %s.', $filter)),
-        };
-    }
 }

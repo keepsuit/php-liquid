@@ -119,19 +119,15 @@ class TokenStream
 
     public function idOrFalse(string $identifier): Token|false
     {
-        $token = $this->consumeOrFalse(TokenType::Identifier);
+        $token = $this->tokens[$this->cursor] ?? null;
 
-        if ($token === false) {
+        if ($token === null || $token->type !== TokenType::Identifier || $token->data !== $identifier) {
             return false;
         }
 
-        if ($token->data === $identifier) {
-            return $token;
-        }
+        $this->cursor++;
 
-        $this->jump(-1);
-
-        return false;
+        return $token;
     }
 
     public function current(): ?Token
