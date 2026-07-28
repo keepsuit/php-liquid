@@ -17,10 +17,7 @@ test('benchmark corpus token streams stay unchanged', function () {
         );
     }
 
-    expect($actual)->toBe(lexerFixtureSnapshot(
-        __DIR__.'/../Fixtures/lexer-token-streams.php',
-        $actual,
-    ));
+    expect($actual)->toMatchSnapshot();
 });
 
 test('lexer-related syntax errors keep their type, message, and line number', function () {
@@ -40,10 +37,7 @@ test('lexer-related syntax errors keep their type, message, and line number', fu
         }
     }
 
-    expect($actual)->toBe(lexerFixtureSnapshot(
-        __DIR__.'/../Fixtures/lexer-errors.php',
-        $actual,
-    ));
+    expect($actual)->toMatchSnapshot();
 });
 
 function lexerFixtureEnvironment(): Environment
@@ -119,21 +113,4 @@ function lexerFixtureSerializeTokens(array $tokens): array
         fn (Token $token) => [$token->type->name, $token->data, $token->lineNumber],
         $tokens,
     );
-}
-
-function lexerFixtureSnapshot(string $path, array $actual): array
-{
-    if (! file_exists($path)) {
-        if (! is_dir(dirname($path))) {
-            mkdir(dirname($path), recursive: true);
-        }
-
-        file_put_contents($path, "<?php\n\nreturn ".var_export($actual, true).";\n");
-    }
-
-    $expected = require $path;
-
-    assert(is_array($expected));
-
-    return $expected;
 }
