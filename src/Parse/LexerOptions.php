@@ -33,27 +33,4 @@ enum LexerOptions: string
 
         return $regex;
     }
-
-    public static function specialCharacters(): array
-    {
-        static $specialCharacters;
-
-        if ($specialCharacters === null) {
-            $specialCharacters = [
-                '|' => TokenType::Pipe,
-                '.' => TokenType::Dot,
-                ':' => TokenType::Colon,
-                ',' => TokenType::Comma,
-                '[' => TokenType::OpenSquare,
-                ']' => TokenType::CloseSquare,
-                '(' => TokenType::OpenRound,
-                ')' => TokenType::CloseRound,
-                '?' => TokenType::QuestionMark,
-                '-' => TokenType::Dash,
-                '=' => TokenType::Equals,
-            ];
-        }
-
-        return $specialCharacters;
-    }
 }
