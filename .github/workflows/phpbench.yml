@@ -131,7 +131,6 @@ jobs:
         with:
           script: |
             const marker = `<!-- phpbench-pr-benchmark-php-${process.env.PHP_VERSION} -->`;
-            const legacyMarker = '<!-- phpbench-pr-benchmark -->';
             const body = `${marker}
             ## PHPBench comparison (PHP ${process.env.PHP_VERSION})
 
@@ -148,11 +147,7 @@ jobs:
 
             const existing = comments.find((comment) =>
               comment.user?.type === 'Bot' && comment.body?.includes(marker),
-            ) ?? (process.env.PHP_VERSION === '8.3'
-              ? comments.find((comment) =>
-                comment.user?.type === 'Bot' && comment.body?.includes(legacyMarker),
-              )
-              : undefined);
+            );
 
             if (existing) {
               await github.rest.issues.updateComment({
