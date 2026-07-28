@@ -2,7 +2,6 @@
 
 namespace Keepsuit\Liquid\Exceptions;
 
-use Keepsuit\Liquid\Parse\LexerOptions;
 use Keepsuit\Liquid\Parse\Token;
 use Keepsuit\Liquid\Parse\TokenType;
 
@@ -12,7 +11,7 @@ class SyntaxException extends LiquidException
 
     public static function missingTagTerminator(): self
     {
-        return new SyntaxException(sprintf('Tag was not properly terminated with: %s', LexerOptions::TagBlockEnd->value));
+        return new SyntaxException('Tag was not properly terminated with: %}');
     }
 
     public static function tagBlockNeverClosed(?string $tagName): SyntaxException
@@ -22,7 +21,7 @@ class SyntaxException extends LiquidException
 
     public static function missingVariableTerminator(): SyntaxException
     {
-        return new SyntaxException(sprintf('Variable was not properly terminated with: %s', LexerOptions::TagVariableEnd->value));
+        return new SyntaxException('Variable was not properly terminated with: }}');
     }
 
     public static function unknownTag(string $tagName, ?string $blockTagName = null): SyntaxException

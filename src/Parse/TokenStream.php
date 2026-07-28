@@ -190,7 +190,7 @@ class TokenStream
     {
         if ($check instanceof TokenType) {
             $tokenType = $check;
-            $check = fn (Token $token) => $token->type === $tokenType;
+            $check = static fn (Token $token) => $token->type === $tokenType;
         }
 
         $tokens = [];

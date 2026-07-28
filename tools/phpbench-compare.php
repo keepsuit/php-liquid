@@ -21,12 +21,20 @@ if ($sharedNames === []) {
     exit(2);
 }
 
+// Runner jitter is routinely ±2%, so a single median over every benchmark is
+// meaningless when the set is bimodal (big winners + flat benchmarks): the middle
+// element lands on whichever side happens to hold more rows. Bucket instead, and
+// report a median per bucket.
+const NOISE_THRESHOLD_PERCENT = 2.0;
+const NOISE_THRESHOLD_LABEL = '2';
+
 $rows = [];
-$improved = 0;
-$regressions = 0;
 $worstRegression = null;
-$percentChanges = [];
-$memoryPercentChanges = [];
+$improvedChanges = [];
+$neutralChanges = [];
+$regressedChanges = [];
+$totalBaseMemory = 0.0;
+$totalPrMemory = 0.0;
 
 foreach ($sharedNames as $name) {
     $base = $baseBenchmarks[$name];
@@ -39,22 +47,24 @@ foreach ($sharedNames as $name) {
         $baseOpsPerSecond = 1_000_000 / $base['time'];
         $prOpsPerSecond = 1_000_000 / $pr['time'];
         $deltaPercent = (($prOpsPerSecond - $baseOpsPerSecond) / $baseOpsPerSecond) * 100;
-        $percentChanges[] = $deltaPercent;
 
-        if ($deltaPercent > 0) {
-            $improved++;
-        } elseif ($deltaPercent < 0) {
-            $regressions++;
+        if ($deltaPercent > NOISE_THRESHOLD_PERCENT) {
+            $improvedChanges[] = $deltaPercent;
+        } elseif ($deltaPercent < -NOISE_THRESHOLD_PERCENT) {
+            $regressedChanges[] = $deltaPercent;
             if ($worstRegression === null || $deltaPercent < $worstRegression['delta']) {
                 $worstRegression = ['name' => $name, 'delta' => $deltaPercent];
             }
+        } else {
+            $neutralChanges[] = $deltaPercent;
         }
     }
 
     $memoryDeltaPercent = null;
     if (abs($base['memory']) > PHP_FLOAT_EPSILON) {
         $memoryDeltaPercent = (($pr['memory'] - $base['memory']) / $base['memory']) * 100;
-        $memoryPercentChanges[] = $memoryDeltaPercent;
+        $totalBaseMemory += $base['memory'];
+        $totalPrMemory += $pr['memory'];
     }
 
     $rows[] = [
@@ -71,11 +81,11 @@ foreach ($sharedNames as $name) {
     ];
 }
 
-$medianChange = median($percentChanges);
-$memoryChangeCount = count($memoryPercentChanges);
-$averageMemoryChange = $memoryChangeCount === 0
-    ? null
-    : array_sum($memoryPercentChanges) / $memoryChangeCount;
+// Weighted by actual bytes, so benchmarks that barely allocate cannot outvote the
+// ones that allocate megabytes (a plain mean of per-benchmark percentages did).
+$totalMemoryChange = abs($totalBaseMemory) > PHP_FLOAT_EPSILON
+    ? (($totalPrMemory - $totalBaseMemory) / $totalBaseMemory) * 100
+    : null;
 
 $lines = [];
 $context = benchmarkContext($baseBenchmarks[$sharedNames[0]]);
@@ -101,16 +111,30 @@ foreach ($rows as $row) {
 }
 
 $lines[] = '';
-$lines[] = sprintf('- Improved benchmarks: **%d**', $improved);
-$lines[] = sprintf('- Regressions: **%d**', $regressions);
+$lines[] = sprintf(
+    '- Improved (> +%s%%): **%d**%s',
+    NOISE_THRESHOLD_LABEL,
+    count($improvedChanges),
+    $improvedChanges === [] ? '' : sprintf(' (median %s)', formatPercent(median($improvedChanges)))
+);
+$lines[] = sprintf(
+    '- Neutral (within ±%s%%): **%d**',
+    NOISE_THRESHOLD_LABEL,
+    count($neutralChanges)
+);
+$lines[] = sprintf(
+    '- Regressed (< -%s%%): **%d**%s',
+    NOISE_THRESHOLD_LABEL,
+    count($regressedChanges),
+    $regressedChanges === [] ? '' : sprintf(' (median %s)', formatPercent(median($regressedChanges)))
+);
 $lines[] = sprintf(
     '- Worst throughput regression: **%s**',
     $worstRegression === null
         ? 'n/a'
         : sprintf('%s (%s)', $worstRegression['name'], formatPercent($worstRegression['delta']))
 );
-$lines[] = sprintf('- Median throughput change: **%s**', formatPercent($medianChange));
-$lines[] = sprintf('- Average memory change: **%s**', formatPercent($averageMemoryChange));
+$lines[] = sprintf('- Total memory change: **%s**', formatPercent($totalMemoryChange));
 
 $missingInPr = array_values(array_diff(array_keys($baseBenchmarks), array_keys($prBenchmarks)));
 $missingInBase = array_values(array_diff(array_keys($prBenchmarks), array_keys($baseBenchmarks)));

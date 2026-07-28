@@ -53,3 +53,7 @@ test('inline comment can be written on multiple lines inside liquid tag', functi
 test('inline comment does not support nested tags', function () {
     assertTemplateResult(' -%}', "{%- # {% echo 'hello world' %} -%}");
 });
+
+test('inline comment keeps trim markers working after trailing whitespace', function () {
+    assertTemplateResult('after', "{%- # this is an inline comment   -%}\nafter");
+});

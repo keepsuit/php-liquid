@@ -6,7 +6,6 @@ use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parse\LexerOptions;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\MissingValue;
 use Keepsuit\Liquid\Support\Str;
@@ -15,6 +14,8 @@ use Keepsuit\Liquid\Support\UndefinedVariable;
 class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 {
     const FILTER_METHODS = ['size', 'first', 'last'];
+
+    private const LOOKUP_REGEX = '{\.([\w\-]+)|\["([\w\-]+)"\]|\[\'([\w\-]+)\'\]|\[(\d+)\]}';
 
     /**
      * @var int[]
@@ -45,7 +46,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
             return new VariableLookup($variable);
         }
 
-        $count = preg_match_all(LexerOptions::variableLookupRegex(), $lookupsString, $matches);
+        $count = preg_match_all(self::LOOKUP_REGEX, $lookupsString, $matches);
 
         if ($count === 0) {
             throw new SyntaxException('Invalid variable lookup: '.$lookupsString);

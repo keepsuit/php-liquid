@@ -60,7 +60,7 @@ class LiquidTag extends Tag
             $currentTagName = $tag::tagName();
 
             do {
-                $params = $tokens->sliceUntil(fn (Token $token) => $token->lineNumber > $currentToken->lineNumber);
+                $params = $tokens->sliceUntil(static fn (Token $token) => $token->lineNumber > $currentToken->lineNumber);
 
                 $body = new BodyNode;
 
@@ -88,7 +88,7 @@ class LiquidTag extends Tag
             return $tag;
         }
 
-        $params = $tokens->sliceUntil(fn (Token $token) => $token->lineNumber > $currentToken->lineNumber);
+        $params = $tokens->sliceUntil(static fn (Token $token) => $token->lineNumber > $currentToken->lineNumber);
 
         $tagParseContext = (new TagParseContext($tagName, $params))
             ->setParseContext($context->getParseContext());
