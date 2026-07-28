@@ -68,6 +68,33 @@ test('lexer preserves tricky syntax errors', function (string $source, string $m
     'unterminated strings still fail on the opening quote' => ['{{ "abc }}', 'Unexpected character "'],
 ]);
 
+test('VariableEnd reports the line the trailing whitespace starts on, not the line of }}', function () {
+    // The lexer skips whitespace before probing for the terminator, so it has to
+    // capture the line number up front to keep this numbering. Guard it here: the
+    // quirk is invisible in single-line templates and easy to "fix" by accident.
+    $tokens = tokenize("{{\n  a.b\n  |\n  upcase\n}}")->toArray();
+    $variableEnd = $tokens[count($tokens) - 1];
+
+    expect($variableEnd->type->name)->toBe('VariableEnd')
+        ->and($variableEnd->lineNumber)->toBe(4);
+});
+
+test('block and variable tokens keep their line numbers across newlines', function () {
+    $tokens = tokenize("a\n{%\n  assign\n  x\n  =\n  1\n%}\nb")->toArray();
+
+    expect(array_map(fn (Token $token) => [$token->type->name, $token->lineNumber], $tokens))
+        ->toBe([
+            ['TextData', 1],
+            ['BlockStart', 2],
+            ['Identifier', 3],
+            ['Identifier', 4],
+            ['Equals', 5],
+            ['Number', 6],
+            ['BlockEnd', 7],
+            ['TextData', 7],
+        ]);
+});
+
 function lexerQuirkSerializeTokens(string $source): array
 {
     return array_map(

@@ -3,7 +3,6 @@
 namespace Keepsuit\Liquid\Parse;
 
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\TagBlock;
 use RuntimeException;
 
 class Lexer
@@ -37,9 +36,14 @@ class Lexer
     protected array $tokens;
 
     /**
-     * @var string[]
+     * @var array<string, true>
      */
     protected array $rawBodyTags;
+
+    /**
+     * Set by terminatorLength() when it matches; read by the caller that matched.
+     */
+    protected bool $terminatorTrim = false;
 
     public function __construct(
         protected ParseContext $parseContext,
@@ -59,13 +63,7 @@ class Lexer
         $this->state = LexerState::Data;
         $this->tokens = [];
 
-        $this->rawBodyTags = array_keys(array_filter($this->parseContext->environment->tagRegistry->all(), function ($tag) {
-            if (! is_subclass_of($tag, TagBlock::class)) {
-                return false;
-            }
-
-            return $tag::hasRawBody();
-        }));
+        $this->rawBodyTags = $this->parseContext->environment->tagRegistry->rawBodyTags();
 
         $this->parseContext->lineNumber = 1;
 
@@ -100,7 +98,7 @@ class Lexer
                 return;
             }
 
-            $next = $this->charAt($offset + 1);
+            $next = $this->source[$offset + 1] ?? null;
             if ($next === '{' || $next === '%') {
                 break;
             }
@@ -109,7 +107,7 @@ class Lexer
         }
 
         $text = substr($this->source, $this->cursor, $offset - $this->cursor);
-        $trim = $this->charAt($offset + 2) === LexerOptions::WhitespaceTrim->value;
+        $trim = ($this->source[$offset + 2] ?? null) === LexerOptions::WhitespaceTrim->value;
 
         $this->pushToken(TokenType::TextData, $trim ? rtrim($text) : $text);
         $this->skip($offset - $this->cursor + 2 + ($trim ? 1 : 0));
@@ -140,13 +138,21 @@ class Lexer
      */
     protected function lexVariable(): void
     {
+        // VariableEnd was historically pushed before the trailing whitespace was
+        // consumed, so for a multi-line "{{ x \n }}" it reports the line the
+        // whitespace starts on rather than the line of "}}". Whitespace is now
+        // skipped up front, so capture the line first to keep that numbering.
+        $lineNumber = $this->lineNumber;
+
+        $this->skipWhitespace();
+
         $terminator = $this->terminatorLength(LexerOptions::TagVariableEnd->value);
         if ($terminator !== null) {
-            $this->pushToken(TokenType::VariableEnd);
-            $this->skip($terminator['length']);
+            $this->tokens[] = new Token(TokenType::VariableEnd, '', $lineNumber);
+            $this->skip($terminator);
             $this->popState();
 
-            if ($terminator['trim']) {
+            if ($this->terminatorTrim) {
                 $this->trimWhitespaces();
             }
 
@@ -163,8 +169,11 @@ class Lexer
     {
         $tag = null;
 
+        $this->skipWhitespace();
+
         while (($terminator = $this->terminatorLength(LexerOptions::TagBlockEnd->value)) === null) {
             $this->lexExpression();
+            $this->skipWhitespace();
 
             $lastToken = $this->tokens[count($this->tokens) - 1] ?? null;
             if ($lastToken === null) {
@@ -176,9 +185,9 @@ class Lexer
             }
         }
 
-        $this->skip($terminator['length']);
+        $this->skip($terminator);
 
-        if ($terminator['trim']) {
+        if ($this->terminatorTrim) {
             $this->trimWhitespaces();
         }
 
@@ -195,19 +204,22 @@ class Lexer
 
         $this->popState();
 
-        if ($tag !== null && in_array($tag->data, $this->rawBodyTags, true)) {
+        if ($tag !== null && isset($this->rawBodyTags[$tag->data])) {
             $this->lexRawBodyTag($tag->data);
         }
     }
 
     /**
+     * Callers (lexVariable/lexBlock) skip whitespace before probing for the
+     * terminator, so the cursor is already on a non-whitespace character here.
+     *
      * @throws SyntaxException
      */
     protected function lexExpression(): void
     {
-        $this->skipWhitespace();
-
-        $this->ensureStreamNotEnded();
+        if ($this->current === null) {
+            $this->throwUnexpectedEnd();
+        }
 
         if ($this->current === LexerOptions::InlineComment->value) {
             $this->lexInlineComment();
@@ -225,54 +237,57 @@ class Lexer
             '_' => $this->lexIdentifier(),
             '-' => $this->isDigit($this->seek(1))
                 ? $this->lexNumber()
-                : $this->pushToken(TokenType::Dash, $this->consume()),
+                : $this->pushPunctuation(TokenType::Dash),
             '=' => $this->comesNext('==')
                 ? $this->pushToken(TokenType::Comparison, $this->consume(2))
-                : $this->pushToken(TokenType::Equals, $this->consume()),
+                : $this->pushPunctuation(TokenType::Equals),
             '!' => $this->comesNext('!=')
                 ? $this->pushToken(TokenType::Comparison, $this->consume(2))
                 : throw SyntaxException::unexpectedCharacter('!'),
             '<' => $this->comesNext('<>') || $this->comesNext('<=')
                 ? $this->pushToken(TokenType::Comparison, $this->consume(2))
-                : $this->pushToken(TokenType::Comparison, $this->consume()),
+                : $this->pushPunctuation(TokenType::Comparison),
             '>' => $this->comesNext('>=')
                 ? $this->pushToken(TokenType::Comparison, $this->consume(2))
-                : $this->pushToken(TokenType::Comparison, $this->consume()),
+                : $this->pushPunctuation(TokenType::Comparison),
             '.' => $this->comesNext('..')
                 ? $this->pushToken(TokenType::DotDot, $this->consume(2))
-                : $this->pushToken(TokenType::Dot, $this->consume()),
-            '|' => $this->pushToken(TokenType::Pipe, $this->consume()),
-            ':' => $this->pushToken(TokenType::Colon, $this->consume()),
-            ',' => $this->pushToken(TokenType::Comma, $this->consume()),
-            '[' => $this->pushToken(TokenType::OpenSquare, $this->consume()),
-            ']' => $this->pushToken(TokenType::CloseSquare, $this->consume()),
-            '(' => $this->pushToken(TokenType::OpenRound, $this->consume()),
-            ')' => $this->pushToken(TokenType::CloseRound, $this->consume()),
-            '?' => $this->pushToken(TokenType::QuestionMark, $this->consume()),
+                : $this->pushPunctuation(TokenType::Dot),
+            '|' => $this->pushPunctuation(TokenType::Pipe),
+            ':' => $this->pushPunctuation(TokenType::Colon),
+            ',' => $this->pushPunctuation(TokenType::Comma),
+            '[' => $this->pushPunctuation(TokenType::OpenSquare),
+            ']' => $this->pushPunctuation(TokenType::CloseSquare),
+            '(' => $this->pushPunctuation(TokenType::OpenRound),
+            ')' => $this->pushPunctuation(TokenType::CloseRound),
+            '?' => $this->pushPunctuation(TokenType::QuestionMark),
             default => throw SyntaxException::unexpectedCharacter($this->current ?? ''),
         };
 
-        $this->ensureStreamNotEnded();
+        if ($this->current === null) {
+            $this->throwUnexpectedEnd();
+        }
     }
 
     /**
+     * Callers check $current themselves before calling: this runs twice per
+     * expression token, and the check is a property compare while the call is not.
+     *
      * @throws SyntaxException
      */
-    protected function ensureStreamNotEnded(): void
+    protected function throwUnexpectedEnd(): never
     {
-        if ($this->current === null) {
-            $exception = match ($this->state) {
-                LexerState::Variable => SyntaxException::missingVariableTerminator(),
-                LexerState::Block => SyntaxException::missingTagTerminator(),
-                default => SyntaxException::unexpectedEndOfTemplate(),
-            };
+        $exception = match ($this->state) {
+            LexerState::Variable => SyntaxException::missingVariableTerminator(),
+            LexerState::Block => SyntaxException::missingTagTerminator(),
+            default => SyntaxException::unexpectedEndOfTemplate(),
+        };
 
-            if ($this->state !== LexerState::Data) {
-                $exception->lineNumber = $this->currentVarBlockLine;
-            }
-
-            throw $exception;
+        if ($this->state !== LexerState::Data) {
+            $exception->lineNumber = $this->currentVarBlockLine;
         }
+
+        throw $exception;
     }
 
     protected function lexRawBodyTag(string $tag): void
@@ -354,6 +369,23 @@ class Lexer
         $this->tokens[] = new Token($type, $value, $this->lineNumber);
     }
 
+    /**
+     * Emit a single-character punctuation token and advance one byte.
+     *
+     * Punctuation is never a newline and never needs a substring copy, so this
+     * skips the consume() + skip() pair (and their line bookkeeping) that the
+     * generic path would run. Roughly one in six tokens takes this path.
+     */
+    protected function pushPunctuation(TokenType $type): void
+    {
+        $cursor = $this->cursor;
+        $this->tokens[] = new Token($type, $this->source[$cursor], $this->lineNumber);
+
+        $cursor++;
+        $this->cursor = $cursor;
+        $this->current = $cursor < $this->end ? $this->source[$cursor] : null;
+    }
+
     protected function comesNext(string $needle, ?int $at = null): bool
     {
         $at ??= $this->cursor;
@@ -401,7 +433,13 @@ class Lexer
 
     protected function skipWhitespace(): void
     {
-        $this->skip(strspn($this->source, self::WHITESPACE, $this->cursor));
+        $length = strspn($this->source, self::WHITESPACE, $this->cursor);
+
+        // Probed after every expression token, and most of the time there is
+        // nothing to skip ("a.b", "x|filter"), so bail before calling skip().
+        if ($length !== 0) {
+            $this->skip($length);
+        }
     }
 
     protected function pushState(LexerState $state): void
@@ -509,12 +547,15 @@ class Lexer
     }
 
     /**
-     * @return array{length:int, trim:bool}|null
+     * Returns the length to skip, or null when the terminator is not next.
+     * Probed once per expression token, so it avoids allocating a result array
+     * (the trim flag goes to $terminatorTrim) and assumes the caller already
+     * skipped whitespace rather than re-scanning it here.
      */
-    protected function terminatorLength(string $terminator): ?array
+    protected function terminatorLength(string $terminator): ?int
     {
-        $offset = $this->cursor + strspn($this->source, self::WHITESPACE, $this->cursor);
         $source = $this->source;
+        $offset = $this->cursor;
 
         $trim = ($source[$offset] ?? null) === LexerOptions::WhitespaceTrim->value;
         $at = $trim ? $offset + 1 : $offset;
@@ -523,10 +564,9 @@ class Lexer
             return null;
         }
 
-        return [
-            'length' => $at + 2 - $this->cursor,
-            'trim' => $trim,
-        ];
+        $this->terminatorTrim = $trim;
+
+        return $at + 2 - $this->cursor;
     }
 
     protected function lexIdentifier(): void
@@ -543,17 +583,21 @@ class Lexer
             $offset += 1 + strspn($this->source, self::WORD, $offset + 1);
         }
 
-        if ($this->charAt($offset) === '?') {
+        if (($this->source[$offset] ?? null) === '?') {
             $offset++;
         }
 
         $value = substr($this->source, $start, $offset - $start);
-        $type = $value === 'contains' && $this->isWhitespace($this->charAt($offset))
+        $type = $value === 'contains' && $this->isWhitespace($this->source[$offset] ?? null)
             ? TokenType::Comparison
             : TokenType::Identifier;
 
-        $this->pushToken($type, $value);
-        $this->skip($offset - $start);
+        // Identifiers are the most common token and can never span a newline, so
+        // advance directly rather than paying for pushToken() + skip() and the
+        // newline scan skip() would run.
+        $this->tokens[] = new Token($type, $value, $this->lineNumber);
+        $this->cursor = $offset;
+        $this->current = $offset < $this->end ? $this->source[$offset] : null;
     }
 
     protected function lexString(): void
