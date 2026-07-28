@@ -102,11 +102,11 @@ if ($missingInPr !== [] || $missingInBase !== []) {
     $lines[] = '';
     if ($missingInPr !== []) {
         sort($missingInPr);
-        $lines[] = '- Missing in PR result: `' . implode('`, `', $missingInPr) . '`';
+        $lines[] = '- Missing in PR result: `'.implode('`, `', $missingInPr).'`';
     }
     if ($missingInBase !== []) {
         sort($missingInBase);
-        $lines[] = '- Missing in base result: `' . implode('`, `', $missingInBase) . '`';
+        $lines[] = '- Missing in base result: `'.implode('`, `', $missingInBase).'`';
     }
 }
 
@@ -125,11 +125,11 @@ if ($threshold !== false && $threshold !== '') {
     }
 
     $lines[] = '';
-    $lines[] = sprintf('- Regression threshold (`PHPBENCH_MAX_REG`): **%s**', number_format($thresholdValue, 2) . '%');
+    $lines[] = sprintf('- Regression threshold (`PHPBENCH_MAX_REG`): **%s**', number_format($thresholdValue, 2).'%');
     $lines[] = sprintf('- Threshold status: **%s**', $thresholdExceeded ? 'FAILED' : 'PASSED');
 }
 
-$markdown = implode("\n", $lines) . "\n";
+$markdown = implode("\n", $lines)."\n";
 echo $markdown;
 
 if ($outputPath !== null) {
@@ -140,7 +140,7 @@ exit($thresholdExceeded ? 1 : 0);
 
 function loadJson(string $path): array
 {
-    if (!is_file($path)) {
+    if (! is_file($path)) {
         fwrite(STDERR, "File not found: {$path}\n");
         exit(2);
     }
@@ -158,7 +158,7 @@ function loadJson(string $path): array
         exit(2);
     }
 
-    if (!is_array($decoded)) {
+    if (! is_array($decoded)) {
         fwrite(STDERR, "Unexpected JSON structure in {$path}\n");
         exit(2);
     }
@@ -173,15 +173,16 @@ function extractBenchmarks(array $root): array
 {
     $result = [];
     walkNode($root, $result);
+
     return $result;
 }
 
 /**
- * @param array<string, array{mean: float, memory: float}> $result
+ * @param  array<string, array{mean: float, memory: float}>  $result
  */
 function walkNode(mixed $node, array &$result): void
 {
-    if (!is_array($node)) {
+    if (! is_array($node)) {
         return;
     }
 
@@ -220,7 +221,7 @@ function extractName(array $node): ?string
     }
 
     if (isset($node['class'], $node['subject']) && is_string($node['class']) && is_string($node['subject'])) {
-        $candidates[] = $node['class'] . '::' . $node['subject'];
+        $candidates[] = $node['class'].'::'.$node['subject'];
     }
 
     foreach ($candidates as $candidate) {
@@ -236,7 +237,7 @@ function extractName(array $node): ?string
 function extractMetric(array $node, array $keys): ?float
 {
     foreach ($keys as $key) {
-        if (!array_key_exists($key, $node)) {
+        if (! array_key_exists($key, $node)) {
             continue;
         }
 
@@ -255,7 +256,7 @@ function extractMetric(array $node, array $keys): ?float
     }
 
     foreach ($node as $value) {
-        if (!is_array($value)) {
+        if (! is_array($value)) {
             continue;
         }
 
@@ -271,14 +272,14 @@ function extractMetric(array $node, array $keys): ?float
 function formatDuration(float $microseconds): string
 {
     if ($microseconds >= 1_000_000) {
-        return number_format($microseconds / 1_000_000, 2) . ' s';
+        return number_format($microseconds / 1_000_000, 2).' s';
     }
 
     if ($microseconds >= 1_000) {
-        return number_format($microseconds / 1_000, 2) . ' ms';
+        return number_format($microseconds / 1_000, 2).' ms';
     }
 
-    return number_format($microseconds, 2) . ' μs';
+    return number_format($microseconds, 2).' μs';
 }
 
 function formatPercent(?float $value): string
