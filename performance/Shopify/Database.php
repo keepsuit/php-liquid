@@ -99,6 +99,27 @@ class Database
             'items' => $lineItems,
         ];
 
-        return static::$tables = $tables;
+        return static::$tables = array_map(
+            static::toLiquidValue(...),
+            $tables,
+        );
+    }
+
+    protected static function toLiquidValue(mixed $value): mixed
+    {
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        $values = array_map(
+            static::toLiquidValue(...),
+            $value,
+        );
+
+        if (array_is_list($value)) {
+            return $values;
+        }
+
+        return new DatabaseDrop($values);
     }
 }

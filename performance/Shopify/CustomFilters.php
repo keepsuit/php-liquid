@@ -9,6 +9,10 @@ class CustomFilters extends FiltersProvider
 {
     public function json(mixed $value): string
     {
+        if ($value instanceof DatabaseDrop) {
+            $value = $value->toArray();
+        }
+
         if (is_array($value) && array_key_exists('collections', $value)) {
             $value = [...$value];
             unset($value['collections']);
