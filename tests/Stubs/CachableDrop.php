@@ -11,6 +11,8 @@ class CachableDrop extends Drop
 
     protected int $cachedCounter = 0;
 
+    protected int $cachedNullCounter = 0;
+
     public function notCached(): int
     {
         return $this->notCachedCounter++;
@@ -20,5 +22,18 @@ class CachableDrop extends Drop
     public function cached(): int
     {
         return $this->cachedCounter++;
+    }
+
+    #[Cache]
+    public function cachedNull(): mixed
+    {
+        $this->cachedNullCounter++;
+
+        return null;
+    }
+
+    public function cachedNullCalls(): int
+    {
+        return $this->cachedNullCounter;
     }
 }

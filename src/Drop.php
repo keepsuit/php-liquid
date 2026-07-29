@@ -47,44 +47,30 @@ class Drop implements IsContextAware
 
     public function __get(string $name): mixed
     {
-        $invokableMethods = $this->getMetadata()->invokableMethods;
-        $cacheableMethods = $this->getMetadata()->cacheableMethods;
+        $metadata = $this->getMetadata();
+        $resolution = $metadata->resolveStatic($name);
 
-        $possibleNames = array_unique([
-            $name,
-            Str::camel($name),
-            Str::snake($name),
-        ]);
+        if ($resolution !== null) {
+            $memberName = $resolution['name'];
 
-        foreach ($possibleNames as $propertyName) {
-            if (in_array($propertyName, $this->getMetadata()->properties)) {
-                return $this->{$propertyName};
+            if ($resolution['type'] === 'property') {
+                return $this->{$memberName};
             }
+
+            if ($resolution['cacheable'] && array_key_exists($memberName, $this->cache)) {
+                return $this->cache[$memberName];
+            }
+
+            $result = $this->{$memberName}();
+
+            if ($resolution['cacheable']) {
+                $this->cache[$memberName] = $result;
+            }
+
+            return $result;
         }
 
-        foreach ($possibleNames as $methodName) {
-            if (! in_array($methodName, $invokableMethods)) {
-                continue;
-            }
-
-            $isCacheable = in_array($methodName, $cacheableMethods);
-
-            if ($isCacheable && isset($this->cache[$methodName])) {
-                return $this->cache[$methodName];
-            }
-
-            if (method_exists($this, $methodName)) {
-                $result = $this->{$methodName}();
-
-                if ($isCacheable) {
-                    $this->cache[$methodName] = $result;
-                }
-
-                return $result;
-            }
-        }
-
-        foreach ($possibleNames as $methodName) {
+        foreach ($metadata->possibleNames($name) as $methodName) {
             try {
                 return $this->liquidMethodMissing($methodName);
             } catch (UndefinedDropMethodException) {
