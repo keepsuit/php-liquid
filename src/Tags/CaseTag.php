@@ -144,6 +144,6 @@ class CaseTag extends TagBlock
 
     public function isSubTag(string $tagName): bool
     {
-        return in_array($tagName, ['when', 'else']);
+        return in_array($tagName, ['when', 'else'], true);
     }
 }

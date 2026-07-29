@@ -12,22 +12,28 @@ use Keepsuit\Liquid\Nodes\Variable;
  */
 class TokenStream
 {
+    protected int $start;
+
     protected int $cursor = 0;
 
-    protected ExpressionParser $expressionParser;
+    protected int $end;
 
-    protected ArgumentParser $argumentParser;
+    protected ?ExpressionParser $expressionParser = null;
 
-    protected VariableParser $variableParser;
+    protected ?ArgumentParser $argumentParser = null;
+
+    protected ?VariableParser $variableParser = null;
 
     public function __construct(
         /** @var Token[] */
         protected array $tokens,
         protected ?string $source = null,
+        int $start = 0,
+        ?int $end = null,
     ) {
-        $this->expressionParser = new ExpressionParser($this);
-        $this->argumentParser = new ArgumentParser($this);
-        $this->variableParser = new VariableParser($this);
+        $this->start = $start;
+        $this->cursor = $start;
+        $this->end = $end ?? count($tokens);
     }
 
     /**
@@ -39,7 +45,7 @@ class TokenStream
     {
         $newCursor = $this->cursor + $offset;
 
-        if ($newCursor < 0 || $newCursor > count($this->tokens)) {
+        if ($newCursor < $this->start || $newCursor > $this->end) {
             throw new SyntaxException("Invalid jump offset: $offset");
         }
 
@@ -48,7 +54,12 @@ class TokenStream
 
     public function look(TokenType $type, int $offset = 0): bool
     {
-        $token = $this->tokens[$this->cursor + $offset] ?? null;
+        $index = $this->cursor + $offset;
+
+        $token = match (true) {
+            $index >= $this->start && $index < $this->end => $this->tokens[$index] ?? null,
+            default => null
+        };
 
         if ($token === null) {
             return false;
@@ -72,7 +83,12 @@ class TokenStream
      */
     public function consume(?TokenType $type = null): Token
     {
-        $token = $this->tokens[$this->cursor++] ?? null;
+        $token = match (true) {
+            $this->cursor < $this->end => $this->tokens[$this->cursor] ?? null,
+            default => null
+        };
+
+        $this->cursor++;
 
         if ($token === null) {
             throw SyntaxException::unexpectedEndOfTemplate();
@@ -87,7 +103,18 @@ class TokenStream
 
     public function consumeOrFalse(TokenType $type): Token|false
     {
-        return $this->look($type) ? $this->consume($type) : false;
+        $token = match (true) {
+            $this->cursor < $this->end => $this->tokens[$this->cursor] ?? null,
+            default => null
+        };
+
+        if ($token === null || $token->type !== $type) {
+            return false;
+        }
+
+        $this->cursor++;
+
+        return $token;
     }
 
     /**
@@ -106,29 +133,72 @@ class TokenStream
 
     public function idOrFalse(string $identifier): Token|false
     {
-        $token = $this->consumeOrFalse(TokenType::Identifier);
+        $token = match (true) {
+            $this->cursor < $this->end => $this->tokens[$this->cursor] ?? null,
+            default => null
+        };
 
-        if ($token === false) {
+        if ($token === null || $token->type !== TokenType::Identifier || $token->data !== $identifier) {
             return false;
         }
 
-        if ($token->data === $identifier) {
-            return $token;
+        $this->cursor++;
+
+        return $token;
+    }
+
+    /**
+     * @param  TokenType|Closure(Token $token):bool  $check
+     *
+     * @throws SyntaxException
+     */
+    public function sliceUntil(Closure|TokenType $check): TokenStream
+    {
+        $start = $this->cursor;
+        $cursor = $start;
+        $end = $this->end;
+        $tokens = $this->tokens;
+
+        if ($check instanceof TokenType) {
+            while ($cursor < $end && $tokens[$cursor]->type !== $check) {
+                $cursor++;
+            }
+        } else {
+            while ($cursor < $end && ! $check($tokens[$cursor])) {
+                $cursor++;
+            }
         }
 
-        $this->jump(-1);
+        $this->cursor = $cursor;
 
-        return false;
+        return new TokenStream($tokens, $this->source, $start, $cursor);
     }
 
     public function current(): ?Token
     {
-        return $this->tokens[$this->cursor] ?? null;
+        return match (true) {
+            $this->cursor < $this->end => $this->tokens[$this->cursor] ?? null,
+            default => null
+        };
     }
 
     public function isEnd(): bool
     {
-        return $this->cursor >= count($this->tokens);
+        return $this->cursor >= $this->end;
+    }
+
+    /**
+     * @throws SyntaxException
+     */
+    public function assertEnd(): void
+    {
+        if ($this->isEnd()) {
+            return;
+        }
+
+        $token = $this->current();
+        assert($token !== null);
+        throw SyntaxException::unexpectedToken($token);
     }
 
     /**
@@ -138,7 +208,7 @@ class TokenStream
      */
     public function expression(): mixed
     {
-        return $this->expressionParser->parseExpression();
+        return ($this->expressionParser ??= new ExpressionParser($this))->parseExpression();
     }
 
     /**
@@ -156,56 +226,16 @@ class TokenStream
      */
     public function argument(): mixed
     {
-        return $this->argumentParser->parseArgument();
+        return ($this->argumentParser ??= new ArgumentParser($this))->parseArgument();
     }
 
     public function variable(): Variable
     {
-        return $this->variableParser->parseVariable();
-    }
-
-    /**
-     * @throws SyntaxException
-     */
-    public function assertEnd(): void
-    {
-        if (! $this->isEnd()) {
-            $token = $this->current();
-            assert($token !== null);
-            throw SyntaxException::unexpectedToken($token);
-        }
+        return ($this->variableParser ??= new VariableParser($this))->parseVariable();
     }
 
     public function toArray(): array
     {
-        return $this->tokens;
-    }
-
-    /**
-     * @param  TokenType|Closure(Token $token):bool  $check
-     *
-     * @throws SyntaxException
-     */
-    public function sliceUntil(Closure|TokenType $check): TokenStream
-    {
-        if ($check instanceof TokenType) {
-            $tokenType = $check;
-            $check = static fn (Token $token) => $token->type === $tokenType;
-        }
-
-        $tokens = [];
-
-        while (! $this->isEnd()) {
-            $token = $this->consume();
-
-            if ($check($token)) {
-                $this->jump(-1);
-                break;
-            }
-
-            $tokens[] = $token;
-        }
-
-        return new TokenStream($tokens);
+        return array_slice($this->tokens, $this->start, $this->end - $this->start);
     }
 }

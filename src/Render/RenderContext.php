@@ -62,6 +62,8 @@ final class RenderContext
 
     private ?SelfDrop $selfDrop = null;
 
+    private readonly MissingValue $missingValue;
+
     public function __construct(
         /**
          * Environment variables only available in the current context
@@ -97,6 +99,7 @@ final class RenderContext
             staticVariables: $staticData,
             registers: array_merge($this->environment->getRegisters(), $registers),
         );
+        $this->missingValue = new MissingValue;
     }
 
     public function isPartial(): bool
@@ -178,13 +181,21 @@ final class RenderContext
     {
         $variables = [];
 
-        foreach ($this->scopes as $scope) {
-            $variables[] = $this->internalContextLookup($scope, $key);
-        }
-        $variables[] = $this->internalContextLookup($this->data, $key);
-        $variables[] = $this->internalContextLookup($this->sharedState->staticVariables, $key);
+        // Check the variable in all scopes + env data + static variables
+        $scopeCount = count($this->scopes);
+        for ($index = 0; $index < $scopeCount + 2; $index++) {
+            $scope = match (true) {
+                $index < $scopeCount => $this->scopes[$index],
+                $index === $scopeCount => $this->data,
+                default => $this->sharedState->staticVariables,
+            };
 
-        $variables = array_values(array_filter($variables, fn (mixed $value) => ! $value instanceof MissingValue));
+            $value = $this->internalContextLookup($scope, $key);
+
+            if (! $value instanceof MissingValue) {
+                $variables[] = $value;
+            }
+        }
 
         // Inject the implicit self drop only when no value (including explicit null) was found.
         // An explicit `self = nil` leaves [null] in $variables, so the fallback is skipped,
@@ -215,10 +226,10 @@ final class RenderContext
                 is_array($scope) && array_key_exists($key, $scope) => $scope[$key],
                 is_object($scope) && $this->objectHasProperty($scope, (string) $key) => $scope->{$key},
                 is_object($scope) && $this->objectHasStaticProperty($scope, (string) $key) => $scope::$$key,
-                default => new MissingValue,
+                default => $this->missingValue,
             };
         } catch (UndefinedDropMethodException) {
-            return new MissingValue;
+            return $this->missingValue;
         }
 
         return $this->normalizeValue($value);

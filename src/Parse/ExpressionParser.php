@@ -103,18 +103,13 @@ class ExpressionParser
         return new RangeLookup($start, $end);
     }
 
+    /**
+     * The lexer keeps the surrounding quotes on String tokens and refuses to
+     * close one with a different quote, so stripping the outer bytes is enough.
+     */
     protected function parseString(): string
     {
-        $token = $this->tokenStream->consume(TokenType::String);
-
-        if (
-            (str_starts_with($token->data, '"') && str_ends_with($token->data, '"')) ||
-            (str_starts_with($token->data, "'") && str_ends_with($token->data, "'"))
-        ) {
-            return substr($token->data, 1, -1);
-        }
-
-        return $token->data;
+        return substr($this->tokenStream->consume(TokenType::String)->data, 1, -1);
     }
 
     protected function parseNumber(): int|float

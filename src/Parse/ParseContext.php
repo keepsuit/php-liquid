@@ -64,10 +64,12 @@ class ParseContext
      */
     public function parseTemplate(string $templateName, bool $force = false): Template
     {
-        $cachedTemplate = $this->environment->templatesCache->get($templateName);
+        if (! $force) {
+            $cachedTemplate = $this->environment->templatesCache->get($templateName);
 
-        if ($cachedTemplate !== null && ! $force) {
-            return $cachedTemplate;
+            if ($cachedTemplate !== null) {
+                return $cachedTemplate;
+            }
         }
 
         $source = $this->environment->fileSystem->readTemplateFile($templateName);
@@ -110,14 +112,19 @@ class ParseContext
 
     public function loadPartial(string $templateName): Template
     {
-        $partialParseContext = new ParseContext(environment: $this->environment);
-        $partialParseContext->partial = true;
-        $partialParseContext->depth = $this->depth;
-
         try {
-            $template = $partialParseContext->parseTemplate($templateName);
+            // Check if template is already available in the cache
+            $template = $this->environment->templatesCache->get($templateName);
 
-            $this->outputs->merge($partialParseContext->outputs);
+            if ($template === null) {
+                $partialParseContext = new ParseContext(environment: $this->environment);
+                $partialParseContext->partial = true;
+                $partialParseContext->depth = $this->depth;
+
+                $template = $partialParseContext->parseTemplate($templateName, force: true);
+
+                $this->outputs->merge($partialParseContext->outputs);
+            }
 
             if (! in_array($templateName, $this->partials, true)) {
                 $this->partials[] = $templateName;

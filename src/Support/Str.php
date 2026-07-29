@@ -144,17 +144,4 @@ class Str
     {
         return trim($value) === '';
     }
-
-    public static function beforeFirst(string $string, array $search): string
-    {
-        $positions = array_filter(array_map(fn ($search) => strpos($string, $search), $search));
-
-        if ($positions === []) {
-            return $string;
-        }
-
-        $index = min($positions);
-
-        return self::substr($string, 0, $index);
-    }
 }

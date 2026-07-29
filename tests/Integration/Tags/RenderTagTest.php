@@ -3,6 +3,8 @@
 use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
 test('render with no arguments', function () {
@@ -159,6 +161,29 @@ test('render tag does cache partials across parsing', function () {
         ->render($environment->newRenderContext())->toBe('my message');
     expect($fileSystem->fileReadCount)->toBe(1);
     expect($environment->templatesCache->has('snippet'))->toBeTrue();
+});
+
+test('render tag only checks the cache once when loading a partial', function () {
+    $cache = new class extends MemoryTemplatesCache
+    {
+        public int $reads = 0;
+
+        public function get(string $name): ?Template
+        {
+            $this->reads++;
+
+            return parent::get($name);
+        }
+    };
+
+    $environment = EnvironmentFactory::new()
+        ->setFilesystem(new StubFileSystem(['snippet' => 'my message']))
+        ->setTemplatesCache($cache)
+        ->build();
+
+    $environment->parseString('{% render "snippet" %}');
+
+    expect($cache->reads)->toBe(1);
 });
 
 test('render tag within if statement', function () {

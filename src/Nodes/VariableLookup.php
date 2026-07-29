@@ -8,7 +8,6 @@ use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\MissingValue;
-use Keepsuit\Liquid\Support\Str;
 use Keepsuit\Liquid\Support\UndefinedVariable;
 
 class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
@@ -29,35 +28,43 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
     ) {
         $lookupFilters = [];
         foreach ($this->lookups as $i => $lookup) {
-            if (in_array($lookup, self::FILTER_METHODS)) {
+            if (in_array($lookup, self::FILTER_METHODS, true)) {
                 $lookupFilters[] = $i;
             }
         }
         $this->lookupFilters = $lookupFilters;
     }
 
+    /**
+     * Parses `a.b[0]["c"]` into a name plus its lookups.
+     */
     public static function fromMarkup(string $markup): VariableLookup
     {
-        $variable = Str::beforeFirst($markup, ['.', '[']);
-
-        $lookupsString = substr($markup, strlen($variable));
+        $nameLength = strcspn($markup, '.[');
+        $lookupsString = substr($markup, $nameLength);
 
         if ($lookupsString === '') {
-            return new VariableLookup($variable);
+            return new VariableLookup($markup);
         }
 
-        $count = preg_match_all(self::LOOKUP_REGEX, $lookupsString, $matches);
+        preg_match_all(self::LOOKUP_REGEX, $lookupsString, $matches, PREG_UNMATCHED_AS_NULL);
 
-        if ($count === 0) {
+        // preg_match_all() skips whatever it cannot match, so the matches have to
+        // account for the whole string or there was junk between or after them.
+        if (implode('', $matches[0]) !== $lookupsString) {
             throw new SyntaxException('Invalid variable lookup: '.$lookupsString);
         }
 
         $lookups = [];
-        foreach (range(0, $count - 1) as $i) {
-            $lookups[] = $matches[1][$i] ?: $matches[2][$i] ?: $matches[3][$i] ?: $matches[4][$i];
+        foreach (array_keys($matches[0]) as $i) {
+            // Every alternative in the pattern captures, so one of them is set.
+            $lookup = $matches[1][$i] ?? $matches[2][$i] ?? $matches[3][$i] ?? $matches[4][$i];
+            assert($lookup !== null);
+
+            $lookups[] = $lookup;
         }
 
-        return new VariableLookup($variable, $lookups);
+        return new VariableLookup(substr($markup, 0, $nameLength), $lookups);
     }
 
     public function toString(): string
@@ -107,7 +114,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 
                 $nextObject = $context->evaluate($context->internalContextLookup($object, $key));
 
-                if ($nextObject instanceof MissingValue && is_iterable($object) && in_array($i, $this->lookupFilters)) {
+                if ($nextObject instanceof MissingValue && is_iterable($object) && in_array($i, $this->lookupFilters, true)) {
                     $nextObject = $context->applyFilter($lookup, $object);
                 }
 
@@ -125,15 +132,5 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
         }
 
         return $context->options->strictVariables ? new UndefinedVariable($this->toString()) : null;
-    }
-
-    protected function applyFilter(RenderContext $context, mixed $object, string $filter): mixed
-    {
-        return match ($filter) {
-            'size' => $context->applyFilter('size', $object),
-            'first' => $context->applyFilter('first', $object),
-            'last' => $context->applyFilter('last', $object),
-            default => throw new \RuntimeException(sprintf('Unknown command: %s.', $filter)),
-        };
     }
 }
