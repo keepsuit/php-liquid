@@ -179,7 +179,15 @@ final class RenderContext
 
     public function findVariables(string $key): array
     {
-        $variables = [];
+        return iterator_to_array($this->iterateVariables($key), preserve_keys: false);
+    }
+
+    /**
+     * @return \Generator<mixed>
+     */
+    public function iterateVariables(string $key): \Generator
+    {
+        $found = false;
 
         // Check the variable in all scopes + env data + static variables
         $scopeCount = count($this->scopes);
@@ -193,24 +201,22 @@ final class RenderContext
             $value = $this->internalContextLookup($scope, $key);
 
             if (! $value instanceof MissingValue) {
-                $variables[] = $value;
+                $found = true;
+
+                if ($value instanceof IsContextAware) {
+                    $value->setContext($this);
+                }
+
+                yield $value;
             }
         }
 
         // Inject the implicit self drop only when no value (including explicit null) was found.
-        // An explicit `self = nil` leaves [null] in $variables, so the fallback is skipped,
-        // correctly distinguishing defined-null from undefined.
-        if ($variables === [] && $key === 'self') {
-            return [$this->getSelfDrop()];
+        // An explicit `self = nil` yields null before this point, so $found is true and the
+        // fallback is skipped, correctly distinguishing defined-null from undefined.
+        if (! $found && $key === 'self') {
+            yield $this->getSelfDrop();
         }
-
-        foreach ($variables as $variable) {
-            if ($variable instanceof IsContextAware) {
-                $variable->setContext($this);
-            }
-        }
-
-        return $variables;
     }
 
     public function getSelfDrop(): SelfDrop

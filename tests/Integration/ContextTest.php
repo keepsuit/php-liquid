@@ -735,3 +735,50 @@ test('internal context lookup magic object', function (bool $strict) {
     'default' => false,
     'strict' => true,
 ]);
+
+test('lazy variable resolution returns the innermost scope', function (bool $strict) {
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
+    $context->set('test', 'outer');
+
+    $context->stack(function () use ($context) {
+        $context->set('test', 'inner');
+
+        expect($context->get('test'))->toBe('inner');
+    });
+
+    expect($context->get('test'))->toBe('outer');
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
+
+test('lazy variable resolution distinguishes defined-null from undefined', function (bool $strict) {
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
+    $context->set('definedNull', null);
+
+    expect($context->get('definedNull'))->toBe(null);
+
+    if ($strict) {
+        expect($context->get('neverSet'))->toBeInstanceOf(UndefinedVariable::class);
+    } else {
+        expect($context->get('neverSet'))->toBe(null);
+    }
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
+
+test('lazy variable resolution falls back when a lookup path misses', function (bool $strict) {
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
+    $context->set('test', ['b' => 'outer']);
+
+    $context->stack(function () use ($context) {
+        $context->set('test', ['c' => 'inner']);
+
+        expect($context->get('test.c'))->toBe('inner');
+        expect($context->get('test.b'))->toBe('outer');
+    });
+})->with([
+    'default' => false,
+    'strict' => true,
+]);

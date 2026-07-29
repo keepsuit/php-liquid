@@ -13,7 +13,7 @@ and update your row when done.
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
 | 001  | Fast-path array scopes in `RenderContext::internalContextLookup()` | P1 | S | — | DONE |
-| 002  | Stop scanning every scope: lazy `RenderContext::iterateVariables()` | P1 | S | 001 (order only) | TODO |
+| 002  | Stop scanning every scope: lazy `RenderContext::iterateVariables()` | P1 | S | 001 (order only) | DONE |
 | 003  | Remove per-child overhead in `BodyNode` render/stream loops | P1 | S | 001, 002 (order only) | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)

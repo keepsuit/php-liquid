@@ -90,14 +90,14 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
     {
         $name = $context->evaluate($this->name);
         assert(is_string($name));
-        $variables = $context->findVariables($name);
+        $variables = $context->iterateVariables($name);
 
         if ($this->lookups === []) {
-            if ($context->options->strictVariables && $variables === []) {
-                return new UndefinedVariable($this->toString());
+            foreach ($variables as $variable) {
+                return $variable;
             }
 
-            return $variables[0] ?? null;
+            return $context->options->strictVariables ? new UndefinedVariable($this->toString()) : null;
         }
 
         foreach ($variables as $object) {
