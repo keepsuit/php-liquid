@@ -1,5 +1,7 @@
 <?php
 
+use Keepsuit\Liquid\EnvironmentFactory;
+use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Tests\Stubs\BooleanDrop;
 use Keepsuit\Liquid\Tests\Stubs\IntegerDrop;
 use Keepsuit\Liquid\Tests\Stubs\ThingWithToLiquid;
@@ -72,6 +74,23 @@ test('nested variable lookup', function () {
         'a' => ['b' => 1],
         'c' => ['d' => new \Keepsuit\Liquid\Nodes\VariableLookup('a')],
     ]);
+});
+
+test('bracket lookup with a literal key reports an undefined variable', function () {
+    $environment = EnvironmentFactory::new()
+        ->setRethrowErrors(false)
+        ->setStrictVariables(true)
+        ->build();
+
+    $template = parseTemplate('{{ a[empty] }}', $environment);
+    $context = $environment->newRenderContext();
+
+    expect($template->render($context))->toBe('');
+
+    expect($template->getErrors())
+        ->toHaveCount(1)
+        ->{0}->toBeInstanceOf(UndefinedVariableException::class)
+        ->{0}->getMessage()->toBe('Variable `a.empty` not found');
 });
 
 function generator(): Generator

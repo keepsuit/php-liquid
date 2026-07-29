@@ -6,10 +6,14 @@ use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Parse\ExpressionParser;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\MissingValue;
 use Keepsuit\Liquid\Support\UndefinedVariable;
 
+/**
+ * @phpstan-import-type Expression from ExpressionParser
+ */
 class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 {
     const FILTER_METHODS = ['size', 'first', 'last'];
@@ -23,7 +27,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 
     public function __construct(
         public readonly string $name,
-        /** @var string[] */
+        /** @var array<Expression> */
         public readonly array $lookups = [],
     ) {
         $lookupFilters = [];
@@ -73,7 +77,19 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
             return $this->name;
         }
 
-        return implode('.', [$this->name, ...$this->lookups]);
+        $lookups = array_map(
+            fn (mixed $lookup): string => match (true) {
+                is_string($lookup) => $lookup,
+                $lookup instanceof Literal => $lookup->value,
+                $lookup instanceof VariableLookup, $lookup instanceof RangeLookup => $lookup->toString(),
+                is_bool($lookup) => $lookup ? 'true' : 'false',
+                $lookup === null => '',
+                default => (string) $lookup,
+            },
+            $this->lookups,
+        );
+
+        return implode('.', [$this->name, ...$lookups]);
     }
 
     public function __toString(): string
@@ -88,9 +104,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 
     public function evaluate(RenderContext $context): mixed
     {
-        $name = $context->evaluate($this->name);
-        assert(is_string($name));
-        $variables = $context->iterateVariables($name);
+        $variables = $context->iterateVariables($this->name);
 
         if ($this->lookups === []) {
             foreach ($variables as $variable) {
@@ -114,7 +128,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 
                 $nextObject = $context->evaluate($context->internalContextLookup($object, $key));
 
-                if ($nextObject instanceof MissingValue && is_iterable($object) && in_array($i, $this->lookupFilters, true)) {
+                if ($nextObject instanceof MissingValue && is_string($lookup) && is_iterable($object) && in_array($i, $this->lookupFilters, true)) {
                     $nextObject = $context->applyFilter($lookup, $object);
                 }
 
