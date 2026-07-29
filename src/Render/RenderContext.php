@@ -200,15 +200,17 @@ final class RenderContext
 
             $value = $this->internalContextLookup($scope, $key);
 
-            if (! $value instanceof MissingValue) {
-                $found = true;
-
-                if ($value instanceof IsContextAware) {
-                    $value->setContext($this);
-                }
-
-                yield $value;
+            if ($value instanceof MissingValue) {
+                continue;
             }
+
+            $found = true;
+
+            if ($value instanceof IsContextAware) {
+                $value->setContext($this);
+            }
+
+            yield $value;
         }
 
         // Inject the implicit self drop only when no value (including explicit null) was found.
@@ -226,19 +228,18 @@ final class RenderContext
 
     public function internalContextLookup(mixed $scope, int|string $key): mixed
     {
-        if (is_array($scope)) {
-            if (! array_key_exists($key, $scope)) {
-                return $this->missingValue;
-            }
-
-            return $this->normalizeValue($scope[$key]);
-        }
-
         try {
             $value = match (true) {
+                is_array($scope) => match (true) {
+                    array_key_exists($key, $scope) => $scope[$key],
+                    default => $this->missingValue,
+                },
                 $scope instanceof Drop => $scope->{$key},
-                is_object($scope) && $this->objectHasProperty($scope, (string) $key) => $scope->{$key},
-                is_object($scope) && $this->objectHasStaticProperty($scope, (string) $key) => $scope::$$key,
+                is_object($scope) => match (true) {
+                    $this->objectHasProperty($scope, (string) $key) => $scope->{$key},
+                    $this->objectHasStaticProperty($scope, (string) $key) => $scope::$$key,
+                    default => $this->missingValue,
+                },
                 default => $this->missingValue,
             };
         } catch (UndefinedDropMethodException) {
@@ -277,6 +278,10 @@ final class RenderContext
 
     public function normalizeValue(mixed $value): mixed
     {
+        if ($value instanceof MissingValue) {
+            return $value;
+        }
+
         if (is_object($value) && isset($this->sharedState->computedObjectsCache[$value])) {
             return $this->sharedState->computedObjectsCache[$value];
         }

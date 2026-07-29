@@ -114,25 +114,6 @@ class BodyNode extends Node implements CanBeStreamed
         }
     }
 
-    protected function renderChild(RenderContext $context, Node $node): string
-    {
-        return $node->render($context);
-    }
-
-    /**
-     * @return \Generator<string>
-     */
-    public function streamChild(RenderContext $context, Node $node): \Generator
-    {
-        if ($node instanceof CanBeStreamed) {
-            yield from $node->stream($context);
-
-            return;
-        }
-
-        yield $node->render($context);
-    }
-
     public function blank(): bool
     {
         foreach ($this->children as $node) {
