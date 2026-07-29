@@ -26,7 +26,7 @@ final class DropMetadata
     /** @var array<string,list<string>> */
     private array $possibleNames = [];
 
-    /** @var array<string,DropStaticProperty|null>
+    /** @var array<string,DropMemberResolution|null>
      */
     private array $staticResolution = [];
 
@@ -53,7 +53,7 @@ final class DropMetadata
         ]));
     }
 
-    public function resolveStaticProperty(string $name): ?DropStaticProperty
+    public function resolveStaticMember(string $name): ?DropMemberResolution
     {
         if (array_key_exists($name, $this->staticResolution)) {
             return $this->staticResolution[$name];
@@ -63,20 +63,15 @@ final class DropMetadata
 
         foreach ($possibleNames as $propertyName) {
             if (in_array($propertyName, $this->properties, true)) {
-                return $this->staticResolution[$name] = new DropStaticProperty(
-                    name: $propertyName,
-                    type: DropStaticPropertyType::Property,
-                    cacheable: false
-                );
+                return $this->staticResolution[$name] = DropMemberResolution::property($propertyName);
             }
         }
 
         foreach ($possibleNames as $methodName) {
             if (in_array($methodName, $this->invokableMethods, true)) {
-                return $this->staticResolution[$name] = new DropStaticProperty(
-                    name: $methodName,
-                    type: DropStaticPropertyType::Method,
-                    cacheable: in_array($methodName, $this->cacheableMethods, true)
+                return $this->staticResolution[$name] = DropMemberResolution::method(
+                    $methodName,
+                    in_array($methodName, $this->cacheableMethods, true)
                 );
             }
         }

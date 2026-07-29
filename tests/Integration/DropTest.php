@@ -151,6 +151,7 @@ test('drop metadata', function () {
 
 it('can cache drop method calls', function () {
     $drop = new CachableDrop;
+    $anotherDrop = new CachableDrop;
 
     expect($drop)
         ->notCached->toBe(0)
@@ -158,6 +159,8 @@ it('can cache drop method calls', function () {
 
     expect($drop)
         ->cached->toBe(0)
+        ->cached->toBe(0)
+        ->and($anotherDrop)
         ->cached->toBe(0);
 });
 

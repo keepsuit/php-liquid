@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\Support;
 
-enum DropStaticPropertyType
+enum DropMemberType
 {
     case Property;
     case Method;
