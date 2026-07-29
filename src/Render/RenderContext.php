@@ -220,10 +220,17 @@ final class RenderContext
 
     public function internalContextLookup(mixed $scope, int|string $key): mixed
     {
+        if (is_array($scope)) {
+            if (! array_key_exists($key, $scope)) {
+                return $this->missingValue;
+            }
+
+            return $this->normalizeValue($scope[$key]);
+        }
+
         try {
             $value = match (true) {
                 $scope instanceof Drop => $scope->{$key},
-                is_array($scope) && array_key_exists($key, $scope) => $scope[$key],
                 is_object($scope) && $this->objectHasProperty($scope, (string) $key) => $scope->{$key},
                 is_object($scope) && $this->objectHasStaticProperty($scope, (string) $key) => $scope::$$key,
                 default => $this->missingValue,
