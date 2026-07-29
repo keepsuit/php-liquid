@@ -345,7 +345,7 @@ final class RenderContext
 
     public function hasInterrupt(): bool
     {
-        return count($this->interrupts) > 0;
+        return $this->interrupts !== [];
     }
 
     /**
