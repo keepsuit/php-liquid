@@ -82,9 +82,10 @@ class TableRowTag extends TagBlock
             throw new InvalidArgumentException('invalid integer');
         }
 
-        $collection = $offset === 0 && $length === null
-            ? $collection
-            : array_slice($collection, $offset, $length);
+        $collection = match (true) {
+            $offset === 0 && $length === null => $collection,
+            default => array_slice($collection, $offset, $length)
+        };
         $length = count($collection);
 
         $cols = Arr::has($this->attributes, 'cols') ? ($context->evaluate($this->attributes['cols']) ?? 0) : count($collection);

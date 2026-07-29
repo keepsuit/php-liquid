@@ -55,9 +55,11 @@ class TokenStream
     public function look(TokenType $type, int $offset = 0): bool
     {
         $index = $this->cursor + $offset;
-        $token = $index >= $this->start && $index < $this->end
-            ? ($this->tokens[$index] ?? null)
-            : null;
+
+        $token = match (true) {
+            $index >= $this->start && $index < $this->end => $this->tokens[$index] ?? null,
+            default => null
+        };
 
         if ($token === null) {
             return false;
@@ -81,9 +83,11 @@ class TokenStream
      */
     public function consume(?TokenType $type = null): Token
     {
-        $token = $this->cursor < $this->end
-            ? ($this->tokens[$this->cursor] ?? null)
-            : null;
+        $token = match (true) {
+            $this->cursor < $this->end => $this->tokens[$this->cursor] ?? null,
+            default => null
+        };
+
         $this->cursor++;
 
         if ($token === null) {
@@ -99,7 +103,10 @@ class TokenStream
 
     public function consumeOrFalse(TokenType $type): Token|false
     {
-        $token = $this->cursor < $this->end ? ($this->tokens[$this->cursor] ?? null) : null;
+        $token = match (true) {
+            $this->cursor < $this->end => $this->tokens[$this->cursor] ?? null,
+            default => null
+        };
 
         if ($token === null || $token->type !== $type) {
             return false;
@@ -126,7 +133,10 @@ class TokenStream
 
     public function idOrFalse(string $identifier): Token|false
     {
-        $token = $this->cursor < $this->end ? ($this->tokens[$this->cursor] ?? null) : null;
+        $token = match (true) {
+            $this->cursor < $this->end => $this->tokens[$this->cursor] ?? null,
+            default => null
+        };
 
         if ($token === null || $token->type !== TokenType::Identifier || $token->data !== $identifier) {
             return false;
@@ -166,7 +176,10 @@ class TokenStream
 
     public function current(): ?Token
     {
-        return $this->cursor < $this->end ? ($this->tokens[$this->cursor] ?? null) : null;
+        return match (true) {
+            $this->cursor < $this->end => $this->tokens[$this->cursor] ?? null,
+            default => null
+        };
     }
 
     public function isEnd(): bool
@@ -179,11 +192,13 @@ class TokenStream
      */
     public function assertEnd(): void
     {
-        if (! $this->isEnd()) {
-            $token = $this->current();
-            assert($token !== null);
-            throw SyntaxException::unexpectedToken($token);
+        if ($this->isEnd()) {
+            return;
         }
+
+        $token = $this->current();
+        assert($token !== null);
+        throw SyntaxException::unexpectedToken($token);
     }
 
     /**

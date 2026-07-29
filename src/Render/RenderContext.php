@@ -180,14 +180,16 @@ final class RenderContext
     public function findVariables(string $key): array
     {
         $variables = [];
-        $scopeCount = count($this->scopes);
 
+        // Check the variable in all scopes + env data + static variables
+        $scopeCount = count($this->scopes);
         for ($index = 0; $index < $scopeCount + 2; $index++) {
             $scope = match (true) {
                 $index < $scopeCount => $this->scopes[$index],
                 $index === $scopeCount => $this->data,
                 default => $this->sharedState->staticVariables,
             };
+
             $value = $this->internalContextLookup($scope, $key);
 
             if (! $value instanceof MissingValue) {
