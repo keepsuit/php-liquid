@@ -6,38 +6,21 @@ use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Parse\ExpressionParser;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\MissingValue;
 use Keepsuit\Liquid\Support\UndefinedVariable;
 
-/**
- * @phpstan-import-type Expression from ExpressionParser
- */
 class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 {
     const FILTER_METHODS = ['size', 'first', 'last'];
 
     private const LOOKUP_REGEX = '{\.([\w\-]+)|\["([\w\-]+)"\]|\[\'([\w\-]+)\'\]|\[(\d+)\]}';
 
-    /**
-     * @var int[]
-     */
-    public readonly array $lookupFilters;
-
     public function __construct(
         public readonly string $name,
-        /** @var array<Expression> */
+        /** @var array<string|int|VariableLookup> */
         public readonly array $lookups = [],
-    ) {
-        $lookupFilters = [];
-        foreach ($this->lookups as $i => $lookup) {
-            if (in_array($lookup, self::FILTER_METHODS, true)) {
-                $lookupFilters[] = $i;
-            }
-        }
-        $this->lookupFilters = $lookupFilters;
-    }
+    ) {}
 
     /**
      * Parses `a.b[0]["c"]` into a name plus its lookups.
@@ -77,19 +60,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
             return $this->name;
         }
 
-        $lookups = array_map(
-            fn (mixed $lookup): string => match (true) {
-                is_string($lookup) => $lookup,
-                $lookup instanceof Literal => $lookup->value,
-                $lookup instanceof VariableLookup, $lookup instanceof RangeLookup => $lookup->toString(),
-                is_bool($lookup) => $lookup ? 'true' : 'false',
-                $lookup === null => '',
-                default => (string) $lookup,
-            },
-            $this->lookups,
-        );
-
-        return implode('.', [$this->name, ...$lookups]);
+        return implode('.', [$this->name, ...$this->lookups]);
     }
 
     public function __toString(): string
@@ -121,19 +92,21 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
                 $object = iterator_to_array($object, preserve_keys: false);
             }
 
-            foreach ($this->lookups as $i => $lookup) {
-                $key = $context->evaluate($lookup) ?? '';
+            foreach ($this->lookups as $lookup) {
+                $key = $lookup instanceof VariableLookup ? $context->evaluate($lookup) : $lookup;
 
-                assert(is_string($key) || is_int($key));
+                if (! (is_string($key) || is_int($key))) {
+                    continue 2;
+                }
 
                 $nextObject = $context->evaluate($context->internalContextLookup($object, $key));
 
-                if ($nextObject instanceof MissingValue && is_string($lookup) && is_iterable($object) && in_array($i, $this->lookupFilters, true)) {
-                    $nextObject = $context->applyFilter($lookup, $object);
-                }
-
                 if ($nextObject instanceof MissingValue) {
-                    continue 2;
+                    if (is_iterable($object) && is_string($lookup) && in_array($lookup, self::FILTER_METHODS, true)) {
+                        $nextObject = $context->applyFilter($lookup, $object);
+                    } else {
+                        continue 2;
+                    }
                 }
 
                 $object = $nextObject;

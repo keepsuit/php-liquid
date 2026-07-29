@@ -52,7 +52,7 @@ class ExpressionParser
     protected function parseVariable(): VariableLookup
     {
         $name = $this->tokenStream->consume(TokenType::Identifier)->data;
-        $lookups = $this->parseVariableLookups();
+        $lookups = $this->parseVariableLookups($name);
 
         return new VariableLookup(
             name: $name,
@@ -63,7 +63,7 @@ class ExpressionParser
     /**
      * @throws SyntaxException
      */
-    protected function parseVariableLookups(): array
+    protected function parseVariableLookups(string $variableName): array
     {
         $lookups = [];
 
@@ -74,7 +74,17 @@ class ExpressionParser
                 continue;
             }
             if ($this->tokenStream->consumeOrFalse(TokenType::OpenSquare)) {
-                $lookups[] = $this->tokenStream->expression();
+                $expression = $this->tokenStream->expression();
+                $lookups[] = match (true) {
+                    is_string($expression), is_int($expression), $expression instanceof VariableLookup => $expression,
+                    default => throw new SyntaxException(sprintf('Invalid variable lookup: %s[%s]', $variableName, match (true) {
+                        $expression instanceof Literal => $expression->value,
+                        $expression instanceof RangeLookup => $expression->toString(),
+                        is_bool($expression) => $expression ? 'true' : 'false',
+                        $expression === null => 'nil',
+                        default => (string) $expression
+                    })),
+                };
                 $this->tokenStream->consume(TokenType::CloseSquare);
 
                 continue;
