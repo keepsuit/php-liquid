@@ -6,6 +6,7 @@ use Keepsuit\Liquid\Concerns\ContextAware;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 use Keepsuit\Liquid\Support\DropMetadata;
+use Keepsuit\Liquid\Support\DropStaticPropertyType;
 use Keepsuit\Liquid\Support\Str;
 
 class Drop implements IsContextAware
@@ -48,23 +49,21 @@ class Drop implements IsContextAware
     public function __get(string $name): mixed
     {
         $metadata = $this->getMetadata();
-        $resolution = $metadata->resolveStatic($name);
+        $resolution = $metadata->resolveStaticProperty($name);
 
         if ($resolution !== null) {
-            $memberName = $resolution['name'];
-
-            if ($resolution['type'] === 'property') {
-                return $this->{$memberName};
+            if ($resolution->type === DropStaticPropertyType::Property) {
+                return $this->{$resolution->name};
             }
 
-            if ($resolution['cacheable'] && array_key_exists($memberName, $this->cache)) {
-                return $this->cache[$memberName];
+            if ($resolution->cacheable && array_key_exists($resolution->name, $this->cache)) {
+                return $this->cache[$resolution->name];
             }
 
-            $result = $this->{$memberName}();
+            $result = $this->{$resolution->name}();
 
-            if ($resolution['cacheable']) {
-                $this->cache[$memberName] = $result;
+            if ($resolution->cacheable) {
+                $this->cache[$resolution->name] = $result;
             }
 
             return $result;

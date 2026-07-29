@@ -26,11 +26,7 @@ final class DropMetadata
     /** @var array<string,list<string>> */
     private array $possibleNames = [];
 
-    /** @var array<string,array{
-     *     type: 'property'|'method',
-     *     name: string,
-     *     cacheable: bool
-     * }|null>
+    /** @var array<string,DropStaticProperty|null>
      */
     private array $staticResolution = [];
 
@@ -57,10 +53,7 @@ final class DropMetadata
         ]));
     }
 
-    /**
-     * @return array{type: 'property'|'method', name: string, cacheable: bool}|null
-     */
-    public function resolveStatic(string $name): ?array
+    public function resolveStaticProperty(string $name): ?DropStaticProperty
     {
         if (array_key_exists($name, $this->staticResolution)) {
             return $this->staticResolution[$name];
@@ -70,21 +63,21 @@ final class DropMetadata
 
         foreach ($possibleNames as $propertyName) {
             if (in_array($propertyName, $this->properties, true)) {
-                return $this->staticResolution[$name] = [
-                    'type' => 'property',
-                    'name' => $propertyName,
-                    'cacheable' => false,
-                ];
+                return $this->staticResolution[$name] = new DropStaticProperty(
+                    name: $propertyName,
+                    type: DropStaticPropertyType::Property,
+                    cacheable: false
+                );
             }
         }
 
         foreach ($possibleNames as $methodName) {
             if (in_array($methodName, $this->invokableMethods, true)) {
-                return $this->staticResolution[$name] = [
-                    'type' => 'method',
-                    'name' => $methodName,
-                    'cacheable' => in_array($methodName, $this->cacheableMethods, true),
-                ];
+                return $this->staticResolution[$name] = new DropStaticProperty(
+                    name: $methodName,
+                    type: DropStaticPropertyType::Method,
+                    cacheable: in_array($methodName, $this->cacheableMethods, true)
+                );
             }
         }
 
