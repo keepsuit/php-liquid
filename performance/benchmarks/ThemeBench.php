@@ -4,7 +4,6 @@ namespace Keepsuit\Liquid\Performance\benchmarks;
 
 use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\Performance\benchmarks\Support\ComplexThemeFixture;
-use Keepsuit\Liquid\Template;
 use PhpBench\Attributes\BeforeMethods;
 use PhpBench\Attributes\Groups;
 use PhpBench\Attributes\Iterations;
@@ -22,10 +21,6 @@ class ThemeBench
 {
     private Environment $environment;
 
-    private Template $page;
-
-    private Template $layout;
-
     public function setUp(): void
     {
         $this->environment = ComplexThemeFixture::environment();
@@ -33,9 +28,6 @@ class ThemeBench
         foreach (ComplexThemeFixture::templateNames() as $name) {
             $this->environment->parseTemplate($name);
         }
-
-        $this->page = $this->environment->parseTemplate(ComplexThemeFixture::rootTemplateName());
-        $this->layout = $this->environment->parseTemplate(ComplexThemeFixture::LAYOUT_TEMPLATE_NAME);
     }
 
     public function benchTokenize(): void
@@ -54,16 +46,16 @@ class ThemeBench
 
     public function benchRender(): void
     {
-        $content = $this->page->render(ComplexThemeFixture::newRenderContext($this->environment));
-
-        $this->layout->render(ComplexThemeFixture::newLayoutRenderContext($this->environment, $content));
+        foreach (ComplexThemeFixture::pageTemplateNames() as $templateName) {
+            ComplexThemeFixture::renderPage($this->environment, $templateName);
+        }
     }
 
     public function benchStream(): void
     {
-        $content = $this->page->stream(ComplexThemeFixture::newRenderContext($this->environment));
-
-        foreach ($this->layout->stream(ComplexThemeFixture::newLayoutRenderContext($this->environment, $content)) as $chunk) {
+        foreach (ComplexThemeFixture::pageTemplateNames() as $templateName) {
+            foreach (ComplexThemeFixture::streamPage($this->environment, $templateName) as $chunk) {
+            }
         }
     }
 }

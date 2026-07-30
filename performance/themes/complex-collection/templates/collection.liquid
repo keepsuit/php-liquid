@@ -1,0 +1,10 @@
+{% assign product_count = collection.products | size %}
+{% if product_count > 0 %}
+<main data-collection="{{ collection.handle }}" class="collection-page">
+  {% render "snippets.collection.header", collection: collection %}
+  {% render "snippets.collection.navigation", collection: collection %}
+  {% render "snippets.collection.grid", collection: collection %}
+</main>
+{% else %}
+<main class="collection-page"><p class="collection-page__empty">No products found in this collection.</p></main>
+{% endif %}

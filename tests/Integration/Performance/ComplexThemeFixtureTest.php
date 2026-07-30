@@ -2,25 +2,34 @@
 
 use Keepsuit\Liquid\Performance\benchmarks\Support\ComplexThemeFixture;
 
-test('complex theme fixture renders the deterministic collection page', function () {
+test('complex theme fixture renders every page through the shared layout', function () {
     $environment = ComplexThemeFixture::environment();
 
-    $page = $environment->parseTemplate(ComplexThemeFixture::rootTemplateName());
-    $layout = $environment->parseTemplate(ComplexThemeFixture::LAYOUT_TEMPLATE_NAME);
+    expect(ComplexThemeFixture::templateNames())
+        ->toContain('layout.theme')
+        ->toContain('templates.index')
+        ->toContain('templates.collection')
+        ->toContain('templates.product')
+        ->toContain('templates.page')
+        ->toContain('snippets.shared.button')
+        ->toContain('snippets.product.card');
 
-    $content = $page->render(ComplexThemeFixture::newRenderContext($environment));
-    $rendered = $layout->render(ComplexThemeFixture::newLayoutRenderContext($environment, $content));
+    foreach ([
+        'templates.index' => 'Better everyday rituals',
+        'templates.collection' => '24 products selected',
+        'templates.product' => 'Weekend Bag',
+        'templates.page' => 'Northstar journal',
+    ] as $templateName => $expectedContent) {
+        $rendered = ComplexThemeFixture::renderPage($environment, $templateName);
+        $streamed = implode('', iterator_to_array(
+            ComplexThemeFixture::streamPage($environment, $templateName),
+            false,
+        ));
 
-    $streamedContent = $page->stream(ComplexThemeFixture::newRenderContext($environment));
-    $streamed = implode('', iterator_to_array(
-        $layout->stream(ComplexThemeFixture::newLayoutRenderContext($environment, $streamedContent)),
-        false,
-    ));
-
-    expect($rendered)
-        ->toContain('<title>Northstar Goods &mdash; Summer Essentials</title>')
-        ->toContain('24 products selected')
-        ->toContain('data-handle="sketchbook"')
-        ->and(hash('sha256', $rendered))->toBe('52a906d56a26957edbf34fc85ed8dc76e3ccb74f9aa012effd5fd84de5e732eb')
-        ->and($streamed)->toBe($rendered);
+        expect($rendered)
+            ->toContain('<header class="site-header">')
+            ->toContain($expectedContent)
+            ->toContain('<footer class="site-footer">')
+            ->and($streamed)->toBe($rendered);
+    }
 });

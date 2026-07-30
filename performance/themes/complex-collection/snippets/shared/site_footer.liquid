@@ -1,0 +1,6 @@
+<footer class="site-footer">
+  <p>All prices are in {{ shop.currency }}.</p>
+  <nav aria-label="Footer navigation">{% for link in links %}
+    <a href="{{ link.url }}">{{ link.title }}</a>{% unless forloop.last %} / {% endunless %}{% endfor %}
+  </nav>
+</footer>

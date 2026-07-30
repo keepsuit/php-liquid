@@ -13,9 +13,16 @@ use Keepsuit\Liquid\Render\RenderContext;
 
 final class ComplexThemeFixture
 {
-    public const ROOT_TEMPLATE_NAME = 'collection';
+    public const ROOT_TEMPLATE_NAME = 'templates.collection';
 
-    public const LAYOUT_TEMPLATE_NAME = 'theme';
+    public const LAYOUT_TEMPLATE_NAME = 'layout.theme';
+
+    private const PAGE_TEMPLATE_NAMES = [
+        'templates.index',
+        self::ROOT_TEMPLATE_NAME,
+        'templates.product',
+        'templates.page',
+    ];
 
     private const PRODUCTS = [
         ['linen-shirt', 'Linen Shirt', 'ACME Apparel', 3950, 5900, ['new', 'linen']],
@@ -73,21 +80,40 @@ final class ComplexThemeFixture
     public static function templateNames(): array
     {
         return [
-            self::ROOT_TEMPLATE_NAME,
             self::LAYOUT_TEMPLATE_NAME,
-            'collection_header',
-            'collection_navigation',
-            'collection_grid',
-            'product_card',
-            'product_media',
-            'product_pricing',
-            'product_metadata',
+            ...self::PAGE_TEMPLATE_NAMES,
+            'snippets.shared.site_header',
+            'snippets.shared.site_footer',
+            'snippets.shared.button',
+            'snippets.shared.icon',
+            'snippets.shared.price',
+            'snippets.collection.header',
+            'snippets.collection.navigation',
+            'snippets.collection.grid',
+            'snippets.index.hero',
+            'snippets.index.featured_products',
+            'snippets.index.journal',
+            'snippets.product.card',
+            'snippets.product.media',
+            'snippets.product.pricing',
+            'snippets.product.metadata',
+            'snippets.product.detail',
+            'snippets.page.header',
+            'snippets.page.content',
         ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function pageTemplateNames(): array
+    {
+        return self::PAGE_TEMPLATE_NAMES;
     }
 
     public static function templateSource(string $templateName): string
     {
-        $source = file_get_contents(self::themePath().'/'.$templateName.'.liquid');
+        $source = file_get_contents(self::templatePath($templateName));
 
         if ($source === false) {
             throw new \RuntimeException("Could not read fixture template [$templateName].");
@@ -96,11 +122,23 @@ final class ComplexThemeFixture
         return $source;
     }
 
+    public static function templatePath(string $templateName): string
+    {
+        return self::themePath().'/'.str_replace('.', '/', $templateName).'.liquid';
+    }
+
     /**
      * @return array<string, mixed>
      */
-    public static function renderData(): array
+    public static function renderData(string $pageTemplateName = self::ROOT_TEMPLATE_NAME): array
     {
+        $products = array_map(
+            static fn (array $product) => new ComplexThemeProduct(...$product),
+            self::PRODUCTS,
+        );
+
+        $pageType = str_replace('templates.', '', $pageTemplateName);
+
         return [
             'shop' => [
                 'name' => 'Northstar Goods',
@@ -126,33 +164,71 @@ final class ComplexThemeFixture
                     ],
                 ],
             ],
-            'page_title' => 'Summer Essentials',
-            'template' => 'collection',
+            'page_title' => match ($pageType) {
+                'index' => 'New arrivals',
+                'product' => 'Weekend Bag',
+                'page' => 'Our story',
+                default => 'Summer Essentials',
+            },
+            'template' => $pageType,
             'collection' => [
                 'handle' => 'summer-essentials',
                 'title' => 'Summer Essentials',
                 'label' => 'summer',
                 'description' => 'Everyday pieces for long weekends, slow mornings, and bright afternoons.',
                 'tags' => ['New arrivals', 'Travel ready', 'Summer layers', 'Gifts under €100'],
-                'products' => array_map(
-                    static fn (array $product) => new ComplexThemeProduct(...$product),
-                    self::PRODUCTS,
-                ),
+                'products' => $products,
+            ],
+            'product' => $products[4],
+            'page' => [
+                'title' => 'Our story',
+                'content' => 'Northstar Goods makes useful objects for slower days, closer places, and longer weekends.',
+            ],
+            'articles' => [
+                ['title' => 'Packing light for a weekend away', 'excerpt' => 'Three small choices that make travel easier.'],
+                ['title' => 'How to choose a daily carry', 'excerpt' => 'A practical guide to materials and proportions.'],
+                ['title' => 'The objects that earn their place', 'excerpt' => 'On buying less and using more.'],
             ],
         ];
     }
 
-    public static function newRenderContext(Environment $environment): RenderContext
-    {
-        return $environment->newRenderContext(staticData: self::renderData());
+    public static function newRenderContext(
+        Environment $environment,
+        string $pageTemplateName = self::ROOT_TEMPLATE_NAME,
+    ): RenderContext {
+        return $environment->newRenderContext(staticData: self::renderData($pageTemplateName));
     }
 
-    public static function newLayoutRenderContext(Environment $environment, mixed $content): RenderContext
-    {
+    public static function newLayoutRenderContext(
+        Environment $environment,
+        mixed $content,
+        string $pageTemplateName = self::ROOT_TEMPLATE_NAME,
+    ): RenderContext {
         return $environment->newRenderContext(staticData: [
-            ...self::renderData(),
+            ...self::renderData($pageTemplateName),
             'content_for_layout' => $content,
         ]);
+    }
+
+    public static function renderPage(Environment $environment, string $pageTemplateName): string
+    {
+        $content = $environment->parseTemplate($pageTemplateName)
+            ->render(self::newRenderContext($environment, $pageTemplateName));
+
+        return $environment->parseTemplate(self::LAYOUT_TEMPLATE_NAME)
+            ->render(self::newLayoutRenderContext($environment, $content, $pageTemplateName));
+    }
+
+    /**
+     * @return \Generator<string>
+     */
+    public static function streamPage(Environment $environment, string $pageTemplateName): \Generator
+    {
+        $content = $environment->parseTemplate($pageTemplateName)
+            ->stream(self::newRenderContext($environment, $pageTemplateName));
+
+        return $environment->parseTemplate(self::LAYOUT_TEMPLATE_NAME)
+            ->stream(self::newLayoutRenderContext($environment, $content, $pageTemplateName));
     }
 }
 

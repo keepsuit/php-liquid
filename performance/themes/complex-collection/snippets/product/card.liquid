@@ -1,9 +1,9 @@
 <article data-handle="{{ product.handle }}" data-position="{{ position }}" class="product-card">
-  {% render "product_media", product: product %}
+  {% render "snippets.product.media", product: product %}
   <div class="product-card__details">
     <p class="product-card__vendor">{{ product.vendor | upcase }}</p>
     <h2>{{ product.title }}</h2>
-    {% render "product_pricing", product: product %}
-    {% render "product_metadata", product: product, label: label %}
+    {% render "snippets.product.pricing", product: product %}
+    {% render "snippets.product.metadata", product: product, label: label %}
   </div>
 </article>

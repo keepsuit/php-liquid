@@ -1,0 +1,6 @@
+<section class="home-hero">
+  <p class="eyebrow">Field notes / {{ collection.label | upcase }}</p>
+  <h1>{{ collection.title }}</h1>
+  <p>{{ collection.description }}</p>
+  {% render "snippets.shared.button", label: "Explore the collection", url: "/collections/summer-essentials", icon: "arrow", tone: "primary" %}
+</section>

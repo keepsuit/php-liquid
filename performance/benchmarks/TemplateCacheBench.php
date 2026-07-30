@@ -134,8 +134,9 @@ class TemplateCacheBench
 
     private function renderCachedTheme(): void
     {
-        $this->environment->parseTemplate(ComplexThemeFixture::rootTemplateName())
-            ->render(ComplexThemeFixture::newRenderContext($this->environment));
+        foreach (ComplexThemeFixture::pageTemplateNames() as $templateName) {
+            ComplexThemeFixture::renderPage($this->environment, $templateName);
+        }
     }
 
     private function newCache(string $backend): LiquidTemplatesCache

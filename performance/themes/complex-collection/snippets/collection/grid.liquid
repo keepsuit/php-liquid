@@ -1,0 +1,3 @@
+<section class="products" data-count="{{ collection.products | size }}">
+{% for product in collection.products %}  {% render "snippets.product.card", product: product, label: collection.label, position: forloop.index %}
+{% endfor %}</section>

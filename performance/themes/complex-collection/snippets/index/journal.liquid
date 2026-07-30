@@ -1,0 +1,6 @@
+<section class="journal-preview">
+  <header><p class="eyebrow">From the journal</p><h2>Better everyday rituals</h2></header>
+  <div class="journal-preview__entries">
+{% for article in articles %}    <article><h3>{{ article.title }}</h3><p>{{ article.excerpt }}</p>{% render "snippets.shared.button", label: "Read article", url: "/blogs/journal", icon: "arrow", tone: "text" %}</article>
+{% endfor %}  </div>
+</section>
