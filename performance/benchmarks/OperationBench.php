@@ -32,6 +32,13 @@ class OperationBench
 
     private Template $filterWithArgumentsTemplate;
 
+    /**
+     * Built in setUp, not in the subject: these two subjects measure how
+     * Drop::__get resolves a property, and constructing a ProductDrop (variants,
+     * images, metafields) inside the subject would swamp that with fixture cost.
+     * Sharing one instance across revolutions is safe here only because the
+     * template reads a public property and never a #[Cache]d method.
+     */
     private ProductDrop $productDrop;
 
     public function setUp(): void

@@ -19,14 +19,12 @@ final class StorefrontTheme
 {
     public const LAYOUT_TEMPLATE_NAME = 'layout.theme';
 
-    public const ROOT_TEMPLATE_NAME = 'templates.collection';
-
     /**
      * @var list<string>
      */
     private const PAGE_TEMPLATE_NAMES = [
         'templates.index',
-        self::ROOT_TEMPLATE_NAME,
+        'templates.collection',
         'templates.product',
         'templates.page',
     ];
@@ -120,7 +118,7 @@ final class StorefrontTheme
     /**
      * @return array<string, mixed>
      */
-    public static function renderData(string $pageTemplateName = self::ROOT_TEMPLATE_NAME): array
+    public static function renderData(string $pageTemplateName): array
     {
         $template = str_replace('templates.', '', $pageTemplateName);
 
@@ -132,12 +130,7 @@ final class StorefrontTheme
                 'footer' => Database::footerMenu(),
             ],
             'template' => $template,
-            'page_title' => match ($template) {
-                'index' => 'New arrivals',
-                'product' => 'Weekend Bag',
-                'page' => 'Our story',
-                default => 'Summer Essentials',
-            },
+            'page_title' => Database::pageTitle($template),
             'collection' => Database::collection(),
             'product' => Database::product(),
             'page' => Database::page(),
@@ -148,7 +141,7 @@ final class StorefrontTheme
 
     public static function newRenderContext(
         Environment $environment,
-        string $pageTemplateName = self::ROOT_TEMPLATE_NAME,
+        string $pageTemplateName,
     ): RenderContext {
         return $environment->newRenderContext(staticData: self::renderData($pageTemplateName));
     }
@@ -156,7 +149,7 @@ final class StorefrontTheme
     public static function newLayoutRenderContext(
         Environment $environment,
         mixed $content,
-        string $pageTemplateName = self::ROOT_TEMPLATE_NAME,
+        string $pageTemplateName,
     ): RenderContext {
         return $environment->newRenderContext(staticData: [
             ...self::renderData($pageTemplateName),

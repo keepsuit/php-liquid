@@ -1,9 +1,7 @@
 <nav class="breadcrumbs" aria-label="Breadcrumb">
   <ol>
     <li><a href="/">Home</a></li>
-    {%- unless parent_title == '' %}
     <li><a href="{{ parent_url }}">{{ parent_title }}</a></li>
-    {%- endunless %}
     <li aria-current="page">{{ title }}</li>
   </ol>
 </nav>

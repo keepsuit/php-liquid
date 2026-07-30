@@ -47,9 +47,12 @@ final class ProductDrop extends Drop
     }
 
     /**
-     * Walks every variant, and is read by the card, the detail panel and the
-     * specs table on the same render — the one place in this fixture where
-     * #[Cache] earns its keep rather than caching a ternary.
+     * Walks every variant instead of returning a stored field, which is why it is
+     * a method rather than a property.
+     *
+     * The cache earns its keep on the product page, where variant_picker and specs
+     * both read it for the same instance. On a card it is read once, so the cache
+     * is populated and never hit — that asymmetry is realistic and deliberate.
      */
     #[Cache]
     public function inStockVariantCount(): int

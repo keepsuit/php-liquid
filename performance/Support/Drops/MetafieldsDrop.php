@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Performance\Support\Drops;
 
+use Keepsuit\Liquid\Attributes\DropDynamicProperties;
 use Keepsuit\Liquid\Drop;
 use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 
@@ -23,6 +24,11 @@ final class MetafieldsDrop extends Drop
         private readonly array $fields,
     ) {}
 
+    /**
+     * Declared so toArray() can see the dynamic keys, as both liquidMethodMissing
+     * implementations in src/Drops do. It does not affect Drop::__get resolution.
+     */
+    #[DropDynamicProperties(['care', 'material'])]
     protected function liquidMethodMissing(string $name): mixed
     {
         if (array_key_exists($name, $this->fields)) {

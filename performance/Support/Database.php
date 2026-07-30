@@ -16,6 +16,20 @@ use Keepsuit\Liquid\Performance\Support\Drops\VariantDrop;
 /**
  * Fixture data for the storefront benchmark theme.
  *
+ * @phpstan-type ProductRow array{
+ *     handle: string,
+ *     title: string,
+ *     vendor: string,
+ *     type: string,
+ *     description: string,
+ *     price: int,
+ *     compare_at: int,
+ *     badges: list<string>,
+ *     variants: non-empty-list<array{string, string, string, int, bool}>,
+ *     images: non-empty-list<array{string, string, int, int}>,
+ *     metafields: array<string, string>
+ * }
+ *
  * Two rules govern this class, and both exist to keep the benchmark measuring
  * the library rather than the fixture. See performance/README.md.
  *
@@ -30,23 +44,21 @@ final class Database
     public const PRODUCTS_PER_PAGE = 24;
 
     /**
+     * Titles shared by an entity and by pageTitle(), held once so the two cannot
+     * drift apart.
+     */
+    private const COLLECTION_TITLE = 'Summer Essentials';
+
+    private const PAGE_TITLE = 'Our story';
+
+    private const FEATURED_PRODUCT_INDEX = 4;
+
+    /**
      * The rows live behind a method rather than a constant on purpose: PHPStan
      * treats a literal array this large as an `oversized-array` and collapses the
      * per-key types into one union, whereas it trusts a declared return type.
      *
-     * @return non-empty-list<array{
-     *     handle: string,
-     *     title: string,
-     *     vendor: string,
-     *     type: string,
-     *     description: string,
-     *     price: int,
-     *     compare_at: int,
-     *     badges: list<string>,
-     *     variants: non-empty-list<array{string, string, string, int, bool}>,
-     *     images: non-empty-list<array{string, string, int, int}>,
-     *     metafields: array<string, string>
-     * }>
+     * @return non-empty-list<ProductRow>
      */
     private static function productRows(): array
     {
@@ -295,6 +307,22 @@ final class Database
         ],
     ];
 
+    /**
+     * The <title> for each page type. Fixture data, so it lives here rather than
+     * in StorefrontTheme, which owns environment wiring only.
+     */
+    public static function pageTitle(string $template): string
+    {
+        return match ($template) {
+            'index' => 'New arrivals',
+            // Read from the row rather than the drop: product() would build the
+            // whole product graph just to reach a string.
+            'product' => self::productRows()[self::FEATURED_PRODUCT_INDEX]['title'],
+            'page' => self::PAGE_TITLE,
+            default => self::COLLECTION_TITLE,
+        };
+    }
+
     public static function shop(): ShopDrop
     {
         return new ShopDrop(
@@ -338,19 +366,7 @@ final class Database
     }
 
     /**
-     * @param  array{
-     *     handle: string,
-     *     title: string,
-     *     vendor: string,
-     *     type: string,
-     *     description: string,
-     *     price: int,
-     *     compare_at: int,
-     *     badges: list<string>,
-     *     variants: non-empty-list<array{string, string, string, int, bool}>,
-     *     images: non-empty-list<array{string, string, int, int}>,
-     *     metafields: array<string, string>
-     * }  $row
+     * @param  ProductRow  $row
      */
     private static function productFromRow(array $row): ProductDrop
     {
@@ -387,7 +403,7 @@ final class Database
     {
         return new CollectionDrop(
             handle: 'summer-essentials',
-            title: 'Summer Essentials',
+            title: self::COLLECTION_TITLE,
             label: 'summer',
             description: 'Everyday pieces for long weekends, slow mornings and bright afternoons.',
             tags: ['New arrivals', 'Travel ready', 'Summer layers', 'Gifts under 100', 'Last few'],
@@ -403,14 +419,14 @@ final class Database
      */
     public static function product(): ProductDrop
     {
-        return self::productFromRow(self::productRows()[4]);
+        return self::productFromRow(self::productRows()[self::FEATURED_PRODUCT_INDEX]);
     }
 
     public static function page(): PageDrop
     {
         return new PageDrop(
             handle: 'our-story',
-            title: 'Our story',
+            title: self::PAGE_TITLE,
             content: 'Northstar Goods began with a single canvas bag and a stubborn belief that most things are made too quickly.',
             sections: [
                 ['title' => 'How we choose makers', 'body' => 'We visit every workshop before we place an order, and we place small orders first.'],

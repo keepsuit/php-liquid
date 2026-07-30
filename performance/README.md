@@ -28,8 +28,10 @@ theme's job.
 ## The storefront fixture
 
 `performance/themes/storefront/` is a deliberately plausible storefront: real
-`<head>` metadata, nested navigation, breadcrumbs, a product grid, a filter
-sidebar, a variant picker, a multi-column footer. It uses only tags a real theme
+`<head>` metadata, a main nav, breadcrumbs, a product grid, a filter sidebar, a
+variant picker, a specs table, a multi-column footer. The nav is deliberately
+flat — multi-level menus were ruled out as breadth the fixture does not need, and
+depth comes from the product graph instead. It uses only tags a real theme
 would use (`render`, `for`/`else`, `if`, `unless`, `case`, `capture`, `cycle`,
 `assign`, `break`, `continue`, `{% liquid %}`).
 
@@ -41,9 +43,10 @@ Constraints that are not obvious from reading the code:
   160 times per iteration and moves the macro numbers for reasons that have
   nothing to do with the library. Derived values go into the literal data or
   onto a drop method, where they are measured as template work. Building the
-  fixture is roughly **6% of `ThemeBench::benchRender`**; if that share climbs,
-  the macro numbers are drifting for fixture reasons and something here computes
-  when it should assign.
+  fixture measured **~6% of `ThemeBench::benchRender`** when this landed — nothing
+  asserts that, so treat it as a reference point rather than a guarantee. To
+  re-measure, time `StorefrontTheme::renderData()` twice per page (the layout gets
+  its own context) against `renderPage()` over the same pages.
 - **Fixed dataset: 24 products.** A deliberate page size, not an accident.
 - **Fresh drops per render.** `#[Cache]` therefore starts cold on every render,
   and no state is shared between revolutions. Memoized instances would measure a
@@ -66,7 +69,7 @@ somewhere a real storefront drop would genuinely use it:
 | --- | --- | --- |
 | Public typed property | Cheapest — first lookup loop | Stored fields: `title`, `handle`, `price_cents` |
 | Invokable method | Misses the property loop first | Derived values: `on_sale`, `saving_cents`, `url` |
-| `#[Cache]`d method | Method cost, once per instance | `in_stock_variant_count` — walks every variant, read by three snippets |
+| `#[Cache]`d method | Method cost, once per instance | `in_stock_variant_count` — walks every variant; read twice per instance on the product page, once on a card |
 | `liquidMethodMissing` | Most expensive; a **miss** throws and catches up to three exceptions | `MetafieldsDrop` only, where keys are genuinely arbitrary |
 
 ## Verifying the fixture
@@ -91,6 +94,11 @@ Known gaps, in rough priority order:
 - **The drop miss path.** The most expensive branch of `Drop::__get` (a
   `liquidMethodMissing` miss, up to three thrown exceptions) is unmeasured. It
   belongs in `micro`, not the theme, because the theme must stay strict.
+- **The `liquidMethodMissing` *hit* path in `micro`.** `OperationBench`'s drop
+  subjects used to run on `DatabaseDrop`, whose every lookup was a method-missing
+  hit. They now use `ProductDrop`, so both subjects resolve a public property —
+  the cheapest branch. The theme still exercises the hit path through
+  `MetafieldsDrop`, but no micro subject isolates it.
 - **Size-parameterized scaling.** With one fixed dataset, nothing distinguishes
   "everything is 10% slower" from "something became superlinear". A
   `ParamProviders` spread (4 / 24 / 96 products) would show the shape.
