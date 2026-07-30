@@ -177,48 +177,76 @@ final class RenderContext
         return $this->get($key) !== null;
     }
 
-    public function findVariables(string $key): array
+    /**
+     * Resolves $key against the scope chain and returns the innermost value.
+     *
+     * @return mixed the value, or MissingValue when the key is undefined everywhere
+     */
+    public function findVariable(string $key): mixed
     {
-        return iterator_to_array($this->iterateVariables($key), preserve_keys: false);
+        // Deliberately not written as a loop over [...$this->scopes, $this->data, ...]:
+        // building that list would allocate an array on every variable reference.
+        foreach ($this->scopes as $scope) {
+            if (array_key_exists($key, $scope)) {
+                return $this->resolveVariable($scope[$key]);
+            }
+        }
+
+        if (array_key_exists($key, $this->data)) {
+            return $this->resolveVariable($this->data[$key]);
+        }
+
+        if (array_key_exists($key, $this->sharedState->staticVariables)) {
+            return $this->resolveVariable($this->sharedState->staticVariables[$key]);
+        }
+
+        // Fall back to the implicit self drop only when no value was found anywhere.
+        return $key === 'self' ? $this->getSelfDrop() : $this->missingValue;
     }
 
     /**
-     * @return \Generator<mixed>
+     * Every value $key resolves to, innermost scope first.
+     *
+     * Only useful to callers that need to fall back to an outer scope when the
+     * innermost value does not satisfy them; prefer findVariable() otherwise.
+     *
+     * @return list<mixed>
      */
-    public function iterateVariables(string $key): \Generator
+    public function findVariables(string $key): array
     {
-        $found = false;
+        $variables = [];
 
-        // Check the variable in all scopes + env data + static variables
-        $scopeCount = count($this->scopes);
-        for ($index = 0; $index < $scopeCount + 2; $index++) {
-            $scope = match (true) {
-                $index < $scopeCount => $this->scopes[$index],
-                $index === $scopeCount => $this->data,
-                default => $this->sharedState->staticVariables,
-            };
-
-            $value = $this->internalContextLookup($scope, $key);
-
-            if ($value instanceof MissingValue) {
-                continue;
+        foreach ([...$this->scopes, $this->data, $this->sharedState->staticVariables] as $scope) {
+            if (array_key_exists($key, $scope)) {
+                $variables[] = $this->resolveVariable($scope[$key]);
             }
-
-            $found = true;
-
-            if ($value instanceof IsContextAware) {
-                $value->setContext($this);
-            }
-
-            yield $value;
         }
 
-        // Inject the implicit self drop only when no value (including explicit null) was found.
-        // An explicit `self = nil` yields null before this point, so $found is true and the
-        // fallback is skipped, correctly distinguishing defined-null from undefined.
-        if (! $found && $key === 'self') {
-            yield $this->getSelfDrop();
+        // Fall back to the implicit self drop only when no value was found anywhere.
+        if ($variables === [] && $key === 'self') {
+            return [$this->getSelfDrop()];
         }
+
+        return $variables;
+    }
+
+    /**
+     * Normalizes a value pulled out of a scope and binds it to this context.
+     */
+    protected function resolveVariable(mixed $value): mixed
+    {
+        // Only objects can need either step, and scalars dominate the hot path.
+        if (! is_object($value)) {
+            return $value;
+        }
+
+        $value = $this->normalizeValue($value);
+
+        if ($value instanceof IsContextAware) {
+            $value->setContext($this);
+        }
+
+        return $value;
     }
 
     public function getSelfDrop(): SelfDrop

@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid\Drops;
 
 use Keepsuit\Liquid\Render\RenderContext;
+use Keepsuit\Liquid\Support\MissingValue;
 
 /**
  * Proxy object that resolves property lookups through the current render context scope chain.
@@ -17,16 +18,16 @@ final class SelfDrop
 
     public function __get(string $name): mixed
     {
-        $variables = $this->context->findVariables($name);
+        $variable = $this->context->findVariable($name);
 
-        return $variables[0] ?? null;
+        return $variable instanceof MissingValue ? null : $variable;
     }
 
     public function __isset(string $name): bool
     {
-        $variables = $this->context->findVariables($name);
+        $variable = $this->context->findVariable($name);
 
-        return $variables !== [];
+        return ! $variable instanceof MissingValue;
     }
 
     public function __toString(): string

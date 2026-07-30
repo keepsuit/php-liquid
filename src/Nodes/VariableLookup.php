@@ -75,49 +75,86 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 
     public function evaluate(RenderContext $context): mixed
     {
-        $variables = $context->iterateVariables($this->name);
+        $variable = $context->findVariable($this->name);
+
+        if ($variable instanceof MissingValue) {
+            return $this->undefined($context);
+        }
 
         if ($this->lookups === []) {
-            foreach ($variables as $variable) {
-                return $variable;
-            }
-
-            return $context->options->strictVariables ? new UndefinedVariable($this->toString()) : null;
+            return $variable;
         }
 
-        foreach ($variables as $object) {
-            $object = $context->evaluate($object);
+        $result = $this->walkLookups($context, $variable);
 
-            if ($object instanceof \Generator) {
-                $object = iterator_to_array($object, preserve_keys: false);
-            }
-
-            foreach ($this->lookups as $lookup) {
-                $key = $lookup instanceof VariableLookup ? $context->evaluate($lookup) : $lookup;
-
-                if (! (is_string($key) || is_int($key))) {
-                    continue 2;
-                }
-
-                $nextObject = $context->evaluate($context->internalContextLookup($object, $key));
-
-                if ($nextObject instanceof MissingValue) {
-                    if (is_iterable($object) && is_string($lookup) && in_array($lookup, self::FILTER_METHODS, true)) {
-                        $nextObject = $context->applyFilter($lookup, $object);
-                    } else {
-                        continue 2;
-                    }
-                }
-
-                $object = $nextObject;
-                if ($object instanceof IsContextAware) {
-                    $object->setContext($context);
-                }
-            }
-
-            return $object;
+        if (! $result instanceof MissingValue) {
+            return $result;
         }
 
+        // The name resolved but the lookup chain broke on the innermost value: an
+        // outer scope may still hold one the chain resolves against.
+        foreach ($context->findVariables($this->name) as $candidate) {
+            // Skip the value already walked above: re-walking it would repeat any
+            // side effects the broken chain triggered on the way.
+            if ($candidate === $variable) {
+                continue;
+            }
+
+            $result = $this->walkLookups($context, $candidate);
+
+            if (! $result instanceof MissingValue) {
+                return $result;
+            }
+        }
+
+        return $this->undefined($context);
+    }
+
+    protected function undefined(RenderContext $context): ?UndefinedVariable
+    {
         return $context->options->strictVariables ? new UndefinedVariable($this->toString()) : null;
+    }
+
+    /**
+     * Walks the lookup chain against $object, returning MissingValue if it breaks.
+     */
+    protected function walkLookups(RenderContext $context, mixed $object): mixed
+    {
+        if ($object instanceof CanBeEvaluated) {
+            $object = $context->evaluate($object);
+        }
+
+        if ($object instanceof \Generator) {
+            $object = iterator_to_array($object, preserve_keys: false);
+        }
+
+        foreach ($this->lookups as $lookup) {
+            $key = $lookup instanceof VariableLookup ? $context->evaluate($lookup) : $lookup;
+
+            if (! (is_string($key) || is_int($key))) {
+                return new MissingValue;
+            }
+
+            $nextObject = $context->internalContextLookup($object, $key);
+
+            if ($nextObject instanceof CanBeEvaluated) {
+                $nextObject = $context->evaluate($nextObject);
+            }
+
+            if ($nextObject instanceof MissingValue) {
+                if (is_iterable($object) && is_string($lookup) && in_array($lookup, self::FILTER_METHODS, true)) {
+                    $nextObject = $context->applyFilter($lookup, $object);
+                } else {
+                    return $nextObject;
+                }
+            }
+
+            $object = $nextObject;
+            if ($object instanceof IsContextAware) {
+                $object->setContext($context);
+            }
+        }
+
+        return $object;
     }
 }

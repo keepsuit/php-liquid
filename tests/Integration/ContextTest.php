@@ -114,6 +114,29 @@ test('add item in outer scope', function (bool $strict) {
     'strict' => true,
 ]);
 
+test('lookup falls back to outer scope when the inner value has no such key', function (bool $strict) {
+    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
+    $context->set('product', ['title' => 'outer']);
+
+    $context->stack(function () use ($context, $strict) {
+        // The inner `product` shadows the outer one but cannot resolve `.title`,
+        // so resolution has to continue into the outer scope.
+        $context->set('product', ['handle' => 'inner']);
+
+        expect($context->get('product.handle'))->toBe('inner');
+        expect($context->get('product.title'))->toBe('outer');
+
+        if ($strict) {
+            expect($context->get('product.missing'))->toBeInstanceOf(UndefinedVariable::class);
+        } else {
+            expect($context->get('product.missing'))->toBeNull();
+        }
+    });
+})->with([
+    'default' => false,
+    'strict' => true,
+]);
+
 test('add item in inner scope', function (bool $strict) {
     $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->stack(function () use ($context) {
