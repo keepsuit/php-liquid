@@ -1,0 +1,16 @@
+{%- assign vendors = collection.products | map: 'vendor' | uniq | sort -%}
+<aside class="collection-filters" aria-label="Filters">
+  <h2>{% render "snippets.shared.icon", name: "filter" %} Refine</h2>
+  <h3>Tags</h3>
+  <ul class="collection-filters__tags">
+    {%- for tag in collection.tags %}
+    <li data-index="{{ forloop.index }}"><a href="{{ collection.url }}/{{ tag | downcase | replace: ' ', '-' }}">{{ tag }}</a></li>
+    {%- endfor %}
+  </ul>
+  <h3>Vendors</h3>
+  <ul class="collection-filters__vendors">
+    {%- for vendor in vendors %}
+    <li><a href="{{ collection.url }}?vendor={{ vendor | url_encode }}">{{ vendor }}</a></li>
+    {%- endfor %}
+  </ul>
+</aside>

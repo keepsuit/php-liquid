@@ -3,7 +3,7 @@
 namespace Keepsuit\Liquid\Performance\benchmarks;
 
 use Keepsuit\Liquid\Environment;
-use Keepsuit\Liquid\Performance\benchmarks\Support\ComplexThemeFixture;
+use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
 use PhpBench\Attributes\BeforeMethods;
 use PhpBench\Attributes\Groups;
 use PhpBench\Attributes\Iterations;
@@ -11,6 +11,17 @@ use PhpBench\Attributes\OutputMode;
 use PhpBench\Attributes\OutputTimeUnit;
 use PhpBench\Attributes\Revs;
 
+/**
+ * Whole-pipeline canary for the storefront theme.
+ *
+ * This class answers "did rendering get slower", not "what got slower": it
+ * averages 29 templates across four pages, so it cannot localize a regression.
+ * Per-feature sensitivity belongs in the micro group.
+ *
+ * ponytail: the micro group has not caught up yet, so nothing in the suite
+ * isolates a single tag, the drop miss path, or superlinear growth. The deferred
+ * list is in performance/README.md.
+ */
 #[Groups(['macro'])]
 #[Iterations(10)]
 #[Revs(20)]
@@ -22,8 +33,8 @@ class ThemeBench
     private Environment $environment;
 
     /**
-     * Template sources are read up front: reading them inside the benchmark
-     * would measure the filesystem instead of the tokenizer and the parser.
+     * Sources are read up front: reading them inside a benchmark would measure
+     * the filesystem instead of the tokenizer and the parser.
      *
      * @var array<string, string>
      */
@@ -31,12 +42,12 @@ class ThemeBench
 
     public function setUp(): void
     {
-        $this->environment = ComplexThemeFixture::environment();
+        $this->environment = StorefrontTheme::environment();
         $this->sources = [];
 
-        foreach (ComplexThemeFixture::templateNames() as $name) {
+        foreach (StorefrontTheme::templateNames() as $name) {
             $this->environment->parseTemplate($name);
-            $this->sources[$name] = ComplexThemeFixture::templateSource($name);
+            $this->sources[$name] = StorefrontTheme::templateSource($name);
         }
     }
 
@@ -56,15 +67,15 @@ class ThemeBench
 
     public function benchRender(): void
     {
-        foreach (ComplexThemeFixture::pageTemplateNames() as $templateName) {
-            ComplexThemeFixture::renderPage($this->environment, $templateName);
+        foreach (StorefrontTheme::pageTemplateNames() as $pageTemplateName) {
+            StorefrontTheme::renderPage($this->environment, $pageTemplateName);
         }
     }
 
     public function benchStream(): void
     {
-        foreach (ComplexThemeFixture::pageTemplateNames() as $templateName) {
-            foreach (ComplexThemeFixture::streamPage($this->environment, $templateName) as $chunk) {
+        foreach (StorefrontTheme::pageTemplateNames() as $pageTemplateName) {
+            foreach (StorefrontTheme::streamPage($this->environment, $pageTemplateName) as $chunk) {
             }
         }
     }

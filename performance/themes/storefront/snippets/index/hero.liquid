@@ -1,0 +1,11 @@
+<section class="hero">
+  <div class="hero__text">
+    <p class="eyebrow">{{ collection.label | upcase }}</p>
+    <h1>{{ collection.title }}</h1>
+    <p>{{ shop.description }}</p>
+    {%- render "snippets.shared.button", label: "Explore the collection", url: collection.url, icon: "arrow", tone: "primary" -%}
+  </div>
+  <figure class="hero__media">
+    <img src="{{ collection.image.src }}" alt="{{ collection.image.alt | escape }}" width="{{ collection.image.width }}" height="{{ collection.image.height }}">
+  </figure>
+</section>

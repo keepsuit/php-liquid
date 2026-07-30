@@ -4,7 +4,7 @@ namespace Keepsuit\Liquid\Performance\benchmarks;
 
 use Keepsuit\Liquid\Contracts\LiquidTemplatesCache;
 use Keepsuit\Liquid\Environment;
-use Keepsuit\Liquid\Performance\benchmarks\Support\ComplexThemeFixture;
+use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
 use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
 use Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache;
 use Keepsuit\Liquid\TemplatesCache\VarExportTemplatesCache;
@@ -105,7 +105,7 @@ class TemplateCacheBench
     {
         $this->cache = $this->newCache($backend);
         $this->cache->clear();
-        $this->environment = ComplexThemeFixture::environment($this->cache);
+        $this->environment = StorefrontTheme::environmentFactory()->setTemplatesCache($this->cache)->build();
     }
 
     private function setUpCachedRender(string $backend): void
@@ -116,12 +116,12 @@ class TemplateCacheBench
         $this->cache = $backend === 'memory'
             ? $this->cache
             : $this->newCache($backend);
-        $this->environment = ComplexThemeFixture::environment($this->cache);
+        $this->environment = StorefrontTheme::environmentFactory()->setTemplatesCache($this->cache)->build();
     }
 
     private function compileStaticTheme(Environment $environment): void
     {
-        foreach (ComplexThemeFixture::templateNames() as $templateName) {
+        foreach (StorefrontTheme::templateNames() as $templateName) {
             $environment->parseTemplate($templateName);
         }
     }
@@ -134,8 +134,8 @@ class TemplateCacheBench
 
     private function renderCachedTheme(): void
     {
-        foreach (ComplexThemeFixture::pageTemplateNames() as $templateName) {
-            ComplexThemeFixture::renderPage($this->environment, $templateName);
+        foreach (StorefrontTheme::pageTemplateNames() as $templateName) {
+            StorefrontTheme::renderPage($this->environment, $templateName);
         }
     }
 

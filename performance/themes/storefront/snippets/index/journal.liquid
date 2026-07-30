@@ -1,0 +1,22 @@
+<section class="journal">
+  <header class="journal__header">
+    <p class="eyebrow">From the journal</p>
+    <h2>Better everyday rituals</h2>
+  </header>
+  <div class="journal__entries">
+    {%- for article in articles %}
+    <article class="journal__entry">
+      <figure><img src="{{ article.image.src }}" alt="{{ article.image.alt | escape }}" width="{{ article.image.width }}" height="{{ article.image.height }}" loading="lazy"></figure>
+      <h3><a href="{{ article.url }}">{{ article.title }}</a></h3>
+      <p class="journal__meta">{{ article.author }} &middot; {{ article.published_at }} &middot; {{ article.reading_minutes }} min read</p>
+      <p>{{ article.excerpt }}</p>
+      <ul class="journal__tags">
+        {%- for tag in article.tags %}
+        <li>{{ tag | upcase }}</li>
+        {%- endfor %}
+      </ul>
+      {%- render "snippets.shared.button", label: "Read article", url: article.url, icon: "arrow", tone: "text" -%}
+    </article>
+    {%- endfor %}
+  </div>
+</section>

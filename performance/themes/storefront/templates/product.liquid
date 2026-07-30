@@ -1,0 +1,13 @@
+<main class="product" data-handle="{{ product.handle }}">
+  {%- render "snippets.shared.breadcrumbs", title: product.title, parent_title: product.type, parent_url: "/collections/all" -%}
+  {%- render "snippets.product.detail", product: product -%}
+  <section class="product__related">
+    <h2>You might also like</h2>
+    <div class="product__related-grid">
+      {%- for related in collection.products limit: 5 %}
+      {%- if related.handle == product.handle %}{% continue %}{% endif %}
+      {%- render "snippets.product.card", product: related, position: forloop.index, label: "related" -%}
+      {%- endfor %}
+    </div>
+  </section>
+</main>

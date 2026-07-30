@@ -1,5 +1,0 @@
-<p class="product-card__pricing">
-  {% render "snippets.shared.price", cents: product.price_cents %}
-  {% if product.compare_at_price_cents > product.price_cents %}<s>{% render "snippets.shared.price", cents: product.compare_at_price_cents %}</s>{% endif %}
-  <span class="saving">{{ product.compare_at_price_cents | minus: product.price_cents | fixture_money }}</span>
-</p>

@@ -1,8 +1,8 @@
 <?php
 
 use Keepsuit\Liquid\Extensions\ProfilerExtension;
-use Keepsuit\Liquid\Performance\benchmarks\Support\ComplexThemeFixture;
 use Keepsuit\Liquid\Performance\ProfileReport;
+use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
 use Keepsuit\Liquid\Profiler\Profiler;
 
 require dirname(__DIR__).'/vendor/autoload.php';
@@ -33,15 +33,15 @@ for ($argumentIndex = 1; $argumentIndex < count($arguments); $argumentIndex++) {
     }
 }
 
-$environment = ComplexThemeFixture::environment();
+$environment = StorefrontTheme::environment();
 $environment->addExtension(new ProfilerExtension(
     profiler: $profiler = new Profiler,
     tags: true,
     variables: true,
 ));
 
-foreach (ComplexThemeFixture::pageTemplateNames() as $templateName) {
-    ComplexThemeFixture::renderPage($environment, $templateName);
+foreach (StorefrontTheme::pageTemplateNames() as $templateName) {
+    StorefrontTheme::renderPage($environment, $templateName);
 }
 
 $report = ProfileReport::fromProfiler($profiler);

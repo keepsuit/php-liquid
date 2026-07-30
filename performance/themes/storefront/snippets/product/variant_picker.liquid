@@ -1,0 +1,21 @@
+{%- liquid
+  assign default_variant = null
+  for variant in product.variants
+    if variant.available
+      assign default_variant = variant
+      break
+    endif
+  endfor
+-%}
+<fieldset class="variant-picker">
+  <legend>Choose an option</legend>
+  {%- for variant in product.variants %}
+    {%- unless variant.available %}{% continue %}{% endunless %}
+  <label class="variant-picker__option">
+    <input type="radio" name="id" value="{{ variant.id }}"{% if variant.id == default_variant.id %} checked{% endif %}>
+    <span class="variant-picker__name">{{ variant.option }}</span>
+    <span class="variant-picker__price">{{ variant.price_cents | money }}</span>
+  </label>
+  {%- endfor %}
+  <p class="variant-picker__note">{{ product.in_stock_variant_count }} of {{ product.variants | size }} {{ product.variants | size | pluralize: 'option', 'options' }} available, shipping from {{ default_variant.option }}</p>
+</fieldset>

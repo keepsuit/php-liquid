@@ -1,0 +1,9 @@
+<section class="newsletter">
+  <h2>Field notes</h2>
+  <p>Occasional letters from {{ shop.name }}, no more than one a month.</p>
+  <form class="newsletter__form" action="/contact#newsletter" method="post">
+    <label for="newsletter-email">Email address</label>
+    <input id="newsletter-email" type="email" name="contact[email]" autocomplete="email" required>
+    <button type="submit">Subscribe</button>
+  </form>
+</section>

@@ -1,6 +1,0 @@
-<section class="featured-products">
-  <header><p class="eyebrow">Editor’s picks</p><h2>Useful things for every day</h2></header>
-  <div class="featured-products__grid">
-{% for product in collection.products limit: 6 %}    {% render "snippets.product.card", product: product, label: "featured", position: forloop.index %}
-{% endfor %}  </div>
-</section>

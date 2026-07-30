@@ -4,7 +4,8 @@ namespace Keepsuit\Liquid\Performance\benchmarks;
 
 use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\EnvironmentFactory;
-use Keepsuit\Liquid\Performance\Shopify\DatabaseDrop;
+use Keepsuit\Liquid\Performance\Support\Database;
+use Keepsuit\Liquid\Performance\Support\Drops\ProductDrop;
 use Keepsuit\Liquid\Template;
 use PhpBench\Attributes\BeforeMethods;
 use PhpBench\Attributes\Groups;
@@ -31,6 +32,8 @@ class OperationBench
 
     private Template $filterWithArgumentsTemplate;
 
+    private ProductDrop $productDrop;
+
     public function setUp(): void
     {
         $this->environment = EnvironmentFactory::new()->build();
@@ -38,6 +41,7 @@ class OperationBench
         $this->nestedTemplate = $this->environment->parseString(str_repeat('{{ product.title }}', 64));
         $this->filterWithoutArgumentsTemplate = $this->environment->parseString(str_repeat('{{ value | upcase | escape }}', 32));
         $this->filterWithArgumentsTemplate = $this->environment->parseString(str_repeat('{{ value | append: suffix | replace: from, to }}', 32));
+        $this->productDrop = Database::product();
     }
 
     public function benchScalarRender(): void
@@ -71,14 +75,14 @@ class OperationBench
     public function benchDropRender(): void
     {
         $this->nestedTemplate->render($this->environment->newRenderContext(
-            staticData: ['product' => new DatabaseDrop(['title' => 'Product title'])],
+            staticData: ['product' => $this->productDrop],
         ));
     }
 
     public function benchDropStream(): void
     {
         $this->drain($this->nestedTemplate->stream($this->environment->newRenderContext(
-            staticData: ['product' => new DatabaseDrop(['title' => 'Product title'])],
+            staticData: ['product' => $this->productDrop],
         )));
     }
 

@@ -1,0 +1,23 @@
+{%- capture meta_title %}{{ page_title | escape }} &mdash; {{ shop.name | escape }}{% endcapture -%}
+{%- liquid
+  case template
+    when 'index'
+      assign meta_description = shop.description
+    when 'collection'
+      assign meta_description = 'Shop the summer collection at ' | append: shop.name
+    when 'product'
+      assign meta_description = 'Product details and sizing at ' | append: shop.name
+    else
+      assign meta_description = shop.description
+  endcase
+  assign canonical = 'https://' | append: shop.domain
+-%}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ meta_title }}</title>
+<meta name="description" content="{{ meta_description | escape }}">
+<meta property="og:site_name" content="{{ shop.name | escape }}">
+<meta property="og:title" content="{{ meta_title }}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{{ canonical }}">
+<link rel="canonical" href="{{ canonical }}">

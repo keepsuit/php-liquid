@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head>
+  {%- render "snippets.shared.meta_tags", shop: shop, page_title: page_title, template: template -%}
+</head>
+<body class="template-{{ template }}">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  {% render "snippets.shared.site_header", shop: shop, cart: cart, links: linklists.main_menu %}
+  <div id="main-content">
+    {{ content_for_layout }}
+  </div>
+  {% render "snippets.shared.site_footer", shop: shop, links: linklists.footer %}
+</body>
+</html>
