@@ -16,13 +16,13 @@ use PhpBench\Attributes\Revs;
  *
  * This class answers "did rendering get slower", not "what got slower": it
  * averages 29 templates across four pages, so it cannot localize a regression.
- * Per-feature sensitivity belongs in the micro group.
+ * Per-feature sensitivity belongs in the operations group.
  *
- * ponytail: the micro group has not caught up yet, so nothing in the suite
+ * ponytail: the operations group has not caught up yet, so nothing in the suite
  * isolates a single tag, the drop miss path, or superlinear growth. The deferred
  * list is in performance/README.md.
  */
-#[Groups(['macro'])]
+#[Groups(['default'])]
 #[Iterations(10)]
 #[Revs(20)]
 #[OutputMode('throughput')]

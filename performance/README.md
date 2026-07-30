@@ -1,24 +1,28 @@
 # Benchmark suite
 
 ```bash
-composer benchmark          # macro group: the storefront theme and template caches
-composer benchmark:micro    # micro group: individual operations
+composer benchmark             # default group: the storefront theme
+composer benchmark:cache       # cache group: template-cache backends
+composer benchmark:operations  # operations group: individual operations
 php performance/profile-theme.php --output=profile.json
 ```
 
 ## What each group is for
 
-The two groups have different jobs, and conflating them is how a benchmark suite
+The three groups have different jobs, and conflating them is how a benchmark suite
 stops being useful.
 
-**`macro`** (`ThemeBench`, `TemplateCacheBench`) renders the storefront theme —
-29 templates across four pages. It answers *"did rendering get slower"* and
-nothing more. It cannot tell you *what* got slower, because a regression in any
-one tag is averaged across everything else. Don't expect it to localize.
+**`default`** (`ThemeBench`) renders the storefront theme — 29 templates across
+four pages. It answers *"did rendering get slower"* and nothing more. It cannot
+tell you *what* got slower, because a regression in any one tag is averaged
+across everything else. Don't expect it to localize.
 
-**`micro`** (`OperationBench`) measures single operations on tiny templates. This
-is where per-feature sensitivity lives, and where a benchmark is allowed to be
-unrealistic: an artificial template that does one thing 64 times is a better
+**`cache`** (`TemplateCacheBench`) measures compilation and fresh-environment
+loading for every supported template-cache backend.
+
+**`operations`** (`OperationBench`) measures single operations on tiny templates.
+This is where per-feature sensitivity lives, and where a benchmark is allowed to
+be unrealistic: an artificial template that does one thing 64 times is a better
 instrument than a realistic page.
 
 The split is what lets the theme be realistic. Whenever realism and measurement
@@ -40,7 +44,7 @@ Constraints that are not obvious from reading the code:
 - **`Database` assigns, it does not compute.** No scans, no reductions, no
   sorting. Nothing is memoized either, so the whole object graph is rebuilt on
   every render *inside the measured region* — any computation added here is paid
-  160 times per iteration and moves the macro numbers for reasons that have
+  160 times per iteration and moves the theme numbers for reasons that have
   nothing to do with the library. Derived values go into the literal data or
   onto a drop method, where they are measured as template work. Building the
   fixture measured **~6% of `ThemeBench::benchRender`** when this landed — nothing
@@ -88,27 +92,24 @@ until it asserts nothing. Strict mode cannot be silenced that way.
 
 Known gaps, in rough priority order:
 
-- **Per-tag `micro` subjects.** Nothing isolates `case`, `capture`, `cycle`,
+- **Per-tag `operations` subjects.** Nothing isolates `case`, `capture`, `cycle`,
   `render` depth, or property-vs-method resolution. Until this lands, the suite
   can see that something regressed but not what.
 - **The drop miss path.** The most expensive branch of `Drop::__get` (a
   `liquidMethodMissing` miss, up to three thrown exceptions) is unmeasured. It
-  belongs in `micro`, not the theme, because the theme must stay strict.
-- **The `liquidMethodMissing` *hit* path in `micro`.** `OperationBench`'s drop
+  belongs in `operations`, not the theme, because the theme must stay strict.
+- **The `liquidMethodMissing` *hit* path in `operations`.** `OperationBench`'s drop
   subjects used to run on `DatabaseDrop`, whose every lookup was a method-missing
   hit. They now use `ProductDrop`, so both subjects resolve a public property —
   the cheapest branch. The theme still exercises the hit path through
-  `MetafieldsDrop`, but no micro subject isolates it.
+  `MetafieldsDrop`, but no operations subject isolates it.
 - **Size-parameterized scaling.** With one fixed dataset, nothing distinguishes
   "everything is 10% slower" from "something became superlinear". A
   `ParamProviders` spread (4 / 24 / 96 products) would show the shape.
 - **Coverage-only tags.** `tablerow`, `increment`, `decrement`, `ifchanged`,
   `raw` and `doc` are unbenchmarked. Real themes barely use them, so they belong
-  in `micro` rather than in the theme.
+  in `operations` rather than in the theme.
 - **`TemplateCacheBench` shape.** Six subjects driven by six near-identical
   `setUp*` wrappers around a string `match` — this is what `ParamProviders`
   exists for. Its cache path is also a fixed `sys_get_temp_dir()` directory, so
   two concurrent runs collide.
-- **CI base run.** `.github/workflows/phpbench.yml` passes `--group=macro` to the
-  PR run but not the base run, so the base executes micro benchmarks too. It can
-  be aligned once `main` has the group attributes.

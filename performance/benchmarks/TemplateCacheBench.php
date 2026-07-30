@@ -16,7 +16,7 @@ use PhpBench\Attributes\OutputMode;
 use PhpBench\Attributes\OutputTimeUnit;
 use PhpBench\Attributes\Revs;
 
-#[Groups(['macro'])]
+#[Groups(['cache'])]
 #[Iterations(10)]
 #[Revs(20)]
 #[OutputMode('throughput')]

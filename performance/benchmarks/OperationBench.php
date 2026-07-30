@@ -14,7 +14,7 @@ use PhpBench\Attributes\OutputMode;
 use PhpBench\Attributes\OutputTimeUnit;
 use PhpBench\Attributes\Revs;
 
-#[Groups(['micro'])]
+#[Groups(['operations'])]
 #[Iterations(10)]
 #[Revs(20)]
 #[OutputMode('throughput')]

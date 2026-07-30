@@ -78,7 +78,7 @@ jobs:
           set -euo pipefail
 
           vendor/bin/phpbench run \
-            --group=macro \
+            --group=default \
             --filter="$PHPBENCH_FILTER" \
             --progress=none \
             --warmup=1 \
@@ -92,6 +92,7 @@ jobs:
           set -euo pipefail
 
           vendor/bin/phpbench run \
+            --group=default \
             --filter="$PHPBENCH_FILTER" \
             --progress=none \
             --warmup=1 \
