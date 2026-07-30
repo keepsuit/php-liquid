@@ -192,9 +192,21 @@ class Lexer
                 throw SyntaxException::unexpectedEndOfTemplate();
             }
 
-            // The first identifier names the tag and determines whether its body
-            // must later be treated as opaque raw data.
-            if ($tag === null && $lastToken->type === TokenType::Identifier) {
+            // Inside a liquid tag a line starting with `comment` opens a comment
+            // block, which must not reach the expression lexer any more than a
+            // `{% comment %}` block does.
+            if ($tag !== null
+                && $tag->data === 'liquid'
+                && $lastToken->type === TokenType::Identifier
+                && $lastToken->data === 'comment'
+                && $this->startsLiquidTagLine($tag, $lastToken)
+            ) {
+                array_pop($this->tokens);
+                $this->skipLiquidComment($lastToken->lineNumber);
+                $this->skipWhitespace();
+            } elseif ($tag === null && $lastToken->type === TokenType::Identifier) {
+                // The first identifier names the tag and determines whether its
+                // body must later be treated as opaque raw data.
                 $tag = $lastToken;
             }
         }
@@ -335,6 +347,55 @@ class Lexer
 
         if ($endTag['outerTrim']) {
             $this->skipWhitespace();
+        }
+    }
+
+    /**
+     * A liquid tag is line based: only the first word of a line names a tag.
+     */
+    protected function startsLiquidTagLine(Token $tag, Token $token): bool
+    {
+        $previous = $this->tokens[count($this->tokens) - 2] ?? null;
+
+        return $previous === null
+            || $previous === $tag
+            || $previous->lineNumber < $token->lineNumber;
+    }
+
+    /**
+     * Skip a `comment`/`endcomment` block inside a liquid tag.
+     *
+     * Same contract as lexComment(): the body emits no tokens and is never
+     * lexed, so it may hold anything (apostrophes, stray delimiters), and the
+     * first `endcomment` closes the block without tracking nesting.
+     */
+    protected function skipLiquidComment(int $lineNumber): void
+    {
+        // The liquid tag ends at its own `%}`, so an `endcomment` past that point
+        // belongs to something else and the comment is never closed.
+        $blockEnd = strpos($this->source, self::BLOCK_END, $this->cursor);
+        $offset = $this->cursor;
+
+        while (true) {
+            if ($blockEnd === false || $offset > $blockEnd) {
+                // Report the `comment` line, like an unclosed `{% comment %}` does.
+                $exception = SyntaxException::tagBlockNeverClosed('comment');
+                $exception->lineNumber = $lineNumber;
+
+                throw $exception;
+            }
+
+            $offset += strspn($this->source, " \t", $offset);
+
+            if ($this->comesNext('endcomment', $offset)
+                && strspn($this->source, self::WORD, $offset + strlen('endcomment'), 1) === 0
+            ) {
+                $this->skip($offset + strlen('endcomment') - $this->cursor);
+
+                return;
+            }
+
+            $offset += strcspn($this->source, "\n", $offset) + 1;
         }
     }
 
