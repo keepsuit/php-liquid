@@ -40,8 +40,10 @@ $environment->addExtension(new ProfilerExtension(
     variables: true,
 ));
 
-$template = $environment->parseTemplate(ComplexThemeFixture::rootTemplateName());
-$template->render(ComplexThemeFixture::newRenderContext($environment));
+$page = $environment->parseTemplate(ComplexThemeFixture::rootTemplateName());
+$layout = $environment->parseTemplate(ComplexThemeFixture::LAYOUT_TEMPLATE_NAME);
+$content = $page->render(ComplexThemeFixture::newRenderContext($environment));
+$layout->render(ComplexThemeFixture::newLayoutRenderContext($environment, $content));
 
 $report = ProfileReport::fromProfiler($profiler);
 $json = json_encode($report, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR).PHP_EOL;

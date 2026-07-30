@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>{{ shop.name }} &mdash; {{ page_title }}</title>
+  <meta charset="utf-8">
+</head>
+<body id="page-{{ template }}">
+  <header class="site-header">
+    <a href="/" class="site-header__brand">{{ shop.name }}</a>
+    <nav aria-label="Main navigation">
+      <ul>{% for link in linklists.main-menu.links %}
+        <li><a href="{{ link.url }}">{{ link.title }}</a></li>{% endfor %}
+      </ul>
+    </nav>
+    <p class="site-header__cart">Cart: {{ cart.item_count }} {{ cart.item_count | pluralize: 'item', 'items' }} / {{ cart.total_price | fixture_money }}</p>
+  </header>
+  <div class="site-layout">
+    <aside class="site-layout__sidebar">
+      <h2>{{ collection.title }} tags</h2>
+      <ul>{% for tag in collection.tags %}
+        <li>{{ tag | replace: ' ', '-' | upcase }}</li>{% endfor %}
+      </ul>
+    </aside>
+    {{ content_for_layout }}
+  </div>
+  <footer class="site-footer">
+    <p>All prices are in {{ shop.currency }}.</p>
+    <nav aria-label="Footer navigation">{% for link in linklists.footer.links %}
+      <a href="{{ link.url }}">{{ link.title }}</a>{% unless forloop.last %} / {% endunless %}{% endfor %}
+    </nav>
+  </footer>
+</body>
+</html>

@@ -22,7 +22,9 @@ class ThemeBench
 {
     private Environment $environment;
 
-    private Template $template;
+    private Template $page;
+
+    private Template $layout;
 
     public function setUp(): void
     {
@@ -32,7 +34,8 @@ class ThemeBench
             $this->environment->parseTemplate($name);
         }
 
-        $this->template = $this->environment->parseTemplate(ComplexThemeFixture::rootTemplateName());
+        $this->page = $this->environment->parseTemplate(ComplexThemeFixture::rootTemplateName());
+        $this->layout = $this->environment->parseTemplate(ComplexThemeFixture::LAYOUT_TEMPLATE_NAME);
     }
 
     public function benchTokenize(): void
@@ -51,12 +54,16 @@ class ThemeBench
 
     public function benchRender(): void
     {
-        $this->template->render(ComplexThemeFixture::newRenderContext($this->environment));
+        $content = $this->page->render(ComplexThemeFixture::newRenderContext($this->environment));
+
+        $this->layout->render(ComplexThemeFixture::newLayoutRenderContext($this->environment, $content));
     }
 
     public function benchStream(): void
     {
-        foreach ($this->template->stream(ComplexThemeFixture::newRenderContext($this->environment)) as $chunk) {
+        $content = $this->page->stream(ComplexThemeFixture::newRenderContext($this->environment));
+
+        foreach ($this->layout->stream(ComplexThemeFixture::newLayoutRenderContext($this->environment, $content)) as $chunk) {
         }
     }
 }

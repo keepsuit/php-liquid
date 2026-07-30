@@ -13,7 +13,9 @@ use Keepsuit\Liquid\Render\RenderContext;
 
 final class ComplexThemeFixture
 {
-    public const ROOT_TEMPLATE_NAME = 'collection_page';
+    public const ROOT_TEMPLATE_NAME = 'collection';
+
+    public const LAYOUT_TEMPLATE_NAME = 'theme';
 
     private const PRODUCTS = [
         ['linen-shirt', 'Linen Shirt', 'ACME Apparel', 3950, 5900, ['new', 'linen']],
@@ -71,8 +73,8 @@ final class ComplexThemeFixture
     public static function templateNames(): array
     {
         return [
-            'collection_page',
-            'page_shell',
+            self::ROOT_TEMPLATE_NAME,
+            self::LAYOUT_TEMPLATE_NAME,
             'collection_header',
             'collection_navigation',
             'collection_grid',
@@ -100,6 +102,32 @@ final class ComplexThemeFixture
     public static function renderData(): array
     {
         return [
+            'shop' => [
+                'name' => 'Northstar Goods',
+                'currency' => 'EUR',
+            ],
+            'cart' => [
+                'item_count' => 3,
+                'total_price' => 12650,
+            ],
+            'linklists' => [
+                'main-menu' => [
+                    'links' => [
+                        ['url' => '/collections/summer-essentials', 'title' => 'Summer'],
+                        ['url' => '/collections/travel', 'title' => 'Travel'],
+                        ['url' => '/collections/home', 'title' => 'Home'],
+                    ],
+                ],
+                'footer' => [
+                    'links' => [
+                        ['url' => '/pages/shipping', 'title' => 'Shipping'],
+                        ['url' => '/pages/returns', 'title' => 'Returns'],
+                        ['url' => '/pages/contact', 'title' => 'Contact'],
+                    ],
+                ],
+            ],
+            'page_title' => 'Summer Essentials',
+            'template' => 'collection',
             'collection' => [
                 'handle' => 'summer-essentials',
                 'title' => 'Summer Essentials',
@@ -117,6 +145,14 @@ final class ComplexThemeFixture
     public static function newRenderContext(Environment $environment): RenderContext
     {
         return $environment->newRenderContext(staticData: self::renderData());
+    }
+
+    public static function newLayoutRenderContext(Environment $environment, mixed $content): RenderContext
+    {
+        return $environment->newRenderContext(staticData: [
+            ...self::renderData(),
+            'content_for_layout' => $content,
+        ]);
     }
 }
 
