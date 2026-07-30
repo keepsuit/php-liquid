@@ -1,0 +1,13 @@
+{%- liquid
+  assign visible_count = collection.products_count
+  assign heading = collection.title
+-%}
+<main class="collection" data-collection="{{ collection.handle }}">
+  {%- render "snippets.shared.breadcrumbs", title: heading, parent_title: "Collections", parent_url: "/collections" -%}
+  {%- render "snippets.collection.header", collection: collection -%}
+  {%- render "snippets.collection.toolbar", collection: collection, visible_count: visible_count, products_per_page: products_per_page -%}
+  <div class="collection__body">
+    {%- render "snippets.collection.filters", collection: collection -%}
+    {%- render "snippets.collection.grid", collection: collection -%}
+  </div>
+</main>

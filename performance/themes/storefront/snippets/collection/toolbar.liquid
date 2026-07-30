@@ -1,0 +1,16 @@
+{%- assign sort_options = 'featured,created-descending,price-ascending' | split: ',' -%}
+<div class="collection-toolbar">
+  <p class="collection-toolbar__count">{{ visible_count }} {{ visible_count | pluralize: 'product', 'products' }}, up to {{ products_per_page }} per page</p>
+  <ul class="collection-toolbar__sorts">
+    {%- for option in sort_options %}
+    {%- case option %}
+    {%- when 'featured' %}
+    <li><a href="{{ collection.url }}?sort_by={{ option }}">Featured</a></li>
+    {%- when 'created-descending' %}
+    <li><a href="{{ collection.url }}?sort_by={{ option }}">Newest first</a></li>
+    {%- else %}
+    <li><a href="{{ collection.url }}?sort_by={{ option }}">Price, low to high</a></li>
+    {%- endcase %}
+    {%- endfor %}
+  </ul>
+</div>

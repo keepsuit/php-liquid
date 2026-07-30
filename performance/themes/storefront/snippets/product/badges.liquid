@@ -1,0 +1,6 @@
+<ul class="badges">
+  <li class="badges__label">{{ label }}</li>
+  {%- for badge in product.badges %}
+  <li class="badges__badge">{{ badge | upcase }}</li>
+  {%- endfor %}
+</ul>

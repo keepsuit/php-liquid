@@ -1,0 +1,7 @@
+<p class="pricing">
+  {%- render "snippets.shared.price", cents: product.price_cents -%}
+  {%- if product.on_sale %}
+  <s class="pricing__was">{% render "snippets.shared.price", cents: product.compare_at_price_cents %}</s>
+  <span class="pricing__saving">Save {{ product.saving_cents | money }}</span>
+  {%- endif %}
+</p>

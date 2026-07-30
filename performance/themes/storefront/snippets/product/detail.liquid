@@ -1,0 +1,13 @@
+<article class="product-detail">
+  {%- render "snippets.product.gallery", product: product -%}
+  <div class="product-detail__panel">
+    <p class="eyebrow">{{ product.vendor | upcase }}</p>
+    <h1>{{ product.title }}</h1>
+    <p class="product-detail__description">{{ product.description }}</p>
+    {%- render "snippets.product.pricing", product: product -%}
+    {%- render "snippets.product.variant_picker", product: product -%}
+    {%- render "snippets.shared.button", label: "Add to bag", url: "/cart/add", icon: "bag", tone: "primary" -%}
+    {%- render "snippets.product.badges", product: product, label: product.type -%}
+    {%- render "snippets.product.specs", product: product -%}
+  </div>
+</article>

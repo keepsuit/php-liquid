@@ -1,0 +1,20 @@
+<footer class="site-footer">
+  <div class="site-footer__columns">
+    <section class="site-footer__column">
+      <h2>{{ shop.name }}</h2>
+      <p>{{ shop.description }}</p>
+    </section>
+    <section class="site-footer__column">
+      <h2>Help</h2>
+      <ul>
+        {%- for link in links %}
+        <li><a href="{{ link.url }}">{{ link.title }}</a></li>
+        {%- endfor %}
+      </ul>
+    </section>
+    <section class="site-footer__column">
+      {%- render "snippets.shared.newsletter", shop: shop -%}
+    </section>
+  </div>
+  <p class="site-footer__legal">All prices in {{ shop.currency }}. &copy; {{ shop.name }}.</p>
+</footer>

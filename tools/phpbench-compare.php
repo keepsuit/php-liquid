@@ -17,7 +17,33 @@ $sharedNames = array_values(array_intersect(array_keys($baseBenchmarks), array_k
 sort($sharedNames);
 
 if ($sharedNames === []) {
-    fwrite(STDERR, "No common benchmark names found between base and PR results.\n");
+    echo "> No comparable benchmark rows: the PR benchmark suite has changed. Establish a matching baseline on `main` before drawing performance conclusions.\n";
+    exit(0);
+}
+
+$configurationMismatches = [];
+foreach ($sharedNames as $name) {
+    $base = $baseBenchmarks[$name];
+    $pr = $prBenchmarks[$name];
+
+    if ($base['iterations'] !== $pr['iterations'] || $base['revolutions'] !== $pr['revolutions']) {
+        $configurationMismatches[] = sprintf(
+            '`%s` (base: %d iterations x %d revs; PR: %d iterations x %d revs)',
+            $name,
+            $base['iterations'],
+            $base['revolutions'],
+            $pr['iterations'],
+            $pr['revolutions'],
+        );
+    }
+}
+
+if ($configurationMismatches !== []) {
+    echo "> Incomparable benchmark rows: PHPBench iteration/revolution settings changed. Establish a matching baseline on `main`.\n\n";
+    foreach ($configurationMismatches as $configurationMismatch) {
+        echo "- {$configurationMismatch}\n";
+    }
+
     exit(2);
 }
 

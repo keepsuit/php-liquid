@@ -1,0 +1,9 @@
+<section class="product-grid" data-count="{{ collection.products_count }}">
+  {%- for product in collection.products %}
+  <div class="product-grid__cell {% cycle 'cell--a', 'cell--b', 'cell--c' %}">
+    {%- render "snippets.product.card", product: product, position: forloop.index, label: collection.label -%}
+  </div>
+  {%- else %}
+  <p class="product-grid__empty">Nothing in this collection yet.</p>
+  {%- endfor %}
+</section>

@@ -1,0 +1,12 @@
+<article class="product-card" data-handle="{{ product.handle }}" data-position="{{ position }}">
+  <a class="product-card__media" href="{{ product.url }}">
+    <img src="{{ product.featured_image.src }}" alt="{{ product.featured_image.alt | escape }}" width="{{ product.featured_image.width }}" height="{{ product.featured_image.height }}" loading="lazy">
+  </a>
+  <div class="product-card__body">
+    <p class="product-card__vendor">{{ product.vendor | upcase }}</p>
+    <h3 class="product-card__title"><a href="{{ product.url }}">{{ product.title }}</a></h3>
+    {%- render "snippets.product.pricing", product: product -%}
+    {%- render "snippets.product.badges", product: product, label: label -%}
+    <p class="product-card__stock">{{ product.in_stock_variant_count }} {{ product.in_stock_variant_count | pluralize: 'option', 'options' }} in stock</p>
+  </div>
+</article>
