@@ -1,0 +1,10 @@
+<table class="specs">
+  <caption>Details</caption>
+  <tbody>
+    <tr><th scope="row">Vendor</th><td>{{ product.vendor }}</td></tr>
+    <tr><th scope="row">Type</th><td>{{ product.type }}</td></tr>
+    <tr><th scope="row">Material</th><td>{{ product.metafields.material }}</td></tr>
+    <tr><th scope="row">Care</th><td>{{ product.metafields.care }}</td></tr>
+    <tr><th scope="row">Availability</th><td>{{ product.in_stock_variant_count }} of {{ product.variants | size }} in stock</td></tr>
+  </tbody>
+</table>

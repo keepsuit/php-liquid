@@ -1,0 +1,2 @@
+{%- capture button_class %}button button--{{ tone }}{% endcapture -%}
+<a class="{{ button_class }}" href="{{ url }}">{% render "snippets.shared.icon", name: icon %}<span>{{ label }}</span></a>

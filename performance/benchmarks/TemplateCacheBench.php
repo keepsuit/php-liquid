@@ -2,125 +2,166 @@
 
 namespace Keepsuit\Liquid\Performance\benchmarks;
 
+use Keepsuit\Liquid\Contracts\LiquidTemplatesCache;
 use Keepsuit\Liquid\Environment;
-use Keepsuit\Liquid\EnvironmentFactory;
-use Keepsuit\Liquid\FileSystems\LocalFileSystem;
-use Keepsuit\Liquid\Performance\Shopify\CommentFormTag;
-use Keepsuit\Liquid\Performance\Shopify\CustomFilters;
-use Keepsuit\Liquid\Performance\Shopify\Database;
-use Keepsuit\Liquid\Performance\Shopify\PaginateTag;
-use Keepsuit\Liquid\Support\Arr;
+use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
 use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
 use Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache;
 use Keepsuit\Liquid\TemplatesCache\VarExportTemplatesCache;
 use PhpBench\Attributes\AfterMethods;
 use PhpBench\Attributes\BeforeMethods;
+use PhpBench\Attributes\Groups;
 use PhpBench\Attributes\Iterations;
 use PhpBench\Attributes\OutputMode;
 use PhpBench\Attributes\OutputTimeUnit;
 use PhpBench\Attributes\Revs;
-use PhpBench\Attributes\Warmup;
 
+#[Groups(['cache'])]
 #[Iterations(10)]
-#[Revs(10)]
-#[Warmup(1)]
+#[Revs(20)]
 #[OutputMode('throughput')]
 #[OutputTimeUnit('seconds', precision: 3)]
 #[AfterMethods('clearCache')]
 class TemplateCacheBench
 {
-    protected Environment $environment;
+    private const CACHE_DIRECTORY = 'keepsuit-liquid-phpbench';
 
-    protected array $templates;
+    private Environment $environment;
 
-    #[BeforeMethods('setupInMemory')]
-    public function benchInMemory(): void
+    private LiquidTemplatesCache $cache;
+
+    /** @var list<string> */
+    private array $templateNames;
+
+    /** @var list<string> */
+    private array $pageTemplateNames;
+
+    private string $cacheDirectory;
+
+    #[BeforeMethods('setUpInMemoryBuild')]
+    public function benchBuildInMemory(): void
     {
-        $this->renderTemplates();
+        $this->buildStaticTheme();
     }
 
-    public function setupInMemory(): void
+    #[BeforeMethods('setUpInMemoryCachedRender')]
+    public function benchLoadAndRenderInMemory(): void
     {
-        $this->environment = $this->environmentBuilder()
-            ->setTemplatesCache(new MemoryTemplatesCache)
-            ->build();
-
-        $this->loadTemplates();
+        $this->renderCachedTheme();
     }
 
-    #[BeforeMethods('setupVarExporter')]
-    public function benchVarExporter(): void
+    #[BeforeMethods('setUpSerializeBuild')]
+    public function benchBuildSerialize(): void
     {
-        $this->renderTemplates();
+        $this->buildStaticTheme();
     }
 
-    public function setupVarExporter(): void
+    #[BeforeMethods('setUpSerializeCachedRender')]
+    public function benchLoadAndRenderSerialize(): void
     {
-        $this->environment = $this->environmentBuilder()
-            ->setTemplatesCache(new VarExportTemplatesCache(__DIR__.'/cache/var_export', keepInMemory: false))
-            ->build();
-
-        $this->loadTemplates();
+        $this->renderCachedTheme();
     }
 
-    #[BeforeMethods('setupSerialize')]
-    public function benchSerialize(): void
+    #[BeforeMethods('setUpVarExporterBuild')]
+    public function benchBuildVarExporter(): void
     {
-        $this->renderTemplates();
+        $this->buildStaticTheme();
     }
 
-    public function setupSerialize(): void
+    #[BeforeMethods('setUpVarExporterCachedRender')]
+    public function benchLoadAndRenderVarExporter(): void
     {
-        $this->environment = $this->environmentBuilder()
-            ->setTemplatesCache(new SerializeTemplatesCache(__DIR__.'/cache/serialize', keepInMemory: false))
-            ->build();
-
-        $this->loadTemplates();
+        $this->renderCachedTheme();
     }
 
-    protected function loadTemplates(): void
+    public function setUpInMemoryBuild(): void
     {
-        $baseDir = __DIR__.'/../tests';
-        $files = glob($baseDir.'/**/*.liquid');
-
-        if ($files === false) {
-            throw new \RuntimeException('Could not find any tests');
-        }
-
-        $this->templates = Arr::map($files, function (string $path) use ($baseDir) {
-            // relative path to the base directory
-            $name = str_replace($baseDir.'/', '', $path);
-            // remove .liquid extension
-            $name = substr($name, 0, -7);
-
-            // replace / with .
-            return str_replace('/', '.', $name);
-        });
-
-        foreach ($this->templates as $template) {
-            $this->environment->parseTemplate($template);
-        }
+        $this->setUpBuild('memory');
     }
 
-    protected function environmentBuilder(): EnvironmentFactory
+    public function setUpInMemoryCachedRender(): void
     {
-        return EnvironmentFactory::new()
-            ->setFilesystem(new LocalFileSystem(__DIR__.'/../tests'))
-            ->registerTag(CommentFormTag::class)
-            ->registerTag(PaginateTag::class)
-            ->registerFilters(CustomFilters::class);
+        $this->setUpCachedRender('memory');
     }
 
-    protected function renderTemplates(): void
+    public function setUpSerializeBuild(): void
     {
-        foreach ($this->templates as $template) {
-            $this->environment->parseTemplate($template)
-                ->render($this->environment->newRenderContext(staticData: [...Database::tables()]));
-        }
+        $this->setUpBuild('serialize');
+    }
+
+    public function setUpSerializeCachedRender(): void
+    {
+        $this->setUpCachedRender('serialize');
+    }
+
+    public function setUpVarExporterBuild(): void
+    {
+        $this->setUpBuild('var-exporter');
+    }
+
+    public function setUpVarExporterCachedRender(): void
+    {
+        $this->setUpCachedRender('var-exporter');
     }
 
     public function clearCache(): void
     {
-        $this->environment->templatesCache->clear();
+        $this->cache->clear();
+    }
+
+    private function setUpBuild(string $backend): void
+    {
+        $this->templateNames = StorefrontTheme::templateNames();
+        $this->pageTemplateNames = StorefrontTheme::pageTemplateNames();
+        $this->cacheDirectory = sys_get_temp_dir().'/'.self::CACHE_DIRECTORY.'-'.bin2hex(random_bytes(8));
+        $this->cache = $this->newCache($backend);
+        $this->cache->clear();
+        $this->environment = StorefrontTheme::environmentFactory()->setTemplatesCache($this->cache)->build();
+    }
+
+    private function setUpCachedRender(string $backend): void
+    {
+        $this->setUpBuild($backend);
+        $this->compileStaticTheme($this->environment);
+
+        $this->cache = $backend === 'memory'
+            ? $this->cache
+            : $this->newCache($backend);
+        $this->environment = StorefrontTheme::environmentFactory()->setTemplatesCache($this->cache)->build();
+    }
+
+    private function compileStaticTheme(Environment $environment): void
+    {
+        foreach ($this->templateNames as $templateName) {
+            $environment->parseTemplate($templateName);
+        }
+    }
+
+    private function buildStaticTheme(): void
+    {
+        $this->cache->clear();
+        $this->compileStaticTheme($this->environment);
+    }
+
+    private function renderCachedTheme(): void
+    {
+        foreach ($this->pageTemplateNames as $templateName) {
+            StorefrontTheme::renderPage($this->environment, $templateName);
+        }
+    }
+
+    private function newCache(string $backend): LiquidTemplatesCache
+    {
+        return match ($backend) {
+            'memory' => new MemoryTemplatesCache,
+            'serialize' => new SerializeTemplatesCache($this->cachePath('serialize'), keepInMemory: false),
+            'var-exporter' => new VarExportTemplatesCache($this->cachePath('var-exporter'), keepInMemory: false),
+            default => throw new \InvalidArgumentException("Unknown templates cache backend [$backend]."),
+        };
+    }
+
+    private function cachePath(string $backend): string
+    {
+        return $this->cacheDirectory.'/'.$backend;
     }
 }

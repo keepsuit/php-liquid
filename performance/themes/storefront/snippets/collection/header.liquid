@@ -1,0 +1,9 @@
+<header class="collection-header">
+  <p class="eyebrow">{{ collection.label | upcase }}</p>
+  <h1>{{ collection.title }}</h1>
+  <p class="collection-header__description">{{ collection.description }}</p>
+  <figure class="collection-header__image">
+    <img src="{{ collection.image.src }}" alt="{{ collection.image.alt | escape }}" width="{{ collection.image.width }}" height="{{ collection.image.height }}">
+  </figure>
+  {%- render "snippets.shared.button", label: "Shop all", url: collection.url, icon: "arrow", tone: "primary" -%}
+</header>

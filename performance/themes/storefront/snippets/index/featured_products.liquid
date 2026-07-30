@@ -1,0 +1,11 @@
+<section class="featured">
+  <header class="featured__header">
+    <p class="eyebrow">Editor&rsquo;s picks</p>
+    <h2>Useful things for every day</h2>
+  </header>
+  <div class="featured__grid">
+    {%- for product in collection.products limit: 8 %}
+    {%- render "snippets.product.card", product: product, position: forloop.index, label: "featured" -%}
+    {%- endfor %}
+  </div>
+</section>

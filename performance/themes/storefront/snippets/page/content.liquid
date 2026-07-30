@@ -1,0 +1,10 @@
+<div class="page-content">
+  <p class="page-content__lede">{{ page.content }}</p>
+  {%- for section in page.sections %}
+  <section class="page-content__section" id="section-{{ forloop.index }}">
+    <h2>{{ section.title }}</h2>
+    <p>{{ section.body }}</p>
+  </section>
+  {%- endfor %}
+  {%- render "snippets.shared.button", label: "Contact us", url: "/pages/contact", icon: "arrow", tone: "secondary" -%}
+</div>

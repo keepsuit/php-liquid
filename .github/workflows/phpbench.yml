@@ -14,11 +14,12 @@ permissions:
 
 env:
   REQUIRED_PHP_EXTENSIONS: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
-  # TemplateCacheBench::benchVarExporter segfaults on CI for PHP 8.4/8.5. Exclude it on
+  # TemplateCacheBench's var-export subjects segfault on CI for PHP 8.4/8.5. Exclude them on
   # every version, not just those two: a benchmark set that varies per PHP version makes
   # the per-version comparison summaries incomparable with each other. Local runs are
-  # unfiltered, so the benchmark still exists — it just does not gate PRs.
-  PHPBENCH_FILTER: '^(?!.*TemplateCacheBench::benchVarExporter$).*'
+  # unfiltered, so the benchmarks still exist — they just do not gate PRs.
+  PHPBENCH_FILTER: '^(?!.*TemplateCacheBench::bench(Build|LoadAndRender)VarExporter$).*'
+  PHPBENCH_MAX_REG: '5'
 
 jobs:
   benchmark:
@@ -78,6 +79,7 @@ jobs:
           set -euo pipefail
 
           vendor/bin/phpbench run \
+            --group=default \
             --filter="$PHPBENCH_FILTER" \
             --progress=none \
             --warmup=1 \
@@ -91,6 +93,7 @@ jobs:
           set -euo pipefail
 
           vendor/bin/phpbench run \
+            --group=default \
             --filter="$PHPBENCH_FILTER" \
             --progress=none \
             --warmup=1 \
@@ -171,5 +174,5 @@ jobs:
             }
 
       - name: Enforce comparison failures
-        if: always() && steps.compare.outputs.exit_code != '0' && steps.compare.outputs.exit_code != '1'
+        if: always() && steps.compare.outputs.exit_code != '0'
         run: exit 1

@@ -1,0 +1,8 @@
+<div class="gallery">
+  {%- for image in product.images %}
+  <figure class="gallery__item" data-index="{{ forloop.index }}">
+    <img src="{{ image.src }}" alt="{{ image.alt | escape }}" width="{{ image.width }}" height="{{ image.height }}" style="aspect-ratio: {{ image.aspect_ratio }}"{% unless forloop.first %} loading="lazy"{% endunless %}>
+    <figcaption>{{ image.alt }}</figcaption>
+  </figure>
+  {%- endfor %}
+</div>
