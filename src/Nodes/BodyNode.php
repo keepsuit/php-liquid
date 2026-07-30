@@ -53,6 +53,13 @@ class BodyNode extends Node implements CanBeStreamed
         $output = '';
 
         foreach ($this->children as $node) {
+            // Text is the majority of children and cannot fail or interrupt.
+            if ($node instanceof Text) {
+                $output .= $node->value;
+
+                continue;
+            }
+
             try {
                 if ($node instanceof Disableable && $node instanceof Tag) {
                     $node->ensureTagIsEnabled($context);
@@ -85,6 +92,14 @@ class BodyNode extends Node implements CanBeStreamed
         $context->resourceLimits->incrementRenderScore(count($this->children));
 
         foreach ($this->children as $node) {
+            // Text is the majority of children and cannot fail or interrupt.
+            if ($node instanceof Text) {
+                $context->resourceLimits->incrementWriteScore($node->value);
+                yield $node->value;
+
+                continue;
+            }
+
             try {
                 if ($node instanceof Disableable && $node instanceof Tag) {
                     $node->ensureTagIsEnabled($context);
