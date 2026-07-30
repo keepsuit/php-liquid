@@ -28,6 +28,9 @@ test('complex theme fixture renders every page through the shared layout', funct
 
         expect($rendered)
             ->toContain('<header class="site-header">')
+            // Unknown filters render as their unmodified input, so assert on
+            // filtered output to keep a missing filter from passing silently.
+            ->toContain('Cart: 3 items / €126.50')
             ->toContain($expectedContent)
             ->toContain('<footer class="site-footer">')
             ->and($streamed)->toBe($rendered);

@@ -5,5 +5,5 @@
       <li><a href="{{ link.url }}">{{ link.title }}</a></li>{% endfor %}
     </ul>
   </nav>
-  <p class="site-header__cart">{% render "snippets.shared.icon", name: "bag" %} Cart: {{ cart.item_count }} {{ cart.item_count | pluralize: 'item', 'items' }} / {{ cart.total_price | fixture_money }}</p>
+  <p class="site-header__cart">{% render "snippets.shared.icon", name: "bag" %} Cart: {{ cart.item_count }} {{ cart.item_count | fixture_pluralize: 'item', 'items' }} / {{ cart.total_price | fixture_money }}</p>
 </header>

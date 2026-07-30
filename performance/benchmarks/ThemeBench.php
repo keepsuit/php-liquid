@@ -21,26 +21,36 @@ class ThemeBench
 {
     private Environment $environment;
 
+    /**
+     * Template sources are read up front: reading them inside the benchmark
+     * would measure the filesystem instead of the tokenizer and the parser.
+     *
+     * @var array<string, string>
+     */
+    private array $sources;
+
     public function setUp(): void
     {
         $this->environment = ComplexThemeFixture::environment();
+        $this->sources = [];
 
         foreach (ComplexThemeFixture::templateNames() as $name) {
             $this->environment->parseTemplate($name);
+            $this->sources[$name] = ComplexThemeFixture::templateSource($name);
         }
     }
 
     public function benchTokenize(): void
     {
-        foreach (ComplexThemeFixture::templateNames() as $name) {
-            $this->environment->newParseContext()->tokenize(ComplexThemeFixture::templateSource($name));
+        foreach ($this->sources as $source) {
+            $this->environment->newParseContext()->tokenize($source);
         }
     }
 
     public function benchParse(): void
     {
-        foreach (ComplexThemeFixture::templateNames() as $name) {
-            $this->environment->parseString(ComplexThemeFixture::templateSource($name), $name);
+        foreach ($this->sources as $name => $source) {
+            $this->environment->parseString($source, $name);
         }
     }
 

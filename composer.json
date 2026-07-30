@@ -51,8 +51,8 @@
             "pint",
             "phpstan analyse"
         ],
-        "benchmark": "phpbench run --group=macro --retry-threshold=5 --report=aggregate",
-        "benchmark:micro": "phpbench run --group=micro --retry-threshold=5 --report=aggregate",
+        "benchmark": "phpbench run --group=macro --warmup=1 --retry-threshold=5 --report=aggregate",
+        "benchmark:micro": "phpbench run --group=micro --warmup=1 --retry-threshold=5 --report=aggregate",
         "profile": "phpbench xdebug:profile"
     },
     "config": {

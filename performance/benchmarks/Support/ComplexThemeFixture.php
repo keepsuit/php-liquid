@@ -238,6 +238,11 @@ final class ComplexThemeFilters extends FiltersProvider
     {
         return '€'.number_format($cents / 100, 2, '.', '');
     }
+
+    public function fixturePluralize(int $count, string $singular, string $plural): string
+    {
+        return $count === 1 ? $singular : $plural;
+    }
 }
 
 final class ComplexThemeProduct extends Drop
