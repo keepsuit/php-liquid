@@ -144,8 +144,8 @@ final class RenderContext
 
     public function evaluate(mixed $value): mixed
     {
-        if ($value instanceof CanBeEvaluated) {
-            return $this->evaluate($value->evaluate($this));
+        while ($value instanceof CanBeEvaluated) {
+            $value = $value->evaluate($this);
         }
 
         return $value;
