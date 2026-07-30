@@ -51,7 +51,8 @@
             "pint",
             "phpstan analyse"
         ],
-        "benchmark": "phpbench run --report=aggregate",
+        "benchmark": "phpbench run --group=macro --report=aggregate",
+        "benchmark:micro": "phpbench run --group=micro --report=aggregate",
         "profile": "phpbench xdebug:profile"
     },
     "config": {

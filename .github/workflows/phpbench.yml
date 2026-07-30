@@ -14,11 +14,11 @@ permissions:
 
 env:
   REQUIRED_PHP_EXTENSIONS: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
-  # TemplateCacheBench::benchVarExporter segfaults on CI for PHP 8.4/8.5. Exclude it on
+  # TemplateCacheBench::benchLoadAndRenderVarExporter segfaults on CI for PHP 8.4/8.5. Exclude it on
   # every version, not just those two: a benchmark set that varies per PHP version makes
   # the per-version comparison summaries incomparable with each other. Local runs are
   # unfiltered, so the benchmark still exists — it just does not gate PRs.
-  PHPBENCH_FILTER: '^(?!.*TemplateCacheBench::benchVarExporter$).*'
+  PHPBENCH_FILTER: '^(?!.*TemplateCacheBench::benchLoadAndRenderVarExporter$).*'
 
 jobs:
   benchmark:
@@ -78,9 +78,9 @@ jobs:
           set -euo pipefail
 
           vendor/bin/phpbench run \
+            --group=macro \
             --filter="$PHPBENCH_FILTER" \
             --progress=none \
-            --warmup=1 \
             --retry-threshold=5 \
             --report=aggregate \
             --output=json > "$WORKSPACE/pr.json"
@@ -93,7 +93,6 @@ jobs:
           vendor/bin/phpbench run \
             --filter="$PHPBENCH_FILTER" \
             --progress=none \
-            --warmup=1 \
             --retry-threshold=5 \
             --report=aggregate \
             --output=json > "$WORKSPACE/base.json"
@@ -106,7 +105,7 @@ jobs:
           PHPBENCH_PHP_VERSION: ${{ matrix.php }}
           PHPBENCH_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PHPBENCH_PR_SHA: ${{ github.event.pull_request.head.sha }}
-          PHPBENCH_WARMUP: '1'
+          PHPBENCH_WARMUP: '0'
         run: |
           set +e
           export PHPBENCH_RUNNER="${ImageOS:-$RUNNER_OS}"

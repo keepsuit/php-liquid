@@ -7,17 +7,19 @@ use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Performance\Shopify\DatabaseDrop;
 use Keepsuit\Liquid\Template;
 use PhpBench\Attributes\BeforeMethods;
+use PhpBench\Attributes\Groups;
 use PhpBench\Attributes\Iterations;
 use PhpBench\Attributes\OutputMode;
 use PhpBench\Attributes\OutputTimeUnit;
 use PhpBench\Attributes\Revs;
 
+#[Groups(['micro'])]
 #[Iterations(10)]
 #[Revs(20)]
 #[OutputMode('throughput')]
 #[OutputTimeUnit('seconds', precision: 3)]
 #[BeforeMethods('setUp')]
-class RenderBench
+class OperationBench
 {
     private Environment $environment;
 
@@ -25,11 +27,17 @@ class RenderBench
 
     private Template $nestedTemplate;
 
+    private Template $filterWithoutArgumentsTemplate;
+
+    private Template $filterWithArgumentsTemplate;
+
     public function setUp(): void
     {
         $this->environment = EnvironmentFactory::new()->build();
         $this->scalarTemplate = $this->environment->parseString(str_repeat('{{ value }}', 64));
         $this->nestedTemplate = $this->environment->parseString(str_repeat('{{ product.title }}', 64));
+        $this->filterWithoutArgumentsTemplate = $this->environment->parseString(str_repeat('{{ value | upcase | escape }}', 32));
+        $this->filterWithArgumentsTemplate = $this->environment->parseString(str_repeat('{{ value | append: suffix | replace: from, to }}', 32));
     }
 
     public function benchScalarRender(): void
@@ -74,6 +82,16 @@ class RenderBench
         )));
     }
 
+    public function benchFilterWithoutArguments(): void
+    {
+        $this->filterWithoutArgumentsTemplate->render($this->filterContext());
+    }
+
+    public function benchFilterWithArguments(): void
+    {
+        $this->filterWithArgumentsTemplate->render($this->filterContext());
+    }
+
     /**
      * @param  \Generator<string>  $stream
      */
@@ -82,5 +100,15 @@ class RenderBench
         while ($stream->valid()) {
             $stream->next();
         }
+    }
+
+    private function filterContext(): \Keepsuit\Liquid\Render\RenderContext
+    {
+        return $this->environment->newRenderContext(staticData: [
+            'value' => 'example',
+            'suffix' => '-suffix',
+            'from' => 'example',
+            'to' => 'value',
+        ]);
     }
 }

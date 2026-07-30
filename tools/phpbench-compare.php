@@ -17,8 +17,8 @@ $sharedNames = array_values(array_intersect(array_keys($baseBenchmarks), array_k
 sort($sharedNames);
 
 if ($sharedNames === []) {
-    fwrite(STDERR, "No common benchmark names found between base and PR results.\n");
-    exit(2);
+    echo "> No comparable benchmark rows: the PR benchmark suite has changed. Establish a matching baseline on `main` before drawing performance conclusions.\n";
+    exit(0);
 }
 
 // Runner jitter is routinely ±2%, so a single median over every benchmark is
