@@ -3,22 +3,49 @@
 namespace Keepsuit\Liquid\Performance\benchmarks\Support;
 
 use Keepsuit\Liquid\Attributes\Cache;
-use Keepsuit\Liquid\Contracts\LiquidFileSystem;
 use Keepsuit\Liquid\Contracts\LiquidTemplatesCache;
 use Keepsuit\Liquid\Drop;
 use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\EnvironmentFactory;
+use Keepsuit\Liquid\FileSystems\LocalFileSystem;
 use Keepsuit\Liquid\Filters\FiltersProvider;
 use Keepsuit\Liquid\Render\RenderContext;
 
 final class ComplexThemeFixture
 {
-    public const ROOT_TEMPLATE_NAME = 'collection-page';
+    public const ROOT_TEMPLATE_NAME = 'collection_page';
+
+    private const PRODUCTS = [
+        ['linen-shirt', 'Linen Shirt', 'ACME Apparel', 3950, 5900, ['new', 'linen']],
+        ['canvas-tote', 'Canvas Tote', 'Field Goods', 2400, 3200, ['travel', 'sale']],
+        ['sun-hat', 'Sun Hat', 'Coastline', 1875, 2500, ['summer', 'sale']],
+        ['ceramic-mug', 'Ceramic Mug', 'Studio Form', 2200, 2200, ['kitchen', 'new']],
+        ['weekend-bag', 'Weekend Bag', 'Field Goods', 8900, 10900, ['travel', 'limited']],
+        ['cotton-throw', 'Cotton Throw', 'North Loom', 7600, 7600, ['home', 'soft']],
+        ['leather-wallet', 'Leather Wallet', 'Atelier No. 8', 5200, 6500, ['gift', 'sale']],
+        ['travel-bottle', 'Travel Bottle', 'Coastline', 2800, 2800, ['travel', 'summer']],
+        ['desk-lamp', 'Desk Lamp', 'Studio Form', 6800, 8100, ['home', 'new']],
+        ['wool-socks', 'Wool Socks', 'North Loom', 1600, 1600, ['warm', 'gift']],
+        ['market-basket', 'Market Basket', 'Field Goods', 4300, 5000, ['home', 'limited']],
+        ['notebook-set', 'Notebook Set', 'Paper Mill', 1900, 1900, ['desk', 'new']],
+        ['silk-scarf', 'Silk Scarf', 'Atelier No. 8', 7400, 8900, ['gift', 'sale']],
+        ['beach-towel', 'Beach Towel', 'Coastline', 3600, 3600, ['summer', 'travel']],
+        ['glass-vase', 'Glass Vase', 'Studio Form', 4600, 5200, ['home', 'limited']],
+        ['knit-cap', 'Knit Cap', 'North Loom', 3100, 3100, ['warm', 'new']],
+        ['key-organizer', 'Key Organizer', 'Atelier No. 8', 4100, 4800, ['gift', 'travel']],
+        ['picnic-blanket', 'Picnic Blanket', 'Field Goods', 9200, 11200, ['summer', 'home']],
+        ['tea-canister', 'Tea Canister', 'Paper Mill', 2700, 2700, ['kitchen', 'desk']],
+        ['camp-lantern', 'Camp Lantern', 'Coastline', 5400, 6200, ['travel', 'limited']],
+        ['table-clock', 'Table Clock', 'Studio Form', 5700, 5700, ['home', 'desk']],
+        ['cashmere-wrap', 'Cashmere Wrap', 'North Loom', 12800, 14900, ['warm', 'gift']],
+        ['card-holder', 'Card Holder', 'Atelier No. 8', 3300, 3300, ['gift', 'new']],
+        ['sketchbook', 'Sketchbook', 'Paper Mill', 2500, 2500, ['desk', 'travel']],
+    ];
 
     public static function environment(?LiquidTemplatesCache $templatesCache = null): Environment
     {
         $factory = EnvironmentFactory::new()
-            ->setFilesystem(new ComplexThemeFileSystem(self::templateSources()))
+            ->setFilesystem(new LocalFileSystem(self::themePath()))
             ->registerFilters(ComplexThemeFilters::class);
 
         if ($templatesCache !== null) {
@@ -28,27 +55,43 @@ final class ComplexThemeFixture
         return $factory->build();
     }
 
+    public static function themePath(): string
+    {
+        return dirname(__DIR__, 2).'/themes/complex-collection';
+    }
+
     public static function rootTemplateName(): string
     {
         return self::ROOT_TEMPLATE_NAME;
     }
 
-    public static function rootTemplateSource(): string
-    {
-        return self::templateSources()[self::ROOT_TEMPLATE_NAME];
-    }
-
     /**
-     * @return array<string, string>
+     * @return list<string>
      */
-    public static function templateSources(): array
+    public static function templateNames(): array
     {
         return [
-            self::ROOT_TEMPLATE_NAME => '{% render "page-shell", collection: collection %}',
-            'page-shell' => "<main data-collection=\"{{ collection.handle }}\">\n  {% render \"collection-section\", collection: collection %}\n</main>",
-            'collection-section' => "<header><h1>{{ collection.title }}</h1><p>{{ collection.products | size }} products</p></header>\n  <section class=\"products\">\n{% for product in collection.products %}    {% render \"product-card\", product: product, label: collection.label %}\n{% endfor %}  </section>",
-            'product-card' => '<article data-handle="{{ product.handle }}"><h2>{{ product.title }}</h2><p class="vendor">{{ product.vendor | upcase }}</p><p class="price">{{ product.price_cents | fixture_money }}</p><p class="label">{{ label }}</p><p class="summary">{{ product.title }} / {{ product.vendor }} / {{ product.inventory_label }} | {{ product.title }} / {{ product.vendor }} / {{ product.inventory_label }}</p></article>',
+            'collection_page',
+            'page_shell',
+            'collection_header',
+            'collection_navigation',
+            'collection_grid',
+            'product_card',
+            'product_media',
+            'product_pricing',
+            'product_metadata',
         ];
+    }
+
+    public static function templateSource(string $templateName): string
+    {
+        $source = file_get_contents(self::themePath().'/'.$templateName.'.liquid');
+
+        if ($source === false) {
+            throw new \RuntimeException("Could not read fixture template [$templateName].");
+        }
+
+        return $source;
     }
 
     /**
@@ -61,11 +104,12 @@ final class ComplexThemeFixture
                 'handle' => 'summer-essentials',
                 'title' => 'Summer Essentials',
                 'label' => 'summer',
-                'products' => [
-                    new ComplexThemeProduct('linen-shirt', 'Linen Shirt', 'ACME Apparel', 3950),
-                    new ComplexThemeProduct('canvas-tote', 'Canvas Tote', 'Field Goods', 2400),
-                    new ComplexThemeProduct('sun-hat', 'Sun Hat', 'Coastline', 1875),
-                ],
+                'description' => 'Everyday pieces for long weekends, slow mornings, and bright afternoons.',
+                'tags' => ['New arrivals', 'Travel ready', 'Summer layers', 'Gifts under €100'],
+                'products' => array_map(
+                    static fn (array $product) => new ComplexThemeProduct(...$product),
+                    self::PRODUCTS,
+                ),
             ],
         ];
     }
@@ -73,21 +117,6 @@ final class ComplexThemeFixture
     public static function newRenderContext(Environment $environment): RenderContext
     {
         return $environment->newRenderContext(staticData: self::renderData());
-    }
-}
-
-final class ComplexThemeFileSystem implements LiquidFileSystem
-{
-    /**
-     * @param  array<string, string>  $templates
-     */
-    public function __construct(
-        private readonly array $templates,
-    ) {}
-
-    public function readTemplateFile(string $templateName): string
-    {
-        return $this->templates[$templateName] ?? throw new \RuntimeException("Unknown fixture template [$templateName].");
     }
 }
 
@@ -101,11 +130,16 @@ final class ComplexThemeFilters extends FiltersProvider
 
 final class ComplexThemeProduct extends Drop
 {
+    /**
+     * @param  list<string>  $badges
+     */
     public function __construct(
         public readonly string $handle,
         public readonly string $title,
         private readonly string $vendorName,
         private readonly int $priceCents,
+        private readonly int $compareAtPriceCents,
+        public readonly array $badges,
     ) {}
 
     public function vendor(): string
@@ -118,9 +152,14 @@ final class ComplexThemeProduct extends Drop
         return $this->priceCents;
     }
 
-    #[Cache]
-    public function inventoryLabel(): int
+    public function compareAtPriceCents(): int
     {
-        return $this->priceCents;
+        return $this->compareAtPriceCents;
+    }
+
+    #[Cache]
+    public function inventoryLabel(): string
+    {
+        return $this->priceCents < 3000 ? 'Low stock' : 'In stock';
     }
 }

@@ -1,0 +1,8 @@
+<div class="product-card__metadata">
+  <p class="label">{{ label }}</p>
+  <p class="inventory">{{ product.inventory_label }} / {{ product.inventory_label }}</p>
+  <ul class="badges">
+{% for badge in product.badges %}    <li>{{ badge | upcase }}</li>
+{% endfor %}  </ul>
+  <p class="summary">{{ product.title }} / {{ product.vendor }} / {{ product.inventory_label }} | {{ product.title }} / {{ product.vendor }} / {{ product.inventory_label }}</p>
+</div>

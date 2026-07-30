@@ -17,8 +17,8 @@ use PhpBench\Attributes\OutputTimeUnit;
 use PhpBench\Attributes\Revs;
 
 #[Groups(['macro'])]
-#[Iterations(20)]
-#[Revs(100)]
+#[Iterations(10)]
+#[Revs(20)]
 #[OutputMode('throughput')]
 #[OutputTimeUnit('seconds', precision: 3)]
 #[AfterMethods('clearCache')]
@@ -31,42 +31,36 @@ class TemplateCacheBench
     private LiquidTemplatesCache $cache;
 
     #[BeforeMethods('setUpInMemoryBuild')]
-    #[Revs(1000)]
     public function benchBuildInMemory(): void
     {
         $this->buildStaticTheme();
     }
 
     #[BeforeMethods('setUpInMemoryCachedRender')]
-    #[Revs(1000)]
     public function benchLoadAndRenderInMemory(): void
     {
         $this->renderCachedTheme();
     }
 
     #[BeforeMethods('setUpSerializeBuild')]
-    #[Revs(500)]
     public function benchBuildSerialize(): void
     {
         $this->buildStaticTheme();
     }
 
     #[BeforeMethods('setUpSerializeCachedRender')]
-    #[Revs(1000)]
     public function benchLoadAndRenderSerialize(): void
     {
         $this->renderCachedTheme();
     }
 
     #[BeforeMethods('setUpVarExporterBuild')]
-    #[Revs(1000)]
     public function benchBuildVarExporter(): void
     {
         $this->buildStaticTheme();
     }
 
     #[BeforeMethods('setUpVarExporterCachedRender')]
-    #[Revs(1000)]
     public function benchLoadAndRenderVarExporter(): void
     {
         $this->renderCachedTheme();
@@ -127,7 +121,7 @@ class TemplateCacheBench
 
     private function compileStaticTheme(Environment $environment): void
     {
-        foreach (array_keys(ComplexThemeFixture::templateSources()) as $templateName) {
+        foreach (ComplexThemeFixture::templateNames() as $templateName) {
             $environment->parseTemplate($templateName);
         }
     }

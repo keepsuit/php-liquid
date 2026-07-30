@@ -40,10 +40,7 @@ $environment->addExtension(new ProfilerExtension(
     variables: true,
 ));
 
-$template = $environment->parseString(
-    source: ComplexThemeFixture::rootTemplateSource(),
-    name: ComplexThemeFixture::rootTemplateName(),
-);
+$template = $environment->parseTemplate(ComplexThemeFixture::rootTemplateName());
 $template->render(ComplexThemeFixture::newRenderContext($environment));
 
 $report = ProfileReport::fromProfiler($profiler);

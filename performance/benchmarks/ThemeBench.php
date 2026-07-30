@@ -13,8 +13,8 @@ use PhpBench\Attributes\OutputTimeUnit;
 use PhpBench\Attributes\Revs;
 
 #[Groups(['macro'])]
-#[Iterations(20)]
-#[Revs(1000)]
+#[Iterations(10)]
+#[Revs(20)]
 #[OutputMode('throughput')]
 #[OutputTimeUnit('seconds', precision: 3)]
 #[BeforeMethods('setUp')]
@@ -28,7 +28,7 @@ class ThemeBench
     {
         $this->environment = ComplexThemeFixture::environment();
 
-        foreach (array_keys(ComplexThemeFixture::templateSources()) as $name) {
+        foreach (ComplexThemeFixture::templateNames() as $name) {
             $this->environment->parseTemplate($name);
         }
 
@@ -37,15 +37,15 @@ class ThemeBench
 
     public function benchTokenize(): void
     {
-        foreach (ComplexThemeFixture::templateSources() as $source) {
-            $this->environment->newParseContext()->tokenize($source);
+        foreach (ComplexThemeFixture::templateNames() as $name) {
+            $this->environment->newParseContext()->tokenize(ComplexThemeFixture::templateSource($name));
         }
     }
 
     public function benchParse(): void
     {
-        foreach (ComplexThemeFixture::templateSources() as $name => $source) {
-            $this->environment->parseString($source, $name);
+        foreach (ComplexThemeFixture::templateNames() as $name) {
+            $this->environment->parseString(ComplexThemeFixture::templateSource($name), $name);
         }
     }
 
@@ -54,7 +54,6 @@ class ThemeBench
         $this->template->render(ComplexThemeFixture::newRenderContext($this->environment));
     }
 
-    #[Revs(1500)]
     public function benchStream(): void
     {
         foreach ($this->template->stream(ComplexThemeFixture::newRenderContext($this->environment)) as $chunk) {

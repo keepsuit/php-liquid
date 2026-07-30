@@ -1,0 +1,5 @@
+<nav aria-label="Collection filters" class="collection-navigation">
+  <ul>
+{% for tag in collection.tags %}    <li data-position="{{ forloop.index }}">{{ tag | replace: " ", "-" | upcase }}</li>
+{% endfor %}  </ul>
+</nav>
