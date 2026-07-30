@@ -246,7 +246,7 @@ final class RenderContext
             return $this->missingValue;
         }
 
-        return $this->normalizeValue($value);
+        return is_object($value) ? $this->normalizeValue($value) : $value;
     }
 
     protected function objectHasProperty(object $object, string $property): bool
@@ -278,11 +278,16 @@ final class RenderContext
 
     public function normalizeValue(mixed $value): mixed
     {
+        // Only objects can need normalization, and scalars dominate the hot path.
+        if (! is_object($value)) {
+            return $value;
+        }
+
         if ($value instanceof MissingValue) {
             return $value;
         }
 
-        if (is_object($value) && isset($this->sharedState->computedObjectsCache[$value])) {
+        if (isset($this->sharedState->computedObjectsCache[$value])) {
             return $this->sharedState->computedObjectsCache[$value];
         }
 
