@@ -144,8 +144,8 @@ final class RenderContext
 
     public function evaluate(mixed $value): mixed
     {
-        if ($value instanceof CanBeEvaluated) {
-            return $this->evaluate($value->evaluate($this));
+        while ($value instanceof CanBeEvaluated) {
+            $value = $value->evaluate($this);
         }
 
         return $value;
@@ -177,40 +177,76 @@ final class RenderContext
         return $this->get($key) !== null;
     }
 
+    /**
+     * Resolves $key against the scope chain and returns the innermost value.
+     *
+     * @return mixed the value, or MissingValue when the key is undefined everywhere
+     */
+    public function findVariable(string $key): mixed
+    {
+        // Deliberately not written as a loop over [...$this->scopes, $this->data, ...]:
+        // building that list would allocate an array on every variable reference.
+        foreach ($this->scopes as $scope) {
+            if (array_key_exists($key, $scope)) {
+                return $this->resolveVariable($scope[$key]);
+            }
+        }
+
+        if (array_key_exists($key, $this->data)) {
+            return $this->resolveVariable($this->data[$key]);
+        }
+
+        if (array_key_exists($key, $this->sharedState->staticVariables)) {
+            return $this->resolveVariable($this->sharedState->staticVariables[$key]);
+        }
+
+        // Fall back to the implicit self drop only when no value was found anywhere.
+        return $key === 'self' ? $this->getSelfDrop() : $this->missingValue;
+    }
+
+    /**
+     * Every value $key resolves to, innermost scope first.
+     *
+     * Only useful to callers that need to fall back to an outer scope when the
+     * innermost value does not satisfy them; prefer findVariable() otherwise.
+     *
+     * @return list<mixed>
+     */
     public function findVariables(string $key): array
     {
         $variables = [];
 
-        // Check the variable in all scopes + env data + static variables
-        $scopeCount = count($this->scopes);
-        for ($index = 0; $index < $scopeCount + 2; $index++) {
-            $scope = match (true) {
-                $index < $scopeCount => $this->scopes[$index],
-                $index === $scopeCount => $this->data,
-                default => $this->sharedState->staticVariables,
-            };
-
-            $value = $this->internalContextLookup($scope, $key);
-
-            if (! $value instanceof MissingValue) {
-                $variables[] = $value;
+        foreach ([...$this->scopes, $this->data, $this->sharedState->staticVariables] as $scope) {
+            if (array_key_exists($key, $scope)) {
+                $variables[] = $this->resolveVariable($scope[$key]);
             }
         }
 
-        // Inject the implicit self drop only when no value (including explicit null) was found.
-        // An explicit `self = nil` leaves [null] in $variables, so the fallback is skipped,
-        // correctly distinguishing defined-null from undefined.
+        // Fall back to the implicit self drop only when no value was found anywhere.
         if ($variables === [] && $key === 'self') {
             return [$this->getSelfDrop()];
         }
 
-        foreach ($variables as $variable) {
-            if ($variable instanceof IsContextAware) {
-                $variable->setContext($this);
-            }
+        return $variables;
+    }
+
+    /**
+     * Normalizes a value pulled out of a scope and binds it to this context.
+     */
+    protected function resolveVariable(mixed $value): mixed
+    {
+        // Only objects can need either step, and scalars dominate the hot path.
+        if (! is_object($value)) {
+            return $value;
         }
 
-        return $variables;
+        $value = $this->normalizeValue($value);
+
+        if ($value instanceof IsContextAware) {
+            $value->setContext($this);
+        }
+
+        return $value;
     }
 
     public function getSelfDrop(): SelfDrop
@@ -222,17 +258,23 @@ final class RenderContext
     {
         try {
             $value = match (true) {
+                is_array($scope) => match (true) {
+                    array_key_exists($key, $scope) => $scope[$key],
+                    default => $this->missingValue,
+                },
                 $scope instanceof Drop => $scope->{$key},
-                is_array($scope) && array_key_exists($key, $scope) => $scope[$key],
-                is_object($scope) && $this->objectHasProperty($scope, (string) $key) => $scope->{$key},
-                is_object($scope) && $this->objectHasStaticProperty($scope, (string) $key) => $scope::$$key,
+                is_object($scope) => match (true) {
+                    $this->objectHasProperty($scope, (string) $key) => $scope->{$key},
+                    $this->objectHasStaticProperty($scope, (string) $key) => $scope::$$key,
+                    default => $this->missingValue,
+                },
                 default => $this->missingValue,
             };
         } catch (UndefinedDropMethodException) {
             return $this->missingValue;
         }
 
-        return $this->normalizeValue($value);
+        return is_object($value) ? $this->normalizeValue($value) : $value;
     }
 
     protected function objectHasProperty(object $object, string $property): bool
@@ -264,7 +306,16 @@ final class RenderContext
 
     public function normalizeValue(mixed $value): mixed
     {
-        if (is_object($value) && isset($this->sharedState->computedObjectsCache[$value])) {
+        // Only objects can need normalization, and scalars dominate the hot path.
+        if (! is_object($value)) {
+            return $value;
+        }
+
+        if ($value instanceof MissingValue) {
+            return $value;
+        }
+
+        if (isset($this->sharedState->computedObjectsCache[$value])) {
             return $this->sharedState->computedObjectsCache[$value];
         }
 
@@ -332,7 +383,7 @@ final class RenderContext
 
     public function hasInterrupt(): bool
     {
-        return count($this->interrupts) > 0;
+        return $this->interrupts !== [];
     }
 
     /**

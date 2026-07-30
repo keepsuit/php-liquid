@@ -144,13 +144,14 @@ test('drop metadata', function () {
         ->properties->toBe([]);
 
     expect(invade(new CachableDrop)->getMetadata())
-        ->invokableMethods->toBe(['notCached', 'cached'])
-        ->cacheableMethods->toBe(['cached'])
+        ->invokableMethods->toBe(['notCached', 'cached', 'cachedNull', 'cachedNullCalls'])
+        ->cacheableMethods->toBe(['cached', 'cachedNull'])
         ->properties->toBe([]);
 });
 
 it('can cache drop method calls', function () {
     $drop = new CachableDrop;
+    $anotherDrop = new CachableDrop;
 
     expect($drop)
         ->notCached->toBe(0)
@@ -158,7 +159,34 @@ it('can cache drop method calls', function () {
 
     expect($drop)
         ->cached->toBe(0)
+        ->cached->toBe(0)
+        ->and($anotherDrop)
         ->cached->toBe(0);
+});
+
+it('can cache null drop method results', function () {
+    $drop = new CachableDrop;
+
+    expect($drop)
+        ->cachedNull->toBeNull()
+        ->cachedNull->toBeNull()
+        ->cachedNullCalls->toBe(1);
+});
+
+it('does not cache dynamic drop method results', function () {
+    $drop = new class extends \Keepsuit\Liquid\Drop
+    {
+        private int $calls = 0;
+
+        protected function liquidMethodMissing(string $name): mixed
+        {
+            return sprintf('%s:%d', $name, ++$this->calls);
+        }
+    };
+
+    expect($drop)
+        ->unknownValue->toBe('unknownValue:1')
+        ->unknownValue->toBe('unknownValue:2');
 });
 
 it('can access drop data with snake and camel cases', function () {

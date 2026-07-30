@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid\Nodes;
 
 use Keepsuit\Liquid\Contracts\CanBeStreamed;
+use Keepsuit\Liquid\Contracts\Disableable;
 use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
@@ -52,12 +53,19 @@ class BodyNode extends Node implements CanBeStreamed
         $output = '';
 
         foreach ($this->children as $node) {
+            // Text is the majority of children and cannot fail or interrupt.
+            if ($node instanceof Text) {
+                $output .= $node->value;
+
+                continue;
+            }
+
             try {
-                if ($node instanceof Tag) {
+                if ($node instanceof Disableable && $node instanceof Tag) {
                     $node->ensureTagIsEnabled($context);
                 }
 
-                $output .= $this->renderChild($context, $node);
+                $output .= $node->render($context);
             } catch (UndefinedVariableException|UndefinedDropMethodException|UndefinedFilterException $exception) {
                 $context->handleError($exception, $node->lineNumber);
             } catch (\Throwable $exception) {
@@ -84,12 +92,26 @@ class BodyNode extends Node implements CanBeStreamed
         $context->resourceLimits->incrementRenderScore(count($this->children));
 
         foreach ($this->children as $node) {
+            // Text is the majority of children and cannot fail or interrupt.
+            if ($node instanceof Text) {
+                $context->resourceLimits->incrementWriteScore($node->value);
+                yield $node->value;
+
+                continue;
+            }
+
             try {
-                if ($node instanceof Tag) {
+                if ($node instanceof Disableable && $node instanceof Tag) {
                     $node->ensureTagIsEnabled($context);
                 }
 
-                foreach ($this->streamChild($context, $node) as $output) {
+                if ($node instanceof CanBeStreamed) {
+                    foreach ($node->stream($context) as $output) {
+                        $context->resourceLimits->incrementWriteScore($output);
+                        yield $output;
+                    }
+                } else {
+                    $output = $node->render($context);
                     $context->resourceLimits->incrementWriteScore($output);
                     yield $output;
                 }
@@ -105,25 +127,6 @@ class BodyNode extends Node implements CanBeStreamed
                 break;
             }
         }
-    }
-
-    protected function renderChild(RenderContext $context, Node $node): string
-    {
-        return $node->render($context);
-    }
-
-    /**
-     * @return \Generator<string>
-     */
-    public function streamChild(RenderContext $context, Node $node): \Generator
-    {
-        if ($node instanceof CanBeStreamed) {
-            yield from $node->stream($context);
-
-            return;
-        }
-
-        yield $node->render($context);
     }
 
     public function blank(): bool

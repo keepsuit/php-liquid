@@ -23,6 +23,13 @@ final class DropMetadata
 
     protected static array $dropBaseMethods;
 
+    /** @var array<string,list<string>> */
+    private array $possibleNames = [];
+
+    /** @var array<string,DropMemberResolution|null>
+     */
+    private array $staticResolution = [];
+
     public function __construct(
         /** @var list<string> */
         public readonly array $invokableMethods = [],
@@ -33,6 +40,46 @@ final class DropMetadata
         /** @var list<string> */
         public readonly array $dynamicProperties = [],
     ) {}
+
+    /**
+     * @return list<string>
+     */
+    public function possibleNames(string $name): array
+    {
+        return $this->possibleNames[$name] ??= array_values(array_unique([
+            $name,
+            Str::camel($name),
+            Str::snake($name),
+        ]));
+    }
+
+    public function resolveStaticMember(string $name): ?DropMemberResolution
+    {
+        if (array_key_exists($name, $this->staticResolution)) {
+            return $this->staticResolution[$name];
+        }
+
+        $possibleNames = $this->possibleNames($name);
+
+        foreach ($possibleNames as $propertyName) {
+            if (in_array($propertyName, $this->properties, true)) {
+                return $this->staticResolution[$name] = DropMemberResolution::property($propertyName);
+            }
+        }
+
+        foreach ($possibleNames as $methodName) {
+            if (in_array($methodName, $this->invokableMethods, true)) {
+                return $this->staticResolution[$name] = DropMemberResolution::method(
+                    $methodName,
+                    in_array($methodName, $this->cacheableMethods, true)
+                );
+            }
+        }
+
+        $this->staticResolution[$name] = null;
+
+        return null;
+    }
 
     public static function init(Drop $drop): DropMetadata
     {

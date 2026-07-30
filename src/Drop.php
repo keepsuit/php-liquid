@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid;
 use Keepsuit\Liquid\Concerns\ContextAware;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
+use Keepsuit\Liquid\Support\DropMemberType;
 use Keepsuit\Liquid\Support\DropMetadata;
 use Keepsuit\Liquid\Support\Str;
 
@@ -47,44 +48,28 @@ class Drop implements IsContextAware
 
     public function __get(string $name): mixed
     {
-        $invokableMethods = $this->getMetadata()->invokableMethods;
-        $cacheableMethods = $this->getMetadata()->cacheableMethods;
+        $metadata = $this->getMetadata();
+        $resolution = $metadata->resolveStaticMember($name);
 
-        $possibleNames = array_unique([
-            $name,
-            Str::camel($name),
-            Str::snake($name),
-        ]);
-
-        foreach ($possibleNames as $propertyName) {
-            if (in_array($propertyName, $this->getMetadata()->properties)) {
-                return $this->{$propertyName};
+        if ($resolution !== null) {
+            if ($resolution->type === DropMemberType::Property) {
+                return $this->{$resolution->name};
             }
+
+            if ($resolution->cacheable && array_key_exists($resolution->name, $this->cache)) {
+                return $this->cache[$resolution->name];
+            }
+
+            $result = $this->{$resolution->name}();
+
+            if ($resolution->cacheable) {
+                $this->cache[$resolution->name] = $result;
+            }
+
+            return $result;
         }
 
-        foreach ($possibleNames as $methodName) {
-            if (! in_array($methodName, $invokableMethods)) {
-                continue;
-            }
-
-            $isCacheable = in_array($methodName, $cacheableMethods);
-
-            if ($isCacheable && isset($this->cache[$methodName])) {
-                return $this->cache[$methodName];
-            }
-
-            if (method_exists($this, $methodName)) {
-                $result = $this->{$methodName}();
-
-                if ($isCacheable) {
-                    $this->cache[$methodName] = $result;
-                }
-
-                return $result;
-            }
-        }
-
-        foreach ($possibleNames as $methodName) {
+        foreach ($metadata->possibleNames($name) as $methodName) {
             try {
                 return $this->liquidMethodMissing($methodName);
             } catch (UndefinedDropMethodException) {

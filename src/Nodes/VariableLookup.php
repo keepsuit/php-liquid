@@ -16,24 +16,11 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 
     private const LOOKUP_REGEX = '{\.([\w\-]+)|\["([\w\-]+)"\]|\[\'([\w\-]+)\'\]|\[(\d+)\]}';
 
-    /**
-     * @var int[]
-     */
-    public readonly array $lookupFilters;
-
     public function __construct(
         public readonly string $name,
-        /** @var string[] */
+        /** @var array<string|int|VariableLookup> */
         public readonly array $lookups = [],
-    ) {
-        $lookupFilters = [];
-        foreach ($this->lookups as $i => $lookup) {
-            if (in_array($lookup, self::FILTER_METHODS, true)) {
-                $lookupFilters[] = $i;
-            }
-        }
-        $this->lookupFilters = $lookupFilters;
-    }
+    ) {}
 
     /**
      * Parses `a.b[0]["c"]` into a name plus its lookups.
@@ -88,49 +75,86 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 
     public function evaluate(RenderContext $context): mixed
     {
-        $name = $context->evaluate($this->name);
-        assert(is_string($name));
-        $variables = $context->findVariables($name);
+        $variable = $context->findVariable($this->name);
+
+        if ($variable instanceof MissingValue) {
+            return $this->undefined($context);
+        }
 
         if ($this->lookups === []) {
-            if ($context->options->strictVariables && $variables === []) {
-                return new UndefinedVariable($this->toString());
-            }
-
-            return $variables[0] ?? null;
+            return $variable;
         }
 
-        foreach ($variables as $object) {
-            $object = $context->evaluate($object);
+        $result = $this->walkLookups($context, $variable);
 
-            if ($object instanceof \Generator) {
-                $object = iterator_to_array($object, preserve_keys: false);
-            }
-
-            foreach ($this->lookups as $i => $lookup) {
-                $key = $context->evaluate($lookup) ?? '';
-
-                assert(is_string($key) || is_int($key));
-
-                $nextObject = $context->evaluate($context->internalContextLookup($object, $key));
-
-                if ($nextObject instanceof MissingValue && is_iterable($object) && in_array($i, $this->lookupFilters, true)) {
-                    $nextObject = $context->applyFilter($lookup, $object);
-                }
-
-                if ($nextObject instanceof MissingValue) {
-                    continue 2;
-                }
-
-                $object = $nextObject;
-                if ($object instanceof IsContextAware) {
-                    $object->setContext($context);
-                }
-            }
-
-            return $object;
+        if (! $result instanceof MissingValue) {
+            return $result;
         }
 
+        // The name resolved but the lookup chain broke on the innermost value: an
+        // outer scope may still hold one the chain resolves against.
+        foreach ($context->findVariables($this->name) as $candidate) {
+            // Skip the value already walked above: re-walking it would repeat any
+            // side effects the broken chain triggered on the way.
+            if ($candidate === $variable) {
+                continue;
+            }
+
+            $result = $this->walkLookups($context, $candidate);
+
+            if (! $result instanceof MissingValue) {
+                return $result;
+            }
+        }
+
+        return $this->undefined($context);
+    }
+
+    protected function undefined(RenderContext $context): ?UndefinedVariable
+    {
         return $context->options->strictVariables ? new UndefinedVariable($this->toString()) : null;
+    }
+
+    /**
+     * Walks the lookup chain against $object, returning MissingValue if it breaks.
+     */
+    protected function walkLookups(RenderContext $context, mixed $object): mixed
+    {
+        if ($object instanceof CanBeEvaluated) {
+            $object = $context->evaluate($object);
+        }
+
+        if ($object instanceof \Generator) {
+            $object = iterator_to_array($object, preserve_keys: false);
+        }
+
+        foreach ($this->lookups as $lookup) {
+            $key = $lookup instanceof VariableLookup ? $context->evaluate($lookup) : $lookup;
+
+            if (! (is_string($key) || is_int($key))) {
+                return new MissingValue;
+            }
+
+            $nextObject = $context->internalContextLookup($object, $key);
+
+            if ($nextObject instanceof CanBeEvaluated) {
+                $nextObject = $context->evaluate($nextObject);
+            }
+
+            if ($nextObject instanceof MissingValue) {
+                if (is_iterable($object) && is_string($lookup) && in_array($lookup, self::FILTER_METHODS, true)) {
+                    $nextObject = $context->applyFilter($lookup, $object);
+                } else {
+                    return $nextObject;
+                }
+            }
+
+            $object = $nextObject;
+            if ($object instanceof IsContextAware) {
+                $object->setContext($context);
+            }
+        }
+
+        return $object;
     }
 }
