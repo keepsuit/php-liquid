@@ -126,6 +126,95 @@ test('cannot close blocks created before a liquid tag', function () {
     );
 });
 
+test('comment tag inside liquid tag', function () {
+    assertTemplateResult('center', <<<'LIQUID'
+    {%- liquid
+      comment
+        Intended for blocks and sections that provide values for all the referenced settings.
+
+        Accepts:
+          settings: {block.settings || section.settings}
+      endcomment
+
+      assign horizontal_alignment = settings.horizontal_alignment
+      echo horizontal_alignment
+    -%}
+    LIQUID, staticData: ['settings' => ['horizontal_alignment' => 'center']]);
+
+    // The body is never lexed, so it may contain anything.
+    assertTemplateResult('ttt', <<<'LIQUID'
+    {%- liquid
+        comment
+            it's a comment {{ with {% delimiters
+        endcomment
+        echo 'ttt'
+    -%}
+    LIQUID
+    );
+
+    assertTemplateResult('', <<<'LIQUID'
+    {%- liquid
+        comment
+        endcomment
+    -%}
+    LIQUID
+    );
+
+    assertTemplateResult('12', <<<'LIQUID'
+    {%- liquid
+        for value in (1..2)
+            comment
+                skipped
+            endcomment
+            echo value
+        endfor
+    -%}
+    LIQUID
+    );
+
+    // Whitespace control of the liquid tag itself is not affected.
+    assertTemplateResult('Hello!World!', <<<'LIQUID'
+    Hello!
+    {%- liquid
+        comment
+            this is inside a liquid tag
+        endcomment
+    -%}
+    World!
+    LIQUID
+    );
+
+    // `comment` only opens a comment when it starts a line.
+    assertTemplateResult('ok', <<<'LIQUID'
+    {%- liquid
+        assign comment = 'ok'
+        echo comment
+    -%}
+    LIQUID
+    );
+});
+
+test('comment tag inside liquid tag errors', function () {
+    assertMatchSyntaxError("Liquid syntax error (line 2): 'comment' tag was never closed", <<<'LIQUID'
+    {%- liquid
+        comment
+            forgot to close the comment
+        echo 'a'
+    -%}
+    LIQUID
+    );
+
+    assertMatchSyntaxError("Liquid syntax error (line 5): Unknown tag 'error'", <<<'LIQUID'
+    {%- liquid
+        comment
+            a comment
+        endcomment
+        error no such tag
+    -%}
+    LIQUID
+    );
+});
+
 test('liquid tag in raw', function () {
     assertTemplateResult("{% liquid echo 'test' %}", <<<'LIQUID'
     {% raw %}{% liquid echo 'test' %}{% endraw %}
