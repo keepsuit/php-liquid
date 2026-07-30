@@ -17,47 +17,13 @@ use Keepsuit\Liquid\Render\RenderContext;
  */
 final class StorefrontTheme
 {
-    public const LAYOUT_TEMPLATE_NAME = 'layout.theme';
+    /** @var list<string>|null */
+    private static ?array $templateNames = null;
 
-    /**
-     * @var list<string>
-     */
-    private const PAGE_TEMPLATE_NAMES = [
-        'templates.index',
-        'templates.collection',
-        'templates.product',
-        'templates.page',
-    ];
+    /** @var list<string>|null */
+    private static ?array $pageTemplateNames = null;
 
-    /**
-     * @var list<string>
-     */
-    private const SNIPPET_TEMPLATE_NAMES = [
-        'snippets.shared.site_header',
-        'snippets.shared.site_footer',
-        'snippets.shared.meta_tags',
-        'snippets.shared.breadcrumbs',
-        'snippets.shared.button',
-        'snippets.shared.icon',
-        'snippets.shared.price',
-        'snippets.shared.newsletter',
-        'snippets.collection.header',
-        'snippets.collection.toolbar',
-        'snippets.collection.filters',
-        'snippets.collection.grid',
-        'snippets.index.hero',
-        'snippets.index.featured_products',
-        'snippets.index.journal',
-        'snippets.product.card',
-        'snippets.product.gallery',
-        'snippets.product.pricing',
-        'snippets.product.badges',
-        'snippets.product.variant_picker',
-        'snippets.product.specs',
-        'snippets.product.detail',
-        'snippets.page.header',
-        'snippets.page.content',
-    ];
+    private static ?string $layoutTemplateName = null;
 
     public static function themePath(): string
     {
@@ -84,11 +50,7 @@ final class StorefrontTheme
      */
     public static function templateNames(): array
     {
-        return [
-            self::LAYOUT_TEMPLATE_NAME,
-            ...self::PAGE_TEMPLATE_NAMES,
-            ...self::SNIPPET_TEMPLATE_NAMES,
-        ];
+        return self::$templateNames ??= self::discoverTemplateNames();
     }
 
     /**
@@ -96,7 +58,28 @@ final class StorefrontTheme
      */
     public static function pageTemplateNames(): array
     {
-        return self::PAGE_TEMPLATE_NAMES;
+        return self::$pageTemplateNames ??= array_values(array_filter(
+            self::templateNames(),
+            static fn (string $templateName): bool => str_starts_with($templateName, 'templates.'),
+        ));
+    }
+
+    public static function layoutTemplateName(): string
+    {
+        if (self::$layoutTemplateName !== null) {
+            return self::$layoutTemplateName;
+        }
+
+        $layouts = array_values(array_filter(
+            self::templateNames(),
+            static fn (string $templateName): bool => str_starts_with($templateName, 'layout.'),
+        ));
+
+        if (count($layouts) !== 1) {
+            throw new \RuntimeException('The storefront theme must contain exactly one layout template.');
+        }
+
+        return self::$layoutTemplateName = $layouts[0];
     }
 
     public static function templatePath(string $templateName): string
@@ -116,43 +99,48 @@ final class StorefrontTheme
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{page: array<string, mixed>, layout: array<string, mixed>}
      */
     public static function renderData(string $pageTemplateName): array
     {
         $template = str_replace('templates.', '', $pageTemplateName);
+        $shop = Database::shop();
 
         return [
-            'shop' => Database::shop(),
-            'cart' => Database::cart(),
-            'linklists' => [
-                'main_menu' => Database::mainMenu(),
-                'footer' => Database::footerMenu(),
+            'page' => Database::pageData($template, $shop),
+            'layout' => [
+                'shop' => $shop,
+                'cart' => Database::cart(),
+                'linklists' => [
+                    'main_menu' => Database::mainMenu(),
+                    'footer' => Database::footerMenu(),
+                ],
+                'template' => $template,
+                'page_title' => Database::pageTitle($template),
             ],
-            'template' => $template,
-            'page_title' => Database::pageTitle($template),
-            'collection' => Database::collection(),
-            'product' => Database::product(),
-            'page' => Database::page(),
-            'articles' => Database::articles(),
-            'products_per_page' => Database::PRODUCTS_PER_PAGE,
         ];
     }
 
-    public static function newRenderContext(
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private static function newRenderContext(
         Environment $environment,
-        string $pageTemplateName,
+        array $data,
     ): RenderContext {
-        return $environment->newRenderContext(staticData: self::renderData($pageTemplateName));
+        return $environment->newRenderContext(staticData: $data);
     }
 
-    public static function newLayoutRenderContext(
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private static function newLayoutRenderContext(
         Environment $environment,
         mixed $content,
-        string $pageTemplateName,
+        array $data,
     ): RenderContext {
         return $environment->newRenderContext(staticData: [
-            ...self::renderData($pageTemplateName),
+            ...$data,
             'content_for_layout' => $content,
         ]);
     }
@@ -164,11 +152,12 @@ final class StorefrontTheme
      */
     public static function renderPage(Environment $environment, string $pageTemplateName): string
     {
+        $data = self::renderData($pageTemplateName);
         $content = $environment->parseTemplate($pageTemplateName)
-            ->render(self::newRenderContext($environment, $pageTemplateName));
+            ->render(self::newRenderContext($environment, $data['page']));
 
-        return $environment->parseTemplate(self::LAYOUT_TEMPLATE_NAME)
-            ->render(self::newLayoutRenderContext($environment, $content, $pageTemplateName));
+        return $environment->parseTemplate(self::layoutTemplateName())
+            ->render(self::newLayoutRenderContext($environment, $content, $data['layout']));
     }
 
     /**
@@ -176,10 +165,40 @@ final class StorefrontTheme
      */
     public static function streamPage(Environment $environment, string $pageTemplateName): \Generator
     {
+        $data = self::renderData($pageTemplateName);
         $content = $environment->parseTemplate($pageTemplateName)
-            ->stream(self::newRenderContext($environment, $pageTemplateName));
+            ->stream(self::newRenderContext($environment, $data['page']));
 
-        return $environment->parseTemplate(self::LAYOUT_TEMPLATE_NAME)
-            ->stream(self::newLayoutRenderContext($environment, $content, $pageTemplateName));
+        return $environment->parseTemplate(self::layoutTemplateName())
+            ->stream(self::newLayoutRenderContext($environment, $content, $data['layout']));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function discoverTemplateNames(): array
+    {
+        $templateNames = [];
+        $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(
+            self::themePath(),
+            \FilesystemIterator::SKIP_DOTS,
+        ));
+
+        foreach ($files as $file) {
+            if (! $file instanceof \SplFileInfo || ! $file->isFile() || $file->getExtension() !== 'liquid') {
+                continue;
+            }
+
+            $relativePath = substr($file->getPathname(), strlen(self::themePath()) + 1, -7);
+            $templateNames[] = str_replace(DIRECTORY_SEPARATOR, '.', $relativePath);
+        }
+
+        sort($templateNames);
+
+        if ($templateNames === []) {
+            throw new \RuntimeException('The storefront theme contains no Liquid templates.');
+        }
+
+        return $templateNames;
     }
 }

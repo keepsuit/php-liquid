@@ -30,6 +30,14 @@ class TemplateCacheBench
 
     private LiquidTemplatesCache $cache;
 
+    /** @var list<string> */
+    private array $templateNames;
+
+    /** @var list<string> */
+    private array $pageTemplateNames;
+
+    private string $cacheDirectory;
+
     #[BeforeMethods('setUpInMemoryBuild')]
     public function benchBuildInMemory(): void
     {
@@ -103,6 +111,9 @@ class TemplateCacheBench
 
     private function setUpBuild(string $backend): void
     {
+        $this->templateNames = StorefrontTheme::templateNames();
+        $this->pageTemplateNames = StorefrontTheme::pageTemplateNames();
+        $this->cacheDirectory = sys_get_temp_dir().'/'.self::CACHE_DIRECTORY.'-'.bin2hex(random_bytes(8));
         $this->cache = $this->newCache($backend);
         $this->cache->clear();
         $this->environment = StorefrontTheme::environmentFactory()->setTemplatesCache($this->cache)->build();
@@ -121,7 +132,7 @@ class TemplateCacheBench
 
     private function compileStaticTheme(Environment $environment): void
     {
-        foreach (StorefrontTheme::templateNames() as $templateName) {
+        foreach ($this->templateNames as $templateName) {
             $environment->parseTemplate($templateName);
         }
     }
@@ -134,7 +145,7 @@ class TemplateCacheBench
 
     private function renderCachedTheme(): void
     {
-        foreach (StorefrontTheme::pageTemplateNames() as $templateName) {
+        foreach ($this->pageTemplateNames as $templateName) {
             StorefrontTheme::renderPage($this->environment, $templateName);
         }
     }
@@ -151,6 +162,6 @@ class TemplateCacheBench
 
     private function cachePath(string $backend): string
     {
-        return sys_get_temp_dir().'/'.self::CACHE_DIRECTORY.'/'.$backend;
+        return $this->cacheDirectory.'/'.$backend;
     }
 }

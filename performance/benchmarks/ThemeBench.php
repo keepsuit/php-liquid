@@ -40,6 +40,9 @@ class ThemeBench
      */
     private array $sources;
 
+    /** @var list<string> */
+    private array $pageTemplateNames;
+
     public function setUp(): void
     {
         $this->environment = StorefrontTheme::environment();
@@ -49,6 +52,8 @@ class ThemeBench
             $this->environment->parseTemplate($name);
             $this->sources[$name] = StorefrontTheme::templateSource($name);
         }
+
+        $this->pageTemplateNames = StorefrontTheme::pageTemplateNames();
     }
 
     public function benchTokenize(): void
@@ -67,14 +72,14 @@ class ThemeBench
 
     public function benchRender(): void
     {
-        foreach (StorefrontTheme::pageTemplateNames() as $pageTemplateName) {
+        foreach ($this->pageTemplateNames as $pageTemplateName) {
             StorefrontTheme::renderPage($this->environment, $pageTemplateName);
         }
     }
 
     public function benchStream(): void
     {
-        foreach (StorefrontTheme::pageTemplateNames() as $pageTemplateName) {
+        foreach ($this->pageTemplateNames as $pageTemplateName) {
             foreach (StorefrontTheme::streamPage($this->environment, $pageTemplateName) as $chunk) {
             }
         }

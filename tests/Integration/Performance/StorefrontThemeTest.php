@@ -19,12 +19,12 @@ function storefrontStrictEnvironment(): Keepsuit\Liquid\Environment
         ->build();
 }
 
-test('every declared template exists and every template on disk is declared', function () {
-    $declared = StorefrontTheme::templateNames();
+test('every discovered template exists and every template on disk is discovered', function () {
+    $discovered = StorefrontTheme::templateNames();
 
-    expect($declared)->toHaveCount(29);
+    expect($discovered)->toHaveCount(29);
 
-    foreach ($declared as $templateName) {
+    foreach ($discovered as $templateName) {
         expect(StorefrontTheme::templatePath($templateName))->toBeReadableFile();
     }
 
@@ -42,10 +42,10 @@ test('every declared template exists and every template on disk is declared', fu
     }
 
     sort($onDisk);
-    $expected = $declared;
+    $expected = $discovered;
     sort($expected);
 
-    // An undeclared template is invisible to the parse benchmarks, so it would be
+    // An undiscovered template is invisible to the parse benchmarks, so it would be
     // silently excluded from every measurement.
     expect($onDisk)->toBe($expected);
 });
@@ -70,6 +70,35 @@ test('every page renders through the layout with no missing variables or filters
             ->toContain('3 items &middot; €126.50')
             // A capture that escapes its assembled result would double-escape this.
             ->toMatch('/<title>[^<]+ &mdash; Northstar Goods<\/title>/');
+    }
+});
+
+test('page and layout data stay scoped to their own template work', function () {
+    $indexData = StorefrontTheme::renderData('templates.index');
+    $productData = StorefrontTheme::renderData('templates.product');
+
+    expect($indexData['page'])->toHaveKeys(['shop', 'collection', 'articles'])
+        ->not->toHaveKeys(['cart', 'linklists', 'product', 'page'])
+        ->and($productData['page'])->toHaveKeys(['collection', 'product'])
+        ->not->toHaveKeys(['shop', 'cart', 'linklists', 'articles', 'page'])
+        ->and($indexData['layout'])->toHaveKeys(['shop', 'cart', 'linklists', 'template', 'page_title'])
+        ->and($indexData['layout']['shop'])->toBe($indexData['page']['shop']);
+});
+
+test('every page keeps its page-specific partial workload', function () {
+    $environment = storefrontStrictEnvironment();
+
+    foreach ([
+        'templates.index' => ['class="hero"', 'Packing light for a weekend away'],
+        'templates.collection' => ['class="collection-filters"', 'class="product-grid"'],
+        'templates.product' => ['class="variant-picker"', '<caption>Details</caption>'],
+        'templates.page' => ['class="page-content__section"', 'Contact us'],
+    ] as $templateName => $markers) {
+        $rendered = StorefrontTheme::renderPage($environment, $templateName);
+
+        expect($rendered)
+            ->toContain($markers[0])
+            ->toContain($markers[1]);
     }
 });
 

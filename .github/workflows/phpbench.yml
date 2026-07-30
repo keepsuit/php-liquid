@@ -19,6 +19,7 @@ env:
   # the per-version comparison summaries incomparable with each other. Local runs are
   # unfiltered, so the benchmarks still exist — they just do not gate PRs.
   PHPBENCH_FILTER: '^(?!.*TemplateCacheBench::bench(Build|LoadAndRender)VarExporter$).*'
+  PHPBENCH_MAX_REG: '5'
 
 jobs:
   benchmark:
@@ -173,5 +174,5 @@ jobs:
             }
 
       - name: Enforce comparison failures
-        if: always() && steps.compare.outputs.exit_code != '0' && steps.compare.outputs.exit_code != '1'
+        if: always() && steps.compare.outputs.exit_code != '0'
         run: exit 1

@@ -21,6 +21,32 @@ if ($sharedNames === []) {
     exit(0);
 }
 
+$configurationMismatches = [];
+foreach ($sharedNames as $name) {
+    $base = $baseBenchmarks[$name];
+    $pr = $prBenchmarks[$name];
+
+    if ($base['iterations'] !== $pr['iterations'] || $base['revolutions'] !== $pr['revolutions']) {
+        $configurationMismatches[] = sprintf(
+            '`%s` (base: %d iterations x %d revs; PR: %d iterations x %d revs)',
+            $name,
+            $base['iterations'],
+            $base['revolutions'],
+            $pr['iterations'],
+            $pr['revolutions'],
+        );
+    }
+}
+
+if ($configurationMismatches !== []) {
+    echo "> Incomparable benchmark rows: PHPBench iteration/revolution settings changed. Establish a matching baseline on `main`.\n\n";
+    foreach ($configurationMismatches as $configurationMismatch) {
+        echo "- {$configurationMismatch}\n";
+    }
+
+    exit(2);
+}
+
 // Runner jitter is routinely ±2%, so a single median over every benchmark is
 // meaningless when the set is bimodal (big winners + flat benchmarks): the middle
 // element lands on whichever side happens to hold more rows. Bucket instead, and

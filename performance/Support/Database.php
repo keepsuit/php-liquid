@@ -323,6 +323,36 @@ final class Database
         };
     }
 
+    /**
+     * Page-local fixture data. The shared layout data is built separately so a
+     * page render only constructs the drops its own template can use.
+     *
+     * @return array<string, mixed>
+     */
+    public static function pageData(string $template, ShopDrop $shop): array
+    {
+        return match ($template) {
+            'index' => [
+                'shop' => $shop,
+                'collection' => self::collection(),
+                'articles' => self::articles(),
+            ],
+            'collection' => [
+                'collection' => self::collection(),
+                'products_per_page' => self::PRODUCTS_PER_PAGE,
+            ],
+            'product' => [
+                'collection' => self::collection(),
+                'product' => self::product(),
+            ],
+            'page' => [
+                'shop' => $shop,
+                'page' => self::page(),
+            ],
+            default => throw new \InvalidArgumentException("Unknown storefront page template [$template]."),
+        };
+    }
+
     public static function shop(): ShopDrop
     {
         return new ShopDrop(

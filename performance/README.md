@@ -29,6 +29,10 @@ The split is what lets the theme be realistic. Whenever realism and measurement
 sensitivity conflict inside the theme, realism wins — sensitivity is not the
 theme's job.
 
+Pull-request comparisons enforce a worst-subject throughput regression threshold
+of 5%. The comparator still labels changes inside its 2% noise band as neutral,
+and marks RSD above 5% as high variance for review.
+
 ## The storefront fixture
 
 `performance/themes/storefront/` is a deliberately plausible storefront: real
@@ -42,22 +46,19 @@ would use (`render`, `for`/`else`, `if`, `unless`, `case`, `capture`, `cycle`,
 Constraints that are not obvious from reading the code:
 
 - **`Database` assigns, it does not compute.** No scans, no reductions, no
-  sorting. Nothing is memoized either, so the whole object graph is rebuilt on
-  every render *inside the measured region* — any computation added here is paid
-  160 times per iteration and moves the theme numbers for reasons that have
-  nothing to do with the library. Derived values go into the literal data or
-  onto a drop method, where they are measured as template work. Building the
-  fixture measured **~6% of `ThemeBench::benchRender`** when this landed — nothing
-  asserts that, so treat it as a reference point rather than a guarantee. To
-  re-measure, time `StorefrontTheme::renderData()` twice per page (the layout gets
-  its own context) against `renderPage()` over the same pages.
+  sorting. Nothing is memoized either, so the page-local object graph is rebuilt
+  on every render *inside the measured region* — any computation added here moves
+  the theme numbers for reasons that have nothing to do with the library.
+  Derived values go into the literal data or onto a drop method, where they are
+  measured as template work. `StorefrontTheme::renderData()` builds page and
+  layout data once, sharing only the `shop` drop where both contexts need it.
 - **Fixed dataset: 24 products.** A deliberate page size, not an accident.
 - **Fresh drops per render.** `#[Cache]` therefore starts cold on every render,
   and no state is shared between revolutions. Memoized instances would measure a
   warm cache 95% of the time and leak `ContextAware` state across revs.
 - **Two render contexts per page.** The page renders into one, the layout into
-  another. Consequence: nothing under `layout/` may read a variable a template
-  assigned — it would render empty.
+  another, both from a single fixture setup. Consequence: nothing under `layout/`
+  may read a variable a template assigned — it would render empty.
 - **No missing lookups.** Every field the theme reads exists, so empty output in
   a benchmark is a bug rather than an expected state.
 - **Template sources are read in `setUp`,** never inside a subject. Reading 29
@@ -92,24 +93,17 @@ until it asserts nothing. Strict mode cannot be silenced that way.
 
 Known gaps, in rough priority order:
 
-- **Per-tag `operations` subjects.** Nothing isolates `case`, `capture`, `cycle`,
-  `render` depth, or property-vs-method resolution. Until this lands, the suite
-  can see that something regressed but not what.
-- **The drop miss path.** The most expensive branch of `Drop::__get` (a
-  `liquidMethodMissing` miss, up to three thrown exceptions) is unmeasured. It
-  belongs in `operations`, not the theme, because the theme must stay strict.
-- **The `liquidMethodMissing` *hit* path in `operations`.** `OperationBench`'s drop
-  subjects used to run on `DatabaseDrop`, whose every lookup was a method-missing
-  hit. They now use `ProductDrop`, so both subjects resolve a public property —
-  the cheapest branch. The theme still exercises the hit path through
-  `MetafieldsDrop`, but no operations subject isolates it.
-- **Size-parameterized scaling.** With one fixed dataset, nothing distinguishes
-  "everything is 10% slower" from "something became superlinear". A
-  `ParamProviders` spread (4 / 24 / 96 products) would show the shape.
+- **Additional per-tag `operations` subjects.** The suite isolates property,
+  method, `liquidMethodMissing` hit/miss, filters and list-size scaling, but it
+  does not yet isolate `case`, `capture`, `cycle` or `render` depth.
+- **Full-theme size scaling.** The operations group exposes 4 / 24 / 96-product
+  loop scaling, while the storefront theme deliberately keeps a fixed 24-product
+  dataset. A second full-theme size profile would be useful only if a suspected
+  regression needs that wider lens.
 - **Coverage-only tags.** `tablerow`, `increment`, `decrement`, `ifchanged`,
   `raw` and `doc` are unbenchmarked. Real themes barely use them, so they belong
   in `operations` rather than in the theme.
-- **`TemplateCacheBench` shape.** Six subjects driven by six near-identical
-  `setUp*` wrappers around a string `match` — this is what `ParamProviders`
-  exists for. Its cache path is also a fixed `sys_get_temp_dir()` directory, so
-  two concurrent runs collide.
+- **`TemplateCacheBench` shape.** Six subjects are driven by six near-identical
+  `setUp*` wrappers around a string `match`; `ParamProviders` could reduce that
+  repetition. Each benchmark setup now receives a unique temporary cache path,
+  so concurrent runs do not share cache files.

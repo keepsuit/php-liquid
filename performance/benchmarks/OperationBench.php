@@ -6,6 +6,7 @@ use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Performance\Support\Database;
 use Keepsuit\Liquid\Performance\Support\Drops\ProductDrop;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Template;
 use PhpBench\Attributes\BeforeMethods;
 use PhpBench\Attributes\Groups;
@@ -32,6 +33,14 @@ class OperationBench
 
     private Template $filterWithArgumentsTemplate;
 
+    private Template $dropMethodTemplate;
+
+    private Template $dropMethodMissingHitTemplate;
+
+    private Template $dropMethodMissingMissTemplate;
+
+    private Template $productListTemplate;
+
     /**
      * Built in setUp, not in the subject: these two subjects measure how
      * Drop::__get resolves a property, and constructing a ProductDrop (variants,
@@ -41,6 +50,9 @@ class OperationBench
      */
     private ProductDrop $productDrop;
 
+    /** @var ProductDrop[] */
+    protected array $productList;
+
     public function setUp(): void
     {
         $this->environment = EnvironmentFactory::new()->build();
@@ -48,7 +60,12 @@ class OperationBench
         $this->nestedTemplate = $this->environment->parseString(str_repeat('{{ product.title }}', 64));
         $this->filterWithoutArgumentsTemplate = $this->environment->parseString(str_repeat('{{ value | upcase | escape }}', 32));
         $this->filterWithArgumentsTemplate = $this->environment->parseString(str_repeat('{{ value | append: suffix | replace: from, to }}', 32));
+        $this->dropMethodTemplate = $this->environment->parseString(str_repeat('{{ product.url }}', 64));
+        $this->dropMethodMissingHitTemplate = $this->environment->parseString(str_repeat('{{ product.metafields.material }}', 64));
+        $this->dropMethodMissingMissTemplate = $this->environment->parseString(str_repeat('{{ product.metafields.unknown }}', 64));
+        $this->productListTemplate = $this->environment->parseString('{% for product in products %}{{ product.title }}{% endfor %}');
         $this->productDrop = Database::product();
+        $this->productList = Database::products();
     }
 
     public function benchScalarRender(): void
@@ -93,6 +110,50 @@ class OperationBench
         )));
     }
 
+    public function benchDropMethodRender(): void
+    {
+        $this->dropMethodTemplate->render($this->productContext());
+    }
+
+    public function benchDropMethodStream(): void
+    {
+        $this->drain($this->dropMethodTemplate->stream($this->productContext()));
+    }
+
+    public function benchDropMethodMissingHitRender(): void
+    {
+        $this->dropMethodMissingHitTemplate->render($this->productContext());
+    }
+
+    public function benchDropMethodMissingHitStream(): void
+    {
+        $this->drain($this->dropMethodMissingHitTemplate->stream($this->productContext()));
+    }
+
+    public function benchDropMethodMissingMissRender(): void
+    {
+        $this->dropMethodMissingMissTemplate->render($this->productContext());
+    }
+
+    public function benchDropMethodMissingMissStream(): void
+    {
+        $this->drain($this->dropMethodMissingMissTemplate->stream($this->productContext()));
+    }
+
+    public function benchProductListRender(): void
+    {
+        $this->productListTemplate->render($this->environment->newRenderContext(
+            staticData: ['products' => $this->productList],
+        ));
+    }
+
+    public function benchProductListStream(): void
+    {
+        $this->drain($this->productListTemplate->stream($this->environment->newRenderContext(
+            staticData: ['products' => $this->productList],
+        )));
+    }
+
     public function benchFilterWithoutArguments(): void
     {
         $this->filterWithoutArgumentsTemplate->render($this->filterContext());
@@ -113,7 +174,7 @@ class OperationBench
         }
     }
 
-    private function filterContext(): \Keepsuit\Liquid\Render\RenderContext
+    private function filterContext(): RenderContext
     {
         return $this->environment->newRenderContext(staticData: [
             'value' => 'example',
@@ -121,5 +182,10 @@ class OperationBench
             'from' => 'example',
             'to' => 'value',
         ]);
+    }
+
+    private function productContext(): RenderContext
+    {
+        return $this->environment->newRenderContext(staticData: ['product' => $this->productDrop]);
     }
 }
