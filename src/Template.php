@@ -6,12 +6,14 @@ use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Nodes\Document;
 use Keepsuit\Liquid\Render\RenderContext;
 
-class Template
+class Template extends AbstractTemplate
 {
     public function __construct(
         public readonly Document $root,
-        public readonly TemplateSharedState $state = new TemplateSharedState
-    ) {}
+        TemplateSharedState $state = new TemplateSharedState,
+    ) {
+        parent::__construct($state);
+    }
 
     /**
      * @throws LiquidException
@@ -47,16 +49,6 @@ class Template
             $this->state->errors = $context->getErrors();
             $this->state->outputs = $context->getOutputs();
         }
-    }
-
-    public function getState(): TemplateSharedState
-    {
-        return $this->state;
-    }
-
-    public function getErrors(): array
-    {
-        return $this->state->errors;
     }
 
     public function name(): ?string

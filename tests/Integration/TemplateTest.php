@@ -1,5 +1,6 @@
 <?php
 
+use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
@@ -7,7 +8,19 @@ use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Render\RenderContextOptions;
 use Keepsuit\Liquid\Render\ResourceLimits;
+use Keepsuit\Liquid\TemplateInterface;
+use Keepsuit\Liquid\TemplateSharedState;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
+
+test('parsed templates implement the template contract', function () {
+    $template = Environment::default()->parseString('hello', name: 'hello');
+
+    expect($template)
+        ->toBeInstanceOf(TemplateInterface::class)
+        ->and($template->getState())->toBeInstanceOf(TemplateSharedState::class)
+        ->and($template->getErrors())->toBeEmpty()
+        ->and($template->name())->toBe('hello');
+});
 
 test('assigns persist on same context between renders', function () {
     $template = parseTemplate("{{ foo }}{% assign foo = 'foo' %}{{ foo }}");
