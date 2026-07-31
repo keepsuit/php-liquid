@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Compiler;
 
+use Keepsuit\Liquid\Nodes\Node;
 use Keepsuit\Liquid\Template;
 
 class Compiler
@@ -17,7 +18,23 @@ class Compiler
         $fallbackValueSource = [];
 
         foreach ($fallbackValues as $property => $value) {
-            $fallbackValueSource[$property] = $bodyContext->writeValue($value);
+            try {
+                $fallbackValueSource[$property] = $bodyContext->writeValue($value);
+            } catch (\Throwable $exception) {
+                $nodeDescription = $value instanceof Node
+                    ? sprintf(
+                        '%s at line %s',
+                        $value::class,
+                        $value->lineNumber() ?? 'unknown',
+                    )
+                    : get_debug_type($value);
+
+                throw new \RuntimeException(sprintf(
+                    'Unable to safely reconstruct fallback node %s in template %s.',
+                    $nodeDescription,
+                    $template->root->name ?? '<unnamed>',
+                ), previous: $exception);
+            }
         }
 
         $className = 'Template_'.substr(hash(

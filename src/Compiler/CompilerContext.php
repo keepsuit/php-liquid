@@ -91,13 +91,11 @@ final class CompilerContext
 
     public function writeValue(mixed $value): string
     {
-        $exported = $this->exportValue($value);
-
-        if ($exported === null) {
-            throw new \RuntimeException('Unable to safely encode a compiler value.');
+        try {
+            return VarExporter::export($value);
+        } catch (\Throwable $exception) {
+            throw new \RuntimeException('Unable to safely encode a compiler value.', previous: $exception);
         }
-
-        return $exported;
     }
 
     public function exportValue(mixed $value): ?string

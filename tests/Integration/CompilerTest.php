@@ -589,7 +589,7 @@ test('failed node compilation rolls back before runtime fallback', function () {
 
 test('compilation fails when a fallback node cannot be safely reconstructed', function () {
     $environment = EnvironmentFactory::new()->build();
-    $template = $environment->parseString('prefix');
+    $template = $environment->parseString('prefix', name: 'unsafe.liquid');
     $resource = fopen('php://memory', 'r');
 
     if ($resource === false) {
@@ -597,12 +597,17 @@ test('compilation fails when a fallback node cannot be safely reconstructed', fu
     }
 
     assert($template instanceof Template);
-    $template->root->body->pushChild(new UnsafeFallbackCompilerTestNode($resource));
+    $template->root->body->pushChild(
+        (new UnsafeFallbackCompilerTestNode($resource))->setLineNumber(7),
+    );
     $compiledPath = temporaryCompiledTemplatePath();
 
     try {
         expect(fn () => $environment->compile($template, $compiledPath))
-            ->toThrow(RuntimeException::class);
+            ->toThrow(
+                RuntimeException::class,
+                'Unable to safely reconstruct fallback node UnsafeFallbackCompilerTestNode at line 7 in template unsafe.liquid.',
+            );
         expect($compiledPath)->not->toBeFile();
         expect($template->render($environment->newRenderContext()))
             ->toBe('prefixunsafe fallback');
