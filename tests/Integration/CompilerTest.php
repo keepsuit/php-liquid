@@ -412,7 +412,27 @@ test('template literals stay data when compiled', function () {
         /** @var Template $compiled */
         $compiled = require $compiledPath;
 
-        expect($compiled->render($environment->newRenderContext()))->toBe($literal);
+        expect($compiled->render($environment->newRenderContext()))
+            ->toBe($template->render($environment->newRenderContext()));
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('compiled literals preserve quotes escapes and control characters', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $literal = "quote ' and \"\nline\r\t\0 <?php echo 'unsafe'; ?>";
+    $template = $environment->parseString($literal);
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        /** @var Template $compiled */
+        $compiled = require $compiledPath;
+
+        expect($compiled->render($environment->newRenderContext()))
+            ->toBe($template->render($environment->newRenderContext()));
     } finally {
         @unlink($compiledPath);
     }

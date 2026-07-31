@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Compiler\CompiledTemplateInterface;
 use Keepsuit\Liquid\Compiler\Compiler;
 use Keepsuit\Liquid\Contracts\LiquidErrorHandler;
 use Keepsuit\Liquid\Contracts\LiquidExtension;
@@ -144,10 +145,50 @@ class Environment
             throw new \RuntimeException(sprintf('Unable to create compiled template directory: %s', $directory));
         }
 
-        $bytesWritten = file_put_contents($compiledPath, (new Compiler)->compile($template));
+        $source = (new Compiler)->compile($template);
+        $temporaryPath = tempnam($directory, '.'.basename($compiledPath).'.tmp-');
 
-        if ($bytesWritten === false) {
-            throw new \RuntimeException(sprintf('Unable to write compiled template artifact: %s', $compiledPath));
+        if ($temporaryPath === false) {
+            throw new \RuntimeException(sprintf('Unable to create temporary compiled template artifact: %s', $compiledPath));
+        }
+
+        try {
+            $bytesWritten = file_put_contents($temporaryPath, $source);
+
+            if ($bytesWritten !== strlen($source)) {
+                throw new \RuntimeException(sprintf('Unable to write compiled template artifact: %s', $compiledPath));
+            }
+
+            $compiled = require $temporaryPath;
+
+            if (! $compiled instanceof Template || ! $compiled instanceof CompiledTemplateInterface) {
+                throw new \RuntimeException(sprintf('Invalid compiled template artifact: %s', $compiledPath));
+            }
+
+            $this->publishCompiledArtifact($temporaryPath, $compiledPath);
+
+            if (function_exists('opcache_invalidate')) {
+                opcache_invalidate($compiledPath, true);
+            }
+        } finally {
+            if (is_file($temporaryPath)) {
+                unlink($temporaryPath);
+            }
+        }
+    }
+
+    protected function publishCompiledArtifact(string $temporaryPath, string $compiledPath): void
+    {
+        set_error_handler(static fn (): bool => true);
+
+        try {
+            $published = rename($temporaryPath, $compiledPath);
+        } finally {
+            restore_error_handler();
+        }
+
+        if (! $published) {
+            throw new \RuntimeException(sprintf('Unable to publish compiled template artifact: %s', $compiledPath));
         }
     }
 
