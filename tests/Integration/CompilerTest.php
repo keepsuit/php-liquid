@@ -256,6 +256,27 @@ test('compiled templates keep runtime partial lookup', function () {
     }
 });
 
+test('compiled conditional bodies preserve interrupts from fallback nodes', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('{% if stop %}{% break %}{% endif %}after');
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        /** @var CompiledTemplateInterface $compiled */
+        $compiled = require $compiledPath;
+
+        expect($compiled->render($environment->newRenderContext(data: ['stop' => true])))
+            ->toBe($template->render($environment->newRenderContext(data: ['stop' => true])))
+            ->toBe('');
+        expect($compiled->render($environment->newRenderContext(data: ['stop' => false])))
+            ->toBe('after');
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
 test('compiled rendering preserves state across repeated renders', function () {
     $environment = EnvironmentFactory::new()->build();
     $template = $environment->parseString('{{ value }}{% assign value = "one" %}{{ value }}');
