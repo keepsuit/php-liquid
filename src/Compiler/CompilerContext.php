@@ -7,27 +7,6 @@ use Keepsuit\Liquid\Nodes\Node;
 
 final class CompilerContext
 {
-    /**
-     * @var list<NodeCompilerInterface>
-     */
-    private array $nodeCompilers;
-
-    /**
-     * @param  iterable<NodeCompilerInterface>|null  $nodeCompilers
-     */
-    public function __construct(?iterable $nodeCompilers = null)
-    {
-        $this->nodeCompilers = $nodeCompilers === null
-            ? [
-                new NodeCompilers\DocumentCompiler,
-                new NodeCompilers\BodyCompiler,
-                new NodeCompilers\TextCompiler,
-                new NodeCompilers\VariableCompiler,
-                new NodeCompilers\FallbackCompiler,
-            ]
-            : array_values([...$nodeCompilers]);
-    }
-
     public function compileNode(Node $node): ?string
     {
         if ($node instanceof CanBeCompiled) {
@@ -42,15 +21,20 @@ final class CompilerContext
             }
         }
 
-        foreach ($this->nodeCompilers as $nodeCompiler) {
-            $compiled = $nodeCompiler->compile($node, $this);
+        return $this->compileFallback($node);
+    }
 
-            if ($compiled !== null) {
-                return $compiled;
-            }
+    public function compileFallback(Node $node): ?string
+    {
+        $nodeCode = $this->exportSerializedValue($node);
+        $lineNumber = $this->exportValue($node->lineNumber());
+
+        if ($nodeCode === null || $lineNumber === null) {
+            return null;
         }
 
-        return null;
+        return '\\Keepsuit\\Liquid\\Compiler\\CompiledTemplate::renderNode('
+            .'$context, '.$nodeCode.', '.$lineNumber.')';
     }
 
     /**

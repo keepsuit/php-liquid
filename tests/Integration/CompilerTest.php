@@ -3,7 +3,12 @@
 use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\EnvironmentFactory;
+use Keepsuit\Liquid\Nodes\BodyNode;
+use Keepsuit\Liquid\Nodes\Document;
 use Keepsuit\Liquid\Nodes\Node;
+use Keepsuit\Liquid\Nodes\Raw;
+use Keepsuit\Liquid\Nodes\Text;
+use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tag;
@@ -116,6 +121,20 @@ test('compiled rendering emits safe core nodes directly', function () {
             ->toBe('Hello WORLD!');
     } finally {
         @unlink($compiledPath);
+    }
+});
+
+test('built-in compilable nodes implement the compiler contract directly', function () {
+    $nodes = [
+        new Text('text'),
+        new Raw('raw'),
+        new Document(new BodyNode),
+        new BodyNode,
+        new Variable('name'),
+    ];
+
+    foreach ($nodes as $node) {
+        expect($node)->toBeInstanceOf(CanBeCompiled::class);
     }
 });
 

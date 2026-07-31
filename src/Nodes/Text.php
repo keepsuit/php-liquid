@@ -2,11 +2,13 @@
 
 namespace Keepsuit\Liquid\Nodes;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
+use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Str;
 
-class Text extends Node implements HasParseTreeVisitorChildren
+class Text extends Node implements CanBeCompiled, HasParseTreeVisitorChildren
 {
     public function __construct(
         public readonly string $value,
@@ -15,6 +17,11 @@ class Text extends Node implements HasParseTreeVisitorChildren
     public function render(RenderContext $context): string
     {
         return $this->value;
+    }
+
+    public function compile(CompilerContext $context): ?string
+    {
+        return $context->exportValue($this->value);
     }
 
     public function blank(): bool
