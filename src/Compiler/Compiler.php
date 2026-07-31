@@ -14,15 +14,21 @@ class Compiler
 
         $context->write('<?php');
         $context->write();
+        $context->write('$root = '.$root.';');
         $context->write('return new \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate(');
         $context->indent();
-        $context->write($root.',');
+        $context->write('$root,');
         $context->write('null,');
         $context->write('static function (\\Keepsuit\\Liquid\\Render\\RenderContext $context): string {');
         $context->indent();
         $context->write('$output = \'\';');
         $context->subcompile($template->root);
         $context->write('return $output;');
+        $context->outdent();
+        $context->write('},');
+        $context->write('static function (\\Keepsuit\\Liquid\\Render\\RenderContext $context) use ($root): \\Generator {');
+        $context->indent();
+        $context->write('yield from $root->stream($context);');
         $context->outdent();
         $context->write('},');
         $context->outdent();
