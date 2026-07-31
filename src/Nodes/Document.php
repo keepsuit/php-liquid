@@ -2,11 +2,13 @@
 
 namespace Keepsuit\Liquid\Nodes;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
+use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Render\RenderContext;
 
-class Document extends Node implements CanBeStreamed
+class Document extends Node implements CanBeCompiled, CanBeStreamed
 {
     public function __construct(
         public readonly BodyNode $body,
@@ -19,6 +21,11 @@ class Document extends Node implements CanBeStreamed
     public function render(RenderContext $context): string
     {
         return $this->body->render($context);
+    }
+
+    public function compile(CompilerContext $context): ?string
+    {
+        return $context->compileNode($this->body);
     }
 
     /**

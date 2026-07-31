@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid\Nodes;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
+use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Contracts\Disableable;
 use Keepsuit\Liquid\Exceptions\LiquidException;
@@ -11,7 +13,7 @@ use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tag;
 
-class BodyNode extends Node implements CanBeStreamed
+class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
 {
     public function __construct(
         /** @var array<Node> */
@@ -41,6 +43,35 @@ class BodyNode extends Node implements CanBeStreamed
         $this->children = $children;
 
         return $this;
+    }
+
+    public function compile(CompilerContext $context): ?string
+    {
+        $lines = [
+            '\\Keepsuit\\Liquid\\Compiler\\CompiledTemplate::renderCompiledBody(',
+            '    $context,',
+            '    static function (\\Keepsuit\\Liquid\\Render\\RenderContext $context): string {',
+            '        $output = \'\';',
+        ];
+
+        foreach ($this->children as $child) {
+            $compiled = $context->compileNode($child);
+
+            if ($compiled === null) {
+                return null;
+            }
+
+            $lines[] = '        if (! $context->hasInterrupt()) {';
+            $lines[] = '            $output .= '.$compiled.';';
+            $lines[] = '        }';
+        }
+
+        $lines[] = '        return $output;';
+        $lines[] = '    },';
+        $lines[] = '    '.count($this->children).',';
+        $lines[] = ')';
+
+        return implode("\n", $lines);
     }
 
     /**
