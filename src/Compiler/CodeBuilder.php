@@ -8,28 +8,36 @@ class CodeBuilder
 
     protected string $source = '';
 
-    public function indent(): void
+    public function indent(): static
     {
         $this->indentLevel++;
+
+        return $this;
     }
 
-    public function dedent(): void
+    public function dedent(): static
     {
         $this->indentLevel = max(0, $this->indentLevel - 1);
+
+        return $this;
     }
 
-    public function writeLine(string $line = ''): void
+    public function writeLine(string $line = ''): static
     {
         if ($this->source !== '' && ! str_ends_with($this->source, "\n")) {
             $this->source .= "\n";
         }
 
         $this->source .= str_repeat('    ', $this->indentLevel).$line."\n";
+
+        return $this;
     }
 
-    public function writeRaw(string $fragment): void
+    public function writeRaw(string $fragment): static
     {
         $this->source .= $fragment;
+
+        return $this;
     }
 
     /**
@@ -46,10 +54,12 @@ class CodeBuilder
     /**
      * @param  array{sourceLength:int,indentLevel:int}  $checkpoint
      */
-    public function rollback(array $checkpoint): void
+    public function rollback(array $checkpoint): static
     {
         $this->source = substr($this->source, 0, $checkpoint['sourceLength']);
         $this->indentLevel = $checkpoint['indentLevel'];
+
+        return $this;
     }
 
     /**
