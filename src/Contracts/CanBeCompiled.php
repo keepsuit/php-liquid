@@ -7,8 +7,7 @@ use Keepsuit\Liquid\Compiler\CompilerContext;
 interface CanBeCompiled
 {
     /**
-     * Return a PHP expression that renders this value, or null to use the
-     * compiler's runtime fallback.
+     * Emit generated PHP statements through the compiler context.
      */
-    public function compile(CompilerContext $context): ?string;
+    public function compile(CompilerContext $context): void;
 }
