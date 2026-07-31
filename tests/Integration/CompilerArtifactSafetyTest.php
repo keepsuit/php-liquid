@@ -1,9 +1,11 @@
 <?php
 
 use Keepsuit\Liquid\Compiler\Cache\FilesystemCompiledTemplateCache;
-use Keepsuit\Liquid\Compiler\CompiledTemplate;
 use Keepsuit\Liquid\Compiler\CompiledTemplateInterface;
+use Keepsuit\Liquid\Compiler\Compiler;
+use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\EnvironmentFactory;
+use Keepsuit\Liquid\Template;
 
 function compilerArtifactSafetyDirectory(): string
 {
@@ -87,6 +89,7 @@ test('environment removes staged artifacts when publication fails', function () 
 test('filesystem compiler cache publishes atomically and fails closed on invalid artifacts', function () {
     $directory = compilerArtifactSafetyDirectory();
     $cache = new FilesystemCompiledTemplateCache($directory);
+    $environment = EnvironmentFactory::new()->build();
 
     try {
         file_put_contents($directory.'/corrupt.php', '<?php return ; not valid');
@@ -95,8 +98,9 @@ test('filesystem compiler cache publishes atomically and fails closed on invalid
         expect($cache->get('corrupt'))->toBeNull();
         expect($cache->get('wrong'))->toBeNull();
 
-        $source = "<?php\nreturn new \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate(\n    new \\Keepsuit\\Liquid\\Nodes\\Document(new \\Keepsuit\\Liquid\\Nodes\\BodyNode),\n);\n";
-        $cache->set('valid', $source);
+        $template = $environment->parseString('valid artifact');
+        assert($template instanceof Template);
+        $cache->set('valid', (new Compiler)->compile($template));
 
         expect($cache->get('valid'))->toBeInstanceOf(CompiledTemplateInterface::class);
         expect(glob($directory.'/.valid.php.tmp-*'))->toBe([]);
@@ -120,13 +124,17 @@ test('filesystem compiler cache leaves its target untouched when publication fai
     }
 });
 
-test('compiled value decoding rejects malformed payloads and incomplete classes', function () {
-    expect(fn () => CompiledTemplate::decodeValue('not-valid-base64!'))
-        ->toThrow(RuntimeException::class);
-    expect(fn () => CompiledTemplate::decodeValue(base64_encode('not serialized')))
-        ->toThrow(RuntimeException::class);
-    expect(fn () => CompiledTemplate::decodeValue(base64_encode('O:12:"MissingClass":0:{}')))
-        ->toThrow(RuntimeException::class);
+test('compiler value export rejects resources', function () {
+    $resource = fopen('php://memory', 'r');
 
-    expect(CompiledTemplate::decodeValue(base64_encode('b:0;')))->toBeFalse();
+    if ($resource === false) {
+        throw new RuntimeException('Unable to open resource for compiler safety test.');
+    }
+
+    try {
+        expect(fn () => (new CompilerContext)->writeValue($resource))
+            ->toThrow(RuntimeException::class);
+    } finally {
+        fclose($resource);
+    }
 });

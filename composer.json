@@ -17,7 +17,8 @@
     "require": {
         "php": "^8.2",
         "ext-mbstring": "*",
-        "symfony/polyfill-php85": "^1.33"
+        "symfony/polyfill-php85": "^1.33",
+        "symfony/var-exporter": "^7.0 || ^8.0"
     },
     "require-dev": {
         "laravel/pint": "^1.2",
@@ -29,8 +30,7 @@
         "phpstan/phpstan-deprecation-rules": "^2.0",
         "spatie/invade": "^2.0",
         "spatie/ray": "^1.28",
-        "symfony/console": "^7.0 || ^8.0",
-        "symfony/var-exporter": "^7.0 || ^8.0"
+        "symfony/console": "^7.0 || ^8.0"
     },
     "autoload": {
         "psr-4": {

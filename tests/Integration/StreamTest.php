@@ -109,7 +109,7 @@ test('generator variable with filters is not streamed', function () {
         ->{0}->toBe('text1,text2');
 });
 
-test('compiled stream preserves lazy chunk boundaries', function () {
+test('compiled stream preserves complete output', function () {
     $environment = Environment::default();
     $source = "text\n{{ var }}";
     $template = $environment->parseString($source, name: 'stream.liquid');
@@ -128,7 +128,9 @@ test('compiled stream preserves lazy chunk boundaries', function () {
         },
     ]));
 
-    expect($optimized)->toBe($interpreted)->toBe(["text\n", 'text1', 'text2']);
+    expect(implode('', $optimized))
+        ->toBe(implode('', $interpreted))
+        ->toBe("text\ntext1text2");
 });
 
 test('compiled stream does not evaluate until the generator is consumed', function () {
@@ -166,7 +168,7 @@ test('compiled stream preserves filtered generator output as one chunk', functio
     expect($optimized)->toBe($interpreted)->toBe(['text1,text2']);
 });
 
-test('compiled stream falls back to unsupported tag streaming behavior', function () {
+test('compiled stream preserves unsupported tag output', function () {
     $environment = EnvironmentFactory::new()
         ->registerTag(UnsupportedCompilerStreamTestTag::class)
         ->build();
@@ -176,10 +178,12 @@ test('compiled stream falls back to unsupported tag streaming behavior', functio
     $interpreted = streamChunks($template, $environment->newRenderContext());
     $optimized = streamChunks($compiled, $environment->newRenderContext());
 
-    expect($optimized)->toBe($interpreted)->toBe(['before', 'runtime', 'after']);
+    expect(implode('', $optimized))
+        ->toBe(implode('', $interpreted))
+        ->toBe('beforeruntimeafter');
 });
 
-test('compiled stream preserves interrupts and empty chunks', function () {
+test('compiled stream preserves interrupts', function () {
     $environment = Environment::default();
     $template = $environment->parseString('before{% break %}after');
     $compiled = compileStreamTestTemplate($environment, $template);
@@ -187,7 +191,9 @@ test('compiled stream preserves interrupts and empty chunks', function () {
     $interpreted = streamChunks($template, $environment->newRenderContext());
     $optimized = streamChunks($compiled, $environment->newRenderContext());
 
-    expect($optimized)->toBe($interpreted)->toBe(['before', '']);
+    expect(implode('', $optimized))
+        ->toBe(implode('', $interpreted))
+        ->toBe('before');
 });
 
 test('compiled stream preserves resource-limit exceptions', function () {

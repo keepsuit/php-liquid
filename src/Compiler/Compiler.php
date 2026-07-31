@@ -8,32 +8,83 @@ class Compiler
 {
     public function compile(Template $template): string
     {
+        $bodyContext = new CompilerContext;
+        $bodyContext->subcompile($template->root);
+
+        $body = $bodyContext->getSource();
+        $name = $bodyContext->writeValue($template->root->name);
+        $fallbackValues = $bodyContext->getFallbackValues();
+        $fallbackValueSource = [];
+
+        foreach ($fallbackValues as $property => $value) {
+            $fallbackValueSource[$property] = $bodyContext->writeValue($value);
+        }
+
+        $className = 'Template_'.substr(hash(
+            'sha256',
+            $name.$body.implode('', $fallbackValueSource),
+        ), 0, 32);
+
         $builder = new CodeBuilder;
-        $context = new CompilerContext($builder);
-        $root = $context->writeValue($template->root);
+        $builder
+            ->writeLine('<?php')
+            ->writeLine()
+            ->writeLine('namespace Keepsuit\\Liquid\\Compiler\\Generated;')
+            ->writeLine()
+            ->writeLine('if (! class_exists('.$className.'::class, false)) {')
+            ->indent()
+            ->writeLine('final class '.$className.' extends \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate')
+            ->writeLine('{')
+            ->indent();
 
-        $context->write('<?php');
-        $context->write();
-        $context->write('$root = '.$root.';');
-        $context->write('return new \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate(');
-        $context->indent();
-        $context->write('$root,');
-        $context->write('null,');
-        $context->write('static function (\\Keepsuit\\Liquid\\Render\\RenderContext $context): string {');
-        $context->indent();
-        $context->write('$output = \'\';');
-        $context->subcompile($template->root);
-        $context->write('return $output;');
-        $context->outdent();
-        $context->write('},');
-        $context->write('static function (\\Keepsuit\\Liquid\\Render\\RenderContext $context) use ($root): \\Generator {');
-        $context->indent();
-        $context->write('yield from $root->stream($context);');
-        $context->outdent();
-        $context->write('},');
-        $context->outdent();
-        $context->write(');');
+        foreach ($fallbackValues as $property => $value) {
+            $builder->writeLine('private readonly \\Keepsuit\\Liquid\\Nodes\\Node $'.$property.';');
+        }
 
-        return $context->getSource();
+        if ($fallbackValues !== []) {
+            $builder
+                ->writeLine('public function __construct(\\Keepsuit\\Liquid\\TemplateSharedState $state = new \\Keepsuit\\Liquid\\TemplateSharedState)')
+                ->writeLine('{')
+                ->indent();
+
+            foreach ($fallbackValueSource as $property => $source) {
+                $builder->writeLine('$this->'.$property.' = '.$source.';');
+            }
+
+            $builder
+                ->writeLine('parent::__construct($state);')
+                ->dedent()
+                ->writeLine('}')
+                ->writeLine();
+        }
+
+        $builder
+            ->writeLine('public function name(): ?string')
+            ->writeLine('{')
+            ->indent()
+            ->writeLine('return '.$name.';')
+            ->dedent()
+            ->writeLine('}')
+            ->writeLine()
+            ->writeLine('protected function streamCompiled(\\Keepsuit\\Liquid\\Render\\RenderContext $context): \\Generator')
+            ->writeLine('{')
+            ->indent();
+
+        foreach (explode("\n", rtrim($body, "\n")) as $line) {
+            $builder->writeLine($line);
+        }
+
+        $builder
+            ->writeLine('yield $output;')
+            ->dedent()
+            ->writeLine('}')
+            ->dedent()
+            ->writeLine('}')
+            ->dedent()
+            ->writeLine('}')
+            ->writeLine()
+            ->writeLine('return new '.$className.';');
+
+        return $builder->getSource();
     }
 }
