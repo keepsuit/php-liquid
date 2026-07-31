@@ -21,15 +21,14 @@ class Template extends AbstractTemplate
     public function render(RenderContext $context): string
     {
         try {
-            $context->mergeOutputs($this->state->outputs);
+            $this->prepareContext($context);
 
             return $this->root->render($context);
         } catch (LiquidException $e) {
-            $e->templateName = $e->templateName ?? $this->root->name;
+            $this->attachTemplateName($e);
             throw $e;
         } finally {
-            $this->state->errors = $context->getErrors();
-            $this->state->outputs = $context->getOutputs();
+            $this->persistContext($context);
         }
     }
 
@@ -39,15 +38,14 @@ class Template extends AbstractTemplate
     public function stream(RenderContext $context): \Generator
     {
         try {
-            $context->mergeOutputs($this->state->outputs);
+            $this->prepareContext($context);
 
             yield from $this->root->stream($context);
         } catch (LiquidException $e) {
-            $e->templateName = $e->templateName ?? $this->root->name;
+            $this->attachTemplateName($e);
             throw $e;
         } finally {
-            $this->state->errors = $context->getErrors();
-            $this->state->outputs = $context->getOutputs();
+            $this->persistContext($context);
         }
     }
 

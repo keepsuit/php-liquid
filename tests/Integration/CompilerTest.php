@@ -1,6 +1,8 @@
 <?php
 
 use Keepsuit\Liquid\Compiler\CodeBuilder;
+use Keepsuit\Liquid\Compiler\CompiledTemplate;
+use Keepsuit\Liquid\Compiler\CompiledTemplateInterface;
 use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\Disableable;
@@ -136,6 +138,37 @@ function temporaryCompiledTemplatePath(): string
     return $path.'.php';
 }
 
+test('compiled render collects the compiled stream', function () {
+    $template = EnvironmentFactory::new()->build()->parseString('ignored');
+
+    assert($template instanceof Template);
+
+    $compiled = new CompiledTemplate(
+        root: $template->root,
+        renderer: static fn (): string => 'render body',
+        streamer: static function (): Generator {
+            yield 'stream body';
+        },
+    );
+
+    expect($compiled->render(new RenderContext))->toBe('stream body');
+});
+
+test('compiled stream preserves renderer-only legacy artifacts', function () {
+    $template = EnvironmentFactory::new()->build()->parseString('ignored');
+
+    assert($template instanceof Template);
+
+    $compiled = new CompiledTemplate(
+        root: $template->root,
+        renderer: static fn (): string => 'renderer body',
+    );
+
+    expect(iterator_to_array($compiled->stream(new RenderContext)))
+        ->toBe(['renderer body']);
+    expect($compiled->render(new RenderContext))->toBe('renderer body');
+});
+
 test('environment compiles a template to a requireable artifact', function () {
     $environment = EnvironmentFactory::new()->build();
     $template = $environment->parseString('Hello {{ name }}');
@@ -146,10 +179,10 @@ test('environment compiles a template to a requireable artifact', function () {
 
         expect($compiledPath)->toBeFile();
 
-        /** @var Template $compiled */
+        /** @var CompiledTemplateInterface $compiled */
         $compiled = require $compiledPath;
 
-        expect($compiled)->toBeInstanceOf(Template::class);
+        expect($compiled)->toBeInstanceOf(CompiledTemplateInterface::class);
         expect($compiled->render($environment->newRenderContext(data: ['name' => 'World'])))
             ->toBe('Hello World');
     } finally {
@@ -180,7 +213,7 @@ test('compiled rendering preserves state across repeated renders', function () {
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var Template $compiled */
+        /** @var CompiledTemplateInterface $compiled */
         $compiled = require $compiledPath;
         $interpretedContext = $environment->newRenderContext();
         $compiledContext = $environment->newRenderContext();
@@ -208,7 +241,7 @@ test('compiled rendering preserves collected errors and exception metadata', fun
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var Template $compiled */
+        /** @var CompiledTemplateInterface $compiled */
         $compiled = require $compiledPath;
         $interpretedContext = $environment->newRenderContext();
         $compiledContext = $environment->newRenderContext();
@@ -248,7 +281,7 @@ test('compiled rendering attaches template metadata to rethrown exceptions', fun
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var Template $compiled */
+        /** @var CompiledTemplateInterface $compiled */
         $compiled = require $compiledPath;
         $exceptions = [];
 
@@ -289,7 +322,7 @@ test('compiled rendering preserves resource-limit exceptions', function () {
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var Template $compiled */
+        /** @var CompiledTemplateInterface $compiled */
         $compiled = require $compiledPath;
         $interpretedContext = $environment->newRenderContext(
             resourceLimits: new ResourceLimits(renderLengthLimit: 9),
@@ -323,7 +356,7 @@ test('compiled rendering emits safe core nodes directly', function () {
         expect($compiledSource)->toContain('renderVariable');
         expect(str_contains($compiledSource ?: '', 'unserialize(base64_decode'))->toBeFalse();
 
-        /** @var Template $compiled */
+        /** @var CompiledTemplateInterface $compiled */
         $compiled = require $compiledPath;
 
         expect($compiled->render($environment->newRenderContext(data: ['name' => 'World'])))
@@ -391,7 +424,7 @@ test('unsupported nodes use the interpreter fallback', function () {
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var Template $compiled */
+        /** @var CompiledTemplateInterface $compiled */
         $compiled = require $compiledPath;
 
         expect($compiled->render($environment->newRenderContext()))
@@ -410,7 +443,7 @@ test('template literals stay data when compiled', function () {
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var Template $compiled */
+        /** @var CompiledTemplateInterface $compiled */
         $compiled = require $compiledPath;
 
         expect($compiled->render($environment->newRenderContext()))
@@ -429,7 +462,7 @@ test('compiled literals preserve quotes escapes and control characters', functio
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var Template $compiled */
+        /** @var CompiledTemplateInterface $compiled */
         $compiled = require $compiledPath;
 
         expect($compiled->render($environment->newRenderContext()))
@@ -449,7 +482,7 @@ test('custom compilable nodes opt in through the compiler context', function () 
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var Template $compiled */
+        /** @var CompiledTemplateInterface $compiled */
         $compiled = require $compiledPath;
 
         expect($compiled->render($environment->newRenderContext()))
@@ -469,7 +502,7 @@ test('custom compilable tags opt in without changing tag registration', function
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var Template $compiled */
+        /** @var CompiledTemplateInterface $compiled */
         $compiled = require $compiledPath;
 
         expect($compiled->render($environment->newRenderContext()))
@@ -493,7 +526,7 @@ test('compiler extensions retain custom tag and filter registration', function (
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var Template $compiled */
+        /** @var CompiledTemplateInterface $compiled */
         $compiled = require $compiledPath;
 
         expect($compiled->render($environment->newRenderContext(data: ['name' => 'value'])))
@@ -513,7 +546,7 @@ test('unsupported tags retain runtime filters and disabled-tag behavior', functi
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var Template $compiled */
+        /** @var CompiledTemplateInterface $compiled */
         $compiled = require $compiledPath;
 
         expect($compiled->render($environment->newRenderContext()))
@@ -554,7 +587,7 @@ test('failed node compilation rolls back before runtime fallback', function () {
 
         expect(str_contains($compiledSource ?: '', 'partial output'))->toBeFalse();
 
-        /** @var Template $compiled */
+        /** @var CompiledTemplateInterface $compiled */
         $compiled = require $compiledPath;
 
         expect($compiled->render($environment->newRenderContext()))
