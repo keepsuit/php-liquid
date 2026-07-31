@@ -17,7 +17,19 @@ $sharedNames = array_values(array_intersect(array_keys($baseBenchmarks), array_k
 sort($sharedNames);
 
 if ($sharedNames === []) {
-    echo "> No comparable benchmark rows: the PR benchmark suite has changed. Establish a matching baseline on `main` before drawing performance conclusions.\n";
+    echo "> No comparable benchmark rows: establish a matching baseline on `main` before drawing performance conclusions.\n\n";
+
+    $missingInPr = array_values(array_diff(array_keys($baseBenchmarks), array_keys($prBenchmarks)));
+    $missingInBase = array_values(array_diff(array_keys($prBenchmarks), array_keys($baseBenchmarks)));
+    if ($missingInPr !== []) {
+        sort($missingInPr);
+        echo '- Missing in PR result: `'.implode('`, `', $missingInPr).'`'."\n";
+    }
+    if ($missingInBase !== []) {
+        sort($missingInBase);
+        echo '- Branch-only subjects (missing in base result): `'.implode('`, `', $missingInBase).'`'."\n";
+    }
+
     exit(0);
 }
 

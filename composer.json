@@ -53,6 +53,7 @@
         "benchmark": "phpbench run --group=default --warmup=1 --retry-threshold=5 --report=aggregate",
         "benchmark:cache": "phpbench run --group=cache --warmup=1 --retry-threshold=5 --report=aggregate",
         "benchmark:operations": "phpbench run --group=operations --warmup=1 --retry-threshold=5 --report=aggregate",
+        "benchmark:compiler": "phpbench run --group=compiler --warmup=1 --retry-threshold=5 --report=aggregate",
         "profile": "phpbench xdebug:profile"
     },
     "config": {

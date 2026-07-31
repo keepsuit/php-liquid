@@ -4,12 +4,13 @@
 composer benchmark             # default group: the storefront theme
 composer benchmark:cache       # cache group: template-cache backends
 composer benchmark:operations  # operations group: individual operations
+composer benchmark:compiler    # compiler group: compiled/interpreted pipeline
 php performance/profile-theme.php --output=profile.json
 ```
 
 ## What each group is for
 
-The three groups have different jobs, and conflating them is how a benchmark suite
+The benchmark groups have different jobs, and conflating them is how a benchmark suite
 stops being useful.
 
 **`default`** (`ThemeBench`) renders the storefront theme — 29 templates across
@@ -24,6 +25,30 @@ loading for every supported template-cache backend.
 This is where per-feature sensitivity lives, and where a benchmark is allowed to
 be unrealistic: an artificial template that does one thing 64 times is a better
 instrument than a realistic page.
+
+**`compiler`** (`CompilerBench`) measures compile/write, fresh artifact
+require/load, compiled render, compiled stream, interpreted render and
+interpreted stream as separate subjects over the same storefront fixture. All
+template source reads, parsing, artifact setup and render data construction are
+performed in setup; render and stream subjects only exercise their named runtime
+path. Setup also compares compiled and interpreted output and exact stream chunk
+lists before timing begins, including templates reached through partial lookup.
+The fresh artifact load subject invalidates filesystem/opcache state in a
+`BeforeMethods` hook; its timed body only requires and validates artifacts.
+
+Run the compiler group with the same aggregate shape as the existing baseline:
+
+```bash
+vendor/bin/phpbench run --group=compiler --warmup=1 --retry-threshold=5 \
+  --report=aggregate --output=json > /tmp/php-liquid-compiler.json
+php tools/phpbench-compare.php build/base.json /tmp/php-liquid-compiler.json
+```
+
+The current `build/base.json` contains only the four `ThemeBench` default-group
+rows, so compiler rows are reported as branch-only and are not treated as an
+improvement or regression. Establish a matching compiler baseline on `main`
+before drawing compiler performance conclusions; the ignored baseline artifact
+is intentionally not part of the repository.
 
 The split is what lets the theme be realistic. Whenever realism and measurement
 sensitivity conflict inside the theme, realism wins — sensitivity is not the
