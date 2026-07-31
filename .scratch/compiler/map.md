@@ -26,6 +26,7 @@ Produce an implementation-ready, benchmark-backed design for an additive PHP com
 
 ## Not yet specified
 
+- Generated PHP line-to-Liquid debug maps beyond preserving Liquid source lines in runtime exceptions.
 
 ## Out of scope
 
