@@ -1,10 +1,31 @@
 <?php
 
 use Keepsuit\Liquid\Environment;
+use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Exceptions\ResourceLimitException;
+use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Render\ResourceLimits;
+use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\Template;
+
+class UnsupportedCompilerStreamTestTag extends Tag
+{
+    public static function tagName(): string
+    {
+        return 'unsupported_compiler_stream';
+    }
+
+    public function parse(TagParseContext $context): static
+    {
+        return $this;
+    }
+
+    public function render(RenderContext $context): string
+    {
+        return 'runtime';
+    }
+}
 
 function compileStreamTestTemplate(Environment $environment, Template $template): Template
 {
@@ -143,6 +164,19 @@ test('compiled stream preserves filtered generator output as one chunk', functio
     $optimized = streamChunks($compiled, $environment->newRenderContext(staticData: ['var' => $factory]));
 
     expect($optimized)->toBe($interpreted)->toBe(['text1,text2']);
+});
+
+test('compiled stream falls back to unsupported tag streaming behavior', function () {
+    $environment = EnvironmentFactory::new()
+        ->registerTag(UnsupportedCompilerStreamTestTag::class)
+        ->build();
+    $template = $environment->parseString('before{% unsupported_compiler_stream %}after');
+    $compiled = compileStreamTestTemplate($environment, $template);
+
+    $interpreted = streamChunks($template, $environment->newRenderContext());
+    $optimized = streamChunks($compiled, $environment->newRenderContext());
+
+    expect($optimized)->toBe($interpreted)->toBe(['before', 'runtime', 'after']);
 });
 
 test('compiled stream preserves interrupts and empty chunks', function () {

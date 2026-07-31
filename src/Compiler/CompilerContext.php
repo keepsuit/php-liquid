@@ -129,6 +129,10 @@ final class CompilerContext
 
     public function exportSerializedValue(mixed $value): ?string
     {
+        if ($this->containsResource($value)) {
+            return null;
+        }
+
         try {
             $serialized = serialize($value);
         } catch (\Throwable) {
@@ -137,6 +141,49 @@ final class CompilerContext
 
         return '\\Keepsuit\\Liquid\\Compiler\\CompiledTemplate::decodeValue('
             .var_export(base64_encode($serialized), true).')';
+    }
+
+    /**
+     * Resources are serialized as scalar placeholders and would not be
+     * reconstructed with their original runtime behavior.
+     *
+     * @param  array<int,true>  $seenObjects
+     */
+    private function containsResource(mixed $value, int $depth = 0, array &$seenObjects = []): bool
+    {
+        if ($depth > 256 || is_resource($value)) {
+            return true;
+        }
+
+        if (is_array($value)) {
+            foreach ($value as $item) {
+                if ($this->containsResource($item, $depth + 1, $seenObjects)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        if (! is_object($value)) {
+            return false;
+        }
+
+        $objectId = spl_object_id($value);
+
+        if (isset($seenObjects[$objectId])) {
+            return false;
+        }
+
+        $seenObjects[$objectId] = true;
+
+        foreach ((array) $value as $property) {
+            if ($this->containsResource($property, $depth + 1, $seenObjects)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function getSource(): string

@@ -3,8 +3,11 @@
 use Keepsuit\Liquid\Compiler\CodeBuilder;
 use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
+use Keepsuit\Liquid\Contracts\Disableable;
 use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Exceptions\ResourceLimitException;
+use Keepsuit\Liquid\Extensions\Extension;
+use Keepsuit\Liquid\Filters\FiltersProvider;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Nodes\Document;
 use Keepsuit\Liquid\Nodes\Node;
@@ -55,6 +58,45 @@ class CompilableCompilerTestTag extends Tag implements CanBeCompiled
     }
 }
 
+class CompilerTestFilters extends FiltersProvider
+{
+    public function compilerMarker(string $value): string
+    {
+        return 'filtered '.$value;
+    }
+}
+
+class CompilerTestExtension extends Extension
+{
+    public function getTags(): array
+    {
+        return [CompilableCompilerTestTag::class, RuntimeFallbackCompilerTestTag::class];
+    }
+
+    public function getFiltersProviders(): array
+    {
+        return [CompilerTestFilters::class];
+    }
+}
+
+class RuntimeFallbackCompilerTestTag extends Tag implements Disableable
+{
+    public static function tagName(): string
+    {
+        return 'runtime_fallback';
+    }
+
+    public function parse(TagParseContext $context): static
+    {
+        return $this;
+    }
+
+    public function render(RenderContext $context): string
+    {
+        return (string) $context->applyFilter('compiler_marker', 'runtime');
+    }
+}
+
 class FailingCompilableCompilerTestNode extends Node implements CanBeCompiled
 {
     public function render(RenderContext $context): string
@@ -67,6 +109,16 @@ class FailingCompilableCompilerTestNode extends Node implements CanBeCompiled
         $context->writeOutput($context->writeValue('partial output'));
 
         throw new RuntimeException('compiler test failure');
+    }
+}
+
+class UnsafeFallbackCompilerTestNode extends Node
+{
+    public function __construct(private readonly mixed $value) {}
+
+    public function render(RenderContext $context): string
+    {
+        return 'unsafe fallback';
     }
 }
 
@@ -404,6 +456,67 @@ test('custom compilable tags opt in without changing tag registration', function
     }
 });
 
+test('compiler extensions retain custom tag and filter registration', function () {
+    $environment = EnvironmentFactory::new()
+        ->addExtension(new CompilerTestExtension)
+        ->build();
+    $template = $environment->parseString('{% compiler_test %}{{ name | compiler_marker }}');
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    expect($environment->tagRegistry->get('compiler_test'))
+        ->toBe(CompilableCompilerTestTag::class);
+    expect($environment->filterRegistry->has('compiler_marker'))->toBeTrue();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        /** @var Template $compiled */
+        $compiled = require $compiledPath;
+
+        expect($compiled->render($environment->newRenderContext(data: ['name' => 'value'])))
+            ->toBe('tag outputfiltered value');
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('unsupported tags retain runtime filters and disabled-tag behavior', function () {
+    $environment = EnvironmentFactory::new()
+        ->addExtension(new CompilerTestExtension)
+        ->build();
+    $template = $environment->parseString('{% runtime_fallback %}', name: 'fallback.liquid');
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        /** @var Template $compiled */
+        $compiled = require $compiledPath;
+
+        expect($compiled->render($environment->newRenderContext()))
+            ->toBe($template->render($environment->newRenderContext()))
+            ->toBe('filtered runtime');
+
+        $renderDisabled = static function (Template $candidate, RenderContext $context): string {
+            return $context->withDisabledTags(
+                ['runtime_fallback'],
+                fn () => $candidate->render($context),
+            );
+        };
+        $interpretedContext = $environment->newRenderContext();
+        $compiledContext = $environment->newRenderContext();
+
+        expect($renderDisabled($compiled, $compiledContext))
+            ->toBe($renderDisabled($template, $interpretedContext))
+            ->toBe('Liquid error (line 1): runtime_fallback usage is not allowed in this context');
+        expect($compiled->getErrors()[0]::class)
+            ->toBe(\Keepsuit\Liquid\Exceptions\TagDisabledException::class);
+        expect($compiled->getErrors()[0]->lineNumber)->toBe(1);
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
 test('failed node compilation rolls back before runtime fallback', function () {
     $environment = EnvironmentFactory::new()->build();
     $template = $environment->parseString('prefix');
@@ -424,5 +537,32 @@ test('failed node compilation rolls back before runtime fallback', function () {
             ->toBe('prefixfallback output');
     } finally {
         @unlink($compiledPath);
+    }
+});
+
+test('compilation fails when a fallback node cannot be safely reconstructed', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('prefix');
+    $resource = fopen('php://memory', 'r');
+
+    if ($resource === false) {
+        throw new RuntimeException('Unable to create a test resource.');
+    }
+
+    $template->root->body->pushChild(new UnsafeFallbackCompilerTestNode($resource));
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        expect(fn () => $environment->compile($template, $compiledPath))
+            ->toThrow(RuntimeException::class);
+        expect($compiledPath)->not->toBeFile();
+        expect($template->render($environment->newRenderContext()))
+            ->toBe('prefixunsafe fallback');
+    } finally {
+        fclose($resource);
+
+        if (is_file($compiledPath)) {
+            unlink($compiledPath);
+        }
     }
 });
