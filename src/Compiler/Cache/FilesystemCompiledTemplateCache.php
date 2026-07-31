@@ -51,6 +51,16 @@ class FilesystemCompiledTemplateCache implements CompiledTemplateCache
                 throw new \RuntimeException(sprintf('Unable to write compiled template cache entry: %s', $hash));
             }
 
+            try {
+                $compiled = require $temporaryPath;
+            } catch (\Throwable $exception) {
+                throw new \RuntimeException(sprintf('Unable to validate compiled template cache entry: %s', $hash), previous: $exception);
+            }
+
+            if (! $compiled instanceof CompiledTemplateInterface) {
+                throw new \RuntimeException(sprintf('Invalid compiled template cache entry: %s', $hash));
+            }
+
             $this->publish($temporaryPath, $path, $hash);
 
             if (function_exists('opcache_invalidate')) {

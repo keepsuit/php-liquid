@@ -39,8 +39,9 @@ template source reads, parsing, artifact setup and render data construction are
 performed in setup; render and stream subjects only exercise their named runtime
 path. Setup also compares complete compiled and interpreted output before timing begins,
 including templates reached through partial lookup; stream chunk boundaries may differ.
-The fresh artifact load subject invalidates filesystem/opcache state in a
-`BeforeMethods` hook; its timed body only requires and validates artifacts.
+The fresh artifact load subject invalidates filesystem metadata in a
+`BeforeMethods` hook; its timed body requires and validates all artifacts in an isolated
+PHP process, avoiding classes loaded during benchmark setup.
 
 Run the compiler group with the same aggregate shape as the existing baseline:
 

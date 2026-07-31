@@ -70,10 +70,21 @@ class CaseTag extends TagBlock implements CanBeCompiled
 
     public function compile(CompilerContext $context): void
     {
+        $context->write('try {')->indent();
         $first = true;
 
         foreach ($this->conditions as $condition) {
-            if ($condition->else()) {
+            $isElse = $condition->else();
+
+            if ($isElse && $first) {
+                if ($condition->body !== null) {
+                    $context->subcompile($condition->body);
+                }
+
+                break;
+            }
+
+            if ($isElse) {
                 $context->write('else {');
             } else {
                 $keyword = $first ? 'if' : 'elseif';
@@ -88,8 +99,15 @@ class CaseTag extends TagBlock implements CanBeCompiled
             }
 
             $context->outdent()->write('}');
+
+            if ($isElse) {
+                break;
+            }
+
             $first = false;
         }
+
+        $context->writeNodeErrorHandling($this->lineNumber());
     }
 
     public function children(): array

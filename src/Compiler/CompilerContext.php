@@ -53,6 +53,23 @@ final class CompilerContext
         return $this;
     }
 
+    public function writeNodeErrorHandling(?int $lineNumber): static
+    {
+        $line = $this->writeValue($lineNumber);
+
+        return $this
+            ->outdent()
+            ->write('} catch (\\Keepsuit\\Liquid\\Exceptions\\UndefinedVariableException|\\Keepsuit\\Liquid\\Exceptions\\UndefinedDropMethodException|\\Keepsuit\\Liquid\\Exceptions\\UndefinedFilterException $exception) {')
+            ->indent()
+            ->write('$context->handleError($exception, '.$line.');')
+            ->outdent()
+            ->write('} catch (\\Throwable $exception) {')
+            ->indent()
+            ->write('$output .= $context->handleError($exception, '.$line.');')
+            ->outdent()
+            ->write('}');
+    }
+
     public function subcompile(Node $node): static
     {
         $checkpoint = $this->builder->checkpoint();
