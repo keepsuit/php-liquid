@@ -9,35 +9,45 @@ final class CompilerContext
 {
     public function __construct(private readonly CodeBuilder $builder = new CodeBuilder) {}
 
-    public function write(string $line = ''): void
+    public function write(string $line = ''): static
     {
         $this->builder->writeLine($line);
+
+        return $this;
     }
 
     /**
      * Write a trusted compiler or plugin fragment without data encoding.
      */
-    public function raw(string $fragment): void
+    public function raw(string $fragment): static
     {
         $this->builder->writeRaw($fragment);
+
+        return $this;
     }
 
-    public function indent(): void
+    public function indent(): static
     {
         $this->builder->indent();
+
+        return $this;
     }
 
-    public function outdent(): void
+    public function outdent(): static
     {
         $this->builder->dedent();
+
+        return $this;
     }
 
-    public function writeOutput(string $expression): void
+    public function writeOutput(string $expression): static
     {
         $this->write('$output .= '.$expression.';');
+
+        return $this;
     }
 
-    public function subcompile(Node $node): void
+    public function subcompile(Node $node): static
     {
         $checkpoint = $this->builder->checkpoint();
 
@@ -45,7 +55,7 @@ final class CompilerContext
             try {
                 $node->compile($this);
 
-                return;
+                return $this;
             } catch (\Throwable) {
                 $this->builder->rollback($checkpoint);
             }
@@ -53,6 +63,8 @@ final class CompilerContext
 
         try {
             $this->compileFallback($node);
+
+            return $this;
         } catch (\Throwable $exception) {
             $this->builder->rollback($checkpoint);
 

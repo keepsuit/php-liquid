@@ -1,5 +1,6 @@
 <?php
 
+use Keepsuit\Liquid\Compiler\CodeBuilder;
 use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\EnvironmentFactory;
@@ -150,6 +151,29 @@ test('compiler context writes indented output statements', function () {
 
     expect($context->getSource())
         ->toBe("function generated() {\nif (true) {\nreturn true;\n}\n}\n");
+});
+
+test('compiler and code builder writer methods are fluent', function () {
+    $builder = new CodeBuilder;
+
+    expect($builder->indent())->toBe($builder);
+    expect($builder->writeLine('builder line'))->toBe($builder);
+    expect($builder->writeRaw("\nbuilder raw"))->toBe($builder);
+    expect($builder->dedent())->toBe($builder);
+
+    $checkpoint = $builder->checkpoint();
+
+    expect($builder->writeLine('discarded'))->toBe($builder);
+    expect($builder->rollback($checkpoint))->toBe($builder);
+
+    $context = new CompilerContext($builder);
+
+    expect($context->write('context line'))->toBe($context);
+    expect($context->raw('context raw'))->toBe($context);
+    expect($context->indent())->toBe($context);
+    expect($context->writeOutput($context->writeValue('output')))->toBe($context);
+    expect($context->subcompile(new Text('child')))->toBe($context);
+    expect($context->outdent())->toBe($context);
 });
 
 test('built-in compilable nodes implement the compiler contract directly', function () {
