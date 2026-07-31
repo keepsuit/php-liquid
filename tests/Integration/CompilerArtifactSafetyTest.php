@@ -4,7 +4,6 @@ use Keepsuit\Liquid\Compiler\Cache\FilesystemCompiledTemplateCache;
 use Keepsuit\Liquid\Compiler\CompiledTemplate;
 use Keepsuit\Liquid\Compiler\CompiledTemplateInterface;
 use Keepsuit\Liquid\EnvironmentFactory;
-use Keepsuit\Liquid\Template;
 
 function compilerArtifactSafetyDirectory(): string
 {
@@ -59,10 +58,9 @@ test('environment publishes compiled artifacts atomically', function () {
         expect($path)->toBeFile();
         expect(glob($directory.'/.compiled.php.tmp-*'))->toBe([]);
 
-        /** @var Template $compiled */
+        /** @var CompiledTemplateInterface $compiled */
         $compiled = require $path;
 
-        expect($compiled)->toBeInstanceOf(Template::class);
         expect($compiled)->toBeInstanceOf(CompiledTemplateInterface::class);
     } finally {
         removeCompilerArtifactSafetyDirectory($directory);

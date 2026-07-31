@@ -3,7 +3,9 @@
 namespace Keepsuit\Liquid\Compiler;
 
 use Closure;
+use Keepsuit\Liquid\AbstractTemplate;
 use Keepsuit\Liquid\Contracts\Disableable;
+use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
 use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
@@ -15,66 +17,71 @@ use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tag;
-use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\TemplateSharedState;
 use Throwable;
 
-class CompiledTemplate extends Template implements CompiledTemplateInterface
+class CompiledTemplate extends AbstractTemplate implements CompiledTemplateInterface
 {
     /**
-     * @param  Closure(RenderContext): string|null  $renderer
+     * @param  Closure(RenderContext): string|null  $renderer  Legacy renderer kept for compatibility with the current artifact format.
      * @param  Closure(RenderContext): \Generator<string>|null  $streamer
      */
     public function __construct(
-        Document $root,
+        public readonly Document $root,
         ?TemplateSharedState $state = null,
         protected readonly ?Closure $renderer = null,
         protected readonly ?Closure $streamer = null,
     ) {
-        parent::__construct($root, $state ?? new TemplateSharedState);
+        parent::__construct($state ?? new TemplateSharedState);
     }
 
     public function render(RenderContext $context): string
     {
-        if ($this->renderer === null) {
-            return parent::render($context);
+        $output = '';
+
+        foreach ($this->stream($context) as $chunk) {
+            $output .= $chunk;
         }
 
-        try {
-            $context->mergeOutputs($this->state->outputs);
+        return $output;
+    }
 
-            return ($this->renderer)($context);
-        } catch (\Keepsuit\Liquid\Exceptions\LiquidException $e) {
-            $e->templateName = $e->templateName ?? $this->root->name;
+    /**
+     * @return \Generator<string>
+     */
+    public function stream(RenderContext $context): \Generator
+    {
+        try {
+            $this->prepareContext($context);
+
+            if ($this->streamer !== null) {
+                yield from ($this->streamer)($context);
+
+                return;
+            }
+
+            if ($this->renderer !== null) {
+                $output = ($this->renderer)($context);
+
+                if ($output !== null) {
+                    yield $output;
+                }
+
+                return;
+            }
+
+            yield from $this->root->stream($context);
+        } catch (LiquidException $e) {
+            $this->attachTemplateName($e);
             throw $e;
         } finally {
-            $this->state->errors = $context->getErrors();
-            $this->state->outputs = $context->getOutputs();
+            $this->persistContext($context);
         }
     }
 
-    public function stream(RenderContext $context): \Generator
+    public function name(): ?string
     {
-        if ($this->streamer === null) {
-            yield from parent::stream($context);
-
-            return;
-        }
-
-        try {
-            $context->mergeOutputs($this->state->outputs);
-
-            /** @var \Generator<string> $stream */
-            $stream = ($this->streamer)($context);
-
-            yield from $stream;
-        } catch (\Keepsuit\Liquid\Exceptions\LiquidException $e) {
-            $e->templateName = $e->templateName ?? $this->root->name;
-            throw $e;
-        } finally {
-            $this->state->errors = $context->getErrors();
-            $this->state->outputs = $context->getOutputs();
-        }
+        return $this->root->name;
     }
 
     public static function decodeValue(string $payload): mixed

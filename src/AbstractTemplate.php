@@ -2,6 +2,9 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Exceptions\LiquidException;
+use Keepsuit\Liquid\Render\RenderContext;
+
 abstract class AbstractTemplate implements TemplateInterface
 {
     public function __construct(
@@ -16,5 +19,21 @@ abstract class AbstractTemplate implements TemplateInterface
     public function getErrors(): array
     {
         return $this->state->errors;
+    }
+
+    protected function prepareContext(RenderContext $context): void
+    {
+        $context->mergeOutputs($this->state->outputs);
+    }
+
+    protected function persistContext(RenderContext $context): void
+    {
+        $this->state->errors = $context->getErrors();
+        $this->state->outputs = $context->getOutputs();
+    }
+
+    protected function attachTemplateName(LiquidException $exception): void
+    {
+        $exception->templateName = $exception->templateName ?? $this->name();
     }
 }

@@ -21,7 +21,7 @@ class Template extends AbstractTemplate
     public function render(RenderContext $context): string
     {
         try {
-            $context->mergeOutputs($this->state->outputs);
+            $this->prepareContext($context);
 
             $output = $this->root->render($context);
 
@@ -32,11 +32,10 @@ class Template extends AbstractTemplate
 
             return $output;
         } catch (LiquidException $e) {
-            $e->templateName = $e->templateName ?? $this->root->name;
+            $this->attachTemplateName($e);
             throw $e;
         } finally {
-            $this->state->errors = $context->getErrors();
-            $this->state->outputs = $context->getOutputs();
+            $this->persistContext($context);
         }
     }
 
@@ -46,7 +45,7 @@ class Template extends AbstractTemplate
     public function stream(RenderContext $context): \Generator
     {
         try {
-            $context->mergeOutputs($this->state->outputs);
+            $this->prepareContext($context);
 
             // Partials are streamed through the root template's loop below
             if ($context->isPartial()) {
@@ -68,11 +67,10 @@ class Template extends AbstractTemplate
                 yield $output;
             }
         } catch (LiquidException $e) {
-            $e->templateName = $e->templateName ?? $this->root->name;
+            $this->attachTemplateName($e);
             throw $e;
         } finally {
-            $this->state->errors = $context->getErrors();
-            $this->state->outputs = $context->getOutputs();
+            $this->persistContext($context);
         }
     }
 
