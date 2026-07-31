@@ -85,7 +85,7 @@ final class CompilerContext
     {
         $this->writeOutput(
             '\\Keepsuit\\Liquid\\Compiler\\CompiledTemplate::renderNode('
-            .'$context, '.$this->registerFallbackValue($node).', '.$this->writeValue($node->lineNumber()).')'
+            .'$context, '.$this->writeRuntimeValue($node).', '.$this->writeValue($node->lineNumber()).')'
         );
     }
 
@@ -105,6 +105,11 @@ final class CompilerContext
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    public function writeRuntimeValue(mixed $value): string
+    {
+        return $this->registerFallbackValue($value);
     }
 
     /**
