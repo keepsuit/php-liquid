@@ -18,8 +18,11 @@ four pages. It answers *"did rendering get slower"* and nothing more. It cannot
 tell you *what* got slower, because a regression in any one tag is averaged
 across everything else. Don't expect it to localize.
 
-**`cache`** (`TemplateCacheBench`) measures compilation and fresh-environment
-loading for every supported template-cache backend.
+**`cache`** (`TemplateCacheBench`) measures template-cache build and
+fresh-environment load+render for every supported backend. The compiled subject
+builds deterministic PHP artifacts during setup, then
+`benchLoadAndRenderCompiled` measures their filesystem-backed load+render path;
+artifact compilation and cache setup are outside the timed boundary.
 
 **`operations`** (`OperationBench`) measures single operations on tiny templates.
 This is where per-feature sensitivity lives, and where a benchmark is allowed to
@@ -128,7 +131,7 @@ Known gaps, in rough priority order:
 - **Coverage-only tags.** `tablerow`, `increment`, `decrement`, `ifchanged`,
   `raw` and `doc` are unbenchmarked. Real themes barely use them, so they belong
   in `operations` rather than in the theme.
-- **`TemplateCacheBench` shape.** Six subjects are driven by six near-identical
+- **`TemplateCacheBench` shape.** Seven subjects are driven by seven near-identical
   `setUp*` wrappers around a string `match`; `ParamProviders` could reduce that
   repetition. Each benchmark setup now receives a unique temporary cache path,
   so concurrent runs do not share cache files.

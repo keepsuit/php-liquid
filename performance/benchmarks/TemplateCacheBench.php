@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Performance\benchmarks;
 
 use Keepsuit\Liquid\Contracts\LiquidTemplatesCache;
 use Keepsuit\Liquid\Environment;
+use Keepsuit\Liquid\Performance\Support\CompiledTemplatesCache;
 use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
 use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
 use Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache;
@@ -74,6 +75,12 @@ class TemplateCacheBench
         $this->renderCachedTheme();
     }
 
+    #[BeforeMethods('setUpCompiledCachedRender')]
+    public function benchLoadAndRenderCompiled(): void
+    {
+        $this->renderCachedTheme();
+    }
+
     public function setUpInMemoryBuild(): void
     {
         $this->setUpBuild('memory');
@@ -102,6 +109,27 @@ class TemplateCacheBench
     public function setUpVarExporterCachedRender(): void
     {
         $this->setUpCachedRender('var-exporter');
+    }
+
+    public function setUpCompiledCachedRender(): void
+    {
+        $this->templateNames = StorefrontTheme::templateNames();
+        $this->pageTemplateNames = StorefrontTheme::pageTemplateNames();
+        $this->cacheDirectory = sys_get_temp_dir().'/'.self::CACHE_DIRECTORY.'-'.bin2hex(random_bytes(8));
+        $compiledCache = new CompiledTemplatesCache($this->cachePath('compiled'));
+        $this->cache = $compiledCache;
+        $compilerEnvironment = StorefrontTheme::environmentFactory()
+            ->setTemplatesCache(new MemoryTemplatesCache)
+            ->build();
+
+        foreach ($this->templateNames as $templateName) {
+            $template = $compilerEnvironment->parseTemplate($templateName);
+            $compilerEnvironment->compile($template, $compiledCache->pathFor($templateName));
+        }
+
+        $this->environment = StorefrontTheme::environmentFactory()
+            ->setTemplatesCache($this->cache)
+            ->build();
     }
 
     public function clearCache(): void
