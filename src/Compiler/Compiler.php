@@ -8,50 +8,26 @@ class Compiler
 {
     public function compile(Template $template): string
     {
-        $context = new CompilerContext;
-        $root = $context->exportSerializedValue($template->root);
-
-        if ($root === null) {
-            throw new \RuntimeException('Unable to safely reconstruct the template root for compilation.');
-        }
-
-        $renderBody = $context->compileNode($template->root);
-
-        if ($renderBody === null) {
-            return $this->compileInterpreterFallback($root);
-        }
-
         $builder = new CodeBuilder;
+        $context = new CompilerContext($builder);
+        $root = $context->writeValue($template->root);
 
-        $builder->writeLine('<?php');
-        $builder->writeLine('');
-        $builder->writeLine('return new \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate(');
-        $builder->indent();
-        $builder->writeLine($root.',');
-        $builder->writeLine('null,');
-        $builder->writeLine('static function (\\Keepsuit\\Liquid\\Render\\RenderContext $context): string {');
-        $builder->indent();
-        $builder->writeLine('return '.$renderBody.';');
-        $builder->dedent();
-        $builder->writeLine('},');
-        $builder->dedent();
-        $builder->writeLine(');');
+        $context->write('<?php');
+        $context->write();
+        $context->write('return new \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate(');
+        $context->indent();
+        $context->write($root.',');
+        $context->write('null,');
+        $context->write('static function (\\Keepsuit\\Liquid\\Render\\RenderContext $context): string {');
+        $context->indent();
+        $context->write('$output = \'\';');
+        $context->subcompile($template->root);
+        $context->write('return $output;');
+        $context->outdent();
+        $context->write('},');
+        $context->outdent();
+        $context->write(');');
 
-        return $builder->getSource();
-    }
-
-    protected function compileInterpreterFallback(string $root): string
-    {
-        $builder = new CodeBuilder;
-
-        $builder->writeLine('<?php');
-        $builder->writeLine('');
-        $builder->writeLine('return new \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate(');
-        $builder->indent();
-        $builder->writeLine($root);
-        $builder->dedent();
-        $builder->writeLine(');');
-
-        return $builder->getSource();
+        return $context->getSource();
     }
 }

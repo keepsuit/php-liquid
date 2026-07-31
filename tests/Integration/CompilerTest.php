@@ -23,9 +23,9 @@ class CompilableCompilerTestNode extends Node implements CanBeCompiled
         return $this->value;
     }
 
-    public function compile(CompilerContext $context): ?string
+    public function compile(CompilerContext $context): void
     {
-        return $context->exportValue($this->value);
+        $context->writeOutput($context->writeValue($this->value));
     }
 }
 
@@ -46,9 +46,24 @@ class CompilableCompilerTestTag extends Tag implements CanBeCompiled
         return 'tag output';
     }
 
-    public function compile(CompilerContext $context): ?string
+    public function compile(CompilerContext $context): void
     {
-        return $context->exportValue('tag output');
+        $context->writeOutput($context->writeValue('tag output'));
+    }
+}
+
+class FailingCompilableCompilerTestNode extends Node implements CanBeCompiled
+{
+    public function render(RenderContext $context): string
+    {
+        return 'fallback output';
+    }
+
+    public function compile(CompilerContext $context): void
+    {
+        $context->writeOutput($context->writeValue('partial output'));
+
+        throw new RuntimeException('compiler test failure');
     }
 }
 
@@ -122,6 +137,19 @@ test('compiled rendering emits safe core nodes directly', function () {
     } finally {
         @unlink($compiledPath);
     }
+});
+
+test('compiler context writes indented output statements', function () {
+    $context = new CompilerContext;
+
+    $context->write('function generated() {');
+    $context->indent();
+    $context->raw("if (true) {\nreturn true;\n}");
+    $context->outdent();
+    $context->write('}');
+
+    expect($context->getSource())
+        ->toBe("function generated() {\nif (true) {\nreturn true;\n}\n}\n");
 });
 
 test('built-in compilable nodes implement the compiler contract directly', function () {
@@ -207,6 +235,29 @@ test('custom compilable tags opt in without changing tag registration', function
 
         expect($compiled->render($environment->newRenderContext()))
             ->toBe('prefixtag output');
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('failed node compilation rolls back before runtime fallback', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('prefix');
+    $template->root->body->pushChild(new FailingCompilableCompilerTestNode);
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        $compiledSource = file_get_contents($compiledPath);
+
+        expect(str_contains($compiledSource ?: '', 'partial output'))->toBeFalse();
+
+        /** @var Template $compiled */
+        $compiled = require $compiledPath;
+
+        expect($compiled->render($environment->newRenderContext()))
+            ->toBe('prefixfallback output');
     } finally {
         @unlink($compiledPath);
     }

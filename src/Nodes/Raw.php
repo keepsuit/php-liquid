@@ -18,9 +18,9 @@ class Raw extends Node implements CanBeCompiled, HasParseTreeVisitorChildren
         return $this->value;
     }
 
-    public function compile(CompilerContext $context): ?string
+    public function compile(CompilerContext $context): void
     {
-        return $context->exportValue($this->value);
+        $context->writeOutput($context->writeValue($this->value));
     }
 
     public function blank(): bool

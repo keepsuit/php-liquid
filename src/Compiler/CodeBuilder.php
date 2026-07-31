@@ -6,8 +6,7 @@ class CodeBuilder
 {
     protected int $indentLevel = 0;
 
-    /** @var string[] */
-    protected array $lines = [];
+    protected string $source = '';
 
     public function indent(): void
     {
@@ -21,7 +20,36 @@ class CodeBuilder
 
     public function writeLine(string $line = ''): void
     {
-        $this->lines[] = str_repeat('    ', $this->indentLevel).$line;
+        if ($this->source !== '' && ! str_ends_with($this->source, "\n")) {
+            $this->source .= "\n";
+        }
+
+        $this->source .= str_repeat('    ', $this->indentLevel).$line."\n";
+    }
+
+    public function writeRaw(string $fragment): void
+    {
+        $this->source .= $fragment;
+    }
+
+    /**
+     * @return array{sourceLength:int,indentLevel:int}
+     */
+    public function checkpoint(): array
+    {
+        return [
+            'sourceLength' => strlen($this->source),
+            'indentLevel' => $this->indentLevel,
+        ];
+    }
+
+    /**
+     * @param  array{sourceLength:int,indentLevel:int}  $checkpoint
+     */
+    public function rollback(array $checkpoint): void
+    {
+        $this->source = substr($this->source, 0, $checkpoint['sourceLength']);
+        $this->indentLevel = $checkpoint['indentLevel'];
     }
 
     /**
@@ -29,11 +57,15 @@ class CodeBuilder
      */
     public function getLines(): array
     {
-        return $this->lines;
+        if ($this->source === '') {
+            return [];
+        }
+
+        return explode("\n", rtrim($this->source, "\n"));
     }
 
     public function getSource(): string
     {
-        return implode("\n", $this->lines)."\n";
+        return $this->source;
     }
 }

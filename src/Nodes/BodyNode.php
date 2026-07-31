@@ -45,33 +45,29 @@ class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
         return $this;
     }
 
-    public function compile(CompilerContext $context): ?string
+    public function compile(CompilerContext $context): void
     {
-        $lines = [
-            '\\Keepsuit\\Liquid\\Compiler\\CompiledTemplate::renderCompiledBody(',
-            '    $context,',
-            '    static function (\\Keepsuit\\Liquid\\Render\\RenderContext $context): string {',
-            '        $output = \'\';',
-        ];
+        $context->write('$output = \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate::renderCompiledBody(');
+        $context->indent();
+        $context->write('$context,');
+        $context->write('static function (\\Keepsuit\\Liquid\\Render\\RenderContext $context): string {');
+        $context->indent();
+        $context->write('$output = \'\';');
 
         foreach ($this->children as $child) {
-            $compiled = $context->compileNode($child);
-
-            if ($compiled === null) {
-                return null;
-            }
-
-            $lines[] = '        if (! $context->hasInterrupt()) {';
-            $lines[] = '            $output .= '.$compiled.';';
-            $lines[] = '        }';
+            $context->write('if (! $context->hasInterrupt()) {');
+            $context->indent();
+            $context->subcompile($child);
+            $context->outdent();
+            $context->write('}');
         }
 
-        $lines[] = '        return $output;';
-        $lines[] = '    },';
-        $lines[] = '    '.count($this->children).',';
-        $lines[] = ')';
-
-        return implode("\n", $lines);
+        $context->write('return $output;');
+        $context->outdent();
+        $context->write('},');
+        $context->write(count($this->children).',');
+        $context->outdent();
+        $context->write(');');
     }
 
     /**

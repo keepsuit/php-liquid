@@ -7,34 +7,76 @@ use Keepsuit\Liquid\Nodes\Node;
 
 final class CompilerContext
 {
-    public function compileNode(Node $node): ?string
+    public function __construct(private readonly CodeBuilder $builder = new CodeBuilder) {}
+
+    public function write(string $line = ''): void
     {
-        if ($node instanceof CanBeCompiled) {
-            try {
-                $compiled = $node->compile($this);
-            } catch (\Throwable) {
-                $compiled = null;
-            }
-
-            if ($compiled !== null) {
-                return $compiled;
-            }
-        }
-
-        return $this->compileFallback($node);
+        $this->builder->writeLine($line);
     }
 
-    public function compileFallback(Node $node): ?string
+    /**
+     * Write a trusted compiler or plugin fragment without data encoding.
+     */
+    public function raw(string $fragment): void
     {
-        $nodeCode = $this->exportSerializedValue($node);
-        $lineNumber = $this->exportValue($node->lineNumber());
+        $this->builder->writeRaw($fragment);
+    }
 
-        if ($nodeCode === null || $lineNumber === null) {
-            return null;
+    public function indent(): void
+    {
+        $this->builder->indent();
+    }
+
+    public function outdent(): void
+    {
+        $this->builder->dedent();
+    }
+
+    public function writeOutput(string $expression): void
+    {
+        $this->write('$output .= '.$expression.';');
+    }
+
+    public function subcompile(Node $node): void
+    {
+        $checkpoint = $this->builder->checkpoint();
+
+        if ($node instanceof CanBeCompiled) {
+            try {
+                $node->compile($this);
+
+                return;
+            } catch (\Throwable) {
+                $this->builder->rollback($checkpoint);
+            }
         }
 
-        return '\\Keepsuit\\Liquid\\Compiler\\CompiledTemplate::renderNode('
-            .'$context, '.$nodeCode.', '.$lineNumber.')';
+        try {
+            $this->compileFallback($node);
+        } catch (\Throwable $exception) {
+            $this->builder->rollback($checkpoint);
+
+            throw $exception;
+        }
+    }
+
+    public function compileFallback(Node $node): void
+    {
+        $this->writeOutput(
+            '\\Keepsuit\\Liquid\\Compiler\\CompiledTemplate::renderNode('
+            .'$context, '.$this->writeValue($node).', '.$this->writeValue($node->lineNumber()).')'
+        );
+    }
+
+    public function writeValue(mixed $value): string
+    {
+        $exported = $this->exportValue($value);
+
+        if ($exported === null) {
+            throw new \RuntimeException('Unable to safely encode a compiler value.');
+        }
+
+        return $exported;
     }
 
     /**
@@ -83,5 +125,10 @@ final class CompilerContext
 
         return '\\Keepsuit\\Liquid\\Compiler\\CompiledTemplate::decodeValue('
             .var_export(base64_encode($serialized), true).')';
+    }
+
+    public function getSource(): string
+    {
+        return $this->builder->getSource();
     }
 }

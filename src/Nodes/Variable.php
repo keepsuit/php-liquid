@@ -35,18 +35,14 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeStrea
         return $this->renderOutput($output);
     }
 
-    public function compile(CompilerContext $context): ?string
+    public function compile(CompilerContext $context): void
     {
-        $name = $context->exportValue($this->name);
-        $filters = $context->exportValue($this->filters);
-        $lineNumber = $context->exportValue($this->lineNumber());
-
-        if ($name === null || $filters === null || $lineNumber === null) {
-            return null;
-        }
-
-        return '\\Keepsuit\\Liquid\\Compiler\\CompiledTemplate::renderVariable('
-            .'$context, '.$name.', '.$filters.', '.$lineNumber.')';
+        $context->writeOutput(
+            '\\Keepsuit\\Liquid\\Compiler\\CompiledTemplate::renderVariable('
+            .'$context, '.$context->writeValue($this->name).', '
+            .$context->writeValue($this->filters).', '
+            .$context->writeValue($this->lineNumber()).')'
+        );
     }
 
     public function stream(RenderContext $context): \Generator
