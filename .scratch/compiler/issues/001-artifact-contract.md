@@ -13,4 +13,4 @@ What public compile API should write the PHP artifact, and what exactly should r
 
 ## Resolution
 
-`Environment::compile(Template $template, string $compiledPath)` is the additive public entry point. It writes a PHP artifact at the caller-provided path; requiring that artifact returns a `Template`-compatible compiled object that can render with the existing `RenderContext`. Existing parsing, rendering, and interpreted cache APIs remain unchanged. Cache identity and environment consistency remain application-managed.
+`Environment::compile(Template $template, string $compiledPath)` is the additive public entry point. It writes a PHP artifact at the caller-provided path; the artifact defines a deterministic final generated class extending the abstract compiled-template runtime base and returns an instance implementing `TemplateInterface`. The compiled template exposes both `render()` and lazy `stream()`, with `render()` collecting the stream output. Existing parsing, rendering, and interpreted cache APIs remain unchanged. Cache identity and environment consistency remain application-managed.
