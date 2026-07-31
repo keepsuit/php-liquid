@@ -48,7 +48,7 @@ class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
     public function compile(CompilerContext $context): void
     {
         $context
-            ->write('$output = \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate::renderCompiledBody(')
+            ->write('$output .= \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate::renderCompiledBody(')
             ->indent()
             ->write('$context,')
             ->write('function (\\Keepsuit\\Liquid\\Render\\RenderContext $context): string {')

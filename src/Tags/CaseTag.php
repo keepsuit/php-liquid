@@ -2,8 +2,10 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Condition\ElseCondition;
+use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Parse\ExpressionParser;
@@ -15,7 +17,7 @@ use Keepsuit\Liquid\TagBlock;
 /**
  * @phpstan-import-type Expression from ExpressionParser
  */
-class CaseTag extends TagBlock
+class CaseTag extends TagBlock implements CanBeCompiled
 {
     /** @var Condition[] */
     protected array $conditions = [];
@@ -64,6 +66,30 @@ class CaseTag extends TagBlock
         }
 
         return '';
+    }
+
+    public function compile(CompilerContext $context): void
+    {
+        $first = true;
+
+        foreach ($this->conditions as $condition) {
+            if ($condition->else()) {
+                $context->write('else {');
+            } else {
+                $keyword = $first ? 'if' : 'elseif';
+                $conditionValue = $context->writeRuntimeValue($condition);
+                $context->write($keyword.' ('.$conditionValue.'->evaluate($context)) {');
+            }
+
+            $context->indent();
+
+            if ($condition->body !== null) {
+                $context->subcompile($condition->body);
+            }
+
+            $context->outdent()->write('}');
+            $first = false;
+        }
     }
 
     public function children(): array

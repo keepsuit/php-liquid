@@ -191,6 +191,40 @@ test('compilation does not change interpreted template rendering', function () {
     }
 });
 
+test('compiled control flow preserves branch selection and stream output', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString(
+        '{% if enabled %}if{% elsif other %}elsif{% else %}else{% endif %}|'
+        .'{% unless disabled %}unless{% else %}not{% endunless %}|'
+        .'{% case value %}{% when "a" %}A{% when "b" %}B{% else %}C{% endcase %}',
+    );
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        $compiledSource = file_get_contents($compiledPath);
+
+        expect($compiledSource)->toContain('->evaluate($context)');
+
+        /** @var CompiledTemplateInterface $compiled */
+        $compiled = require $compiledPath;
+        $data = ['enabled' => false, 'other' => true, 'disabled' => true, 'value' => 'b'];
+
+        expect($compiled->render($environment->newRenderContext(data: $data)))
+            ->toBe($template->render($environment->newRenderContext(data: $data)))
+            ->toBe('elsif|not|B');
+
+        $streamed = iterator_to_array(
+            $compiled->stream($environment->newRenderContext(data: $data)),
+        );
+
+        expect(implode('', $streamed))->toBe('elsif|not|B');
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
 test('compiled rendering preserves state across repeated renders', function () {
     $environment = EnvironmentFactory::new()->build();
     $template = $environment->parseString('{{ value }}{% assign value = "one" %}{{ value }}');

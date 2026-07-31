@@ -55,7 +55,7 @@ class Compiler
             ->indent();
 
         foreach ($fallbackValues as $property => $value) {
-            $builder->writeLine('private readonly \\Keepsuit\\Liquid\\Nodes\\Node $'.$property.';');
+            $builder->writeLine('private readonly mixed $'.$property.';');
         }
 
         if ($fallbackValues !== []) {
@@ -86,6 +86,8 @@ class Compiler
             ->writeLine('protected function streamCompiled(\\Keepsuit\\Liquid\\Render\\RenderContext $context): \\Generator')
             ->writeLine('{')
             ->indent();
+
+        $builder->writeLine('$output = \'\';');
 
         foreach (explode("\n", rtrim($body, "\n")) as $line) {
             $builder->writeLine($line);
