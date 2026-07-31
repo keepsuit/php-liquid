@@ -104,6 +104,10 @@ test('filesystem compiler cache publishes atomically and fails closed on invalid
 
         expect($cache->get('valid'))->toBeInstanceOf(CompiledTemplateInterface::class);
         expect(glob($directory.'/.valid.php.tmp-*'))->toBe([]);
+
+        expect(fn () => $cache->set('valid', '<?php return null;'))
+            ->toThrow(RuntimeException::class);
+        expect($cache->get('valid'))->toBeInstanceOf(CompiledTemplateInterface::class);
     } finally {
         removeCompilerArtifactSafetyDirectory($directory);
     }

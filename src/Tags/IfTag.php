@@ -83,7 +83,9 @@ class IfTag extends TagBlock implements CanBeCompiled, CanBeStreamed
 
     public function compile(CompilerContext $context): void
     {
+        $context->write('try {')->indent();
         $this->compileConditions($context, $this->conditions);
+        $context->writeNodeErrorHandling($this->lineNumber());
     }
 
     /**
@@ -92,7 +94,17 @@ class IfTag extends TagBlock implements CanBeCompiled, CanBeStreamed
     protected function compileConditions(CompilerContext $context, array $conditions, bool $first = true): void
     {
         foreach ($conditions as $condition) {
-            if ($condition->else()) {
+            $isElse = $condition->else();
+
+            if ($isElse && $first) {
+                if ($condition->body !== null) {
+                    $context->subcompile($condition->body);
+                }
+
+                break;
+            }
+
+            if ($isElse) {
                 $context->write('else {');
             } else {
                 $keyword = $first ? 'if' : 'elseif';
@@ -107,6 +119,11 @@ class IfTag extends TagBlock implements CanBeCompiled, CanBeStreamed
             }
 
             $context->outdent()->write('}');
+
+            if ($isElse) {
+                break;
+            }
+
             $first = false;
         }
     }

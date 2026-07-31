@@ -225,6 +225,33 @@ test('compiled control flow preserves branch selection and stream output', funct
     }
 });
 
+test('compiled conditions ignore branches after else', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $cases = [
+        ['{% if false %}a{% else %}b{% elsif true %}c{% endif %}', [], 'b'],
+        ['{% case value %}{% else %}b{% when "a" %}a{% endcase %}', ['value' => 'a'], 'b'],
+    ];
+
+    foreach ($cases as [$source, $data, $expected]) {
+        $template = $environment->parseString($source);
+        $compiledPath = temporaryCompiledTemplatePath();
+
+        try {
+            $environment->compile($template, $compiledPath);
+
+            /** @var CompiledTemplateInterface $compiled */
+            $compiled = require $compiledPath;
+            $context = $environment->newRenderContext(data: $data);
+
+            expect($compiled->render($context))
+                ->toBe($template->render($environment->newRenderContext(data: $data)))
+                ->toBe($expected);
+        } finally {
+            @unlink($compiledPath);
+        }
+    }
+});
+
 test('compiled templates keep runtime partial lookup', function () {
     $environment = EnvironmentFactory::new()
         ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem([
@@ -272,6 +299,32 @@ test('compiled conditional bodies preserve interrupts from fallback nodes', func
             ->toBe('');
         expect($compiled->render($environment->newRenderContext(data: ['stop' => false])))
             ->toBe('after');
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('compiled conditions preserve handled evaluation errors', function () {
+    $environment = EnvironmentFactory::new()
+        ->setRethrowErrors(false)
+        ->build();
+    $template = $environment->parseString('{% if "a" > 1 %}yes{% else %}no{% endif %}', name: 'condition-errors.liquid');
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        /** @var CompiledTemplateInterface $compiled */
+        $compiled = require $compiledPath;
+        $interpretedContext = $environment->newRenderContext();
+        $compiledContext = $environment->newRenderContext();
+
+        expect($compiled->render($compiledContext))
+            ->toBe($template->render($interpretedContext))
+            ->toBe('Liquid error (line 1): Internal exception');
+        expect($compiled->getErrors()[0]->lineNumber)->toBe(1);
+        expect($compiled->getErrors()[0]->templateName)
+            ->toBe($template->getErrors()[0]->templateName);
     } finally {
         @unlink($compiledPath);
     }
@@ -517,10 +570,14 @@ test('template literals stay data when compiled', function () {
     $compiledPath = temporaryCompiledTemplatePath();
 
     try {
+        ob_start();
         $environment->compile($template, $compiledPath);
 
         /** @var CompiledTemplateInterface $compiled */
         $compiled = require $compiledPath;
+        $artifactOutput = ob_get_clean();
+
+        expect($artifactOutput)->toBe('');
 
         expect($compiled->render($environment->newRenderContext()))
             ->toBe($template->render($environment->newRenderContext()));

@@ -56,6 +56,8 @@ class CompilerBench
     /** @var array<string, string> */
     private array $artifactPaths;
 
+    private string $freshLoadScript;
+
     /**
      * @var list<array<string, array{page: array<string, mixed>, layout: array<string, mixed>}>>
      */
@@ -105,6 +107,8 @@ class CompilerBench
             $this->compiledEnvironment->templatesCache->set($templateName, $compiledTemplate);
         }
 
+        $this->writeFreshLoadScript();
+
         // Keep fixture/data creation out of render and stream timing.
         $this->renderDataSets = $this->buildRenderDataSets(self::DATA_SET_COUNT);
         $this->correctnessDataSets = $this->buildRenderDataSets(4);
@@ -119,6 +123,10 @@ class CompilerBench
             if (is_file($artifactPath)) {
                 unlink($artifactPath);
             }
+        }
+
+        if (is_file($this->freshLoadScript)) {
+            unlink($this->freshLoadScript);
         }
 
         if (is_dir($this->artifactDirectory)) {
@@ -136,14 +144,21 @@ class CompilerBench
     #[BeforeMethods('prepareFreshArtifactLoad')]
     public function benchFreshArtifactLoad(): void
     {
-        foreach ($this->artifactPaths as $artifactPath) {
-            $this->loadCompiledArtifact($artifactPath);
+        $output = [];
+        $exitCode = 0;
+        exec(
+            escapeshellarg(PHP_BINARY).' '.escapeshellarg($this->freshLoadScript),
+            $output,
+            $exitCode,
+        );
+
+        if ($exitCode !== 0) {
+            throw new \RuntimeException('Fresh compiled artifact load failed.');
         }
     }
 
     /**
-     * Prepare the artifact state before PHPBench starts timing this subject;
-     * the subject itself measures only require/load and contract validation.
+     * Prepare filesystem metadata before PHPBench starts timing the isolated load.
      */
     public function prepareFreshArtifactLoad(): void
     {
@@ -294,6 +309,24 @@ class CompilerBench
         }
 
         return $template;
+    }
+
+    private function writeFreshLoadScript(): void
+    {
+        $this->freshLoadScript = $this->artifactDirectory.'/fresh-load.php';
+        $source = "<?php\n"
+            .'require '.var_export(dirname(__DIR__, 2).'/vendor/autoload.php', true).";\n"
+            .'$paths = '.var_export(array_values($this->artifactPaths), true).";\n"
+            ."foreach (\$paths as \$path) {\n"
+            ."    \$template = require \$path;\n"
+            ."    if (! \$template instanceof \\Keepsuit\\Liquid\\Compiler\\CompiledTemplateInterface) {\n"
+            ."        exit(1);\n"
+            ."    }\n"
+            ."}\n";
+
+        if (file_put_contents($this->freshLoadScript, $source) !== strlen($source)) {
+            throw new \RuntimeException('Unable to create fresh artifact load script.');
+        }
     }
 
     /**
