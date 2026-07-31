@@ -37,8 +37,8 @@ require/load, compiled render, compiled stream, interpreted render and
 interpreted stream as separate subjects over the same storefront fixture. All
 template source reads, parsing, artifact setup and render data construction are
 performed in setup; render and stream subjects only exercise their named runtime
-path. Setup also compares compiled and interpreted output and exact stream chunk
-lists before timing begins, including templates reached through partial lookup.
+path. Setup also compares complete compiled and interpreted output before timing begins,
+including templates reached through partial lookup; stream chunk boundaries may differ.
 The fresh artifact load subject invalidates filesystem/opcache state in a
 `BeforeMethods` hook; its timed body only requires and validates artifacts.
 

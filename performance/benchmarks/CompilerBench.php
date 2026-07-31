@@ -353,15 +353,14 @@ class CompilerBench
 
     /**
      * @param  \Generator<string>  $stream
-     * @return list<string>
      */
-    private function collect(\Generator $stream): array
+    private function collect(\Generator $stream): string
     {
-        $chunks = [];
+        $output = '';
         foreach ($stream as $chunk) {
-            $chunks[] = $chunk;
+            $output .= $chunk;
         }
 
-        return $chunks;
+        return $output;
     }
 }
