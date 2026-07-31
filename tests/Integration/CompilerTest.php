@@ -4,6 +4,7 @@ use Keepsuit\Liquid\Compiler\CodeBuilder;
 use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\EnvironmentFactory;
+use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Nodes\Document;
 use Keepsuit\Liquid\Nodes\Node;
@@ -12,6 +13,7 @@ use Keepsuit\Liquid\Nodes\Text;
 use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
+use Keepsuit\Liquid\Render\ResourceLimits;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\Template;
 
@@ -112,6 +114,144 @@ test('compilation does not change interpreted template rendering', function () {
 
         expect($template->render($environment->newRenderContext(data: ['name' => 'World'])))
             ->toBe('Hello World');
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('compiled rendering preserves state across repeated renders', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('{{ value }}{% assign value = "one" %}{{ value }}');
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        /** @var Template $compiled */
+        $compiled = require $compiledPath;
+        $interpretedContext = $environment->newRenderContext();
+        $compiledContext = $environment->newRenderContext();
+
+        expect([
+            $template->render($interpretedContext),
+            $template->render($interpretedContext),
+        ])->toBe([
+            $compiled->render($compiledContext),
+            $compiled->render($compiledContext),
+        ])->toBe(['one', 'oneone']);
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('compiled rendering preserves collected errors and exception metadata', function () {
+    $environment = EnvironmentFactory::new()
+        ->setStrictVariables(true)
+        ->setRethrowErrors(false)
+        ->build();
+    $template = $environment->parseString('{{ missing }}', name: 'errors.liquid');
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        /** @var Template $compiled */
+        $compiled = require $compiledPath;
+        $interpretedContext = $environment->newRenderContext();
+        $compiledContext = $environment->newRenderContext();
+
+        expect($compiled->render($compiledContext))->toBe($template->render($interpretedContext));
+
+        $describeErrors = static fn (Template $rendered): array => array_map(
+            static fn (\Throwable $error): array => [
+                $error::class,
+                $error->getMessage(),
+                $error->lineNumber,
+                $error->templateName,
+            ],
+            $rendered->getErrors(),
+        );
+
+        expect($describeErrors($compiled))->toBe($describeErrors($template))
+            ->toBe([[
+                \Keepsuit\Liquid\Exceptions\UndefinedVariableException::class,
+                'Variable `missing` not found',
+                1,
+                null,
+            ]]);
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('compiled rendering attaches template metadata to rethrown exceptions', function () {
+    $environment = EnvironmentFactory::new()
+        ->setStrictVariables(true)
+        ->setRethrowErrors(true)
+        ->build();
+    $template = $environment->parseString('{{ missing }}', name: 'errors.liquid');
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        /** @var Template $compiled */
+        $compiled = require $compiledPath;
+        $exceptions = [];
+
+        foreach ([$template, $compiled] as $candidate) {
+            try {
+                $candidate->render($environment->newRenderContext());
+            } catch (\Keepsuit\Liquid\Exceptions\LiquidException $exception) {
+                $exceptions[] = [
+                    $exception::class,
+                    $exception->lineNumber,
+                    $exception->templateName,
+                ];
+            }
+        }
+
+        expect($exceptions)->toBe([
+            [
+                \Keepsuit\Liquid\Exceptions\UndefinedVariableException::class,
+                1,
+                'errors.liquid',
+            ],
+            [
+                \Keepsuit\Liquid\Exceptions\UndefinedVariableException::class,
+                1,
+                'errors.liquid',
+            ],
+        ]);
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('compiled rendering preserves resource-limit exceptions', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('0123456789', name: 'limited.liquid');
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        /** @var Template $compiled */
+        $compiled = require $compiledPath;
+        $interpretedContext = $environment->newRenderContext(
+            resourceLimits: new ResourceLimits(renderLengthLimit: 9),
+        );
+        $compiledContext = $environment->newRenderContext(
+            resourceLimits: new ResourceLimits(renderLengthLimit: 9),
+        );
+
+        expect(fn () => $template->render($interpretedContext))
+            ->toThrow(ResourceLimitException::class);
+        expect(fn () => $compiled->render($compiledContext))
+            ->toThrow(ResourceLimitException::class);
+        expect($compiledContext->resourceLimits->reached())
+            ->toBe($interpretedContext->resourceLimits->reached())
+            ->toBeTrue();
     } finally {
         @unlink($compiledPath);
     }
