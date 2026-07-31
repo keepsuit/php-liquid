@@ -4,9 +4,15 @@ namespace Keepsuit\Liquid\Compiler;
 
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Nodes\Node;
+use Symfony\Component\VarExporter\VarExporter;
 
 final class CompilerContext
 {
+    /**
+     * @var array<string,mixed>
+     */
+    private array $fallbackValues = [];
+
     public function __construct(private readonly CodeBuilder $builder = new CodeBuilder) {}
 
     public function write(string $line = ''): static
@@ -50,6 +56,7 @@ final class CompilerContext
     public function subcompile(Node $node): static
     {
         $checkpoint = $this->builder->checkpoint();
+        $fallbackValueCount = count($this->fallbackValues);
 
         if ($node instanceof CanBeCompiled) {
             try {
@@ -58,6 +65,7 @@ final class CompilerContext
                 return $this;
             } catch (\Throwable) {
                 $this->builder->rollback($checkpoint);
+                $this->rollbackFallbackValues($fallbackValueCount);
             }
         }
 
@@ -67,6 +75,7 @@ final class CompilerContext
             return $this;
         } catch (\Throwable $exception) {
             $this->builder->rollback($checkpoint);
+            $this->rollbackFallbackValues($fallbackValueCount);
 
             throw $exception;
         }
@@ -76,7 +85,7 @@ final class CompilerContext
     {
         $this->writeOutput(
             '\\Keepsuit\\Liquid\\Compiler\\CompiledTemplate::renderNode('
-            .'$context, '.$this->writeValue($node).', '.$this->writeValue($node->lineNumber()).')'
+            .'$context, '.$this->registerFallbackValue($node).', '.$this->writeValue($node->lineNumber()).')'
         );
     }
 
@@ -91,99 +100,34 @@ final class CompilerContext
         return $exported;
     }
 
-    /**
-     * Export a value as PHP data. Scalars and scalar arrays stay readable in
-     * the artifact; other values use a serialized data payload.
-     */
     public function exportValue(mixed $value): ?string
     {
-        if (is_null($value) || is_bool($value) || is_int($value) || is_string($value)) {
-            return var_export($value, true);
-        }
-
-        if (is_float($value) && is_finite($value)) {
-            return var_export($value, true);
-        }
-
-        if (is_array($value)) {
-            $parts = [];
-
-            foreach ($value as $key => $item) {
-                $keyCode = $this->exportValue($key);
-                $itemCode = $this->exportValue($item);
-
-                if ($keyCode === null || $itemCode === null) {
-                    break;
-                }
-
-                $parts[] = $keyCode.' => '.$itemCode;
-            }
-
-            if (count($parts) === count($value)) {
-                return '['.implode(', ', $parts).']';
-            }
-        }
-
-        return $this->exportSerializedValue($value);
-    }
-
-    public function exportSerializedValue(mixed $value): ?string
-    {
-        if ($this->containsResource($value)) {
-            return null;
-        }
-
         try {
-            $serialized = serialize($value);
+            return VarExporter::export($value);
         } catch (\Throwable) {
             return null;
         }
-
-        return '\\Keepsuit\\Liquid\\Compiler\\CompiledTemplate::decodeValue('
-            .var_export(base64_encode($serialized), true).')';
     }
 
     /**
-     * Resources are serialized as scalar placeholders and would not be
-     * reconstructed with their original runtime behavior.
-     *
-     * @param  array<int,true>  $seenObjects
+     * @return array<string,mixed>
      */
-    private function containsResource(mixed $value, int $depth = 0, array &$seenObjects = []): bool
+    public function getFallbackValues(): array
     {
-        if ($depth > 256 || is_resource($value)) {
-            return true;
-        }
+        return $this->fallbackValues;
+    }
 
-        if (is_array($value)) {
-            foreach ($value as $item) {
-                if ($this->containsResource($item, $depth + 1, $seenObjects)) {
-                    return true;
-                }
-            }
+    private function registerFallbackValue(mixed $value): string
+    {
+        $property = 'value'.count($this->fallbackValues);
+        $this->fallbackValues[$property] = $value;
 
-            return false;
-        }
+        return '$this->'.$property;
+    }
 
-        if (! is_object($value)) {
-            return false;
-        }
-
-        $objectId = spl_object_id($value);
-
-        if (isset($seenObjects[$objectId])) {
-            return false;
-        }
-
-        $seenObjects[$objectId] = true;
-
-        foreach ((array) $value as $property) {
-            if ($this->containsResource($property, $depth + 1, $seenObjects)) {
-                return true;
-            }
-        }
-
-        return false;
+    private function rollbackFallbackValues(int $count): void
+    {
+        $this->fallbackValues = array_slice($this->fallbackValues, 0, $count, preserve_keys: true);
     }
 
     public function getSource(): string

@@ -139,34 +139,20 @@ function temporaryCompiledTemplatePath(): string
 }
 
 test('compiled render collects the compiled stream', function () {
-    $template = EnvironmentFactory::new()->build()->parseString('ignored');
+    $compiled = new class extends CompiledTemplate
+    {
+        public function name(): ?string
+        {
+            return null;
+        }
 
-    assert($template instanceof Template);
-
-    $compiled = new CompiledTemplate(
-        root: $template->root,
-        renderer: static fn (): string => 'render body',
-        streamer: static function (): Generator {
+        protected function streamCompiled(RenderContext $context): Generator
+        {
             yield 'stream body';
-        },
-    );
+        }
+    };
 
     expect($compiled->render(new RenderContext))->toBe('stream body');
-});
-
-test('compiled stream preserves renderer-only legacy artifacts', function () {
-    $template = EnvironmentFactory::new()->build()->parseString('ignored');
-
-    assert($template instanceof Template);
-
-    $compiled = new CompiledTemplate(
-        root: $template->root,
-        renderer: static fn (): string => 'renderer body',
-    );
-
-    expect(iterator_to_array($compiled->stream(new RenderContext)))
-        ->toBe(['renderer body']);
-    expect($compiled->render(new RenderContext))->toBe('renderer body');
 });
 
 test('environment compiles a template to a requireable artifact', function () {
@@ -353,8 +339,12 @@ test('compiled rendering emits safe core nodes directly', function () {
 
         $compiledSource = file_get_contents($compiledPath);
 
-        expect($compiledSource)->toContain('renderVariable');
-        expect(str_contains($compiledSource ?: '', 'unserialize(base64_decode'))->toBeFalse();
+        expect($compiledSource)
+            ->toContain('final class Template_')
+            ->toContain('extends \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate')
+            ->toContain('protected function streamCompiled')
+            ->not->toContain('unserialize')
+            ->not->toContain('return new \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate(');
 
         /** @var CompiledTemplateInterface $compiled */
         $compiled = require $compiledPath;
