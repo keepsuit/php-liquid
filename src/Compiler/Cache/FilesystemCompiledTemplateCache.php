@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid\Compiler\Cache;
 
 use Keepsuit\Liquid\Compiler\CompiledTemplateInterface;
+use Keepsuit\Liquid\Template;
 
 class FilesystemCompiledTemplateCache implements CompiledTemplateCache
 {
@@ -25,7 +26,9 @@ class FilesystemCompiledTemplateCache implements CompiledTemplateCache
             return null;
         }
 
-        return $compiled instanceof CompiledTemplateInterface ? $compiled : null;
+        return $compiled instanceof Template && $compiled instanceof CompiledTemplateInterface
+            ? $compiled
+            : null;
     }
 
     public function has(string $hash): bool
@@ -35,8 +38,44 @@ class FilesystemCompiledTemplateCache implements CompiledTemplateCache
 
     public function set(string $hash, string $source): void
     {
-        if (file_put_contents($this->getPath($hash), $source) === false) {
-            throw new \RuntimeException(sprintf('Unable to write compiled template cache entry: %s', $hash));
+        $path = $this->getPath($hash);
+        $temporaryPath = tempnam($this->cachePath, '.'.basename($path).'.tmp-');
+
+        if ($temporaryPath === false) {
+            throw new \RuntimeException(sprintf('Unable to create temporary compiled template cache entry: %s', $hash));
+        }
+
+        try {
+            $bytesWritten = file_put_contents($temporaryPath, $source);
+
+            if ($bytesWritten !== strlen($source)) {
+                throw new \RuntimeException(sprintf('Unable to write compiled template cache entry: %s', $hash));
+            }
+
+            $this->publish($temporaryPath, $path, $hash);
+
+            if (function_exists('opcache_invalidate')) {
+                opcache_invalidate($path, true);
+            }
+        } finally {
+            if (is_file($temporaryPath)) {
+                unlink($temporaryPath);
+            }
+        }
+    }
+
+    protected function publish(string $temporaryPath, string $path, string $hash): void
+    {
+        set_error_handler(static fn (): bool => true);
+
+        try {
+            $published = rename($temporaryPath, $path);
+        } finally {
+            restore_error_handler();
+        }
+
+        if (! $published) {
+            throw new \RuntimeException(sprintf('Unable to publish compiled template cache entry: %s', $hash));
         }
     }
 

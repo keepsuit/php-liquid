@@ -79,7 +79,67 @@ class CompiledTemplate extends Template implements CompiledTemplateInterface
 
     public static function decodeValue(string $payload): mixed
     {
-        return unserialize(base64_decode($payload), ['allowed_classes' => true]);
+        $serialized = base64_decode($payload, true);
+
+        if ($serialized === false) {
+            throw new \RuntimeException('Invalid compiler value encoding.');
+        }
+
+        set_error_handler(static function (int $severity, string $message): never {
+            throw new \RuntimeException($message, $severity);
+        });
+
+        try {
+            $value = unserialize($serialized, ['allowed_classes' => true]);
+        } finally {
+            restore_error_handler();
+        }
+
+        if ($value === false && $serialized !== 'b:0;') {
+            throw new \RuntimeException('Invalid serialized compiler value.');
+        }
+
+        self::assertDecodedValue($value);
+
+        return $value;
+    }
+
+    /**
+     * @param  array<int,true>  $seenObjects
+     */
+    private static function assertDecodedValue(mixed $value, int $depth = 0, array &$seenObjects = []): void
+    {
+        if ($depth > 256 || is_resource($value)) {
+            throw new \RuntimeException('Unsafe decoded compiler value.');
+        }
+
+        if (is_array($value)) {
+            foreach ($value as $item) {
+                self::assertDecodedValue($item, $depth + 1, $seenObjects);
+            }
+
+            return;
+        }
+
+        if (! is_object($value)) {
+            return;
+        }
+
+        if (get_class($value) === '__PHP_Incomplete_Class') {
+            throw new \RuntimeException('Incomplete decoded compiler class.');
+        }
+
+        $objectId = spl_object_id($value);
+
+        if (isset($seenObjects[$objectId])) {
+            return;
+        }
+
+        $seenObjects[$objectId] = true;
+
+        foreach ((array) $value as $property) {
+            self::assertDecodedValue($property, $depth + 1, $seenObjects);
+        }
     }
 
     public static function renderCompiledBody(RenderContext $context, Closure $renderer, int $childCount): string
