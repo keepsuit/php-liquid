@@ -14,9 +14,12 @@ The benchmark groups have different jobs, and conflating them is how a benchmark
 stops being useful.
 
 **`default`** (`ThemeBench`) renders the storefront theme — 29 templates across
-four pages. It answers *"did rendering get slower"* and nothing more. It cannot
-tell you *what* got slower, because a regression in any one tag is averaged
-across everything else. Don't expect it to localize.
+four pages — with both interpreted `benchRender` and precompiled
+`benchRenderCompiled` subjects. Compilation and artifact loading happen during
+setup, outside the timed compiled-render subject. It answers *"did rendering get
+slower"* and nothing more. It cannot tell you *what* got slower, because a
+regression in any one tag is averaged across everything else. Don't expect it to
+localize.
 
 **`cache`** (`TemplateCacheBench`) measures template-cache build and
 fresh-environment load+render for every supported backend. The compiled subject

@@ -2,8 +2,10 @@
 
 namespace Keepsuit\Liquid\Performance\benchmarks;
 
+use Keepsuit\Liquid\Compiler\CompiledTemplateInterface;
 use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
+use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
 use PhpBench\Attributes\BeforeMethods;
 use PhpBench\Attributes\Groups;
 use PhpBench\Attributes\Iterations;
@@ -32,6 +34,8 @@ class ThemeBench
 {
     private Environment $environment;
 
+    private Environment $compiledEnvironment;
+
     /**
      * Sources are read up front: reading them inside a benchmark would measure
      * the filesystem instead of the tokenizer and the parser.
@@ -46,11 +50,29 @@ class ThemeBench
     public function setUp(): void
     {
         $this->environment = StorefrontTheme::environment();
+        $this->compiledEnvironment = StorefrontTheme::environmentFactory()
+            ->setTemplatesCache(new MemoryTemplatesCache)
+            ->build();
+
+        $compiledCacheDirectory = $this->prepareCompiledDirectory(__DIR__.'/cache/compiled');
+
         $this->sources = [];
 
         foreach (StorefrontTheme::templateNames() as $name) {
             $this->environment->parseTemplate($name);
             $this->sources[$name] = StorefrontTheme::templateSource($name);
+
+            $template = $this->compiledEnvironment->parseTemplate($name);
+            $artifactPath = $compiledCacheDirectory.'/'.str_replace('.', '_', $name).'.php';
+            $this->compiledEnvironment->compile($template, $artifactPath);
+
+            $compiledTemplate = require $artifactPath;
+
+            if (! $compiledTemplate instanceof CompiledTemplateInterface) {
+                throw new \RuntimeException("Invalid compiled theme benchmark artifact: {$artifactPath}");
+            }
+
+            $this->compiledEnvironment->templatesCache->set($name, $compiledTemplate);
         }
 
         $this->pageTemplateNames = StorefrontTheme::pageTemplateNames();
@@ -77,11 +99,35 @@ class ThemeBench
         }
     }
 
+    public function benchRenderCompiled(): void
+    {
+        foreach ($this->pageTemplateNames as $pageTemplateName) {
+            StorefrontTheme::renderPage($this->compiledEnvironment, $pageTemplateName);
+        }
+    }
+
     public function benchStream(): void
     {
         foreach ($this->pageTemplateNames as $pageTemplateName) {
             foreach (StorefrontTheme::streamPage($this->environment, $pageTemplateName) as $chunk) {
             }
         }
+    }
+
+    protected function prepareCompiledDirectory(string $path): string
+    {
+        if (is_dir($path)) {
+            $items = new \FilesystemIterator($path);
+            foreach ($items as $item) {
+                unlink($item);
+            }
+            return $path;
+        }
+
+        if (! mkdir($path, 0755, true)) {
+            throw new \RuntimeException('Could not create the compiled theme benchmark artifact directory.');
+        }
+
+        return $path;
     }
 }
