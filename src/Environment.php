@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Compiler\Compiler;
 use Keepsuit\Liquid\Contracts\LiquidErrorHandler;
 use Keepsuit\Liquid\Contracts\LiquidExtension;
 use Keepsuit\Liquid\Contracts\LiquidFileSystem;
@@ -130,6 +131,24 @@ class Environment
     public function parseTemplate(string $templateName): Template
     {
         return $this->newParseContext()->parseTemplate($templateName);
+    }
+
+    /**
+     * Write a requireable compiled artifact for the given template.
+     */
+    public function compile(Template $template, string $compiledPath): void
+    {
+        $directory = dirname($compiledPath);
+
+        if (! is_dir($directory) && ! mkdir($directory, 0755, true) && ! is_dir($directory)) {
+            throw new \RuntimeException(sprintf('Unable to create compiled template directory: %s', $directory));
+        }
+
+        $bytesWritten = file_put_contents($compiledPath, (new Compiler)->compile($template));
+
+        if ($bytesWritten === false) {
+            throw new \RuntimeException(sprintf('Unable to write compiled template artifact: %s', $compiledPath));
+        }
     }
 
     public function addExtension(LiquidExtension $extension): static
