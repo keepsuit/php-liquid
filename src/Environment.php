@@ -121,7 +121,7 @@ class Environment
     /**
      * @throws LiquidException
      */
-    public function parseString(string $source, ?string $name = null): Template
+    public function parseString(string $source, ?string $name = null): TemplateInterface
     {
         return $this->newParseContext()->parse($source, name: $name);
     }
@@ -129,7 +129,7 @@ class Environment
     /**
      * @throws LiquidException
      */
-    public function parseTemplate(string $templateName): Template
+    public function parseTemplate(string $templateName): TemplateInterface
     {
         return $this->newParseContext()->parseTemplate($templateName);
     }
@@ -137,8 +137,12 @@ class Environment
     /**
      * Write a requireable compiled artifact for the given template.
      */
-    public function compile(Template $template, string $compiledPath): void
+    public function compile(TemplateInterface $template, string $compiledPath): void
     {
+        if (! $template instanceof Template) {
+            throw new \InvalidArgumentException('Only parsed templates can be compiled.');
+        }
+
         $directory = dirname($compiledPath);
 
         if (! is_dir($directory) && ! mkdir($directory, 0755, true) && ! is_dir($directory)) {
@@ -161,7 +165,7 @@ class Environment
 
             $compiled = require $temporaryPath;
 
-            if (! $compiled instanceof Template || ! $compiled instanceof CompiledTemplateInterface) {
+            if (! $compiled instanceof CompiledTemplateInterface) {
                 throw new \RuntimeException(sprintf('Invalid compiled template artifact: %s', $compiledPath));
             }
 

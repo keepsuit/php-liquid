@@ -7,7 +7,7 @@ use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Render\ResourceLimits;
 use Keepsuit\Liquid\Tag;
-use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplateInterface;
 
 class UnsupportedCompilerStreamTestTag extends Tag
 {
@@ -27,7 +27,7 @@ class UnsupportedCompilerStreamTestTag extends Tag
     }
 }
 
-function compileStreamTestTemplate(Environment $environment, Template $template): Template
+function compileStreamTestTemplate(Environment $environment, TemplateInterface $template): TemplateInterface
 {
     $path = tempnam(sys_get_temp_dir(), 'liquid-compiled-stream-');
 
@@ -41,14 +41,14 @@ function compileStreamTestTemplate(Environment $environment, Template $template)
     try {
         $environment->compile($template, $path);
 
-        /** @var Template $compiled */
+        /** @var TemplateInterface $compiled */
         return require $path;
     } finally {
         @unlink($path);
     }
 }
 
-function streamChunks(Template $template, RenderContext $context): array
+function streamChunks(TemplateInterface $template, RenderContext $context): array
 {
     return iterator_to_array($template->stream($context));
 }

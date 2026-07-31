@@ -7,6 +7,8 @@ parameters:
         - src
         - performance
         - tests/Stubs
+    excludePaths:
+        - performance/benchmarks/cache
     tmpDir: build/phpstan
     treatPhpDocTypesAsCertain: false
     checkPhpDocMissingReturn: true

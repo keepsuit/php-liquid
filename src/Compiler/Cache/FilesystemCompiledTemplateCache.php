@@ -3,7 +3,6 @@
 namespace Keepsuit\Liquid\Compiler\Cache;
 
 use Keepsuit\Liquid\Compiler\CompiledTemplateInterface;
-use Keepsuit\Liquid\Template;
 
 class FilesystemCompiledTemplateCache implements CompiledTemplateCache
 {
@@ -26,7 +25,7 @@ class FilesystemCompiledTemplateCache implements CompiledTemplateCache
             return null;
         }
 
-        return $compiled instanceof Template && $compiled instanceof CompiledTemplateInterface
+        return $compiled instanceof CompiledTemplateInterface
             ? $compiled
             : null;
     }

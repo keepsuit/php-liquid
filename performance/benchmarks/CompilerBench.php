@@ -5,7 +5,7 @@ namespace Keepsuit\Liquid\Performance\benchmarks;
 use Keepsuit\Liquid\Compiler\CompiledTemplateInterface;
 use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
-use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplateInterface;
 use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
 use PhpBench\Attributes\AfterMethods;
 use PhpBench\Attributes\BeforeMethods;
@@ -47,10 +47,10 @@ class CompilerBench
 
     private string $layoutTemplateName;
 
-    /** @var array<string, Template> */
+    /** @var array<string, TemplateInterface> */
     private array $interpretedTemplates;
 
-    /** @var array<string, Template> */
+    /** @var array<string, CompiledTemplateInterface> */
     private array $compiledTemplates;
 
     /** @var array<string, string> */
@@ -213,7 +213,7 @@ class CompilerBench
     }
 
     /**
-     * @param  array<string, Template>  $templates
+     * @param  array<string, TemplateInterface>  $templates
      * @param  array{page: array<string, mixed>, layout: array<string, mixed>}  $renderData
      */
     private function renderPage(
@@ -235,7 +235,7 @@ class CompilerBench
     }
 
     /**
-     * @param  array<string, Template>  $templates
+     * @param  array<string, TemplateInterface>  $templates
      * @param  array{page: array<string, mixed>, layout: array<string, mixed>}  $renderData
      * @return \Generator<string>
      */
@@ -285,11 +285,11 @@ class CompilerBench
         return $renderDataSets;
     }
 
-    private function loadCompiledArtifact(string $artifactPath): Template
+    private function loadCompiledArtifact(string $artifactPath): CompiledTemplateInterface
     {
         $template = require $artifactPath;
 
-        if (! $template instanceof Template || ! $template instanceof CompiledTemplateInterface) {
+        if (! $template instanceof CompiledTemplateInterface) {
             throw new \RuntimeException("Invalid compiler benchmark artifact: {$artifactPath}");
         }
 

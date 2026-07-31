@@ -2,16 +2,16 @@
 
 namespace Keepsuit\Liquid\TemplatesCache;
 
-use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplateInterface;
 
 class SerializeTemplatesCache extends FilesystemTemplatesCache
 {
-    protected function saveCompiledTemplate(string $compiledPath, Template $template): void
+    protected function saveCompiledTemplate(string $compiledPath, TemplateInterface $template): void
     {
         file_put_contents($compiledPath, serialize($template));
     }
 
-    protected function loadCompiledTemplate(string $compiledPath): ?Template
+    protected function loadCompiledTemplate(string $compiledPath): ?TemplateInterface
     {
         try {
             $content = file_get_contents($compiledPath);
@@ -22,7 +22,7 @@ class SerializeTemplatesCache extends FilesystemTemplatesCache
 
             $template = unserialize($content);
 
-            if (! $template instanceof Template) {
+            if (! $template instanceof TemplateInterface) {
                 return null;
             }
 

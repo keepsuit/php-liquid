@@ -10,6 +10,7 @@ use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Support\OutputsBag;
 use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplateInterface;
 use Keepsuit\Liquid\TemplateSharedState;
 
 class ParseContext
@@ -62,7 +63,7 @@ class ParseContext
     /**
      * @throws LiquidException
      */
-    public function parseTemplate(string $templateName, bool $force = false): Template
+    public function parseTemplate(string $templateName, bool $force = false): TemplateInterface
     {
         if (! $force) {
             $cachedTemplate = $this->environment->templatesCache->get($templateName);
@@ -81,7 +82,7 @@ class ParseContext
         return $template;
     }
 
-    public function parse(TokenStream|string $source, ?string $name = null): Template
+    public function parse(TokenStream|string $source, ?string $name = null): TemplateInterface
     {
         $this->partials = [];
         $this->outputs = new OutputsBag;
@@ -110,7 +111,7 @@ class ParseContext
         }
     }
 
-    public function loadPartial(string $templateName): Template
+    public function loadPartial(string $templateName): TemplateInterface
     {
         try {
             // Check if template is already available in the cache

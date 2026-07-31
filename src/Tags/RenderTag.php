@@ -13,7 +13,7 @@ use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Tag;
-use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplateInterface;
 use Traversable;
 
 /**
@@ -159,7 +159,7 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
         ];
     }
 
-    protected function loadPartial(RenderContext $context): Template
+    protected function loadPartial(RenderContext $context): TemplateInterface
     {
         $templateName = $this->templateNameExpression;
         if ($this->allowDynamicPartials() && $this->templateNameExpression instanceof VariableLookup) {

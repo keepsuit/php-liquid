@@ -2,11 +2,6 @@
 
 namespace Keepsuit\Liquid\Compiler;
 
-use Keepsuit\Liquid\Render\RenderContext;
+use Keepsuit\Liquid\TemplateInterface;
 
-interface CompiledTemplateInterface
-{
-    public function render(RenderContext $context): string;
-
-    public function stream(RenderContext $context): \Generator;
-}
+interface CompiledTemplateInterface extends TemplateInterface {}

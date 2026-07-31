@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\TemplatesCache;
 
-use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplateInterface;
 
 abstract class FilesystemTemplatesCache extends MemoryTemplatesCache
 {
@@ -13,7 +13,7 @@ abstract class FilesystemTemplatesCache extends MemoryTemplatesCache
         $this->ensureCacheDirectoryExists();
     }
 
-    public function set(string $name, Template $template): void
+    public function set(string $name, TemplateInterface $template): void
     {
         if ($this->keepInMemory) {
             parent::set($name, $template);
@@ -22,7 +22,7 @@ abstract class FilesystemTemplatesCache extends MemoryTemplatesCache
         $this->saveCompiledTemplate($this->getCompiledPath($name), $template);
     }
 
-    public function get(string $name): ?Template
+    public function get(string $name): ?TemplateInterface
     {
         if ($this->keepInMemory && $template = parent::get($name)) {
             return $template;
@@ -78,7 +78,7 @@ abstract class FilesystemTemplatesCache extends MemoryTemplatesCache
         }
     }
 
-    abstract protected function saveCompiledTemplate(string $compiledPath, Template $template): void;
+    abstract protected function saveCompiledTemplate(string $compiledPath, TemplateInterface $template): void;
 
-    abstract protected function loadCompiledTemplate(string $compiledPath): ?Template;
+    abstract protected function loadCompiledTemplate(string $compiledPath): ?TemplateInterface;
 }
