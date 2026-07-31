@@ -225,6 +225,37 @@ test('compiled control flow preserves branch selection and stream output', funct
     }
 });
 
+test('compiled templates keep runtime partial lookup', function () {
+    $environment = EnvironmentFactory::new()
+        ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem([
+            'snippet' => 'partial {{ value }}',
+        ]))
+        ->build();
+    $template = $environment->parseString('before {% render "snippet", value: value %} after');
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        $compiledSource = file_get_contents($compiledPath);
+
+        expect($compiledSource)->toContain('renderNode');
+
+        /** @var CompiledTemplateInterface $compiled */
+        $compiled = require $compiledPath;
+        $data = ['value' => 'hello'];
+
+        expect($compiled->render($environment->newRenderContext(data: $data)))
+            ->toBe($template->render($environment->newRenderContext(data: $data)))
+            ->toBe('before partial hello after');
+        expect(implode('', iterator_to_array(
+            $compiled->stream($environment->newRenderContext(data: $data)),
+        )))->toBe('before partial hello after');
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
 test('compiled rendering preserves state across repeated renders', function () {
     $environment = EnvironmentFactory::new()->build();
     $template = $environment->parseString('{{ value }}{% assign value = "one" %}{{ value }}');
