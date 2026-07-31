@@ -47,27 +47,30 @@ class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
 
     public function compile(CompilerContext $context): void
     {
-        $context->write('$output = \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate::renderCompiledBody(');
-        $context->indent();
-        $context->write('$context,');
-        $context->write('static function (\\Keepsuit\\Liquid\\Render\\RenderContext $context): string {');
-        $context->indent();
-        $context->write('$output = \'\';');
+        $context
+            ->write('$output = \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate::renderCompiledBody(')
+            ->indent()
+            ->write('$context,')
+            ->write('static function (\\Keepsuit\\Liquid\\Render\\RenderContext $context): string {')
+            ->indent()
+            ->write('$output = \'\';');
 
         foreach ($this->children as $child) {
-            $context->write('if (! $context->hasInterrupt()) {');
-            $context->indent();
-            $context->subcompile($child);
-            $context->outdent();
-            $context->write('}');
+            $context
+                ->write('if (! $context->hasInterrupt()) {')
+                ->indent()
+                ->subcompile($child)
+                ->outdent()
+                ->write('}');
         }
 
-        $context->write('return $output;');
-        $context->outdent();
-        $context->write('},');
-        $context->write(count($this->children).',');
-        $context->outdent();
-        $context->write(');');
+        $context
+            ->write('return $output;')
+            ->outdent()
+            ->write('},')
+            ->write(count($this->children).',')
+            ->outdent()
+            ->write(');');
     }
 
     /**
