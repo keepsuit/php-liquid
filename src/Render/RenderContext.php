@@ -27,7 +27,7 @@ use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\MissingValue;
 use Keepsuit\Liquid\Support\OutputsBag;
-use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplateInterface;
 use RuntimeException;
 use Throwable;
 
@@ -438,7 +438,7 @@ final class RenderContext
         return $this->templateName;
     }
 
-    public function loadPartial(string $templateName): Template
+    public function loadPartial(string $templateName): TemplateInterface
     {
         if ($partial = $this->environment->templatesCache->get($templateName)) {
             return $partial;
@@ -452,7 +452,7 @@ final class RenderContext
 
         $template = $parseContext->loadPartial($templateName);
 
-        $this->sharedState->outputs->merge($template->state->outputs);
+        $this->sharedState->outputs->merge($template->getState()->outputs);
 
         return $template;
     }

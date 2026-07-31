@@ -5,7 +5,7 @@ use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\TokenStream;
-use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplateInterface;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 use PHPUnit\Framework\ExpectationFailedException;
 
@@ -15,7 +15,7 @@ use PHPUnit\Framework\ExpectationFailedException;
 function parseTemplate(
     string $source,
     ?Environment $environment = null,
-): Template {
+): TemplateInterface {
     return ($environment ?? Environment::default())->parseString($source);
 }
 

@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\TemplatesCache;
 
-use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplateInterface;
 use Symfony\Component\VarExporter\VarExporter;
 
 class VarExportTemplatesCache extends FilesystemTemplatesCache
@@ -23,7 +23,7 @@ class VarExportTemplatesCache extends FilesystemTemplatesCache
         return parent::getCompiledPath($name).'.php';
     }
 
-    protected function saveCompiledTemplate(string $compiledPath, Template $template): void
+    protected function saveCompiledTemplate(string $compiledPath, TemplateInterface $template): void
     {
         $compiledTemplate = VarExporter::export($template);
 
@@ -39,12 +39,12 @@ class VarExportTemplatesCache extends FilesystemTemplatesCache
         }
     }
 
-    protected function loadCompiledTemplate(string $compiledPath): ?Template
+    protected function loadCompiledTemplate(string $compiledPath): ?TemplateInterface
     {
         try {
             $template = require $compiledPath;
 
-            if (! $template instanceof Template) {
+            if (! $template instanceof TemplateInterface) {
                 return null;
             }
 
