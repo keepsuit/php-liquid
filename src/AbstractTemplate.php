@@ -5,8 +5,7 @@ namespace Keepsuit\Liquid;
 use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Render\RenderContext;
 
-// @phpstan-ignore-next-line
-abstract class AbstractTemplate implements Template, TemplateInterface
+abstract class AbstractTemplate implements Template
 {
     public function __construct(
         public readonly TemplateSharedState $state = new TemplateSharedState,
