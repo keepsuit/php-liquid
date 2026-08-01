@@ -35,14 +35,14 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeStrea
         return $this->renderOutput($output);
     }
 
+    /**
+     * Hoist the node into a constructor-built property instead of re-exporting
+     * the lookup inline: an inline export rebuilds the whole node graph on every
+     * render, which is strictly more work than a parsed template does.
+     */
     public function compile(CompilerContext $context): void
     {
-        $context->writeOutput(
-            '\\Keepsuit\\Liquid\\Compiler\\CompiledTemplate::renderVariable('
-            .'$context, '.$context->writeValue($this->name).', '
-            .$context->writeValue($this->filters).', '
-            .$context->writeValue($this->lineNumber()).')'
-        );
+        $context->compileFallback($this);
     }
 
     public function stream(RenderContext $context): \Generator

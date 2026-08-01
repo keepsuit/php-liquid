@@ -55,11 +55,22 @@ class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
             ->indent()
             ->write('$output = \'\';');
 
-        foreach ($this->children as $child) {
+        // Mirrors render(): Text cannot fail or interrupt, so it needs no guard,
+        // and every other child is followed by a bail-out instead of the whole
+        // body being wrapped in a per-child hasInterrupt() check.
+        $lastIndex = count($this->children) - 1;
+
+        foreach ($this->children as $index => $child) {
+            $context->subcompile($child);
+
+            if ($child instanceof Text || $index === $lastIndex) {
+                continue;
+            }
+
             $context
-                ->write('if (! $context->hasInterrupt()) {')
+                ->write('if ($context->hasInterrupt()) {')
                 ->indent()
-                ->subcompile($child)
+                ->write('return $output;')
                 ->outdent()
                 ->write('}');
         }
