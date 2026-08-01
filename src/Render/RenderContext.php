@@ -88,6 +88,11 @@ final class RenderContext
         public readonly RenderContextOptions $options = new RenderContextOptions,
         ?ResourceLimits $resourceLimits = null,
         ?Environment $environment = null,
+        /**
+         * Sub-contexts inherit the parent state; building a fresh one here would
+         * merge the environment registers only to have it replaced.
+         */
+        ?ContextSharedState $sharedState = null,
     ) {
         $this->environment = $environment ?? Environment::default();
         $this->resourceLimits = $resourceLimits ?? ResourceLimits::clone($this->environment->defaultResourceLimits);
@@ -95,7 +100,7 @@ final class RenderContext
 
         $this->scopes = [[]];
 
-        $this->sharedState = new ContextSharedState(
+        $this->sharedState = $sharedState ?? new ContextSharedState(
             staticVariables: $staticData,
             registers: array_merge($this->environment->getRegisters(), $registers),
         );
@@ -458,9 +463,9 @@ final class RenderContext
             options: $options ?? $this->options,
             resourceLimits: $this->resourceLimits,
             environment: $this->environment,
+            sharedState: $this->sharedState,
         );
         $subContext->baseScopeDepth = $this->baseScopeDepth + 1;
-        $subContext->sharedState = $this->sharedState;
         $subContext->templateName = $templateName;
         $subContext->partial = true;
 
