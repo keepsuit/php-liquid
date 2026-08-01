@@ -3,7 +3,6 @@
 namespace Keepsuit\Liquid\Nodes;
 
 use Keepsuit\Liquid\Compiler\CompilerContext;
-use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\CanBeExported;
 use Keepsuit\Liquid\Contracts\CanBeRendered;
@@ -16,7 +15,7 @@ use Keepsuit\Liquid\Support\Arr;
 /**
  * @phpstan-import-type Expression from ExpressionParser
  */
-class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExported, CanBeStreamed, HasParseTreeVisitorChildren
+class Variable extends Node implements CanBeEvaluated, CanBeExported, CanBeStreamed, HasParseTreeVisitorChildren
 {
     public function __construct(
         /** @var Expression $name */
@@ -34,16 +33,6 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
         }
 
         return $this->renderOutput($output);
-    }
-
-    /**
-     * Hoist the node into a constructor-built property instead of re-exporting
-     * the lookup inline: an inline export rebuilds the whole node graph on every
-     * render, which is strictly more work than a parsed template does.
-     */
-    public function compile(CompilerContext $context): void
-    {
-        $context->compileFallback($this);
     }
 
     public function export(CompilerContext $context): ?string

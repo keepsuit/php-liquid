@@ -3,7 +3,9 @@
 use Keepsuit\Liquid\Compiler\CodeBuilder;
 use Keepsuit\Liquid\Compiler\CompiledTemplate;
 use Keepsuit\Liquid\Compiler\CompilerContext;
+use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
+use Keepsuit\Liquid\Contracts\CanBeExported;
 use Keepsuit\Liquid\Contracts\Disableable;
 use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Exceptions\ResourceLimitException;
@@ -12,9 +14,11 @@ use Keepsuit\Liquid\Filters\FiltersProvider;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Nodes\Document;
 use Keepsuit\Liquid\Nodes\Node;
+use Keepsuit\Liquid\Nodes\RangeLookup;
 use Keepsuit\Liquid\Nodes\Raw;
 use Keepsuit\Liquid\Nodes\Text;
 use Keepsuit\Liquid\Nodes\Variable;
+use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\ParsedTemplate;
 use Keepsuit\Liquid\Render\RenderContext;
@@ -697,11 +701,26 @@ test('built-in compilable nodes implement the compiler contract directly', funct
         new Raw('raw'),
         new Document(new BodyNode),
         new BodyNode,
-        new Variable('name'),
     ];
 
     foreach ($nodes as $node) {
         expect($node)->toBeInstanceOf(CanBeCompiled::class);
+    }
+});
+
+test('values the compiler keeps as objects rebuild themselves without VarExporter', function () {
+    // A Variable is not compiled to code: its lookup is resolved at runtime, so
+    // the compiler keeps the object and only needs it rebuilt cheaply.
+    $values = [
+        new Variable('name'),
+        new VariableLookup('name'),
+        new RangeLookup(1, 5),
+        new Condition(1, '==', 1),
+    ];
+
+    foreach ($values as $value) {
+        expect($value)->toBeInstanceOf(CanBeExported::class);
+        expect($value)->not->toBeInstanceOf(CanBeCompiled::class);
     }
 });
 
