@@ -2,6 +2,9 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Closure;
+use Keepsuit\Liquid\Compiler\CompilerContext;
+use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Drops\ForLoopDrop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
@@ -23,7 +26,7 @@ use Traversable;
 /**
  * @phpstan-import-type Expression from ExpressionParser
  */
-class ForTag extends TagBlock implements HasParseTreeVisitorChildren
+class ForTag extends TagBlock implements CanBeCompiled, HasParseTreeVisitorChildren
 {
     protected string $variableName;
 
@@ -73,13 +76,36 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
 
     public function render(RenderContext $context): string
     {
+        return $this->renderBlocks($context);
+    }
+
+    /**
+     * The loop, scope and interrupt handling stay here rather than being emitted
+     * as code: only the two bodies are compiled, and they are handed back as
+     * closures. Passing none renders the parsed bodies.
+     */
+    public function compile(CompilerContext $context): void
+    {
+        $tag = $context->writeRuntimeValue($this);
+        $forBody = $context->compileBodyToMethod($this->forBlock);
+        $elseBody = $this->elseBlock !== null
+            ? '$this->'.$context->compileBodyToMethod($this->elseBlock).'(...)'
+            : 'null';
+
+        $context->write('try {')->indent();
+        $context->writeOutput($tag.'->renderBlocks($context, $this->'.$forBody.'(...), '.$elseBody.')');
+        $context->writeNodeErrorHandling($this->lineNumber());
+    }
+
+    public function renderBlocks(RenderContext $context, ?Closure $forBody = null, ?Closure $elseBody = null): string
+    {
         $segment = $this->collectionSegment($context);
 
         if ($segment === []) {
-            return $this->renderElse($context);
+            return $elseBody !== null ? $elseBody($context) : $this->renderElse($context);
         }
 
-        return $this->renderSegment($context, $segment);
+        return $this->renderSegment($context, $segment, $forBody);
     }
 
     public function children(): array
@@ -170,13 +196,13 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
         return $segment;
     }
 
-    protected function renderSegment(RenderContext $context, array $segment): string
+    protected function renderSegment(RenderContext $context, array $segment, ?Closure $forBody = null): string
     {
         /** @var ForLoopDrop[] $forStack */
         $forStack = $context->getRegister('for_stack') ?? [];
         assert(is_array($forStack));
 
-        return $context->stack(function () use ($context, $segment, $forStack) {
+        return $context->stack(function () use ($context, $segment, $forStack, $forBody) {
             $loopVars = new ForLoopDrop(
                 name: $this->name,
                 length: count($segment),
@@ -191,7 +217,7 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
                 $output = '';
                 foreach ($segment as $value) {
                     $context->set($this->variableName, $value);
-                    $output .= $this->forBlock->render($context);
+                    $output .= $forBody !== null ? $forBody($context) : $this->forBlock->render($context);
                     $loopVars->increment();
 
                     $interrupt = $context->popInterrupt();
