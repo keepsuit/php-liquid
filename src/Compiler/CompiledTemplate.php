@@ -9,11 +9,7 @@ use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
 use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
-use Keepsuit\Liquid\Nodes\Literal;
 use Keepsuit\Liquid\Nodes\Node;
-use Keepsuit\Liquid\Nodes\RangeLookup;
-use Keepsuit\Liquid\Nodes\Variable;
-use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\TemplateSharedState;
@@ -68,23 +64,6 @@ abstract class CompiledTemplate extends AbstractTemplate
         $context->resourceLimits->incrementWriteScore($output);
 
         return $output;
-    }
-
-    public static function renderVariable(
-        RenderContext $context,
-        bool|float|int|Literal|RangeLookup|VariableLookup|string|null $name,
-        array $filters,
-        ?int $lineNumber,
-    ): string {
-        try {
-            return (new Variable($name, $filters))->render($context);
-        } catch (UndefinedVariableException|UndefinedDropMethodException|UndefinedFilterException $exception) {
-            $context->handleError($exception, $lineNumber);
-
-            return '';
-        } catch (Throwable $exception) {
-            return $context->handleError($exception, $lineNumber);
-        }
     }
 
     public static function renderNode(RenderContext $context, Node $node, ?int $lineNumber): string
