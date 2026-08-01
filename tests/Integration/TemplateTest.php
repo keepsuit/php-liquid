@@ -9,7 +9,6 @@ use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Render\RenderContextOptions;
 use Keepsuit\Liquid\Render\ResourceLimits;
 use Keepsuit\Liquid\Template;
-use Keepsuit\Liquid\TemplateInterface;
 use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
 use Keepsuit\Liquid\TemplateSharedState;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
@@ -19,14 +18,13 @@ test('parsed templates implement the template contract', function () {
 
     expect($template)
         ->toBeInstanceOf(Template::class)
-        ->and($template)->toBeInstanceOf(TemplateInterface::class)
         ->and($template->getState())->toBeInstanceOf(TemplateSharedState::class)
         ->and($template->getErrors())->toBeEmpty()
         ->and($template->name())->toBe('hello');
 });
 
 test('template caches and partial loading accept template interface implementations', function () {
-    $template = new class implements TemplateInterface
+    $template = new class implements Template
     {
         private TemplateSharedState $state;
 
