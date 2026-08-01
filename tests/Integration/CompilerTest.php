@@ -2,7 +2,6 @@
 
 use Keepsuit\Liquid\Compiler\CodeBuilder;
 use Keepsuit\Liquid\Compiler\CompiledTemplate;
-use Keepsuit\Liquid\Compiler\CompiledTemplateInterface;
 use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\Disableable;
@@ -165,10 +164,10 @@ test('environment compiles a template to a requireable artifact', function () {
 
         expect($compiledPath)->toBeFile();
 
-        /** @var CompiledTemplateInterface $compiled */
+        /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
 
-        expect($compiled)->toBeInstanceOf(CompiledTemplateInterface::class);
+        expect($compiled)->toBeInstanceOf(CompiledTemplate::class);
         expect($compiled->render($environment->newRenderContext(data: ['name' => 'World'])))
             ->toBe('Hello World');
     } finally {
@@ -207,7 +206,7 @@ test('compiled control flow preserves branch selection and stream output', funct
 
         expect($compiledSource)->toContain('->evaluate($context)');
 
-        /** @var CompiledTemplateInterface $compiled */
+        /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
         $data = ['enabled' => false, 'other' => true, 'disabled' => true, 'value' => 'b'];
 
@@ -239,7 +238,7 @@ test('compiled conditions ignore branches after else', function () {
         try {
             $environment->compile($template, $compiledPath);
 
-            /** @var CompiledTemplateInterface $compiled */
+            /** @var CompiledTemplate $compiled */
             $compiled = require $compiledPath;
             $context = $environment->newRenderContext(data: $data);
 
@@ -268,7 +267,7 @@ test('compiled templates keep runtime partial lookup', function () {
 
         expect($compiledSource)->toContain('renderNode');
 
-        /** @var CompiledTemplateInterface $compiled */
+        /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
         $data = ['value' => 'hello'];
 
@@ -291,7 +290,7 @@ test('compiled conditional bodies preserve interrupts from fallback nodes', func
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var CompiledTemplateInterface $compiled */
+        /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
 
         expect($compiled->render($environment->newRenderContext(data: ['stop' => true])))
@@ -314,7 +313,7 @@ test('compiled conditions preserve handled evaluation errors', function () {
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var CompiledTemplateInterface $compiled */
+        /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
         $interpretedContext = $environment->newRenderContext();
         $compiledContext = $environment->newRenderContext();
@@ -338,7 +337,7 @@ test('compiled rendering preserves state across repeated renders', function () {
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var CompiledTemplateInterface $compiled */
+        /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
         $interpretedContext = $environment->newRenderContext();
         $compiledContext = $environment->newRenderContext();
@@ -366,7 +365,7 @@ test('compiled rendering preserves collected errors and exception metadata', fun
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var CompiledTemplateInterface $compiled */
+        /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
         $interpretedContext = $environment->newRenderContext();
         $compiledContext = $environment->newRenderContext();
@@ -406,7 +405,7 @@ test('compiled rendering attaches template metadata to rethrown exceptions', fun
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var CompiledTemplateInterface $compiled */
+        /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
         $exceptions = [];
 
@@ -447,7 +446,7 @@ test('compiled rendering preserves resource-limit exceptions', function () {
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var CompiledTemplateInterface $compiled */
+        /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
         $interpretedContext = $environment->newRenderContext(
             resourceLimits: new ResourceLimits(renderLengthLimit: 9),
@@ -485,7 +484,7 @@ test('compiled rendering emits safe core nodes directly', function () {
             ->not->toContain('unserialize')
             ->not->toContain('return new \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate(');
 
-        /** @var CompiledTemplateInterface $compiled */
+        /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
 
         expect($compiled->render($environment->newRenderContext(data: ['name' => 'World'])))
@@ -553,7 +552,7 @@ test('unsupported nodes use the interpreter fallback', function () {
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var CompiledTemplateInterface $compiled */
+        /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
 
         expect($compiled->render($environment->newRenderContext()))
@@ -573,7 +572,7 @@ test('template literals stay data when compiled', function () {
         ob_start();
         $environment->compile($template, $compiledPath);
 
-        /** @var CompiledTemplateInterface $compiled */
+        /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
         $artifactOutput = ob_get_clean();
 
@@ -595,7 +594,7 @@ test('compiled literals preserve quotes escapes and control characters', functio
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var CompiledTemplateInterface $compiled */
+        /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
 
         expect($compiled->render($environment->newRenderContext()))
@@ -615,7 +614,7 @@ test('custom compilable nodes opt in through the compiler context', function () 
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var CompiledTemplateInterface $compiled */
+        /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
 
         expect($compiled->render($environment->newRenderContext()))
@@ -635,7 +634,7 @@ test('custom compilable tags opt in without changing tag registration', function
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var CompiledTemplateInterface $compiled */
+        /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
 
         expect($compiled->render($environment->newRenderContext()))
@@ -659,7 +658,7 @@ test('compiler extensions retain custom tag and filter registration', function (
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var CompiledTemplateInterface $compiled */
+        /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
 
         expect($compiled->render($environment->newRenderContext(data: ['name' => 'value'])))
@@ -679,7 +678,7 @@ test('unsupported tags retain runtime filters and disabled-tag behavior', functi
     try {
         $environment->compile($template, $compiledPath);
 
-        /** @var CompiledTemplateInterface $compiled */
+        /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
 
         expect($compiled->render($environment->newRenderContext()))
@@ -720,7 +719,7 @@ test('failed node compilation rolls back before runtime fallback', function () {
 
         expect(str_contains($compiledSource ?: '', 'partial output'))->toBeFalse();
 
-        /** @var CompiledTemplateInterface $compiled */
+        /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
 
         expect($compiled->render($environment->newRenderContext()))

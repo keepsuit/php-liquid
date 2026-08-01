@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\Performance\Support;
 
-use Keepsuit\Liquid\Compiler\CompiledTemplateInterface;
+use Keepsuit\Liquid\Compiler\CompiledTemplate;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\TemplatesCache\FilesystemTemplatesCache;
 
@@ -47,7 +47,7 @@ final class CompiledTemplatesCache extends FilesystemTemplatesCache
             return null;
         }
 
-        return $template instanceof CompiledTemplateInterface
+        return $template instanceof CompiledTemplate
             ? $template
             : null;
     }

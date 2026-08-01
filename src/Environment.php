@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid;
 
-use Keepsuit\Liquid\Compiler\CompiledTemplateInterface;
+use Keepsuit\Liquid\Compiler\CompiledTemplate;
 use Keepsuit\Liquid\Compiler\Compiler;
 use Keepsuit\Liquid\Contracts\LiquidErrorHandler;
 use Keepsuit\Liquid\Contracts\LiquidExtension;
@@ -165,7 +165,7 @@ class Environment
 
             $compiled = require $temporaryPath;
 
-            if (! $compiled instanceof CompiledTemplateInterface) {
+            if (! $compiled instanceof CompiledTemplate) {
                 throw new \RuntimeException(sprintf('Invalid compiled template artifact: %s', $compiledPath));
             }
 
