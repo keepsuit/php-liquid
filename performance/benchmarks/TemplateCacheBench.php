@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid\Performance\benchmarks;
 use Keepsuit\Liquid\Contracts\LiquidTemplatesCache;
 use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\Performance\Support\CompiledTemplatesCache;
+use Keepsuit\Liquid\Performance\Support\CompilesThemeTemplates;
 use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
 use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
 use Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache;
@@ -25,6 +26,8 @@ use PhpBench\Attributes\Revs;
 #[AfterMethods('clearCache')]
 class TemplateCacheBench
 {
+    use CompilesThemeTemplates;
+
     private const CACHE_DIRECTORY = 'keepsuit-liquid-phpbench';
 
     private Environment $environment;
@@ -118,13 +121,11 @@ class TemplateCacheBench
         $this->cacheDirectory = sys_get_temp_dir().'/'.self::CACHE_DIRECTORY.'-'.bin2hex(random_bytes(8));
         $compiledCache = new CompiledTemplatesCache($this->cachePath('compiled'));
         $this->cache = $compiledCache;
-        $compilerEnvironment = StorefrontTheme::environmentFactory()
-            ->setTemplatesCache(new MemoryTemplatesCache)
-            ->build();
+        $compilerEnvironment = $this->newCompiledEnvironment();
 
         foreach ($this->templateNames as $templateName) {
             $template = $compilerEnvironment->parseTemplate($templateName);
-            $compilerEnvironment->compile($template, $compiledCache->pathFor($templateName));
+            $this->compileTemplateToPath($compilerEnvironment, $template, $compiledCache->pathFor($templateName));
         }
 
         $this->environment = StorefrontTheme::environmentFactory()

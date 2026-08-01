@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Performance\benchmarks;
 
 use Keepsuit\Liquid\Compiler\CompiledTemplateInterface;
 use Keepsuit\Liquid\Environment;
+use Keepsuit\Liquid\Performance\Support\CompilesThemeTemplates;
 use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
@@ -31,6 +32,8 @@ use PhpBench\Attributes\Revs;
 #[AfterMethods('tearDown')]
 class CompilerBench
 {
+    use CompilesThemeTemplates;
+
     private const DATA_SET_COUNT = 20;
 
     private Environment $interpretedEnvironment;
@@ -84,9 +87,7 @@ class CompilerBench
         $this->interpretedEnvironment = StorefrontTheme::environmentFactory()
             ->setTemplatesCache(new MemoryTemplatesCache)
             ->build();
-        $this->compiledEnvironment = StorefrontTheme::environmentFactory()
-            ->setTemplatesCache(new MemoryTemplatesCache)
-            ->build();
+        $this->compiledEnvironment = $this->newCompiledEnvironment();
         $this->interpretedTemplates = [];
         $this->compiledTemplates = [];
         $this->artifactPaths = [];
@@ -98,14 +99,15 @@ class CompilerBench
             $template = $this->interpretedEnvironment->parseString($source, $templateName);
             $this->interpretedTemplates[$templateName] = $template;
             $this->interpretedEnvironment->templatesCache->set($templateName, $template);
-
-            $artifactPath = $this->artifactDirectory.'/'.str_replace('.', '_', $templateName).'.php';
-            $this->artifactPaths[$templateName] = $artifactPath;
-            $this->compiledEnvironment->compile($template, $artifactPath);
-            $compiledTemplate = $this->loadCompiledArtifact($artifactPath);
-            $this->compiledTemplates[$templateName] = $compiledTemplate;
-            $this->compiledEnvironment->templatesCache->set($templateName, $compiledTemplate);
         }
+
+        $compiledTheme = $this->compileThemeTemplates(
+            $this->compiledEnvironment,
+            $this->artifactDirectory,
+            $this->interpretedTemplates,
+        );
+        $this->compiledTemplates = $compiledTheme['templates'];
+        $this->artifactPaths = $compiledTheme['paths'];
 
         $this->writeFreshLoadScript();
 
@@ -298,17 +300,6 @@ class CompilerBench
         }
 
         return $renderDataSets;
-    }
-
-    private function loadCompiledArtifact(string $artifactPath): CompiledTemplateInterface
-    {
-        $template = require $artifactPath;
-
-        if (! $template instanceof CompiledTemplateInterface) {
-            throw new \RuntimeException("Invalid compiler benchmark artifact: {$artifactPath}");
-        }
-
-        return $template;
     }
 
     private function writeFreshLoadScript(): void
