@@ -2,13 +2,13 @@
 
 namespace Keepsuit\Liquid\Contracts;
 
-use Keepsuit\Liquid\TemplateInterface;
+use Keepsuit\Liquid\Template;
 
 interface LiquidTemplatesCache
 {
-    public function set(string $name, TemplateInterface $template): void;
+    public function set(string $name, Template $template): void;
 
-    public function get(string $name): ?TemplateInterface;
+    public function get(string $name): ?Template;
 
     public function has(string $name): bool;
 

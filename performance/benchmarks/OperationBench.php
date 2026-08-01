@@ -7,7 +7,7 @@ use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Performance\Support\Database;
 use Keepsuit\Liquid\Performance\Support\Drops\ProductDrop;
 use Keepsuit\Liquid\Render\RenderContext;
-use Keepsuit\Liquid\TemplateInterface;
+use Keepsuit\Liquid\Template;
 use PhpBench\Attributes\BeforeMethods;
 use PhpBench\Attributes\Groups;
 use PhpBench\Attributes\Iterations;
@@ -25,21 +25,21 @@ class OperationBench
 {
     private Environment $environment;
 
-    private TemplateInterface $scalarTemplate;
+    private Template $scalarTemplate;
 
-    private TemplateInterface $nestedTemplate;
+    private Template $nestedTemplate;
 
-    private TemplateInterface $filterWithoutArgumentsTemplate;
+    private Template $filterWithoutArgumentsTemplate;
 
-    private TemplateInterface $filterWithArgumentsTemplate;
+    private Template $filterWithArgumentsTemplate;
 
-    private TemplateInterface $dropMethodTemplate;
+    private Template $dropMethodTemplate;
 
-    private TemplateInterface $dropMethodMissingHitTemplate;
+    private Template $dropMethodMissingHitTemplate;
 
-    private TemplateInterface $dropMethodMissingMissTemplate;
+    private Template $dropMethodMissingMissTemplate;
 
-    private TemplateInterface $productListTemplate;
+    private Template $productListTemplate;
 
     /**
      * Built in setUp, not in the subject: these two subjects measure how

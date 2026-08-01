@@ -3,11 +3,11 @@
 namespace Keepsuit\Liquid\Compiler;
 
 use Keepsuit\Liquid\Nodes\Node;
-use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\ParsedTemplate;
 
 class Compiler
 {
-    public function compile(Template $template): string
+    public function compile(ParsedTemplate $template): string
     {
         $bodyContext = new CompilerContext;
         $bodyContext->subcompile($template->root);

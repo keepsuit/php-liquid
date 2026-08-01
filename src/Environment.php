@@ -121,7 +121,7 @@ class Environment
     /**
      * @throws LiquidException
      */
-    public function parseString(string $source, ?string $name = null): TemplateInterface
+    public function parseString(string $source, ?string $name = null): Template
     {
         return $this->newParseContext()->parse($source, name: $name);
     }
@@ -129,7 +129,7 @@ class Environment
     /**
      * @throws LiquidException
      */
-    public function parseTemplate(string $templateName): TemplateInterface
+    public function parseTemplate(string $templateName): Template
     {
         return $this->newParseContext()->parseTemplate($templateName);
     }
@@ -137,9 +137,9 @@ class Environment
     /**
      * Write a requireable compiled artifact for the given template.
      */
-    public function compile(TemplateInterface $template, string $compiledPath): void
+    public function compile(Template $template, string $compiledPath): void
     {
-        if (! $template instanceof Template) {
+        if (! $template instanceof ParsedTemplate) {
             throw new \InvalidArgumentException('Only parsed templates can be compiled.');
         }
 

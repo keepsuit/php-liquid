@@ -5,7 +5,7 @@ namespace Keepsuit\Liquid\Performance\benchmarks;
 use Keepsuit\Liquid\Compiler\CompiledTemplateInterface;
 use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
-use Keepsuit\Liquid\TemplateInterface;
+use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
 use PhpBench\Attributes\AfterMethods;
 use PhpBench\Attributes\BeforeMethods;
@@ -47,7 +47,7 @@ class CompilerBench
 
     private string $layoutTemplateName;
 
-    /** @var array<string, TemplateInterface> */
+    /** @var array<string, Template> */
     private array $interpretedTemplates;
 
     /** @var array<string, CompiledTemplateInterface> */
@@ -228,7 +228,7 @@ class CompilerBench
     }
 
     /**
-     * @param  array<string, TemplateInterface>  $templates
+     * @param  array<string, Template>  $templates
      * @param  array{page: array<string, mixed>, layout: array<string, mixed>}  $renderData
      */
     private function renderPage(
@@ -250,7 +250,7 @@ class CompilerBench
     }
 
     /**
-     * @param  array<string, TemplateInterface>  $templates
+     * @param  array<string, Template>  $templates
      * @param  array{page: array<string, mixed>, layout: array<string, mixed>}  $renderData
      * @return \Generator<string>
      */

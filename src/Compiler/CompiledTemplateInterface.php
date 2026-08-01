@@ -2,6 +2,6 @@
 
 namespace Keepsuit\Liquid\Compiler;
 
-use Keepsuit\Liquid\TemplateInterface;
+use Keepsuit\Liquid\Template;
 
-interface CompiledTemplateInterface extends TemplateInterface {}
+interface CompiledTemplateInterface extends Template {}

@@ -5,7 +5,7 @@ use Keepsuit\Liquid\Compiler\CompiledTemplateInterface;
 use Keepsuit\Liquid\Compiler\Compiler;
 use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\EnvironmentFactory;
-use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\ParsedTemplate;
 
 function compilerArtifactSafetyDirectory(): string
 {
@@ -99,7 +99,7 @@ test('filesystem compiler cache publishes atomically and fails closed on invalid
         expect($cache->get('wrong'))->toBeNull();
 
         $template = $environment->parseString('valid artifact');
-        assert($template instanceof Template);
+        assert($template instanceof ParsedTemplate);
         $cache->set('valid', (new Compiler)->compile($template));
 
         expect($cache->get('valid'))->toBeInstanceOf(CompiledTemplateInterface::class);

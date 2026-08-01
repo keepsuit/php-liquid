@@ -3,7 +3,7 @@
 use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\TemplateInterface;
+use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
@@ -168,7 +168,7 @@ test('render tag only checks the cache once when loading a partial', function ()
     {
         public int $reads = 0;
 
-        public function get(string $name): ?TemplateInterface
+        public function get(string $name): ?Template
         {
             $this->reads++;
 
