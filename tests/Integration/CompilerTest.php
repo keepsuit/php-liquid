@@ -388,6 +388,82 @@ test('compiled for loops match parsed rendering', function (string $source, arra
     'continue skips' => ['{% for i in items %}{% if i == 2 %}{% continue %}{% endif %}{{ i }}{% endfor %}', ['items' => [1, 2, 3]]],
 ]);
 
+test('exportable nodes are rebuilt with constructors instead of VarExporter', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('{{ product.title | upcase }}{% if a > 1 %}x{% endif %}');
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        expect(file_get_contents($compiledPath))
+            ->toContain('new \Keepsuit\Liquid\Nodes\Variable(')
+            ->toContain('new \Keepsuit\Liquid\Nodes\VariableLookup(')
+            ->toContain('new \Keepsuit\Liquid\Condition\Condition(')
+            ->not->toContain('deepclone_from_array');
+
+        /** @var CompiledTemplate $compiled */
+        $compiled = require $compiledPath;
+        $data = ['product' => ['title' => 'hat'], 'a' => 2];
+
+        expect($compiled->render($environment->newRenderContext(data: $data)))
+            ->toBe($template->render($environment->newRenderContext(data: $data)))
+            ->toBe('HATx');
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('a node that cannot describe itself still falls back to VarExporter', function () {
+    $environment = EnvironmentFactory::new()->build();
+    // A chained condition needs statements, so Condition::export() declines it.
+    $template = $environment->parseString('{% if a > 1 and b %}yes{% else %}no{% endif %}');
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        expect(file_get_contents($compiledPath))->toContain('deepclone_from_array');
+
+        /** @var CompiledTemplate $compiled */
+        $compiled = require $compiledPath;
+
+        foreach ([['a' => 2, 'b' => true], ['a' => 2, 'b' => false], ['a' => 0, 'b' => true]] as $data) {
+            expect($compiled->render($environment->newRenderContext(data: $data)))
+                ->toBe($template->render($environment->newRenderContext(data: $data)));
+        }
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('exported nodes keep the state rendering depends on', function (string $source, array $data) {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString($source);
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        /** @var CompiledTemplate $compiled */
+        $compiled = require $compiledPath;
+
+        expect($compiled->render($environment->newRenderContext(data: $data)))
+            ->toBe($template->render($environment->newRenderContext(data: $data)));
+    } finally {
+        @unlink($compiledPath);
+    }
+})->with([
+    'nested lookups' => ['{{ a.b.c }}', ['a' => ['b' => ['c' => 'deep']]]],
+    'indexed lookup' => ['{{ a[0].b }}', ['a' => [['b' => 'idx']]]],
+    'dynamic lookup key' => ['{{ a[k] }}', ['a' => ['x' => 'dyn'], 'k' => 'x']],
+    'filter with lookup argument' => ['{{ a | append: b }}', ['a' => 'x', 'b' => 'y']],
+    'filter with named arguments' => ['{{ n | default: d, allow_false: true }}', ['n' => null, 'd' => 'fallback']],
+    'range lookup' => ['{% for i in (a..b) %}{{ i }}{% endfor %}', ['a' => 1, 'b' => 3]],
+    'literal in condition' => ['{% if a == empty %}e{% else %}f{% endif %}', ['a' => []]],
+    'else condition' => ['{% case a %}{% when 1 %}one{% else %}other{% endcase %}', ['a' => 9]],
+]);
+
 test('compiled conditions preserve handled evaluation errors', function () {
     $environment = EnvironmentFactory::new()
         ->setRethrowErrors(false)

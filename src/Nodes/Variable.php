@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid\Nodes;
 use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
+use Keepsuit\Liquid\Contracts\CanBeExported;
 use Keepsuit\Liquid\Contracts\CanBeRendered;
 use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
@@ -15,7 +16,7 @@ use Keepsuit\Liquid\Support\Arr;
 /**
  * @phpstan-import-type Expression from ExpressionParser
  */
-class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeStreamed, HasParseTreeVisitorChildren
+class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExported, CanBeStreamed, HasParseTreeVisitorChildren
 {
     public function __construct(
         /** @var Expression $name */
@@ -43,6 +44,17 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeStrea
     public function compile(CompilerContext $context): void
     {
         $context->compileFallback($this);
+    }
+
+    public function export(CompilerContext $context): ?string
+    {
+        $expression = 'new \\'.self::class.'('
+            .$context->writeValue($this->name).', '
+            .$context->writeValue($this->filters).')';
+
+        return $this->lineNumber === null
+            ? $expression
+            : '('.$expression.')->setLineNumber('.$this->lineNumber.')';
     }
 
     public function stream(RenderContext $context): \Generator

@@ -2,13 +2,15 @@
 
 namespace Keepsuit\Liquid\Condition;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Contracts\AsLiquidValue;
+use Keepsuit\Liquid\Contracts\CanBeExported;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
 
-class Condition implements HasParseTreeVisitorChildren
+class Condition implements CanBeExported, HasParseTreeVisitorChildren
 {
     /**
      * @var array<string, \Closure>
@@ -26,6 +28,22 @@ class Condition implements HasParseTreeVisitorChildren
         protected ?string $operator = null,
         protected mixed $right = null
     ) {}
+
+    public function export(CompilerContext $context): ?string
+    {
+        // A chained condition would need statements rather than an expression,
+        // and a subclass need not accept these constructor arguments.
+        if ($this->childCondition !== null || static::class !== self::class) {
+            return null;
+        }
+
+        // The body is deliberately left out: the compiler emits it as code and
+        // only ever calls evaluate() on the rebuilt condition.
+        return 'new \\'.self::class.'('
+            .$context->writeValue($this->left).', '
+            .$context->writeValue($this->operator).', '
+            .$context->writeValue($this->right).')';
+    }
 
     public static function registerOperator(string $operator, \Closure $closure): void
     {

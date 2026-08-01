@@ -2,7 +2,9 @@
 
 namespace Keepsuit\Liquid\Nodes;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
+use Keepsuit\Liquid\Contracts\CanBeExported;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
@@ -10,7 +12,7 @@ use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\MissingValue;
 use Keepsuit\Liquid\Support\UndefinedVariable;
 
-class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
+class VariableLookup implements CanBeEvaluated, CanBeExported, HasParseTreeVisitorChildren
 {
     const FILTER_METHODS = ['size', 'first', 'last'];
 
@@ -52,6 +54,13 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
         }
 
         return new VariableLookup(substr($markup, 0, $nameLength), $lookups);
+    }
+
+    public function export(CompilerContext $context): ?string
+    {
+        return 'new \\'.self::class.'('
+            .$context->writeValue($this->name).', '
+            .$context->writeValue($this->lookups).')';
     }
 
     public function toString(): string
