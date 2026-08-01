@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid\Compiler;
 
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
+use Keepsuit\Liquid\Contracts\CanBeExported;
 use Keepsuit\Liquid\Contracts\Disableable;
 use Keepsuit\Liquid\Nodes\Node;
 use Keepsuit\Liquid\Tag;
@@ -196,11 +197,45 @@ final class CompilerContext
 
     public function writeValue(mixed $value): string
     {
+        if ($value instanceof CanBeExported && ($exported = $value->export($this)) !== null) {
+            return $exported;
+        }
+
+        // Arrays are only taken apart when they actually hold an exportable
+        // value; otherwise VarExporter's output is both smaller and faster.
+        if (is_array($value) && $this->containsExportable($value)) {
+            $entries = [];
+
+            foreach ($value as $key => $item) {
+                $entries[] = $this->writeValue($key).' => '.$this->writeValue($item);
+            }
+
+            return '['.implode(', ', $entries).']';
+        }
+
         try {
             return VarExporter::export($value);
         } catch (\Throwable $exception) {
             throw new \RuntimeException('Unable to safely encode a compiler value.', previous: $exception);
         }
+    }
+
+    /**
+     * @param  array<mixed>  $value
+     */
+    private function containsExportable(array $value): bool
+    {
+        foreach ($value as $item) {
+            if ($item instanceof CanBeExported) {
+                return true;
+            }
+
+            if (is_array($item) && $this->containsExportable($item)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function exportValue(mixed $value): ?string
