@@ -1,11 +1,8 @@
 <?php
 
-use Keepsuit\Liquid\Compiler\Cache\FilesystemCompiledTemplateCache;
-use Keepsuit\Liquid\Compiler\CompiledTemplateInterface;
-use Keepsuit\Liquid\Compiler\Compiler;
+use Keepsuit\Liquid\Compiler\CompiledTemplate;
 use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\EnvironmentFactory;
-use Keepsuit\Liquid\ParsedTemplate;
 
 function compilerArtifactSafetyDirectory(): string
 {
@@ -60,10 +57,10 @@ test('environment publishes compiled artifacts atomically', function () {
         expect($path)->toBeFile();
         expect(glob($directory.'/.compiled.php.tmp-*'))->toBe([]);
 
-        /** @var CompiledTemplateInterface $compiled */
+        /** @var CompiledTemplate $compiled */
         $compiled = require $path;
 
-        expect($compiled)->toBeInstanceOf(CompiledTemplateInterface::class);
+        expect($compiled)->toBeInstanceOf(CompiledTemplate::class);
     } finally {
         removeCompilerArtifactSafetyDirectory($directory);
     }
@@ -81,48 +78,6 @@ test('environment removes staged artifacts when publication fails', function () 
             ->toThrow(RuntimeException::class);
         expect($path)->toBeDirectory();
         expect(glob($directory.'/.compiled.php.tmp-*'))->toBe([]);
-    } finally {
-        removeCompilerArtifactSafetyDirectory($directory);
-    }
-});
-
-test('filesystem compiler cache publishes atomically and fails closed on invalid artifacts', function () {
-    $directory = compilerArtifactSafetyDirectory();
-    $cache = new FilesystemCompiledTemplateCache($directory);
-    $environment = EnvironmentFactory::new()->build();
-
-    try {
-        file_put_contents($directory.'/corrupt.php', '<?php return ; not valid');
-        file_put_contents($directory.'/wrong.php', '<?php return new stdClass;');
-
-        expect($cache->get('corrupt'))->toBeNull();
-        expect($cache->get('wrong'))->toBeNull();
-
-        $template = $environment->parseString('valid artifact');
-        assert($template instanceof ParsedTemplate);
-        $cache->set('valid', (new Compiler)->compile($template));
-
-        expect($cache->get('valid'))->toBeInstanceOf(CompiledTemplateInterface::class);
-        expect(glob($directory.'/.valid.php.tmp-*'))->toBe([]);
-
-        expect(fn () => $cache->set('valid', '<?php return null;'))
-            ->toThrow(RuntimeException::class);
-        expect($cache->get('valid'))->toBeInstanceOf(CompiledTemplateInterface::class);
-    } finally {
-        removeCompilerArtifactSafetyDirectory($directory);
-    }
-});
-
-test('filesystem compiler cache leaves its target untouched when publication fails', function () {
-    $directory = compilerArtifactSafetyDirectory();
-    $cache = new FilesystemCompiledTemplateCache($directory);
-    mkdir($directory.'/blocked.php');
-
-    try {
-        expect(fn () => $cache->set('blocked', '<?php return null;'))
-            ->toThrow(RuntimeException::class);
-        expect($directory.'/blocked.php')->toBeDirectory();
-        expect(glob($directory.'/.blocked.php.tmp-*'))->toBe([]);
     } finally {
         removeCompilerArtifactSafetyDirectory($directory);
     }

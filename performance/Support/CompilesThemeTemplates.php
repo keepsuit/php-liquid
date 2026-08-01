@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\Performance\Support;
 
-use Keepsuit\Liquid\Compiler\CompiledTemplateInterface;
+use Keepsuit\Liquid\Compiler\CompiledTemplate;
 use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
@@ -18,7 +18,7 @@ trait CompilesThemeTemplates
 
     /**
      * @param  array<string, Template>|null  $templates
-     * @return array{templates: array<string, CompiledTemplateInterface>, paths: array<string, string>}
+     * @return array{templates: array<string, CompiledTemplate>, paths: array<string, string>}
      */
     protected function compileThemeTemplates(
         Environment $environment,
@@ -51,11 +51,11 @@ trait CompilesThemeTemplates
         Environment $environment,
         Template $template,
         string $artifactPath,
-    ): CompiledTemplateInterface {
+    ): CompiledTemplate {
         $environment->compile($template, $artifactPath);
         $compiledTemplate = require $artifactPath;
 
-        if (! $compiledTemplate instanceof CompiledTemplateInterface) {
+        if (! $compiledTemplate instanceof CompiledTemplate) {
             throw new \RuntimeException("Invalid compiled template benchmark artifact: {$artifactPath}");
         }
 

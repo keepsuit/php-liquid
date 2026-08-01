@@ -2,7 +2,7 @@
 
 namespace Keepsuit\Liquid\Performance\benchmarks;
 
-use Keepsuit\Liquid\Compiler\CompiledTemplateInterface;
+use Keepsuit\Liquid\Compiler\CompiledTemplate;
 use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\Performance\Support\CompilesThemeTemplates;
 use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
@@ -53,7 +53,7 @@ class CompilerBench
     /** @var array<string, Template> */
     private array $interpretedTemplates;
 
-    /** @var array<string, CompiledTemplateInterface> */
+    /** @var array<string, CompiledTemplate> */
     private array $compiledTemplates;
 
     /** @var array<string, string> */
@@ -310,7 +310,7 @@ class CompilerBench
             .'$paths = '.var_export(array_values($this->artifactPaths), true).";\n"
             ."foreach (\$paths as \$path) {\n"
             ."    \$template = require \$path;\n"
-            ."    if (! \$template instanceof \\Keepsuit\\Liquid\\Compiler\\CompiledTemplateInterface) {\n"
+            ."    if (! \$template instanceof \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate) {\n"
             ."        exit(1);\n"
             ."    }\n"
             ."}\n";

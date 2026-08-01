@@ -19,7 +19,7 @@ use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\TemplateSharedState;
 use Throwable;
 
-abstract class CompiledTemplate extends AbstractTemplate implements CompiledTemplateInterface
+abstract class CompiledTemplate extends AbstractTemplate
 {
     public function __construct(TemplateSharedState $state = new TemplateSharedState)
     {
