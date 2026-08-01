@@ -14,6 +14,7 @@ class Compiler
 
         $body = $bodyContext->getSource();
         $name = $bodyContext->writeValue($template->root->name);
+        $methods = $bodyContext->getMethods();
         $fallbackValues = $bodyContext->getFallbackValues();
         $fallbackValueSource = [];
 
@@ -39,7 +40,7 @@ class Compiler
 
         $className = 'Template_'.substr(hash(
             'sha256',
-            $name.$body.implode('', $fallbackValueSource),
+            $name.$body.implode('', $methods).implode('', $fallbackValueSource),
         ), 0, 32);
 
         $builder = new CodeBuilder;
@@ -96,7 +97,25 @@ class Compiler
         $builder
             ->writeLine('return $output0;')
             ->dedent()
-            ->writeLine('}')
+            ->writeLine('}');
+
+        foreach ($methods as $methodName => $methodSource) {
+            $builder
+                ->writeLine()
+                ->writeLine('private function '.$methodName.'(\\Keepsuit\\Liquid\\Render\\RenderContext $context): string')
+                ->writeLine('{')
+                ->indent();
+
+            foreach (explode("\n", rtrim($methodSource, "\n")) as $line) {
+                $builder->writeLine($line);
+            }
+
+            $builder
+                ->dedent()
+                ->writeLine('}');
+        }
+
+        $builder
             ->dedent()
             ->writeLine('}')
             ->dedent()

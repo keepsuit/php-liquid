@@ -21,7 +21,53 @@ final class CompilerContext
      */
     private int $outputDepth = 0;
 
-    public function __construct(private readonly CodeBuilder $builder = new CodeBuilder) {}
+    /**
+     * Bodies a runtime tag drives itself, compiled to their own method so the
+     * tag keeps its loop and scope handling while the body stops being walked.
+     *
+     * @var array<string,string>
+     */
+    private array $methods = [];
+
+    public function __construct(private CodeBuilder $builder = new CodeBuilder) {}
+
+    /**
+     * Compiles $body into a standalone method and returns its name, so a tag
+     * that cannot be compiled itself can still be handed a compiled body.
+     */
+    public function compileBodyToMethod(Node $body): string
+    {
+        $name = 'body'.count($this->methods);
+        // Reserve the name before compiling: a nested body must not reuse it.
+        $this->methods[$name] = '';
+
+        $outerBuilder = $this->builder;
+        $outerDepth = $this->outputDepth;
+
+        $this->builder = new CodeBuilder;
+        $this->outputDepth = 0;
+
+        try {
+            $this->write('$output0 = \'\';');
+            $this->subcompile($body);
+            $this->write('return $output0;');
+
+            $this->methods[$name] = $this->builder->getSource();
+        } finally {
+            $this->builder = $outerBuilder;
+            $this->outputDepth = $outerDepth;
+        }
+
+        return $name;
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    public function getMethods(): array
+    {
+        return $this->methods;
+    }
 
     public function outputVariable(): string
     {
@@ -100,6 +146,7 @@ final class CompilerContext
         $checkpoint = $this->builder->checkpoint();
         $fallbackValueCount = count($this->fallbackValues);
         $outputDepth = $this->outputDepth;
+        $methods = $this->methods;
 
         if ($node instanceof CanBeCompiled) {
             try {
@@ -110,6 +157,7 @@ final class CompilerContext
                 $this->builder->rollback($checkpoint);
                 $this->rollbackFallbackValues($fallbackValueCount);
                 $this->outputDepth = $outputDepth;
+                $this->methods = $methods;
             }
         }
 
@@ -121,6 +169,7 @@ final class CompilerContext
             $this->builder->rollback($checkpoint);
             $this->rollbackFallbackValues($fallbackValueCount);
             $this->outputDepth = $outputDepth;
+            $this->methods = $methods;
 
             throw $exception;
         }

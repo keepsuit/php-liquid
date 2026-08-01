@@ -335,6 +335,59 @@ test('compiled nested bodies stop at an interrupt exactly where the parsed templ
     'nested loops' => ['{% for i in (1..3) %}{% for j in (1..3) %}{{ i }}{{ j }}{% if j == 2 %}{% break %}{% endif %}{% endfor %}|{% endfor %}', []],
 ]);
 
+test('for bodies are compiled into methods the tag drives', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('{% for i in items %}{{ i }}{% else %}none{% endfor %}');
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        // Both bodies become methods; the loop itself stays in the tag.
+        expect(file_get_contents($compiledPath))
+            ->toContain('private function body0')
+            ->toContain('private function body1')
+            ->toContain('->renderBlocks($context, $this->body0(...), $this->body1(...))');
+
+        /** @var CompiledTemplate $compiled */
+        $compiled = require $compiledPath;
+
+        foreach ([['items' => ['a', 'b', 'c']], ['items' => []]] as $data) {
+            expect($compiled->render($environment->newRenderContext(data: $data)))
+                ->toBe($template->render($environment->newRenderContext(data: $data)));
+        }
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('compiled for loops match parsed rendering', function (string $source, array $data) {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString($source);
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        /** @var CompiledTemplate $compiled */
+        $compiled = require $compiledPath;
+
+        expect($compiled->render($environment->newRenderContext(data: $data)))
+            ->toBe($template->render($environment->newRenderContext(data: $data)));
+    } finally {
+        @unlink($compiledPath);
+    }
+})->with([
+    'forloop drop' => ['{% for i in items %}{{ forloop.index }}/{{ forloop.length }}{% if forloop.first %}F{% endif %}{% if forloop.last %}L{% endif %} {% endfor %}', ['items' => ['a', 'b', 'c']]],
+    'nested loops share the parent drop' => ['{% for i in outer %}{% for j in inner %}{{ forloop.parentloop.index }}.{{ forloop.index }} {% endfor %}{% endfor %}', ['outer' => [1, 2], 'inner' => [1, 2]]],
+    'limit and offset' => ['{% for i in items limit: 2 offset: 1 %}{{ i }}{% endfor %}', ['items' => [1, 2, 3, 4, 5]]],
+    'reversed' => ['{% for i in items reversed %}{{ i }}{% endfor %}', ['items' => [1, 2, 3]]],
+    'range' => ['{% for i in (1..4) %}{{ i }}{% endfor %}', []],
+    'else branch' => ['{% for i in items %}{{ i }}{% else %}empty{% endfor %}', ['items' => []]],
+    'break out of nested loop' => ['{% for i in outer %}{% for j in inner %}{{ j }}{% break %}{% endfor %}|{% endfor %}', ['outer' => [1, 2], 'inner' => [1, 2, 3]]],
+    'continue skips' => ['{% for i in items %}{% if i == 2 %}{% continue %}{% endif %}{{ i }}{% endfor %}', ['items' => [1, 2, 3]]],
+]);
+
 test('compiled conditions preserve handled evaluation errors', function () {
     $environment = EnvironmentFactory::new()
         ->setRethrowErrors(false)
