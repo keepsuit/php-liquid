@@ -45,20 +45,39 @@ class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
         return $this;
     }
 
+    /**
+     * The body is inlined instead of wrapped in a closure: a closure costs an
+     * allocation and a call frame on every render, and a body carries no state
+     * that needs its own scope beyond the accumulator.
+     *
+     * Mirrors render(): Text cannot fail or interrupt, so it needs no guard, and
+     * every other child is followed by a bail-out rather than the whole body
+     * being wrapped in a per-child hasInterrupt() check.
+     */
     public function compile(CompilerContext $context): void
     {
-        $context
-            ->write('$output .= \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate::renderCompiledBody(')
-            ->indent()
-            ->write('$context,')
-            ->write('function (\\Keepsuit\\Liquid\\Render\\RenderContext $context): string {')
-            ->indent()
-            ->write('$output = \'\';');
-
-        // Mirrors render(): Text cannot fail or interrupt, so it needs no guard,
-        // and every other child is followed by a bail-out instead of the whole
-        // body being wrapped in a per-child hasInterrupt() check.
         $lastIndex = count($this->children) - 1;
+
+        $interruptible = false;
+        foreach ($this->children as $index => $child) {
+            if (! $child instanceof Text && $index !== $lastIndex) {
+                $interruptible = true;
+
+                break;
+            }
+        }
+
+        $parentOutput = $context->outputVariable();
+        $output = $context->pushOutputScope();
+
+        $context
+            ->write('$context->resourceLimits->incrementRenderScore('.count($this->children).');')
+            ->write($output.' = \'\';');
+
+        // A do/while(false) gives the bail-out a target without a closure.
+        if ($interruptible) {
+            $context->write('do {')->indent();
+        }
 
         foreach ($this->children as $index => $child) {
             $context->subcompile($child);
@@ -70,18 +89,20 @@ class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
             $context
                 ->write('if ($context->hasInterrupt()) {')
                 ->indent()
-                ->write('return $output;')
+                ->write('break;')
                 ->outdent()
                 ->write('}');
         }
 
+        if ($interruptible) {
+            $context->outdent()->write('} while (false);');
+        }
+
         $context
-            ->write('return $output;')
-            ->outdent()
-            ->write('},')
-            ->write(count($this->children).',')
-            ->outdent()
-            ->write(');');
+            ->write('$context->resourceLimits->incrementWriteScore('.$output.');')
+            ->write($parentOutput.' .= '.$output.';');
+
+        $context->popOutputScope();
     }
 
     /**

@@ -3,7 +3,9 @@
 namespace Keepsuit\Liquid\Compiler;
 
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
+use Keepsuit\Liquid\Contracts\Disableable;
 use Keepsuit\Liquid\Nodes\Node;
+use Keepsuit\Liquid\Tag;
 use Symfony\Component\VarExporter\VarExporter;
 
 final class CompilerContext
@@ -13,7 +15,30 @@ final class CompilerContext
      */
     private array $fallbackValues = [];
 
+    /**
+     * Bodies are inlined rather than wrapped in a closure, so each nesting level
+     * needs its own accumulator variable.
+     */
+    private int $outputDepth = 0;
+
     public function __construct(private readonly CodeBuilder $builder = new CodeBuilder) {}
+
+    public function outputVariable(): string
+    {
+        return '$output'.$this->outputDepth;
+    }
+
+    public function pushOutputScope(): string
+    {
+        $this->outputDepth++;
+
+        return $this->outputVariable();
+    }
+
+    public function popOutputScope(): void
+    {
+        $this->outputDepth = max(0, $this->outputDepth - 1);
+    }
 
     public function write(string $line = ''): static
     {
@@ -48,7 +73,7 @@ final class CompilerContext
 
     public function writeOutput(string $expression): static
     {
-        $this->write('$output .= '.$expression.';');
+        $this->write($this->outputVariable().' .= '.$expression.';');
 
         return $this;
     }
@@ -65,7 +90,7 @@ final class CompilerContext
             ->outdent()
             ->write('} catch (\\Throwable $exception) {')
             ->indent()
-            ->write('$output .= $context->handleError($exception, '.$line.');')
+            ->write($this->outputVariable().' .= $context->handleError($exception, '.$line.');')
             ->outdent()
             ->write('}');
     }
@@ -74,6 +99,7 @@ final class CompilerContext
     {
         $checkpoint = $this->builder->checkpoint();
         $fallbackValueCount = count($this->fallbackValues);
+        $outputDepth = $this->outputDepth;
 
         if ($node instanceof CanBeCompiled) {
             try {
@@ -83,6 +109,7 @@ final class CompilerContext
             } catch (\Throwable) {
                 $this->builder->rollback($checkpoint);
                 $this->rollbackFallbackValues($fallbackValueCount);
+                $this->outputDepth = $outputDepth;
             }
         }
 
@@ -93,17 +120,29 @@ final class CompilerContext
         } catch (\Throwable $exception) {
             $this->builder->rollback($checkpoint);
             $this->rollbackFallbackValues($fallbackValueCount);
+            $this->outputDepth = $outputDepth;
 
             throw $exception;
         }
     }
 
+    /**
+     * The dispatch is inlined rather than routed through a runtime helper: the
+     * helper costs a call frame per node, and whether the node needs a
+     * tag-enabled check is already known here, at compile time.
+     */
     public function compileFallback(Node $node): void
     {
-        $this->writeOutput(
-            '\\Keepsuit\\Liquid\\Compiler\\CompiledTemplate::renderNode('
-            .'$context, '.$this->writeRuntimeValue($node).', '.$this->writeValue($node->lineNumber()).')'
-        );
+        $value = $this->writeRuntimeValue($node);
+
+        $this->write('try {')->indent();
+
+        if ($node instanceof Disableable && $node instanceof Tag) {
+            $this->write($value.'->ensureTagIsEnabled($context);');
+        }
+
+        $this->writeOutput($value.'->render($context)');
+        $this->writeNodeErrorHandling($node->lineNumber());
     }
 
     public function writeValue(mixed $value): string

@@ -102,12 +102,40 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
         return $this;
     }
 
+    /**
+     * Rendering does not go through stream(): a partial reached through the
+     * generator chain pays for a Generator per nesting level, and render tags
+     * are the most common node in a real theme.
+     */
     public function render(RenderContext $context): string
     {
+        $partial = $this->loadPartial($context);
+        $templateName = $partial->name() ?? '';
+
+        $contextVariableName = $this->aliasName ?? Arr::last(explode('/', $templateName));
+        assert(is_string($contextVariableName));
+
+        $variable = $this->variableNameExpression ? $context->evaluate($this->variableNameExpression) : null;
+
+        if (! $this->isForLoop) {
+            return $partial->render($this->buildPartialContext($context, $templateName, [
+                $contextVariableName => $variable,
+            ]));
+        }
+
+        $variable = $variable instanceof Traversable ? iterator_to_array($variable) : $variable;
+        assert(is_array($variable));
+
+        $forLoop = new ForLoopDrop($templateName, count($variable));
         $output = '';
 
-        foreach ($this->stream($context) as $chunk) {
-            $output .= $chunk;
+        foreach ($variable as $value) {
+            $output .= $partial->render($this->buildPartialContext($context, $templateName, [
+                'forloop' => $forLoop,
+                $contextVariableName => $value,
+            ]));
+
+            $forLoop->increment();
         }
 
         return $output;

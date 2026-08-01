@@ -2,18 +2,10 @@
 
 namespace Keepsuit\Liquid\Compiler;
 
-use Closure;
 use Keepsuit\Liquid\AbstractTemplate;
-use Keepsuit\Liquid\Contracts\Disableable;
 use Keepsuit\Liquid\Exceptions\LiquidException;
-use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
-use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
-use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
-use Keepsuit\Liquid\Nodes\Node;
 use Keepsuit\Liquid\Render\RenderContext;
-use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\TemplateSharedState;
-use Throwable;
 
 abstract class CompiledTemplate extends AbstractTemplate
 {
@@ -24,24 +16,10 @@ abstract class CompiledTemplate extends AbstractTemplate
 
     final public function render(RenderContext $context): string
     {
-        $output = '';
-
-        foreach ($this->stream($context) as $chunk) {
-            $output .= $chunk;
-        }
-
-        return $output;
-    }
-
-    /**
-     * @return \Generator<string>
-     */
-    final public function stream(RenderContext $context): \Generator
-    {
         try {
             $this->prepareContext($context);
 
-            yield from $this->streamCompiled($context);
+            return $this->renderCompiled($context);
         } catch (LiquidException $e) {
             $this->attachTemplateName($e);
             throw $e;
@@ -50,36 +28,18 @@ abstract class CompiledTemplate extends AbstractTemplate
         }
     }
 
-    abstract public function name(): ?string;
-
     /**
+     * A compiled body builds one string, so there is nothing to stream
+     * incrementally: streaming it would only add a Generator per nesting level.
+     *
      * @return \Generator<string>
      */
-    abstract protected function streamCompiled(RenderContext $context): \Generator;
-
-    public static function renderCompiledBody(RenderContext $context, Closure $renderer, int $childCount): string
+    final public function stream(RenderContext $context): \Generator
     {
-        $context->resourceLimits->incrementRenderScore($childCount);
-        $output = $renderer($context);
-        $context->resourceLimits->incrementWriteScore($output);
-
-        return $output;
+        yield $this->render($context);
     }
 
-    public static function renderNode(RenderContext $context, Node $node, ?int $lineNumber): string
-    {
-        try {
-            if ($node instanceof Disableable && $node instanceof Tag) {
-                $node->ensureTagIsEnabled($context);
-            }
+    abstract public function name(): ?string;
 
-            return $node->render($context);
-        } catch (UndefinedVariableException|UndefinedDropMethodException|UndefinedFilterException $exception) {
-            $context->handleError($exception, $lineNumber);
-
-            return '';
-        } catch (Throwable $exception) {
-            return $context->handleError($exception, $lineNumber);
-        }
-    }
+    abstract protected function renderCompiled(RenderContext $context): string;
 }

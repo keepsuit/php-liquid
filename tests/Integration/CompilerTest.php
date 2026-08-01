@@ -137,7 +137,7 @@ function temporaryCompiledTemplatePath(): string
     return $path.'.php';
 }
 
-test('compiled render collects the compiled stream', function () {
+test('compiled render and stream both surface the compiled body', function () {
     $compiled = new class extends CompiledTemplate
     {
         public function name(): ?string
@@ -145,13 +145,14 @@ test('compiled render collects the compiled stream', function () {
             return null;
         }
 
-        protected function streamCompiled(RenderContext $context): Generator
+        protected function renderCompiled(RenderContext $context): string
         {
-            yield 'stream body';
+            return 'compiled body';
         }
     };
 
-    expect($compiled->render(new RenderContext))->toBe('stream body');
+    expect($compiled->render(new RenderContext))->toBe('compiled body');
+    expect(iterator_to_array($compiled->stream(new RenderContext)))->toBe(['compiled body']);
 });
 
 test('environment compiles a template to a requireable artifact', function () {
@@ -265,7 +266,11 @@ test('compiled templates keep runtime partial lookup', function () {
 
         $compiledSource = file_get_contents($compiledPath);
 
-        expect($compiledSource)->toContain('renderNode');
+        // The render tag stays a runtime node: the partial is looked up when the
+        // compiled template runs, never inlined into the artifact.
+        expect($compiledSource)
+            ->toContain('->render($context)')
+            ->not->toContain('partial ');
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
@@ -302,6 +307,33 @@ test('compiled conditional bodies preserve interrupts from fallback nodes', func
         @unlink($compiledPath);
     }
 });
+
+test('compiled nested bodies stop at an interrupt exactly where the parsed template does', function (string $source, array $data) {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString($source);
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        /** @var CompiledTemplate $compiled */
+        $compiled = require $compiledPath;
+
+        expect($compiled->render($environment->newRenderContext(data: $data)))
+            ->toBe($template->render($environment->newRenderContext(data: $data)));
+    } finally {
+        @unlink($compiledPath);
+    }
+})->with([
+    // A break inside a for body must end that iteration and the loop, while
+    // leaving the text after the loop in the outer body intact.
+    'break inside a loop' => ['a{% for i in (1..5) %}<{{ i }}{% if i > 2 %}{% break %}{% endif %}>{% endfor %}b', []],
+    'continue inside a loop' => ['a{% for i in (1..5) %}<{{ i }}{% if i == 2 %}{% continue %}{% endif %}>{% endfor %}b', []],
+    // Text siblings after the interrupt must be skipped at every nesting level.
+    'interrupt with trailing siblings' => ['a{% if stop %}x{% break %}y{% endif %}z', ['stop' => true]],
+    'interrupt not taken' => ['a{% if stop %}x{% break %}y{% endif %}z', ['stop' => false]],
+    'nested loops' => ['{% for i in (1..3) %}{% for j in (1..3) %}{{ i }}{{ j }}{% if j == 2 %}{% break %}{% endif %}{% endfor %}|{% endfor %}', []],
+]);
 
 test('compiled conditions preserve handled evaluation errors', function () {
     $environment = EnvironmentFactory::new()
@@ -480,7 +512,7 @@ test('compiled rendering emits safe core nodes directly', function () {
         expect($compiledSource)
             ->toContain('final class Template_')
             ->toContain('extends \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate')
-            ->toContain('protected function streamCompiled')
+            ->toContain('protected function renderCompiled')
             ->not->toContain('unserialize')
             ->not->toContain('return new \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate(');
 
