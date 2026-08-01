@@ -17,11 +17,11 @@ use Keepsuit\Liquid\Nodes\Raw;
 use Keepsuit\Liquid\Nodes\Text;
 use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Parse\TagParseContext;
+use Keepsuit\Liquid\ParsedTemplate;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Render\ResourceLimits;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\Template;
-use Keepsuit\Liquid\TemplateInterface;
 
 class CompilableCompilerTestNode extends Node implements CanBeCompiled
 {
@@ -373,7 +373,7 @@ test('compiled rendering preserves collected errors and exception metadata', fun
 
         expect($compiled->render($compiledContext))->toBe($template->render($interpretedContext));
 
-        $describeErrors = static fn (TemplateInterface $rendered): array => array_map(
+        $describeErrors = static fn (Template $rendered): array => array_map(
             static fn (\Throwable $error): array => [
                 $error::class,
                 $error->getMessage(),
@@ -608,7 +608,7 @@ test('compiled literals preserve quotes escapes and control characters', functio
 test('custom compilable nodes opt in through the compiler context', function () {
     $environment = EnvironmentFactory::new()->build();
     $template = $environment->parseString('prefix');
-    assert($template instanceof Template);
+    assert($template instanceof ParsedTemplate);
     $template->root->body->pushChild(new CompilableCompilerTestNode('custom output'));
     $compiledPath = temporaryCompiledTemplatePath();
 
@@ -628,7 +628,7 @@ test('custom compilable nodes opt in through the compiler context', function () 
 test('custom compilable tags opt in without changing tag registration', function () {
     $environment = EnvironmentFactory::new()->build();
     $template = $environment->parseString('prefix');
-    assert($template instanceof Template);
+    assert($template instanceof ParsedTemplate);
     $template->root->body->pushChild(new CompilableCompilerTestTag);
     $compiledPath = temporaryCompiledTemplatePath();
 
@@ -686,7 +686,7 @@ test('unsupported tags retain runtime filters and disabled-tag behavior', functi
             ->toBe($template->render($environment->newRenderContext()))
             ->toBe('filtered runtime');
 
-        $renderDisabled = static function (TemplateInterface $candidate, RenderContext $context): string {
+        $renderDisabled = static function (Template $candidate, RenderContext $context): string {
             return $context->withDisabledTags(
                 ['runtime_fallback'],
                 fn () => $candidate->render($context),
@@ -709,7 +709,7 @@ test('unsupported tags retain runtime filters and disabled-tag behavior', functi
 test('failed node compilation rolls back before runtime fallback', function () {
     $environment = EnvironmentFactory::new()->build();
     $template = $environment->parseString('prefix');
-    assert($template instanceof Template);
+    assert($template instanceof ParsedTemplate);
     $template->root->body->pushChild(new FailingCompilableCompilerTestNode);
     $compiledPath = temporaryCompiledTemplatePath();
 
@@ -739,7 +739,7 @@ test('compilation fails when a fallback node cannot be safely reconstructed', fu
         throw new RuntimeException('Unable to create a test resource.');
     }
 
-    assert($template instanceof Template);
+    assert($template instanceof ParsedTemplate);
     $template->root->body->pushChild(
         (new UnsafeFallbackCompilerTestNode($resource))->setLineNumber(7),
     );

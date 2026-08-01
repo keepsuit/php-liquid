@@ -8,6 +8,7 @@ use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Render\RenderContextOptions;
 use Keepsuit\Liquid\Render\ResourceLimits;
+use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\TemplateInterface;
 use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
 use Keepsuit\Liquid\TemplateSharedState;
@@ -17,7 +18,8 @@ test('parsed templates implement the template contract', function () {
     $template = Environment::default()->parseString('hello', name: 'hello');
 
     expect($template)
-        ->toBeInstanceOf(TemplateInterface::class)
+        ->toBeInstanceOf(Template::class)
+        ->and($template)->toBeInstanceOf(TemplateInterface::class)
         ->and($template->getState())->toBeInstanceOf(TemplateSharedState::class)
         ->and($template->getErrors())->toBeEmpty()
         ->and($template->name())->toBe('hello');

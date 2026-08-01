@@ -3,21 +3,21 @@
 namespace Keepsuit\Liquid\TemplatesCache;
 
 use Keepsuit\Liquid\Contracts\LiquidTemplatesCache;
-use Keepsuit\Liquid\TemplateInterface;
+use Keepsuit\Liquid\Template;
 
 class MemoryTemplatesCache implements LiquidTemplatesCache
 {
     /**
-     * @var array<string,TemplateInterface>
+     * @var array<string,Template>
      */
     protected array $cache = [];
 
-    public function set(string $name, TemplateInterface $template): void
+    public function set(string $name, Template $template): void
     {
         $this->cache[$name] = $template;
     }
 
-    public function get(string $name): ?TemplateInterface
+    public function get(string $name): ?Template
     {
         return $this->cache[$name] ?? null;
     }

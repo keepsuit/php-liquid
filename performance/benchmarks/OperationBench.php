@@ -7,7 +7,7 @@ use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Performance\Support\Database;
 use Keepsuit\Liquid\Performance\Support\Drops\ProductDrop;
 use Keepsuit\Liquid\Render\RenderContext;
-use Keepsuit\Liquid\TemplateInterface;
+use Keepsuit\Liquid\Template;
 use PhpBench\Attributes\BeforeMethods;
 use PhpBench\Attributes\Groups;
 use PhpBench\Attributes\Iterations;
@@ -25,31 +25,31 @@ class OperationBench
 {
     private Environment $environment;
 
-    private TemplateInterface $scalarTemplate;
+    private Template $scalarTemplate;
 
-    private TemplateInterface $nestedTemplate;
+    private Template $nestedTemplate;
 
-    private TemplateInterface $filterWithoutArgumentsTemplate;
+    private Template $filterWithoutArgumentsTemplate;
 
-    private TemplateInterface $filterWithArgumentsTemplate;
+    private Template $filterWithArgumentsTemplate;
 
-    private TemplateInterface $arrayFiltersTemplate;
+    private Template $arrayFiltersTemplate;
 
-    private TemplateInterface $dropMethodTemplate;
+    private Template $dropMethodTemplate;
 
-    private TemplateInterface $dropMethodMissingHitTemplate;
+    private Template $dropMethodMissingHitTemplate;
 
-    private TemplateInterface $dropMethodMissingMissTemplate;
+    private Template $dropMethodMissingMissTemplate;
 
-    private TemplateInterface $productListTemplate;
+    private Template $productListTemplate;
 
-    private TemplateInterface $conditionTemplate;
+    private Template $conditionTemplate;
 
-    private TemplateInterface $assignTemplate;
+    private Template $assignTemplate;
 
-    private TemplateInterface $assignCompositeTemplate;
+    private Template $assignCompositeTemplate;
 
-    private TemplateInterface $captureTemplate;
+    private Template $captureTemplate;
 
     /** @var array<string, mixed> */
     private array $assignCompositeData;

@@ -14,7 +14,7 @@ use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\UndefinedVariable;
 use Keepsuit\Liquid\Tag;
-use Keepsuit\Liquid\TemplateInterface;
+use Keepsuit\Liquid\Template;
 
 /**
  * @phpstan-import-type Expression from ExpressionParser
@@ -180,7 +180,7 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
         ];
     }
 
-    protected function loadPartial(RenderContext $context): TemplateInterface
+    protected function loadPartial(RenderContext $context): Template
     {
         $templateName = $this->templateNameExpression;
         if ($this->allowDynamicPartials() && $this->templateNameExpression instanceof VariableLookup) {

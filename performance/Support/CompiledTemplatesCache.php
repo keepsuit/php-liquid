@@ -3,7 +3,7 @@
 namespace Keepsuit\Liquid\Performance\Support;
 
 use Keepsuit\Liquid\Compiler\CompiledTemplateInterface;
-use Keepsuit\Liquid\TemplateInterface;
+use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\TemplatesCache\FilesystemTemplatesCache;
 
 final class CompiledTemplatesCache extends FilesystemTemplatesCache
@@ -13,7 +13,7 @@ final class CompiledTemplatesCache extends FilesystemTemplatesCache
         parent::__construct($cachePath, keepInMemory: false);
     }
 
-    public function get(string $name): ?TemplateInterface
+    public function get(string $name): ?Template
     {
         $compiledPath = $this->getCompiledPath($name);
 
@@ -34,12 +34,12 @@ final class CompiledTemplatesCache extends FilesystemTemplatesCache
         return parent::getCompiledPath($name).'.php';
     }
 
-    protected function saveCompiledTemplate(string $compiledPath, TemplateInterface $template): void
+    protected function saveCompiledTemplate(string $compiledPath, Template $template): void
     {
         throw new \LogicException('The compiled templates cache is read-only.');
     }
 
-    protected function loadCompiledTemplate(string $compiledPath): ?TemplateInterface
+    protected function loadCompiledTemplate(string $compiledPath): ?Template
     {
         try {
             $template = require $compiledPath;
