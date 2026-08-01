@@ -83,18 +83,18 @@ class Compiler
             ->dedent()
             ->writeLine('}')
             ->writeLine()
-            ->writeLine('protected function streamCompiled(\\Keepsuit\\Liquid\\Render\\RenderContext $context): \\Generator')
+            ->writeLine('protected function renderCompiled(\\Keepsuit\\Liquid\\Render\\RenderContext $context): string')
             ->writeLine('{')
             ->indent();
 
-        $builder->writeLine('$output = \'\';');
+        $builder->writeLine('$output0 = \'\';');
 
         foreach (explode("\n", rtrim($body, "\n")) as $line) {
             $builder->writeLine($line);
         }
 
         $builder
-            ->writeLine('yield $output;')
+            ->writeLine('return $output0;')
             ->dedent()
             ->writeLine('}')
             ->dedent()

@@ -102,6 +102,11 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
         return $this;
     }
 
+    /**
+     * Rendering does not go through stream(): a partial reached through the
+     * generator chain pays for a Generator per nesting level, and render tags
+     * are the most common node in a real theme.
+     */
     public function render(RenderContext $context): string
     {
         $partial = $this->loadPartial($context);
