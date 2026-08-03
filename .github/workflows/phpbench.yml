@@ -126,7 +126,7 @@ jobs:
 
       - name: Post benchmark comment
         if: always() && github.event.pull_request.head.repo.fork == false
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           COMMENT_BODY: ${{ steps.compare.outputs.comment }}
           PHP_VERSION: ${{ matrix.php }}
