@@ -16,8 +16,7 @@
     ],
     "require": {
         "php": "^8.2",
-        "ext-mbstring": "*",
-        "symfony/polyfill-php85": "^1.33"
+        "ext-mbstring": "*"
     },
     "require-dev": {
         "laravel/pint": "^1.2",
