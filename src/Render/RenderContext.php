@@ -147,6 +147,23 @@ final class RenderContext
         return $result;
     }
 
+    /**
+     * Execute a generator while keeping a temporary scope active until the
+     * generator is fully consumed.
+     *
+     * @param  Closure(RenderContext): \Generator  $closure
+     */
+    public function streamStack(Closure $closure): \Generator
+    {
+        $this->push();
+
+        try {
+            yield from $closure($this);
+        } finally {
+            $this->pop();
+        }
+    }
+
     public function evaluate(mixed $value): mixed
     {
         while ($value instanceof CanBeEvaluated) {

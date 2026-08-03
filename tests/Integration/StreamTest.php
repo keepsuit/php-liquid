@@ -140,6 +140,21 @@ test('compiled stream preserves complete output', function () {
         ->toBe("text\ntext1text2");
 });
 
+test('compiled for loops stream each body chunk before the next iteration', function () {
+    $environment = Environment::default();
+    $template = $environment->parseString('{% for item in items %}{{ item }}{% endfor %}');
+    $compiled = compileStreamTestTemplate($environment, $template);
+    $context = $environment->newRenderContext(
+        staticData: ['items' => ['a', 'bb', 'c']],
+        resourceLimits: new ResourceLimits(renderLengthLimit: 1),
+    );
+
+    $stream = $compiled->stream($context);
+
+    expect($stream->current())->toBe('a');
+    expect(fn () => $stream->next())->toThrow(ResourceLimitException::class);
+});
+
 test('compiled stream does not evaluate until the generator is consumed', function () {
     $environment = Environment::default();
     $template = $environment->parseString('{{ value }}');

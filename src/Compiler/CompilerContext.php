@@ -12,7 +12,6 @@ use Keepsuit\Liquid\Nodes\Node;
 use Keepsuit\Liquid\Nodes\Raw;
 use Keepsuit\Liquid\Nodes\Text;
 use Keepsuit\Liquid\Nodes\Variable;
-use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Tag;
 use Symfony\Component\VarExporter\VarExporter;
 
@@ -26,7 +25,8 @@ final class CompilerContext
     public function __construct(private CodeBuilder $builder = new CodeBuilder) {}
 
     /**
-     * Compile a body into an inline lazy generator owned by the base template.
+     * Compile a body inline while keeping render-score accounting in the base
+     * compiled template.
      */
     public function compileBody(Node $body): static
     {
@@ -34,15 +34,10 @@ final class CompilerContext
         $source = $this->compileBodySource($body);
 
         $this->write(sprintf(
-            'yield from $this->yieldBody($context, %s, (function () use ($context): \\Generator {',
+            '$this->incrementCompiledRenderScore($context, %s);',
             $this->writeValue($renderScore),
         ));
-        $this->indent();
         $this->writeSource($source['source']);
-        if (! $source['hasYield']) {
-            $this->write('yield from [];');
-        }
-        $this->outdent()->write('})());');
 
         return $this;
     }
@@ -53,15 +48,18 @@ final class CompilerContext
         $source = $this->compileBodySource($body);
 
         $this->write(sprintf(
-            'fn (RenderContext $context) => $this->collectCompiled($context, $this->yieldBody($context, %s, (function () use ($context): \\Generator {',
-            $this->writeValue($renderScore),
+            'fn (RenderContext $context) => (function () use ($context): \\Generator {',
         ));
         $this->indent();
+        $this->write(sprintf(
+            '$this->incrementCompiledRenderScore($context, %s);',
+            $this->writeValue($renderScore),
+        ));
         $this->writeSource($source['source']);
         if (! $source['hasYield']) {
             $this->write('yield from [];');
         }
-        $this->outdent()->write('})()))'.$suffix);
+        $this->outdent()->write('})()'.$suffix);
 
         return $this;
     }
@@ -97,7 +95,18 @@ final class CompilerContext
 
     public function compileRootBody(BodyNode $body): void
     {
-        $this->compileBody($body);
+        $renderScore = count($body->children());
+        $source = $this->compileBodySource($body);
+
+        $this->write(sprintf(
+            '$this->incrementCompiledRenderScore($context, %s);',
+            $this->writeValue($renderScore),
+        ));
+        $this->writeSource($source['source']);
+
+        if (! $source['hasYield']) {
+            $this->write('yield from [];');
+        }
     }
 
     public function write(string $line = ''): static
@@ -162,7 +171,7 @@ final class CompilerContext
 
     public function canInterrupt(Node $node): bool
     {
-        return ! ($node instanceof Text || $node instanceof Raw || ($node instanceof Variable && $this->canCompileVariable($node)));
+        return ! ($node instanceof Text || $node instanceof Raw || $node instanceof Variable);
     }
 
     public function subcompile(Node $node): static
@@ -190,11 +199,9 @@ final class CompilerContext
             ));
             $this->indent();
             $nodeBodyCheckpoint = $this->builder->checkpoint();
+            $this->writeLineComment($node->lineNumber());
 
-            if ($node instanceof Variable && $this->canCompileVariable($node)) {
-                $this->compileVariable($node);
-            } elseif ($node instanceof CanBeCompiled) {
-                $this->writeLineComment($node->lineNumber());
+            if ($node instanceof CanBeCompiled) {
                 $node->compile($this);
             } else {
                 $this->compileFallback($node);
@@ -212,6 +219,7 @@ final class CompilerContext
                 $this->writeValue($node->lineNumber()),
             ));
             $this->indent();
+            $this->writeLineComment($node->lineNumber());
             $this->compileFallback($node);
             $this->outdent()->write('})());');
         }
@@ -225,8 +233,6 @@ final class CompilerContext
     {
         $value = $this->writeRuntimeValue($node);
 
-        $this->writeLineComment($node->lineNumber());
-
         if ($node instanceof Disableable && $node instanceof Tag) {
             $this->write($value.'->ensureTagIsEnabled($context);');
         }
@@ -238,65 +244,18 @@ final class CompilerContext
         }
     }
 
-    private function compileVariable(Variable $node): void
-    {
-        assert($node->name instanceof VariableLookup);
-
-        $this->writeLineComment($node->lineNumber());
-        $this->writeOutput(sprintf(
-            '$this->renderCompiledVariable($context, %s, %s, %s)',
-            $this->writeValue($node->name->name),
-            $this->writeValue($node->name->lookups),
-            $this->writeValue($node->filters),
-        ));
-    }
-
-    private function canCompileVariable(Variable $node): bool
-    {
-        if (! $node->name instanceof VariableLookup) {
-            return false;
-        }
-
-        foreach ($node->name->lookups as $lookup) {
-            if (! is_string($lookup) && ! is_int($lookup)) {
-                return false;
-            }
-        }
-
-        foreach ($node->filters as $filter) {
-            if (! is_array($filter) || count($filter) !== 3 || ! is_string($filter[0])) {
-                return false;
-            }
-
-            foreach ([$filter[1], $filter[2]] as $arguments) {
-                if (! is_array($arguments)) {
-                    return false;
-                }
-
-                foreach ($arguments as $argument) {
-                    if ($argument !== null && ! is_scalar($argument)) {
-                        return false;
-                    }
-                }
-            }
-        }
-
-        return true;
-    }
-
     public function writeValue(mixed $value): string
     {
         if ($value instanceof CanBeExported && ($exported = $value->export($this)) !== null) {
             return $exported;
         }
 
-        // Arrays are only taken apart when they actually hold an exportable
-        // value; otherwise VarExporter's output is both smaller and faster.
-        if (is_array($value) && $this->containsExportable($value)) {
+        if (is_array($value)) {
             $entries = [];
+            $isList = array_is_list($value);
 
             foreach ($value as $key => $item) {
-                $entries[] = $this->writeValue($key).' => '.$this->writeValue($item);
+                $entries[] = ($isList ? '' : $this->writeValue($key).' => ').$this->writeValue($item);
             }
 
             return '['.implode(', ', $entries).']';
@@ -307,24 +266,6 @@ final class CompilerContext
         } catch (\Throwable $exception) {
             throw new \RuntimeException('Unable to safely encode a compiler value.', previous: $exception);
         }
-    }
-
-    /**
-     * @param  array<mixed>  $value
-     */
-    private function containsExportable(array $value): bool
-    {
-        foreach ($value as $item) {
-            if ($item instanceof CanBeExported) {
-                return true;
-            }
-
-            if (is_array($item) && $this->containsExportable($item)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     public function exportValue(mixed $value): ?string

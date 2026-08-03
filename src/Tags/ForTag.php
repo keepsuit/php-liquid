@@ -81,13 +81,12 @@ class ForTag extends TagBlock implements CanBeCompiled, HasParseTreeVisitorChild
 
     /**
      * The loop, scope and interrupt handling stay here rather than being emitted
-     * as code: only the two bodies are compiled, and they are handed back as
-     * closures. Passing none renders the parsed bodies.
+     * as code: only the two bodies are compiled and streamed through closures.
      */
     public function compile(CompilerContext $context): void
     {
         $tag = $context->writeRuntimeValue($this);
-        $context->write('yield '.$tag.'->renderBlocks($context,');
+        $context->write('yield from '.$tag.'->streamBlocks($context,');
         $context->indent();
         $context->writeBodyCallback($this->forBlock, ',');
 
@@ -109,6 +108,23 @@ class ForTag extends TagBlock implements CanBeCompiled, HasParseTreeVisitorChild
         }
 
         return $this->renderSegment($context, $segment, $forBody);
+    }
+
+    public function streamBlocks(RenderContext $context, ?Closure $forBody = null, ?Closure $elseBody = null): \Generator
+    {
+        $segment = $this->collectionSegment($context);
+
+        if ($segment === []) {
+            if ($elseBody !== null) {
+                yield from $elseBody($context);
+            } elseif ($this->elseBlock !== null) {
+                yield from $this->elseBlock->stream($context);
+            }
+
+            return;
+        }
+
+        yield from $this->streamSegment($context, $segment, $forBody);
     }
 
     public function children(): array
@@ -237,6 +253,51 @@ class ForTag extends TagBlock implements CanBeCompiled, HasParseTreeVisitorChild
             }
 
             return $output;
+        });
+    }
+
+    protected function streamSegment(RenderContext $context, array $segment, ?Closure $forBody = null): \Generator
+    {
+        /** @var ForLoopDrop[] $forStack */
+        $forStack = $context->getRegister('for_stack') ?? [];
+        assert(is_array($forStack));
+
+        yield from $context->streamStack(function () use ($context, $segment, $forStack, $forBody): \Generator {
+            $loopVars = new ForLoopDrop(
+                name: $this->name,
+                length: count($segment),
+                parentLoop: $forStack !== [] ? $forStack[count($forStack) - 1] : null,
+            );
+
+            $forStack[] = $loopVars;
+            $context->setRegister('for_stack', $forStack);
+
+            try {
+                $context->set('forloop', $loopVars);
+
+                foreach ($segment as $value) {
+                    $context->set($this->variableName, $value);
+
+                    if ($forBody !== null) {
+                        yield from $forBody($context);
+                    } else {
+                        yield from $this->forBlock->stream($context);
+                    }
+
+                    $loopVars->increment();
+
+                    $interrupt = $context->popInterrupt();
+
+                    if ($interrupt instanceof BreakInterrupt) {
+                        break;
+                    }
+                }
+            } finally {
+                $forStack = $context->getRegister('for_stack');
+                assert(is_array($forStack));
+                array_pop($forStack);
+                $context->setRegister('for_stack', $forStack);
+            }
         });
     }
 

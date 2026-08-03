@@ -175,6 +175,7 @@ test('compiled templates stream generated chunks without an output accumulator',
             ->toContain('yield ')
             ->toContain('(function () use ($context): \\Generator')
             ->not->toContain('$output')
+            ->not->toContain('yieldBody')
             ->not->toContain('yield from [];')
             ->not->toContain('private function body')
             ->not->toContain('private function node')
@@ -308,7 +309,7 @@ test('compiled conditions ignore branches after else', function () {
     }
 });
 
-test('compiled templates keep runtime partial lookup', function () {
+test('compiled static render tags stream partials without rebuilding the tag', function () {
     $environment = EnvironmentFactory::new()
         ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem([
             'snippet' => 'partial {{ value }}',
@@ -322,10 +323,12 @@ test('compiled templates keep runtime partial lookup', function () {
 
         $compiledSource = file_get_contents($compiledPath);
 
-        // The render tag stays a runtime node: the partial is looked up when the
-        // compiled template runs, never inlined into the artifact.
         expect($compiledSource)
-            ->toContain('->stream($context)')
+            ->toContain('yieldPartial')
+            ->not->toContain('deepclone_from_array')
+            ->not->toContain('private readonly mixed $value')
+            // The partial is looked up when the compiled template runs, never
+            // inlined into the artifact.
             ->not->toContain('partial ');
 
         /** @var CompiledTemplate $compiled */
@@ -338,6 +341,36 @@ test('compiled templates keep runtime partial lookup', function () {
         expect(implode('', iterator_to_array(
             $compiled->stream($environment->newRenderContext(data: $data)),
         )))->toBe('before partial hello after');
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('compiled render tag fallback preserves loop behavior', function () {
+    $environment = EnvironmentFactory::new()
+        ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem([
+            'product' => '{{ product.title }} ',
+        ]))
+        ->build();
+    $template = $environment->parseString('{% render "product" for products %}');
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        $compiledSource = file_get_contents($compiledPath);
+
+        expect($compiledSource)
+            ->toContain('->stream($context)')
+            ->toContain('private readonly mixed $value');
+
+        /** @var CompiledTemplate $compiled */
+        $compiled = require $compiledPath;
+        $data = ['products' => [['title' => 'one'], ['title' => 'two']]];
+
+        expect($compiled->render($environment->newRenderContext(data: $data)))
+            ->toBe($template->render($environment->newRenderContext(data: $data)))
+            ->toBe('one two ');
     } finally {
         @unlink($compiledPath);
     }
@@ -402,8 +435,9 @@ test('for bodies are compiled inline while the tag drives the loop', function ()
         // Both bodies are inline generator closures; the loop itself stays in the tag.
         expect(file_get_contents($compiledPath))
             ->toContain('(function () use ($context): \\Generator')
-            ->toContain('->renderBlocks($context')
-            ->toContain('collectCompiled')
+            ->toContain('->streamBlocks($context')
+            ->not->toContain('collectCompiled')
+            ->not->toContain('yieldBody')
             ->not->toContain('private function body')
             ->not->toContain('private function node');
 
@@ -455,7 +489,7 @@ test('exportable nodes are rebuilt with constructors instead of VarExporter', fu
         $environment->compile($template, $compiledPath);
 
         expect(file_get_contents($compiledPath))
-            ->not->toContain('new \Keepsuit\Liquid\Nodes\Variable(')
+            ->toContain('new \Keepsuit\Liquid\Nodes\Variable(')
             ->toContain('new \Keepsuit\Liquid\Nodes\VariableLookup(')
             ->toContain('new \Keepsuit\Liquid\Condition\Condition(')
             ->not->toContain('deepclone_from_array');
@@ -709,6 +743,37 @@ test('compiled rendering preserves resource-limit exceptions', function () {
     }
 });
 
+test('compiled bodies preserve root and nested render-score accounting', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('{% if enabled %}a{{ name }}b{% endif %}');
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        /** @var CompiledTemplate $compiled */
+        $compiled = require $compiledPath;
+        $interpretedContext = $environment->newRenderContext(
+            data: ['enabled' => true, 'name' => 'value'],
+            resourceLimits: new ResourceLimits(renderScoreLimit: 3),
+        );
+        $compiledContext = $environment->newRenderContext(
+            data: ['enabled' => true, 'name' => 'value'],
+            resourceLimits: new ResourceLimits(renderScoreLimit: 3),
+        );
+
+        expect(fn () => $template->render($interpretedContext))
+            ->toThrow(ResourceLimitException::class);
+        expect(fn () => $compiled->render($compiledContext))
+            ->toThrow(ResourceLimitException::class);
+        expect($compiledContext->resourceLimits->getRenderScore())
+            ->toBe($interpretedContext->resourceLimits->getRenderScore())
+            ->toBe(4);
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
 test('compiled rendering emits safe core nodes directly', function () {
     $environment = EnvironmentFactory::new()->build();
     $template = $environment->parseString('Hello {{ name | upcase }}!');
@@ -752,11 +817,10 @@ test('storefront specs compile into readable direct output', function () {
             ->toContain('use Keepsuit\\Liquid\\Compiler\\CompiledTemplate;')
             ->toContain('use Keepsuit\\Liquid\\Render\\RenderContext;')
             ->toContain('extends CompiledTemplate')
-            ->toContain('renderCompiledVariable')
+            ->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
             ->toContain('// line 4')
             ->toContain("'size'")
             ->not->toContain('private readonly mixed $value')
-            ->not->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
             ->not->toContain('do {');
 
         /** @var CompiledTemplate $compiled */
@@ -775,7 +839,7 @@ test('storefront specs compile into readable direct output', function () {
     }
 });
 
-test('complex compiled variables retain the runtime fallback', function () {
+test('complex compiled variables stream directly', function () {
     $environment = EnvironmentFactory::new()->build();
     $template = $environment->parseString('{{ values[key] }}');
     $compiledPath = temporaryCompiledTemplatePath();
@@ -785,7 +849,9 @@ test('complex compiled variables retain the runtime fallback', function () {
         $environment->compile($template, $compiledPath);
         $compiledSource = file_get_contents($compiledPath);
 
-        expect($compiledSource)->toContain('private readonly mixed $value0');
+        expect($compiledSource)
+            ->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
+            ->not->toContain('private readonly mixed $value0');
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
@@ -806,7 +872,7 @@ test('direct variable emission preserves common Liquid values', function (string
         $environment->compile($template, $compiledPath);
 
         expect(file_get_contents($compiledPath))
-            ->toContain('renderCompiledVariable')
+            ->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
             ->not->toContain('private readonly mixed $value');
 
         /** @var CompiledTemplate $compiled */
@@ -827,7 +893,7 @@ test('direct variable emission preserves common Liquid values', function (string
     'renderable value' => ['{{ value }}', ['value' => new Text('rendered')], 'rendered'],
 ]);
 
-test('storefront header keeps runtime partial rendering with direct values', function () {
+test('storefront header compiles static partial rendering with direct values', function () {
     $environment = StorefrontTheme::environment();
     $template = $environment->parseTemplate('snippets.page.header');
     $data = [
@@ -842,8 +908,10 @@ test('storefront header keeps runtime partial rendering with direct values', fun
         $compiledSource = file_get_contents($compiledPath);
 
         expect($compiledSource)
-            ->toContain('renderCompiledVariable')
-            ->toContain('private readonly mixed $value');
+            ->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
+            ->toContain("new \\Keepsuit\\Liquid\\Nodes\\VariableLookup('shop', ['name'])")
+            ->toContain('yieldPartial')
+            ->not->toContain('private readonly mixed $value');
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
@@ -894,6 +962,7 @@ test('built-in compilable nodes implement the compiler contract directly', funct
     $nodes = [
         new Text('text'),
         new Raw('raw'),
+        new Variable('name'),
         new Document(new BodyNode),
         new BodyNode,
     ];
@@ -903,11 +972,14 @@ test('built-in compilable nodes implement the compiler contract directly', funct
     }
 });
 
-test('values the compiler keeps as objects rebuild themselves without VarExporter', function () {
-    // A Variable is not compiled to code: its lookup is resolved at runtime, so
-    // the compiler keeps the object and only needs it rebuilt cheaply.
+test('expression values remain exportable while variables compile directly', function () {
+    $variable = new Variable('name');
+
+    expect($variable)
+        ->toBeInstanceOf(CanBeCompiled::class)
+        ->not->toBeInstanceOf(CanBeExported::class);
+
     $values = [
-        new Variable('name'),
         new VariableLookup('name'),
         new RangeLookup(1, 5),
         new Condition(1, '==', 1),

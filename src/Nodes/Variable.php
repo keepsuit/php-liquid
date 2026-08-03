@@ -3,8 +3,8 @@
 namespace Keepsuit\Liquid\Nodes;
 
 use Keepsuit\Liquid\Compiler\CompilerContext;
+use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
-use Keepsuit\Liquid\Contracts\CanBeExported;
 use Keepsuit\Liquid\Contracts\CanBeRendered;
 use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
@@ -15,7 +15,7 @@ use Keepsuit\Liquid\Support\Arr;
 /**
  * @phpstan-import-type Expression from ExpressionParser
  */
-class Variable extends Node implements CanBeEvaluated, CanBeExported, CanBeStreamed, HasParseTreeVisitorChildren
+class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeStreamed, HasParseTreeVisitorChildren
 {
     public function __construct(
         /** @var Expression $name */
@@ -29,29 +29,17 @@ class Variable extends Node implements CanBeEvaluated, CanBeExported, CanBeStrea
         return self::renderEvaluated($context, $this->evaluate($context));
     }
 
-    /**
-     * Render a variable from its parsed parts without rebuilding a Variable node.
-     *
-     * @param  array<string|int>  $lookups
-     * @param  array<array{0:string,1:array,2:array<string,mixed>}>  $filters
-     */
-    public static function renderParts(RenderContext $context, string $name, array $lookups, array $filters): string
-    {
-        return self::renderEvaluated(
-            $context,
-            self::applyFilters($context, VariableLookup::evaluateParts($context, $name, $lookups), $filters),
-        );
-    }
-
-    public function export(CompilerContext $context): ?string
+    public function compile(CompilerContext $context): void
     {
         $expression = 'new \\'.self::class.'('
             .$context->writeValue($this->name).', '
             .$context->writeValue($this->filters).')';
 
-        return $this->lineNumber === null
-            ? $expression
-            : '('.$expression.')->setLineNumber('.$this->lineNumber.')';
+        if ($this->lineNumber !== null) {
+            $expression = '('.$expression.')->setLineNumber('.$this->lineNumber.')';
+        }
+
+        $context->write('yield from ('.$expression.')->stream($context);');
     }
 
     public function stream(RenderContext $context): \Generator

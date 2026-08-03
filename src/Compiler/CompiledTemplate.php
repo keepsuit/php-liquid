@@ -8,8 +8,8 @@ use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
 use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
-use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Render\RenderContext;
+use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\TemplateSharedState;
 use Throwable;
 
@@ -74,47 +74,39 @@ abstract class CompiledTemplate extends AbstractTemplate
         }
     }
 
-    /**
-     * Account for a compiled body and forward its chunks unchanged.
-     *
-     * @param  Generator<string>  $body
-     * @return \Generator<string>
-     */
-    protected function yieldBody(RenderContext $context, int $renderScore, Generator $body): \Generator
+    protected function incrementCompiledRenderScore(RenderContext $context, int $renderScore): void
     {
         $context->resourceLimits->incrementRenderScore($renderScore);
-
-        foreach ($body as $chunk) {
-            yield (string) $chunk;
-        }
     }
 
     /**
-     * Collect a compiled body when a runtime tag still owns a string-based
-     * render loop.
+     * Stream a statically compiled render tag while retaining Liquid's partial
+     * isolation and runtime partial lookup semantics.
      *
-     * @param  Generator<int, string>  $body
+     * @param  array<string,mixed>  $attributes
+     * @return \Generator<string>
      */
-    protected function collectCompiled(RenderContext $context, Generator $body): string
-    {
-        $output = '';
+    protected function yieldPartial(
+        RenderContext $context,
+        string $templateName,
+        mixed $variable,
+        ?string $aliasName,
+        array $attributes,
+    ): \Generator {
+        $partial = $context->loadPartial($templateName);
+        $partialName = $partial->name() ?? '';
 
-        foreach ($body as $chunk) {
-            $output .= (string) $chunk;
+        $contextVariableName = $aliasName ?? Arr::last(explode('/', $partialName));
+        assert(is_string($contextVariableName));
+
+        $partialContext = $context->newIsolatedSubContext($partialName);
+        $partialContext->set($contextVariableName, $context->evaluate($variable));
+
+        foreach ($attributes as $key => $value) {
+            $partialContext->set($key, $context->evaluate($value));
         }
 
-        return $output;
-    }
-
-    /**
-     * Render a common variable directly while retaining Liquid lookup semantics.
-     *
-     * @param  array<string|int>  $lookups
-     * @param  array<array{0:string,1:array,2:array<string,mixed>}>  $filters
-     */
-    protected function renderCompiledVariable(RenderContext $context, string $name, array $lookups, array $filters): string
-    {
-        return Variable::renderParts($context, $name, $lookups, $filters);
+        yield from $partial->stream($partialContext);
     }
 
     abstract public function name(): ?string;
