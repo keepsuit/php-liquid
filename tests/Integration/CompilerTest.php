@@ -175,6 +175,7 @@ test('compiled templates stream generated chunks without an output accumulator',
             ->toContain('yield ')
             ->toContain('(function () use ($context): \\Generator')
             ->not->toContain('$output')
+            ->not->toContain('yield from [];')
             ->not->toContain('private function body')
             ->not->toContain('private function node')
             ->not->toContain('resourceLimits->')
@@ -324,7 +325,7 @@ test('compiled templates keep runtime partial lookup', function () {
         // The render tag stays a runtime node: the partial is looked up when the
         // compiled template runs, never inlined into the artifact.
         expect($compiledSource)
-            ->toContain('->render($context)')
+            ->toContain('->stream($context)')
             ->not->toContain('partial ');
 
         /** @var CompiledTemplate $compiled */
