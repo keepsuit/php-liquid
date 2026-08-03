@@ -39,6 +39,14 @@ class Arr
 
     public static function set(array &$array, string|int $key, mixed $value): array
     {
+        // A key without a path is the common case and needs no walking: scope
+        // assignment goes through here for every loop variable and every partial.
+        if (! str_contains((string) $key, '.')) {
+            $array[$key] = $value;
+
+            return $array;
+        }
+
         $keys = explode('.', (string) $key);
 
         foreach ($keys as $i => $key) {
