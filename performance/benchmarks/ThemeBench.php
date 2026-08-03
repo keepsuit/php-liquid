@@ -99,6 +99,13 @@ class ThemeBench
         }
     }
 
+    public function benchStreamCompiled(): void
+    {
+        foreach ($this->pageTemplateNames as $pageTemplateName) {
+            $this->drain(StorefrontTheme::streamPage($this->compiledEnvironment, $pageTemplateName));
+        }
+    }
+
     /**
      * @param  \Generator<string>  $stream
      */
