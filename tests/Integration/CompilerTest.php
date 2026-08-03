@@ -119,6 +119,22 @@ class FailingCompilableCompilerTestNode extends Node implements CanBeCompiled
     }
 }
 
+class RuntimeThrowingCompilableCompilerTestNode extends Node implements CanBeCompiled
+{
+    public function render(RenderContext $context): string
+    {
+        throw new RuntimeException('compiler test runtime failure');
+    }
+
+    public function compile(CompilerContext $context): void
+    {
+        $context->write(sprintf(
+            'throw new \\RuntimeException(%s);',
+            $context->writeValue('compiler test runtime failure'),
+        ));
+    }
+}
+
 class UnsafeFallbackCompilerTestNode extends Node
 {
     public function __construct(private readonly mixed $value) {}
@@ -173,7 +189,7 @@ test('compiled templates stream generated chunks without an output accumulator',
         expect($compiledSource)
             ->toContain('protected function renderCompiled(RenderContext $context): iterable')
             ->toContain('yield ')
-            ->toContain('(function () use ($context): \\Generator')
+            ->toContain('function () use ($context): iterable {')
             ->not->toContain('$output')
             ->not->toContain('yieldBody')
             ->not->toContain('yield from [];')
@@ -196,17 +212,22 @@ test('compiled templates stream generated chunks without an output accumulator',
     }
 });
 
-test('compiled empty bodies still satisfy the generator contract', function () {
+test('compiled empty bodies return an empty iterable without generator noise', function () {
     $environment = EnvironmentFactory::new()->build();
     $compiledPath = temporaryCompiledTemplatePath();
 
     try {
         $environment->compile($environment->parseString(''), $compiledPath);
+        $compiledSource = file_get_contents($compiledPath);
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
 
+        expect($compiledSource)
+            ->toContain('return [];')
+            ->not->toContain('yield from [];');
         expect($compiled->render($environment->newRenderContext()))->toBe('');
+        expect(iterator_to_array($compiled->stream($environment->newRenderContext())))->toBe([]);
     } finally {
         @unlink($compiledPath);
     }
@@ -327,6 +348,7 @@ test('compiled static render tags stream partials without rebuilding the tag', f
             ->toContain('yieldPartial')
             ->not->toContain('deepclone_from_array')
             ->not->toContain('private readonly mixed $value')
+            ->not->toContain('yield from [];')
             // The partial is looked up when the compiled template runs, never
             // inlined into the artifact.
             ->not->toContain('partial ');
@@ -362,6 +384,7 @@ test('compiled render tag fallback preserves loop behavior', function () {
 
         expect($compiledSource)
             ->toContain('->stream($context)')
+            ->not->toContain('yieldPartial')
             ->toContain('private readonly mixed $value');
 
         /** @var CompiledTemplate $compiled */
@@ -434,10 +457,11 @@ test('for bodies are compiled inline while the tag drives the loop', function ()
 
         // Both bodies are inline generator closures; the loop itself stays in the tag.
         expect(file_get_contents($compiledPath))
-            ->toContain('(function () use ($context): \\Generator')
+            ->toContain('function (RenderContext $context): iterable {')
             ->toContain('->streamBlocks($context')
             ->not->toContain('collectCompiled')
             ->not->toContain('yieldBody')
+            ->not->toContain('yield from [];')
             ->not->toContain('private function body')
             ->not->toContain('private function node');
 
@@ -447,6 +471,34 @@ test('for bodies are compiled inline while the tag drives the loop', function ()
         foreach ([['items' => ['a', 'b', 'c']], ['items' => []]] as $data) {
             expect($compiled->render($environment->newRenderContext(data: $data)))
                 ->toBe($template->render($environment->newRenderContext(data: $data)));
+        }
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('empty compiled for bodies use empty iterables instead of empty generators', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('{% for i in items %}{% else %}{% endfor %}');
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        $compiledSource = file_get_contents($compiledPath);
+
+        expect($compiledSource)
+            ->toContain('function (RenderContext $context): iterable {')
+            ->not->toContain('yield from [];');
+        expect(substr_count($compiledSource ?: '', 'return [];'))->toBe(2);
+
+        /** @var CompiledTemplate $compiled */
+        $compiled = require $compiledPath;
+
+        foreach ([['items' => ['a']], ['items' => []]] as $data) {
+            expect($compiled->render($environment->newRenderContext(data: $data)))
+                ->toBe($template->render($environment->newRenderContext(data: $data)))
+                ->toBe('');
         }
     } finally {
         @unlink($compiledPath);
@@ -821,6 +873,7 @@ test('storefront specs compile into readable direct output', function () {
             ->toContain('// line 4')
             ->toContain("'size'")
             ->not->toContain('private readonly mixed $value')
+            ->not->toContain('yield from [];')
             ->not->toContain('do {');
 
         /** @var CompiledTemplate $compiled */
@@ -911,6 +964,7 @@ test('storefront header compiles static partial rendering with direct values', f
             ->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
             ->toContain("new \\Keepsuit\\Liquid\\Nodes\\VariableLookup('shop', ['name'])")
             ->toContain('yieldPartial')
+            ->not->toContain('yield from [];')
             ->not->toContain('private readonly mixed $value');
 
         /** @var CompiledTemplate $compiled */
@@ -1174,6 +1228,74 @@ test('failed node compilation rolls back before runtime fallback', function () {
     } finally {
         @unlink($compiledPath);
     }
+});
+
+test('yieldless compiled nodes still use the node error boundary', function () {
+    $environment = EnvironmentFactory::new()
+        ->setRethrowErrors(false)
+        ->build();
+    $template = $environment->parseString('prefixsuffix', name: 'yieldless-node.liquid');
+    assert($template instanceof ParsedTemplate);
+    $template->root->body->setChildren([
+        new Text('prefix'),
+        (new RuntimeThrowingCompilableCompilerTestNode)->setLineNumber(7),
+        new Text('suffix'),
+    ]);
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        $compiledSource = file_get_contents($compiledPath);
+
+        expect($compiledSource)
+            ->toContain('function () use ($context): iterable {')
+            ->not->toContain('yield from [];');
+
+        /** @var CompiledTemplate $compiled */
+        $compiled = require $compiledPath;
+        $interpretedContext = $environment->newRenderContext();
+        $compiledContext = $environment->newRenderContext();
+
+        expect($compiled->render($compiledContext))
+            ->toBe($template->render($interpretedContext));
+        expect($compiled->getErrors())->toHaveCount(1);
+        expect($compiled->getErrors()[0]->lineNumber)
+            ->toBe($template->getErrors()[0]->lineNumber)
+            ->toBe(7);
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('legacy compiled node generators remain supported', function () {
+    $environment = EnvironmentFactory::new()
+        ->setRethrowErrors(false)
+        ->build();
+    $compiled = new class extends CompiledTemplate
+    {
+        public function name(): ?string
+        {
+            return 'legacy-artifact.liquid';
+        }
+
+        protected function renderCompiled(RenderContext $context): iterable
+        {
+            yield 'before';
+            yield from $this->yieldNode($context, 7, (function (): \Generator {
+                yield 'legacy';
+
+                throw new RuntimeException('legacy node failure');
+            })());
+            yield 'after';
+        }
+    };
+    $context = $environment->newRenderContext();
+
+    expect($compiled->render($context))
+        ->toBe('beforelegacyLiquid error (line 7): Internal exceptionafter');
+    expect($compiled->getErrors())->toHaveCount(1);
+    expect($compiled->getErrors()[0]->lineNumber)->toBe(7);
 });
 
 test('compilation fails when a fallback node cannot be safely reconstructed', function () {

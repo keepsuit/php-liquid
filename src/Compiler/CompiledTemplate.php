@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Compiler;
 
+use Closure;
 use Generator;
 use Keepsuit\Liquid\AbstractTemplate;
 use Keepsuit\Liquid\Exceptions\LiquidException;
@@ -55,16 +56,16 @@ abstract class CompiledTemplate extends AbstractTemplate
 
     /**
      * Execute one lazily-created compiled node under Liquid's configured error
-     * handling policy. The generator is created by the generated template but
-     * does not execute until this method iterates it.
+     * handling policy. The generated closure is only invoked while this method
+     * owns the node-level error boundary.
      *
-     * @param  Generator<string>  $node
+     * @param  (Closure(): iterable<string>)|Generator<string>  $node
      * @return \Generator<string>
      */
-    protected function yieldNode(RenderContext $context, ?int $lineNumber, Generator $node): \Generator
+    protected function yieldNode(RenderContext $context, ?int $lineNumber, Closure|Generator $node): \Generator
     {
         try {
-            foreach ($node as $chunk) {
+            foreach ($node instanceof Closure ? $node() : $node as $chunk) {
                 yield (string) $chunk;
             }
         } catch (UndefinedVariableException|UndefinedDropMethodException|UndefinedFilterException $exception) {
