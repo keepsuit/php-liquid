@@ -6,6 +6,7 @@ use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeExported;
 use Keepsuit\Liquid\Contracts\Disableable;
 use Keepsuit\Liquid\Nodes\BodyNode;
+use Keepsuit\Liquid\Nodes\Document;
 use Keepsuit\Liquid\Nodes\Node;
 use Keepsuit\Liquid\Nodes\Raw;
 use Keepsuit\Liquid\Nodes\Text;
@@ -20,14 +21,6 @@ final class CompilerContext
      * @var array<string,mixed>
      */
     private array $fallbackValues = [];
-
-    /**
-     * Bodies are inlined rather than wrapped in a closure, so each nesting level
-     * needs its own accumulator variable.
-     */
-    private int $outputDepth = 0;
-
-    private ?BodyNode $rootBody = null;
 
     /**
      * Bodies a runtime tag drives itself, compiled to their own method so the
@@ -46,25 +39,29 @@ final class CompilerContext
     public function compileBodyToMethod(Node $body): string
     {
         $name = 'body'.count($this->methods);
-        // Reserve the name before compiling: a nested body must not reuse it.
+        $rawName = 'body'.(count($this->methods) + 1);
+        // Reserve both names before compiling: nested bodies must not reuse them.
         $this->methods[$name] = '';
+        $this->methods[$rawName] = '';
 
         $outerBuilder = $this->builder;
-        $outerDepth = $this->outputDepth;
 
         $this->builder = new CodeBuilder;
-        $this->outputDepth = 0;
 
         try {
-            $this->write('$output = \'\';');
             $this->subcompile($body);
-            $this->write('return $output;');
 
-            $this->methods[$name] = $this->builder->getSource();
+            $this->methods[$rawName] = $this->builder->getSource();
         } finally {
             $this->builder = $outerBuilder;
-            $this->outputDepth = $outerDepth;
         }
+
+        $renderScore = $body instanceof BodyNode ? count($body->children()) : 1;
+        $this->methods[$name] = sprintf(
+            'yield from $this->yieldBody($context, %s, $this->%s($context));',
+            $this->writeValue($renderScore),
+            $rawName,
+        );
 
         return $name;
     }
@@ -77,38 +74,10 @@ final class CompilerContext
         return $this->methods;
     }
 
-    public function outputVariable(): string
-    {
-        return $this->outputDepth === 0 ? '$output' : '$output'.$this->outputDepth;
-    }
-
     public function compileRootBody(BodyNode $body): void
     {
-        $previousRootBody = $this->rootBody;
-        $this->rootBody = $body;
-
-        try {
-            $this->subcompile($body);
-        } finally {
-            $this->rootBody = $previousRootBody;
-        }
-    }
-
-    public function isRootBody(BodyNode $body): bool
-    {
-        return $this->rootBody === $body;
-    }
-
-    public function pushOutputScope(): string
-    {
-        $this->outputDepth++;
-
-        return $this->outputVariable();
-    }
-
-    public function popOutputScope(): void
-    {
-        $this->outputDepth = max(0, $this->outputDepth - 1);
+        $method = $this->compileBodyToMethod($body);
+        $this->write('yield from $this->'.$method.'($context);');
     }
 
     public function write(string $line = ''): static
@@ -144,7 +113,7 @@ final class CompilerContext
 
     public function writeOutput(string $expression): static
     {
-        $this->write($this->outputVariable().' .= '.$expression.';');
+        $this->write('yield '.$expression.';');
 
         return $this;
     }
@@ -172,92 +141,88 @@ final class CompilerContext
         return ! ($node instanceof Text || $node instanceof Raw || ($node instanceof Variable && $this->canCompileVariable($node)));
     }
 
-    public function writeNodeErrorHandling(?int $lineNumber): static
-    {
-        $line = $this->writeValue($lineNumber);
-
-        return $this
-            ->outdent()
-            ->write('} catch (\\Keepsuit\\Liquid\\Exceptions\\UndefinedVariableException|\\Keepsuit\\Liquid\\Exceptions\\UndefinedDropMethodException|\\Keepsuit\\Liquid\\Exceptions\\UndefinedFilterException $exception) {')
-            ->indent()
-            ->write('$context->handleError($exception, '.$line.');')
-            ->outdent()
-            ->write('} catch (\\Throwable $exception) {')
-            ->indent()
-            ->write($this->outputVariable().' .= $context->handleError($exception, '.$line.');')
-            ->outdent()
-            ->write('}');
-    }
-
     public function subcompile(Node $node): static
     {
-        $checkpoint = $this->builder->checkpoint();
-        $fallbackValueCount = count($this->fallbackValues);
-        $outputDepth = $this->outputDepth;
-        $methods = $this->methods;
-
-        if ($node instanceof Variable && $this->canCompileVariable($node)) {
-            try {
-                $this->compileVariable($node);
-
-                return $this;
-            } catch (\Throwable) {
-                $this->rollbackCompilation($checkpoint, $fallbackValueCount, $outputDepth, $methods);
-            }
-        }
-
-        if ($node instanceof CanBeCompiled) {
-            try {
-                $node->compile($this);
-
-                return $this;
-            } catch (\Throwable) {
-                $this->rollbackCompilation($checkpoint, $fallbackValueCount, $outputDepth, $methods);
-            }
-        }
-
-        try {
-            $this->compileFallback($node);
+        if ($node instanceof Text || $node instanceof Raw || $node instanceof BodyNode || $node instanceof Document) {
+            $node->compile($this);
 
             return $this;
-        } catch (\Throwable $exception) {
-            $this->rollbackCompilation($checkpoint, $fallbackValueCount, $outputDepth, $methods);
-
-            throw $exception;
         }
+
+        $method = $this->compileNodeToMethod($node);
+
+        $this->write(sprintf(
+            'yield from $this->yieldNode($context, %s, $this->%s($context));',
+            $this->writeValue($node->lineNumber()),
+            $method,
+        ));
+
+        return $this;
+    }
+
+    private function compileNodeToMethod(Node $node): string
+    {
+        $name = 'node'.count($this->methods);
+        $this->methods[$name] = '';
+
+        $outerBuilder = $this->builder;
+        $this->builder = new CodeBuilder;
+
+        try {
+            $checkpoint = $this->builder->checkpoint();
+            $fallbackValueCount = count($this->fallbackValues);
+            $methods = $this->methods;
+
+            try {
+                if ($node instanceof Variable && $this->canCompileVariable($node)) {
+                    $this->compileVariable($node);
+                } elseif ($node instanceof CanBeCompiled) {
+                    $this->writeLineComment($node->lineNumber());
+                    $node->compile($this);
+                } else {
+                    $this->compileFallback($node);
+                }
+            } catch (\Throwable) {
+                $this->rollbackCompilation($checkpoint, $fallbackValueCount, $methods);
+                $this->compileFallback($node);
+            }
+
+            $this->methods[$name] = $this->builder->getSource();
+        } finally {
+            $this->builder = $outerBuilder;
+        }
+
+        return $name;
     }
 
     /**
-     * The dispatch is inlined rather than routed through a runtime helper: the
-     * helper costs a call frame per node, and whether the node needs a
-     * tag-enabled check is already known here, at compile time.
+     * Compile the node into a lazy generator so the base template can own the
+     * runtime error boundary while the surrounding body remains resumable.
      */
     public function compileFallback(Node $node): void
     {
         $value = $this->writeRuntimeValue($node);
 
-        $this->writeLineComment($node->lineNumber())->write('try {')->indent();
+        $this->writeLineComment($node->lineNumber());
 
         if ($node instanceof Disableable && $node instanceof Tag) {
             $this->write($value.'->ensureTagIsEnabled($context);');
         }
 
         $this->writeOutput($value.'->render($context)');
-        $this->writeNodeErrorHandling($node->lineNumber());
     }
 
     private function compileVariable(Variable $node): void
     {
         assert($node->name instanceof VariableLookup);
 
-        $this->writeLineComment($node->lineNumber())->write('try {')->indent();
+        $this->writeLineComment($node->lineNumber());
         $this->writeOutput(sprintf(
             '$this->renderCompiledVariable($context, %s, %s, %s)',
             $this->writeValue($node->name->name),
             $this->writeValue($node->name->lookups),
             $this->writeValue($node->filters),
         ));
-        $this->writeNodeErrorHandling($node->lineNumber());
     }
 
     private function canCompileVariable(Variable $node): bool
@@ -377,11 +342,10 @@ final class CompilerContext
      * @param  array{sourceLength:int,indentLevel:int}  $checkpoint
      * @param  array<string,string>  $methods
      */
-    private function rollbackCompilation(array $checkpoint, int $fallbackValueCount, int $outputDepth, array $methods): void
+    private function rollbackCompilation(array $checkpoint, int $fallbackValueCount, array $methods): void
     {
         $this->builder->rollback($checkpoint);
         $this->rollbackFallbackValues($fallbackValueCount);
-        $this->outputDepth = $outputDepth;
         $this->methods = $methods;
     }
 

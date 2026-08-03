@@ -2,11 +2,16 @@
 
 namespace Keepsuit\Liquid\Compiler;
 
+use Generator;
 use Keepsuit\Liquid\AbstractTemplate;
 use Keepsuit\Liquid\Exceptions\LiquidException;
+use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
+use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
+use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\TemplateSharedState;
+use Throwable;
 
 abstract class CompiledTemplate extends AbstractTemplate
 {
@@ -17,10 +22,29 @@ abstract class CompiledTemplate extends AbstractTemplate
 
     final public function render(RenderContext $context): string
     {
+        $output = '';
+
+        foreach ($this->stream($context) as $chunk) {
+            $output .= $chunk;
+        }
+
+        return $output;
+    }
+
+    /**
+     * @return \Generator<string>
+     */
+    final public function stream(RenderContext $context): \Generator
+    {
         try {
             $this->prepareContext($context);
 
-            return $this->renderCompiled($context);
+            foreach ($this->renderCompiled($context) as $chunk) {
+                $chunk = (string) $chunk;
+                $context->resourceLimits->incrementWriteScore($chunk);
+
+                yield $chunk;
+            }
         } catch (LiquidException $e) {
             $this->attachTemplateName($e);
             throw $e;
@@ -30,14 +54,56 @@ abstract class CompiledTemplate extends AbstractTemplate
     }
 
     /**
-     * A compiled body builds one string, so there is nothing to stream
-     * incrementally: streaming it would only add a Generator per nesting level.
+     * Execute one lazily-created compiled node under Liquid's configured error
+     * handling policy. The generator is created by the generated template but
+     * does not execute until this method iterates it.
      *
+     * @param  Generator<string>  $node
      * @return \Generator<string>
      */
-    final public function stream(RenderContext $context): \Generator
+    protected function yieldNode(RenderContext $context, ?int $lineNumber, Generator $node): \Generator
     {
-        yield $this->render($context);
+        try {
+            foreach ($node as $chunk) {
+                yield (string) $chunk;
+            }
+        } catch (UndefinedVariableException|UndefinedDropMethodException|UndefinedFilterException $exception) {
+            $context->handleError($exception, $lineNumber);
+        } catch (Throwable $exception) {
+            yield $context->handleError($exception, $lineNumber);
+        }
+    }
+
+    /**
+     * Account for a compiled body and forward its chunks unchanged.
+     *
+     * @param  Generator<string>  $body
+     * @return \Generator<string>
+     */
+    protected function yieldBody(RenderContext $context, int $renderScore, Generator $body): \Generator
+    {
+        $context->resourceLimits->incrementRenderScore($renderScore);
+
+        foreach ($body as $chunk) {
+            yield (string) $chunk;
+        }
+    }
+
+    /**
+     * Collect a compiled body when a runtime tag still owns a string-based
+     * render loop.
+     *
+     * @param  Generator<int, string>  $body
+     */
+    protected function collectCompiled(RenderContext $context, Generator $body): string
+    {
+        $output = '';
+
+        foreach ($body as $chunk) {
+            $output .= (string) $chunk;
+        }
+
+        return $output;
     }
 
     /**
@@ -53,5 +119,5 @@ abstract class CompiledTemplate extends AbstractTemplate
 
     abstract public function name(): ?string;
 
-    abstract protected function renderCompiled(RenderContext $context): string;
+    abstract protected function renderCompiled(RenderContext $context): iterable;
 }
