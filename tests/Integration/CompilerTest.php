@@ -532,7 +532,7 @@ test('compiled for loops match parsed rendering', function (string $source, arra
     'continue skips' => ['{% for i in items %}{% if i == 2 %}{% continue %}{% endif %}{{ i }}{% endfor %}', ['items' => [1, 2, 3]]],
 ]);
 
-test('exportable nodes are rebuilt with constructors instead of VarExporter', function () {
+test('exportable nodes are rebuilt with constructors instead of serialization', function () {
     $environment = EnvironmentFactory::new()->build();
     $template = $environment->parseString('{{ product.title | upcase }}{% if a > 1 %}x{% endif %}');
     $compiledPath = temporaryCompiledTemplatePath();
@@ -544,6 +544,7 @@ test('exportable nodes are rebuilt with constructors instead of VarExporter', fu
             ->toContain('new \Keepsuit\Liquid\Nodes\Variable(')
             ->toContain('new \Keepsuit\Liquid\Nodes\VariableLookup(')
             ->toContain('new \Keepsuit\Liquid\Condition\Condition(')
+            ->not->toContain('\unserialize(')
             ->not->toContain('deepclone_from_array');
 
         /** @var CompiledTemplate $compiled */
@@ -558,7 +559,7 @@ test('exportable nodes are rebuilt with constructors instead of VarExporter', fu
     }
 });
 
-test('a node that cannot describe itself still falls back to VarExporter', function () {
+test('a node that cannot describe itself falls back to native serialization', function () {
     $environment = EnvironmentFactory::new()->build();
     // A chained condition needs statements, so Condition::export() declines it.
     $template = $environment->parseString('{% if a > 1 and b %}yes{% else %}no{% endif %}');
@@ -567,7 +568,10 @@ test('a node that cannot describe itself still falls back to VarExporter', funct
     try {
         $environment->compile($template, $compiledPath);
 
-        expect(file_get_contents($compiledPath))->toContain('deepclone_from_array');
+        expect(file_get_contents($compiledPath))
+            ->toContain('\unserialize(')
+            ->not->toContain('deepclone_from_array')
+            ->not->toContain('Symfony\Component\VarExporter');
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;

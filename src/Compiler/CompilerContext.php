@@ -13,7 +13,6 @@ use Keepsuit\Liquid\Nodes\Raw;
 use Keepsuit\Liquid\Nodes\Text;
 use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Tag;
-use Symfony\Component\VarExporter\VarExporter;
 
 final class CompilerContext
 {
@@ -248,6 +247,10 @@ final class CompilerContext
             return $exported;
         }
 
+        if (is_string($value)) {
+            return $this->writeExpressionString($value);
+        }
+
         if (is_array($value)) {
             $entries = [];
             $isList = array_is_list($value);
@@ -259,19 +262,66 @@ final class CompilerContext
             return '['.implode(', ', $entries).']';
         }
 
+        if (is_object($value)) {
+            return $this->writeSerializedObject($value);
+        }
+
+        if (is_resource($value)) {
+            throw new \RuntimeException('Unable to safely encode a compiler value containing a resource.');
+        }
+
+        return var_export($value, true);
+    }
+
+    private function writeSerializedObject(object $value): string
+    {
+        // Keep generated artifacts independent from Symfony's object exporter.
+        $this->assertNoResources($value);
+
         try {
-            return VarExporter::export($value);
+            $serialized = serialize($value);
         } catch (\Throwable $exception) {
             throw new \RuntimeException('Unable to safely encode a compiler value.', previous: $exception);
         }
+
+        return '\\unserialize('.$this->writeValue($serialized).')';
     }
 
-    public function exportValue(mixed $value): ?string
+    /**
+     * @param  array<int,true>  $seenObjects
+     */
+    private function assertNoResources(mixed $value, array &$seenObjects = []): void
     {
-        try {
-            return VarExporter::export($value);
-        } catch (\Throwable) {
-            return null;
+        if (is_resource($value)) {
+            throw new \RuntimeException('Unable to safely encode a compiler value containing a resource.');
+        }
+
+        if (is_array($value)) {
+            foreach ($value as $item) {
+                $this->assertNoResources($item, $seenObjects);
+            }
+
+            return;
+        }
+
+        if (! is_object($value)) {
+            return;
+        }
+
+        $objectId = spl_object_id($value);
+        if (isset($seenObjects[$objectId])) {
+            return;
+        }
+
+        $seenObjects[$objectId] = true;
+        $reflection = new \ReflectionObject($value);
+
+        foreach ($reflection->getProperties() as $property) {
+            if ($property->isStatic() || ! $property->isInitialized($value)) {
+                continue;
+            }
+
+            $this->assertNoResources($property->getValue($value), $seenObjects);
         }
     }
 
@@ -319,14 +369,39 @@ final class CompilerContext
 
     private function writeLiteral(string $value): string
     {
-        if (preg_match('/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]/', $value) === 1) {
-            return $this->writeValue($value);
+        $value = strtr($value, [
+            '\\' => '\\\\',
+            '"' => '\\"',
+            '$' => '\\$',
+            "\n" => '\\n',
+            "\r" => '\\r',
+            "\t" => '\\t',
+            "\v" => '\\v',
+            "\e" => '\\e',
+            "\f" => '\\f',
+        ]);
+
+        $value = preg_replace_callback(
+            '/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]/',
+            static fn (array $match): string => sprintf('\\x%02X', ord($match[0])),
+            $value,
+        );
+
+        assert($value !== null);
+
+        return '"'.$value.'"';
+    }
+
+    private function writeExpressionString(string $value): string
+    {
+        if (preg_match('/[\\x00-\\x1F\\x7F]/', $value) === 1) {
+            return $this->writeLiteral($value);
         }
 
-        return '"'.str_replace(
-            ['\\', '"', '$', "\n"],
-            ['\\\\', '\\"', '\\$', '\\n'],
+        return "'".str_replace(
+            ['\\', "'"],
+            ['\\\\', "\\'"],
             $value,
-        ).'"';
+        )."'";
     }
 }
