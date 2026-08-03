@@ -52,10 +52,10 @@ php tools/phpbench-compare.php build/base.json /tmp/php-liquid-compiler.json
 ```
 
 The current `build/base.json` contains only the four `ThemeBench` default-group
-rows, so compiler rows are reported as branch-only and are not treated as an
-improvement or regression. Establish a matching compiler baseline on `main`
-before drawing compiler performance conclusions; the ignored baseline artifact
-is intentionally not part of the repository.
+rows, so compiler rows appear as branch-only rows with their PR throughput and
+are not treated as an improvement or regression. Establish a matching compiler
+baseline on `main` before drawing compiler performance conclusions; the ignored
+baseline artifact is intentionally not part of the repository.
 
 The split is what lets the theme be realistic. Whenever realism and measurement
 sensitivity conflict inside the theme, realism wins — sensitivity is not the
