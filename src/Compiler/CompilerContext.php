@@ -47,9 +47,7 @@ final class CompilerContext
         $renderScore = $body instanceof BodyNode ? count($body->children()) : 1;
         $source = $this->compileBodySource($body);
 
-        $this->write(sprintf(
-            'fn (RenderContext $context) => (function () use ($context): \\Generator {',
-        ));
+        $this->write('function (RenderContext $context): iterable {');
         $this->indent();
         $this->write(sprintf(
             '$this->incrementCompiledRenderScore($context, %s);',
@@ -57,9 +55,9 @@ final class CompilerContext
         ));
         $this->writeSource($source['source']);
         if (! $source['hasYield']) {
-            $this->write('yield from [];');
+            $this->write('return [];');
         }
-        $this->outdent()->write('})()'.$suffix);
+        $this->outdent()->write('}'.$suffix);
 
         return $this;
     }
@@ -105,7 +103,7 @@ final class CompilerContext
         $this->writeSource($source['source']);
 
         if (! $source['hasYield']) {
-            $this->write('yield from [];');
+            $this->write('return [];');
         }
     }
 
@@ -194,7 +192,7 @@ final class CompilerContext
 
         try {
             $this->write(sprintf(
-                'yield from $this->yieldNode($context, %s, (function () use ($context): \\Generator {',
+                'yield from $this->yieldNode($context, %s, function () use ($context): iterable {',
                 $this->writeValue($node->lineNumber()),
             ));
             $this->indent();
@@ -208,20 +206,20 @@ final class CompilerContext
             }
 
             if ($this->builder->yieldCount() === $nodeBodyCheckpoint['yieldCount']) {
-                $this->write('yield from [];');
+                $this->write('return [];');
             }
-            $this->outdent()->write('})());');
+            $this->outdent()->write('});');
         } catch (\Throwable) {
             $this->rollbackCompilation($checkpoint, $fallbackValueCount);
 
             $this->write(sprintf(
-                'yield from $this->yieldNode($context, %s, (function () use ($context): \\Generator {',
+                'yield from $this->yieldNode($context, %s, function () use ($context): iterable {',
                 $this->writeValue($node->lineNumber()),
             ));
             $this->indent();
             $this->writeLineComment($node->lineNumber());
             $this->compileFallback($node);
-            $this->outdent()->write('})());');
+            $this->outdent()->write('});');
         }
     }
 
