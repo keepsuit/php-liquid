@@ -5,7 +5,12 @@ namespace Keepsuit\Liquid\Compiler;
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeExported;
 use Keepsuit\Liquid\Contracts\Disableable;
+use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Nodes\Node;
+use Keepsuit\Liquid\Nodes\Raw;
+use Keepsuit\Liquid\Nodes\Text;
+use Keepsuit\Liquid\Nodes\Variable;
+use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Tag;
 use Symfony\Component\VarExporter\VarExporter;
 
@@ -21,6 +26,8 @@ final class CompilerContext
      * needs its own accumulator variable.
      */
     private int $outputDepth = 0;
+
+    private ?BodyNode $rootBody = null;
 
     /**
      * Bodies a runtime tag drives itself, compiled to their own method so the
@@ -49,9 +56,9 @@ final class CompilerContext
         $this->outputDepth = 0;
 
         try {
-            $this->write('$output0 = \'\';');
+            $this->write('$output = \'\';');
             $this->subcompile($body);
-            $this->write('return $output0;');
+            $this->write('return $output;');
 
             $this->methods[$name] = $this->builder->getSource();
         } finally {
@@ -72,7 +79,24 @@ final class CompilerContext
 
     public function outputVariable(): string
     {
-        return '$output'.$this->outputDepth;
+        return $this->outputDepth === 0 ? '$output' : '$output'.$this->outputDepth;
+    }
+
+    public function compileRootBody(BodyNode $body): void
+    {
+        $previousRootBody = $this->rootBody;
+        $this->rootBody = $body;
+
+        try {
+            $this->subcompile($body);
+        } finally {
+            $this->rootBody = $previousRootBody;
+        }
+    }
+
+    public function isRootBody(BodyNode $body): bool
+    {
+        return $this->rootBody === $body;
     }
 
     public function pushOutputScope(): string
@@ -125,6 +149,29 @@ final class CompilerContext
         return $this;
     }
 
+    public function writeText(string $value): static
+    {
+        if ($value !== '') {
+            $this->writeOutput($this->writeLiteral($value));
+        }
+
+        return $this;
+    }
+
+    public function writeLineComment(?int $lineNumber): static
+    {
+        if ($lineNumber !== null) {
+            $this->write('// line '.$lineNumber);
+        }
+
+        return $this;
+    }
+
+    public function canInterrupt(Node $node): bool
+    {
+        return ! ($node instanceof Text || $node instanceof Raw || ($node instanceof Variable && $this->canCompileVariable($node)));
+    }
+
     public function writeNodeErrorHandling(?int $lineNumber): static
     {
         $line = $this->writeValue($lineNumber);
@@ -149,16 +196,23 @@ final class CompilerContext
         $outputDepth = $this->outputDepth;
         $methods = $this->methods;
 
+        if ($node instanceof Variable && $this->canCompileVariable($node)) {
+            try {
+                $this->compileVariable($node);
+
+                return $this;
+            } catch (\Throwable) {
+                $this->rollbackCompilation($checkpoint, $fallbackValueCount, $outputDepth, $methods);
+            }
+        }
+
         if ($node instanceof CanBeCompiled) {
             try {
                 $node->compile($this);
 
                 return $this;
             } catch (\Throwable) {
-                $this->builder->rollback($checkpoint);
-                $this->rollbackFallbackValues($fallbackValueCount);
-                $this->outputDepth = $outputDepth;
-                $this->methods = $methods;
+                $this->rollbackCompilation($checkpoint, $fallbackValueCount, $outputDepth, $methods);
             }
         }
 
@@ -167,10 +221,7 @@ final class CompilerContext
 
             return $this;
         } catch (\Throwable $exception) {
-            $this->builder->rollback($checkpoint);
-            $this->rollbackFallbackValues($fallbackValueCount);
-            $this->outputDepth = $outputDepth;
-            $this->methods = $methods;
+            $this->rollbackCompilation($checkpoint, $fallbackValueCount, $outputDepth, $methods);
 
             throw $exception;
         }
@@ -185,7 +236,7 @@ final class CompilerContext
     {
         $value = $this->writeRuntimeValue($node);
 
-        $this->write('try {')->indent();
+        $this->writeLineComment($node->lineNumber())->write('try {')->indent();
 
         if ($node instanceof Disableable && $node instanceof Tag) {
             $this->write($value.'->ensureTagIsEnabled($context);');
@@ -193,6 +244,53 @@ final class CompilerContext
 
         $this->writeOutput($value.'->render($context)');
         $this->writeNodeErrorHandling($node->lineNumber());
+    }
+
+    private function compileVariable(Variable $node): void
+    {
+        assert($node->name instanceof VariableLookup);
+
+        $this->writeLineComment($node->lineNumber())->write('try {')->indent();
+        $this->writeOutput(sprintf(
+            '$this->renderCompiledVariable($context, %s, %s, %s)',
+            $this->writeValue($node->name->name),
+            $this->writeValue($node->name->lookups),
+            $this->writeValue($node->filters),
+        ));
+        $this->writeNodeErrorHandling($node->lineNumber());
+    }
+
+    private function canCompileVariable(Variable $node): bool
+    {
+        if (! $node->name instanceof VariableLookup) {
+            return false;
+        }
+
+        foreach ($node->name->lookups as $lookup) {
+            if (! is_string($lookup) && ! is_int($lookup)) {
+                return false;
+            }
+        }
+
+        foreach ($node->filters as $filter) {
+            if (! is_array($filter) || count($filter) !== 3 || ! is_string($filter[0])) {
+                return false;
+            }
+
+            foreach ([$filter[1], $filter[2]] as $arguments) {
+                if (! is_array($arguments)) {
+                    return false;
+                }
+
+                foreach ($arguments as $argument) {
+                    if ($argument !== null && ! is_scalar($argument)) {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
     }
 
     public function writeValue(mixed $value): string
@@ -273,8 +371,35 @@ final class CompilerContext
         $this->fallbackValues = array_slice($this->fallbackValues, 0, $count, preserve_keys: true);
     }
 
+    /**
+     * Restore compiler state after a node's direct or native compiler path fails.
+     *
+     * @param  array{sourceLength:int,indentLevel:int}  $checkpoint
+     * @param  array<string,string>  $methods
+     */
+    private function rollbackCompilation(array $checkpoint, int $fallbackValueCount, int $outputDepth, array $methods): void
+    {
+        $this->builder->rollback($checkpoint);
+        $this->rollbackFallbackValues($fallbackValueCount);
+        $this->outputDepth = $outputDepth;
+        $this->methods = $methods;
+    }
+
     public function getSource(): string
     {
         return $this->builder->getSource();
+    }
+
+    private function writeLiteral(string $value): string
+    {
+        if (preg_match('/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]/', $value) === 1) {
+            return $this->writeValue($value);
+        }
+
+        return '"'.str_replace(
+            ['\\', '"', '$', "\n"],
+            ['\\\\', '\\"', '\\$', '\\n'],
+            $value,
+        ).'"';
     }
 }

@@ -49,9 +49,13 @@ class Compiler
             ->writeLine()
             ->writeLine('namespace Keepsuit\\Liquid\\Compiler\\Generated;')
             ->writeLine()
+            ->writeLine('use Keepsuit\\Liquid\\Compiler\\CompiledTemplate;')
+            ->writeLine('use Keepsuit\\Liquid\\Render\\RenderContext;')
+            ->writeLine('use Keepsuit\\Liquid\\TemplateSharedState;')
+            ->writeLine()
             ->writeLine('if (! class_exists('.$className.'::class, false)) {')
             ->indent()
-            ->writeLine('final class '.$className.' extends \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate')
+            ->writeLine('final class '.$className.' extends CompiledTemplate')
             ->writeLine('{')
             ->indent();
 
@@ -61,7 +65,7 @@ class Compiler
 
         if ($fallbackValues !== []) {
             $builder
-                ->writeLine('public function __construct(\\Keepsuit\\Liquid\\TemplateSharedState $state = new \\Keepsuit\\Liquid\\TemplateSharedState)')
+                ->writeLine('public function __construct(TemplateSharedState $state = new TemplateSharedState)')
                 ->writeLine('{')
                 ->indent();
 
@@ -84,25 +88,25 @@ class Compiler
             ->dedent()
             ->writeLine('}')
             ->writeLine()
-            ->writeLine('protected function renderCompiled(\\Keepsuit\\Liquid\\Render\\RenderContext $context): string')
+            ->writeLine('protected function renderCompiled(RenderContext $context): string')
             ->writeLine('{')
             ->indent();
 
-        $builder->writeLine('$output0 = \'\';');
+        $builder->writeLine('$output = \'\';');
 
         foreach (explode("\n", rtrim($body, "\n")) as $line) {
             $builder->writeLine($line);
         }
 
         $builder
-            ->writeLine('return $output0;')
+            ->writeLine('return $output;')
             ->dedent()
             ->writeLine('}');
 
         foreach ($methods as $methodName => $methodSource) {
             $builder
                 ->writeLine()
-                ->writeLine('private function '.$methodName.'(\\Keepsuit\\Liquid\\Render\\RenderContext $context): string')
+                ->writeLine('private function '.$methodName.'(RenderContext $context): string')
                 ->writeLine('{')
                 ->indent();
 

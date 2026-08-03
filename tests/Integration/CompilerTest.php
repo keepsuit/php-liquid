@@ -21,6 +21,7 @@ use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\ParsedTemplate;
+use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Render\ResourceLimits;
 use Keepsuit\Liquid\Tag;
@@ -401,7 +402,7 @@ test('exportable nodes are rebuilt with constructors instead of VarExporter', fu
         $environment->compile($template, $compiledPath);
 
         expect(file_get_contents($compiledPath))
-            ->toContain('new \Keepsuit\Liquid\Nodes\Variable(')
+            ->not->toContain('new \Keepsuit\Liquid\Nodes\Variable(')
             ->toContain('new \Keepsuit\Liquid\Nodes\VariableLookup(')
             ->toContain('new \Keepsuit\Liquid\Condition\Condition(')
             ->not->toContain('deepclone_from_array');
@@ -644,7 +645,8 @@ test('compiled rendering emits safe core nodes directly', function () {
 
         expect($compiledSource)
             ->toContain('final class Template_')
-            ->toContain('extends \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate')
+            ->toContain('use Keepsuit\\Liquid\\Compiler\\CompiledTemplate;')
+            ->toContain('extends CompiledTemplate')
             ->toContain('protected function renderCompiled')
             ->not->toContain('unserialize')
             ->not->toContain('return new \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate(');
@@ -654,6 +656,123 @@ test('compiled rendering emits safe core nodes directly', function () {
 
         expect($compiled->render($environment->newRenderContext(data: ['name' => 'World'])))
             ->toBe('Hello WORLD!');
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('storefront specs compile into readable direct output', function () {
+    $environment = StorefrontTheme::environment();
+    $template = $environment->parseTemplate('snippets.product.specs');
+    $data = StorefrontTheme::renderData('templates.product')['page'];
+    $interpreted = $template->render($environment->newRenderContext(staticData: $data));
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+        $compiledSource = file_get_contents($compiledPath);
+
+        expect($compiledSource)
+            ->toContain('use Keepsuit\\Liquid\\Compiler\\CompiledTemplate;')
+            ->toContain('use Keepsuit\\Liquid\\Render\\RenderContext;')
+            ->toContain('extends CompiledTemplate')
+            ->toContain('renderCompiledVariable')
+            ->toContain('// line 4')
+            ->toContain("'size'")
+            ->not->toContain('private readonly mixed $value')
+            ->not->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
+            ->not->toContain('do {');
+
+        /** @var CompiledTemplate $compiled */
+        $compiled = require $compiledPath;
+        $compiledOutput = $compiled->render($environment->newRenderContext(staticData: $data));
+
+        expect($compiledOutput)->toBe($interpreted);
+        expect(implode('', iterator_to_array($compiled->stream($environment->newRenderContext(staticData: $data)))))
+            ->toBe($interpreted);
+
+        /** @var CompiledTemplate $secondCompiled */
+        $secondCompiled = require $compiledPath;
+        expect($secondCompiled)->toBeInstanceOf(CompiledTemplate::class);
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('complex compiled variables retain the runtime fallback', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('{{ values[key] }}');
+    $compiledPath = temporaryCompiledTemplatePath();
+    $data = ['values' => ['sku' => 'ABC'], 'key' => 'sku'];
+
+    try {
+        $environment->compile($template, $compiledPath);
+        $compiledSource = file_get_contents($compiledPath);
+
+        expect($compiledSource)->toContain('private readonly mixed $value0');
+
+        /** @var CompiledTemplate $compiled */
+        $compiled = require $compiledPath;
+
+        expect($compiled->render($environment->newRenderContext(data: $data)))
+            ->toBe($template->render($environment->newRenderContext(data: $data)));
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('direct variable emission preserves common Liquid values', function (string $source, array $data, string $expected) {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString($source);
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        expect(file_get_contents($compiledPath))
+            ->toContain('renderCompiledVariable')
+            ->not->toContain('private readonly mixed $value');
+
+        /** @var CompiledTemplate $compiled */
+        $compiled = require $compiledPath;
+        $context = $environment->newRenderContext(data: $data);
+
+        expect($compiled->render($context))->toBe($expected);
+        expect($compiled->render($environment->newRenderContext(data: $data)))
+            ->toBe($template->render($environment->newRenderContext(data: $data)));
+    } finally {
+        @unlink($compiledPath);
+    }
+})->with([
+    'plain lookup' => ['{{ name }}', ['name' => 'World'], 'World'],
+    'nested lookup' => ['{{ product.title }}', ['product' => ['title' => 'Hat']], 'Hat'],
+    'size filter' => ['{{ items | size }}', ['items' => [1, 2, 3]], '3'],
+    'scalar filter argument' => ['{{ value | append: 2 }}', ['value' => 'x'], 'x2'],
+    'renderable value' => ['{{ value }}', ['value' => new Text('rendered')], 'rendered'],
+]);
+
+test('storefront header keeps runtime partial rendering with direct values', function () {
+    $environment = StorefrontTheme::environment();
+    $template = $environment->parseTemplate('snippets.page.header');
+    $data = [
+        'shop' => ['name' => 'Field Goods'],
+        'page' => ['title' => 'About'],
+    ];
+    $interpreted = $template->render($environment->newRenderContext(staticData: $data));
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+        $compiledSource = file_get_contents($compiledPath);
+
+        expect($compiledSource)
+            ->toContain('renderCompiledVariable')
+            ->toContain('private readonly mixed $value');
+
+        /** @var CompiledTemplate $compiled */
+        $compiled = require $compiledPath;
+
+        expect($compiled->render($environment->newRenderContext(staticData: $data)))->toBe($interpreted);
     } finally {
         @unlink($compiledPath);
     }
@@ -767,7 +886,7 @@ test('template literals stay data when compiled', function () {
 
 test('compiled literals preserve quotes escapes and control characters', function () {
     $environment = EnvironmentFactory::new()->build();
-    $literal = "quote ' and \"\nline\r\t\0 <?php echo 'unsafe'; ?>";
+    $literal = "quote ' and \"\nline\r\t\0 `backtick` <?php echo 'unsafe'; ?>";
     $template = $environment->parseString($literal);
     $compiledPath = temporaryCompiledTemplatePath();
 

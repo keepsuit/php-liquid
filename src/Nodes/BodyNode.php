@@ -57,52 +57,71 @@ class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
     public function compile(CompilerContext $context): void
     {
         $lastIndex = count($this->children) - 1;
-
         $interruptible = false;
         foreach ($this->children as $index => $child) {
-            if (! $child instanceof Text && $index !== $lastIndex) {
+            if ($index !== $lastIndex && $context->canInterrupt($child)) {
                 $interruptible = true;
 
                 break;
             }
         }
 
+        $root = $context->isRootBody($this);
         $parentOutput = $context->outputVariable();
-        $output = $context->pushOutputScope();
+        $output = $root ? $parentOutput : $context->pushOutputScope();
 
-        $context
-            ->write('$context->resourceLimits->incrementRenderScore('.count($this->children).');')
-            ->write($output.' = \'\';');
+        $context->write('$context->resourceLimits->incrementRenderScore('.count($this->children).');');
 
-        // A do/while(false) gives the bail-out a target without a closure.
+        if (! $root) {
+            $context->write($output.' = \'\';');
+        }
+
         if ($interruptible) {
             $context->write('do {')->indent();
         }
 
-        foreach ($this->children as $index => $child) {
-            $context->subcompile($child);
+        $literal = '';
 
-            if ($child instanceof Text || $index === $lastIndex) {
+        foreach ($this->children as $index => $child) {
+            if ($child instanceof Text || $child instanceof Raw) {
+                $literal .= $child->value;
+
                 continue;
             }
 
-            $context
-                ->write('if ($context->hasInterrupt()) {')
-                ->indent()
-                ->write('break;')
-                ->outdent()
-                ->write('}');
+            if ($literal !== '') {
+                $context->writeText($literal);
+                $literal = '';
+            }
+
+            $context->subcompile($child);
+
+            if ($index !== $lastIndex && $context->canInterrupt($child)) {
+                $context->write('if ($context->hasInterrupt()) {')
+                    ->indent()
+                    ->write('break;')
+                    ->outdent()
+                    ->write('}');
+            }
+        }
+
+        if ($literal !== '') {
+            $context->writeText($literal);
         }
 
         if ($interruptible) {
             $context->outdent()->write('} while (false);');
         }
 
-        $context
-            ->write('$context->resourceLimits->incrementWriteScore('.$output.');')
-            ->write($parentOutput.' .= '.$output.';');
+        if ($root) {
+            $context->write('$context->resourceLimits->incrementWriteScore('.$output.');');
+        } else {
+            $context
+                ->write('$context->resourceLimits->incrementWriteScore('.$output.');')
+                ->write($parentOutput.' .= '.$output.';');
 
-        $context->popOutputScope();
+            $context->popOutputScope();
+        }
     }
 
     /**

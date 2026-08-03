@@ -25,7 +25,7 @@ class Document extends Node implements CanBeCompiled, CanBeStreamed
 
     public function compile(CompilerContext $context): void
     {
-        $context->subcompile($this->body);
+        $context->compileRootBody($this->body);
     }
 
     /**
