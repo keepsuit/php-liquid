@@ -173,7 +173,10 @@ test('compiled templates stream generated chunks without an output accumulator',
         expect($compiledSource)
             ->toContain('protected function renderCompiled(RenderContext $context): iterable')
             ->toContain('yield ')
+            ->toContain('(function () use ($context): \\Generator')
             ->not->toContain('$output')
+            ->not->toContain('private function body')
+            ->not->toContain('private function node')
             ->not->toContain('resourceLimits->')
             ->not->toContain('try {')
             ->not->toContain('catch (');
@@ -387,7 +390,7 @@ test('compiled nested bodies stop at an interrupt exactly where the parsed templ
     'nested loops' => ['{% for i in (1..3) %}{% for j in (1..3) %}{{ i }}{{ j }}{% if j == 2 %}{% break %}{% endif %}{% endfor %}|{% endfor %}', []],
 ]);
 
-test('for bodies are compiled into methods the tag drives', function () {
+test('for bodies are compiled inline while the tag drives the loop', function () {
     $environment = EnvironmentFactory::new()->build();
     $template = $environment->parseString('{% for i in items %}{{ i }}{% else %}none{% endfor %}');
     $compiledPath = temporaryCompiledTemplatePath();
@@ -395,12 +398,13 @@ test('for bodies are compiled into methods the tag drives', function () {
     try {
         $environment->compile($template, $compiledPath);
 
-        // Both bodies become methods; the loop itself stays in the tag.
+        // Both bodies are inline generator closures; the loop itself stays in the tag.
         expect(file_get_contents($compiledPath))
-            ->toContain('private function body0')
-            ->toContain('private function body3')
+            ->toContain('(function () use ($context): \\Generator')
             ->toContain('->renderBlocks($context')
-            ->toContain('collectCompiled');
+            ->toContain('collectCompiled')
+            ->not->toContain('private function body')
+            ->not->toContain('private function node');
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;

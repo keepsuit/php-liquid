@@ -96,8 +96,7 @@ class IfTag extends TagBlock implements CanBeCompiled, CanBeStreamed
 
             if ($isElse && $first) {
                 if ($condition->body !== null) {
-                    $body = $context->compileBodyToMethod($condition->body);
-                    $context->write('yield from $this->'.$body.'($context);');
+                    $context->compileBody($condition->body);
                 }
 
                 break;
@@ -114,8 +113,7 @@ class IfTag extends TagBlock implements CanBeCompiled, CanBeStreamed
             $context->indent();
 
             if ($condition->body !== null) {
-                $body = $context->compileBodyToMethod($condition->body);
-                $context->write('yield from $this->'.$body.'($context);');
+                $context->compileBody($condition->body);
             }
 
             $context->outdent()->write('}');

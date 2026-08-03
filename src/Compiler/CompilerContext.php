@@ -22,62 +22,71 @@ final class CompilerContext
      */
     private array $fallbackValues = [];
 
-    /**
-     * Bodies a runtime tag drives itself, compiled to their own method so the
-     * tag keeps its loop and scope handling while the body stops being walked.
-     *
-     * @var array<string,string>
-     */
-    private array $methods = [];
-
     public function __construct(private CodeBuilder $builder = new CodeBuilder) {}
 
     /**
-     * Compiles $body into a standalone method and returns its name, so a tag
-     * that cannot be compiled itself can still be handed a compiled body.
+     * Compile a body into an inline lazy generator owned by the base template.
      */
-    public function compileBodyToMethod(Node $body): string
+    public function compileBody(Node $body): static
     {
-        $name = 'body'.count($this->methods);
-        $rawName = 'body'.(count($this->methods) + 1);
-        // Reserve both names before compiling: nested bodies must not reuse them.
-        $this->methods[$name] = '';
-        $this->methods[$rawName] = '';
+        $renderScore = $body instanceof BodyNode ? count($body->children()) : 1;
+        $source = $this->compileBodySource($body);
 
+        $this->write(sprintf(
+            'yield from $this->yieldBody($context, %s, (function () use ($context): \\Generator {',
+            $this->writeValue($renderScore),
+        ));
+        $this->indent();
+        $this->writeSource($source);
+        $this->write('yield from [];');
+        $this->outdent()->write('})());');
+
+        return $this;
+    }
+
+    public function writeBodyCallback(Node $body, string $suffix = ''): static
+    {
+        $renderScore = $body instanceof BodyNode ? count($body->children()) : 1;
+        $source = $this->compileBodySource($body);
+
+        $this->write(sprintf(
+            'fn (RenderContext $context) => $this->collectCompiled($context, $this->yieldBody($context, %s, (function () use ($context): \\Generator {',
+            $this->writeValue($renderScore),
+        ));
+        $this->indent();
+        $this->writeSource($source);
+        $this->write('yield from [];');
+        $this->outdent()->write('})()))'.$suffix);
+
+        return $this;
+    }
+
+    private function compileBodySource(Node $body): string
+    {
         $outerBuilder = $this->builder;
-
         $this->builder = new CodeBuilder;
 
         try {
             $this->subcompile($body);
 
-            $this->methods[$rawName] = $this->builder->getSource();
+            return $this->builder->getSource();
         } finally {
             $this->builder = $outerBuilder;
         }
-
-        $renderScore = $body instanceof BodyNode ? count($body->children()) : 1;
-        $this->methods[$name] = sprintf(
-            'yield from $this->yieldBody($context, %s, $this->%s($context));',
-            $this->writeValue($renderScore),
-            $rawName,
-        );
-
-        return $name;
     }
 
-    /**
-     * @return array<string,string>
-     */
-    public function getMethods(): array
+    private function writeSource(string $source): void
     {
-        return $this->methods;
+        foreach (explode("\n", rtrim($source, "\n")) as $line) {
+            if ($line !== '') {
+                $this->write($line);
+            }
+        }
     }
 
     public function compileRootBody(BodyNode $body): void
     {
-        $method = $this->compileBodyToMethod($body);
-        $this->write('yield from $this->'.$method.'($context);');
+        $this->compileBody($body);
     }
 
     public function write(string $line = ''): static
@@ -149,50 +158,46 @@ final class CompilerContext
             return $this;
         }
 
-        $method = $this->compileNodeToMethod($node);
-
-        $this->write(sprintf(
-            'yield from $this->yieldNode($context, %s, $this->%s($context));',
-            $this->writeValue($node->lineNumber()),
-            $method,
-        ));
+        $this->compileNode($node);
 
         return $this;
     }
 
-    private function compileNodeToMethod(Node $node): string
+    private function compileNode(Node $node): void
     {
-        $name = 'node'.count($this->methods);
-        $this->methods[$name] = '';
-
-        $outerBuilder = $this->builder;
-        $this->builder = new CodeBuilder;
+        $checkpoint = $this->builder->checkpoint();
+        $fallbackValueCount = count($this->fallbackValues);
 
         try {
-            $checkpoint = $this->builder->checkpoint();
-            $fallbackValueCount = count($this->fallbackValues);
-            $methods = $this->methods;
+            $this->write(sprintf(
+                'yield from $this->yieldNode($context, %s, (function () use ($context): \\Generator {',
+                $this->writeValue($node->lineNumber()),
+            ));
+            $this->indent();
 
-            try {
-                if ($node instanceof Variable && $this->canCompileVariable($node)) {
-                    $this->compileVariable($node);
-                } elseif ($node instanceof CanBeCompiled) {
-                    $this->writeLineComment($node->lineNumber());
-                    $node->compile($this);
-                } else {
-                    $this->compileFallback($node);
-                }
-            } catch (\Throwable) {
-                $this->rollbackCompilation($checkpoint, $fallbackValueCount, $methods);
+            if ($node instanceof Variable && $this->canCompileVariable($node)) {
+                $this->compileVariable($node);
+            } elseif ($node instanceof CanBeCompiled) {
+                $this->writeLineComment($node->lineNumber());
+                $node->compile($this);
+            } else {
                 $this->compileFallback($node);
             }
 
-            $this->methods[$name] = $this->builder->getSource();
-        } finally {
-            $this->builder = $outerBuilder;
-        }
+            $this->write('yield from [];');
+            $this->outdent()->write('})());');
+        } catch (\Throwable) {
+            $this->rollbackCompilation($checkpoint, $fallbackValueCount);
 
-        return $name;
+            $this->write(sprintf(
+                'yield from $this->yieldNode($context, %s, (function () use ($context): \\Generator {',
+                $this->writeValue($node->lineNumber()),
+            ));
+            $this->indent();
+            $this->compileFallback($node);
+            $this->write('yield from [];');
+            $this->outdent()->write('})());');
+        }
     }
 
     /**
@@ -340,13 +345,11 @@ final class CompilerContext
      * Restore compiler state after a node's direct or native compiler path fails.
      *
      * @param  array{sourceLength:int,indentLevel:int}  $checkpoint
-     * @param  array<string,string>  $methods
      */
-    private function rollbackCompilation(array $checkpoint, int $fallbackValueCount, array $methods): void
+    private function rollbackCompilation(array $checkpoint, int $fallbackValueCount): void
     {
         $this->builder->rollback($checkpoint);
         $this->rollbackFallbackValues($fallbackValueCount);
-        $this->methods = $methods;
     }
 
     public function getSource(): string
