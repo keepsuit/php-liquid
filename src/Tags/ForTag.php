@@ -83,13 +83,12 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
 
     /**
      * The loop, scope and interrupt handling stay here rather than being emitted
-     * as code: only the two bodies are compiled, and they are handed back as
-     * closures. Passing none renders the parsed bodies.
+     * as code: only the two bodies are compiled and streamed through closures.
      */
     public function compile(CompilerContext $context): void
     {
         $tag = $context->writeRuntimeValue($this);
-        $context->write('yield '.$tag.'->renderBlocks($context,');
+        $context->write('yield from '.$tag.'->streamBlocks($context,');
         $context->indent();
         $context->writeBodyCallback($this->forBlock, ',');
 
@@ -118,17 +117,24 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
      */
     public function stream(RenderContext $context): \Generator
     {
+        yield from $this->streamBlocks($context);
+    }
+
+    public function streamBlocks(RenderContext $context, ?Closure $forBody = null, ?Closure $elseBody = null): \Generator
+    {
         $segment = $this->collectionSegment($context);
 
         if ($segment === []) {
-            if ($this->elseBlock !== null) {
+            if ($elseBody !== null) {
+                yield from $elseBody($context);
+            } elseif ($this->elseBlock !== null) {
                 yield from $this->elseBlock->stream($context);
             }
 
             return;
         }
 
-        yield from $this->streamSegment($context, $segment);
+        yield from $this->streamSegment($context, $segment, $forBody);
     }
 
     public function children(): array
@@ -253,16 +259,13 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
         });
     }
 
-    /**
-     * @return \Generator<string>
-     */
-    protected function streamSegment(RenderContext $context, array $segment): \Generator
+    protected function streamSegment(RenderContext $context, array $segment, ?Closure $forBody = null): \Generator
     {
         /** @var ForLoopDrop[] $forStack */
         $forStack = $context->getRegister('for_stack') ?? [];
         assert(is_array($forStack));
 
-        yield from $context->streamedStack(function () use ($context, $segment, $forStack): \Generator {
+        yield from $context->streamedStack(function () use ($context, $segment, $forStack, $forBody): \Generator {
             $loopVars = new ForLoopDrop(
                 name: $this->name,
                 length: count($segment),
@@ -277,7 +280,13 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
 
                 foreach ($segment as $value) {
                     $context->set($this->variableName, $value);
-                    yield from $this->forBlock->stream($context);
+
+                    if ($forBody !== null) {
+                        yield from $forBody($context);
+                    } else {
+                        yield from $this->forBlock->stream($context);
+                    }
+
                     $loopVars->increment();
 
                     $interrupt = $context->popInterrupt();
