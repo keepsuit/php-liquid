@@ -46,7 +46,7 @@ class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
     }
 
     /**
-     * The body is compiled into a lazy generator method: the base template owns
+     * The body is compiled into an inline lazy generator: the base template owns
      * its error boundary, while the body carries no state that needs its own
      * scope beyond the render context.
      *

@@ -46,8 +46,7 @@ class UnlessTag extends IfTag
             $context->indent();
 
             if ($this->unlessCondition->body !== null) {
-                $body = $context->compileBodyToMethod($this->unlessCondition->body);
-                $context->write('yield from $this->'.$body.'($context);');
+                $context->compileBody($this->unlessCondition->body);
             }
 
             $context->outdent()->write('}');

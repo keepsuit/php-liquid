@@ -14,7 +14,6 @@ class Compiler
 
         $body = $bodyContext->getSource();
         $name = $bodyContext->writeValue($template->root->name);
-        $methods = $bodyContext->getMethods();
         $fallbackValues = $bodyContext->getFallbackValues();
         $fallbackValueSource = [];
 
@@ -40,7 +39,7 @@ class Compiler
 
         $className = 'Template_'.substr(hash(
             'sha256',
-            $name.$body.implode('', $methods).implode('', $fallbackValueSource),
+            $name.$body.implode('', $fallbackValueSource),
         ), 0, 32);
 
         $builder = new CodeBuilder;
@@ -100,23 +99,6 @@ class Compiler
             ->writeLine('yield from [];')
             ->dedent()
             ->writeLine('}');
-
-        foreach ($methods as $methodName => $methodSource) {
-            $builder
-                ->writeLine()
-                ->writeLine('private function '.$methodName.'(RenderContext $context): \\Generator')
-                ->writeLine('{')
-                ->indent();
-
-            foreach (explode("\n", rtrim($methodSource, "\n")) as $line) {
-                $builder->writeLine($line);
-            }
-
-            $builder
-                ->writeLine('yield from [];')
-                ->dedent()
-                ->writeLine('}');
-        }
 
         $builder
             ->dedent()
