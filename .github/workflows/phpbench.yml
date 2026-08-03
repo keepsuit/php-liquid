@@ -2,11 +2,6 @@ name: PHPBench PR Benchmark
 
 on:
   pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
 
 permissions:
   contents: read
@@ -28,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.2', '8.3', '8.4', '8.5']
+        php: [ '8.2', '8.3', '8.4', '8.5' ]
     name: PHPBench (PHP ${{ matrix.php }})
 
     steps:
