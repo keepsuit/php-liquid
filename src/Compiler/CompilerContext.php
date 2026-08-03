@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Compiler;
 
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeExported;
+use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Contracts\Disableable;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Nodes\Document;
@@ -37,8 +38,10 @@ final class CompilerContext
             $this->writeValue($renderScore),
         ));
         $this->indent();
-        $this->writeSource($source);
-        $this->write('yield from [];');
+        $this->writeSource($source['source']);
+        if (! $source['hasYield']) {
+            $this->write('yield from [];');
+        }
         $this->outdent()->write('})());');
 
         return $this;
@@ -54,14 +57,19 @@ final class CompilerContext
             $this->writeValue($renderScore),
         ));
         $this->indent();
-        $this->writeSource($source);
-        $this->write('yield from [];');
+        $this->writeSource($source['source']);
+        if (! $source['hasYield']) {
+            $this->write('yield from [];');
+        }
         $this->outdent()->write('})()))'.$suffix);
 
         return $this;
     }
 
-    private function compileBodySource(Node $body): string
+    /**
+     * @return array{source:string,hasYield:bool}
+     */
+    private function compileBodySource(Node $body): array
     {
         $outerBuilder = $this->builder;
         $this->builder = new CodeBuilder;
@@ -69,7 +77,10 @@ final class CompilerContext
         try {
             $this->subcompile($body);
 
-            return $this->builder->getSource();
+            return [
+                'source' => $this->builder->getSource(),
+                'hasYield' => $this->builder->yieldCount() > 0,
+            ];
         } finally {
             $this->builder = $outerBuilder;
         }
@@ -92,6 +103,10 @@ final class CompilerContext
     public function write(string $line = ''): static
     {
         $this->builder->writeLine($line);
+
+        if (str_starts_with(ltrim($line), 'yield ')) {
+            $this->builder->markYield();
+        }
 
         return $this;
     }
@@ -174,6 +189,7 @@ final class CompilerContext
                 $this->writeValue($node->lineNumber()),
             ));
             $this->indent();
+            $nodeBodyCheckpoint = $this->builder->checkpoint();
 
             if ($node instanceof Variable && $this->canCompileVariable($node)) {
                 $this->compileVariable($node);
@@ -184,7 +200,9 @@ final class CompilerContext
                 $this->compileFallback($node);
             }
 
-            $this->write('yield from [];');
+            if ($this->builder->yieldCount() === $nodeBodyCheckpoint['yieldCount']) {
+                $this->write('yield from [];');
+            }
             $this->outdent()->write('})());');
         } catch (\Throwable) {
             $this->rollbackCompilation($checkpoint, $fallbackValueCount);
@@ -195,7 +213,6 @@ final class CompilerContext
             ));
             $this->indent();
             $this->compileFallback($node);
-            $this->write('yield from [];');
             $this->outdent()->write('})());');
         }
     }
@@ -214,7 +231,11 @@ final class CompilerContext
             $this->write($value.'->ensureTagIsEnabled($context);');
         }
 
-        $this->writeOutput($value.'->render($context)');
+        if ($node instanceof CanBeStreamed) {
+            $this->write('yield from '.$value.'->stream($context);');
+        } else {
+            $this->writeOutput($value.'->render($context)');
+        }
     }
 
     private function compileVariable(Variable $node): void
@@ -344,7 +365,7 @@ final class CompilerContext
     /**
      * Restore compiler state after a node's direct or native compiler path fails.
      *
-     * @param  array{sourceLength:int,indentLevel:int}  $checkpoint
+     * @param  array{sourceLength:int,indentLevel:int,yieldCount:int}  $checkpoint
      */
     private function rollbackCompilation(array $checkpoint, int $fallbackValueCount): void
     {

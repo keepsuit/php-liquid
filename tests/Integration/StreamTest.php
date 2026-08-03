@@ -1,5 +1,6 @@
 <?php
 
+use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Exceptions\ResourceLimitException;
@@ -9,7 +10,7 @@ use Keepsuit\Liquid\Render\ResourceLimits;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\Template;
 
-class UnsupportedCompilerStreamTestTag extends Tag
+class UnsupportedCompilerStreamTestTag extends Tag implements CanBeStreamed
 {
     public static function tagName(): string
     {
@@ -23,7 +24,13 @@ class UnsupportedCompilerStreamTestTag extends Tag
 
     public function render(RenderContext $context): string
     {
-        return 'runtime';
+        return 'runtime1runtime2';
+    }
+
+    public function stream(RenderContext $context): \Generator
+    {
+        yield 'runtime1';
+        yield 'runtime2';
     }
 }
 
@@ -178,9 +185,9 @@ test('compiled stream preserves unsupported tag output', function () {
     $interpreted = streamChunks($template, $environment->newRenderContext());
     $optimized = streamChunks($compiled, $environment->newRenderContext());
 
-    expect(implode('', $optimized))
-        ->toBe(implode('', $interpreted))
-        ->toBe('beforeruntimeafter');
+    expect($optimized)
+        ->toBe($interpreted)
+        ->toBe(['before', 'runtime1', 'runtime2', 'after']);
 });
 
 test('compiled stream preserves interrupts', function () {

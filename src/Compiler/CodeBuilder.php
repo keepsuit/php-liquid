@@ -8,6 +8,8 @@ class CodeBuilder
 
     protected string $source = '';
 
+    protected int $yieldCount = 0;
+
     public function indent(): static
     {
         $this->indentLevel++;
@@ -41,25 +43,39 @@ class CodeBuilder
     }
 
     /**
-     * @return array{sourceLength:int,indentLevel:int}
+     * @return array{sourceLength:int,indentLevel:int,yieldCount:int}
      */
     public function checkpoint(): array
     {
         return [
             'sourceLength' => strlen($this->source),
             'indentLevel' => $this->indentLevel,
+            'yieldCount' => $this->yieldCount,
         ];
     }
 
     /**
-     * @param  array{sourceLength:int,indentLevel:int}  $checkpoint
+     * @param  array{sourceLength:int,indentLevel:int,yieldCount:int}  $checkpoint
      */
     public function rollback(array $checkpoint): static
     {
         $this->source = substr($this->source, 0, $checkpoint['sourceLength']);
         $this->indentLevel = $checkpoint['indentLevel'];
+        $this->yieldCount = $checkpoint['yieldCount'];
 
         return $this;
+    }
+
+    public function markYield(): static
+    {
+        $this->yieldCount++;
+
+        return $this;
+    }
+
+    public function yieldCount(): int
+    {
+        return $this->yieldCount;
     }
 
     /**

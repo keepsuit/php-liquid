@@ -96,7 +96,6 @@ class Compiler
         }
 
         $builder
-            ->writeLine('yield from [];')
             ->dedent()
             ->writeLine('}');
 
