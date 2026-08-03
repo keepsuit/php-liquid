@@ -40,22 +40,20 @@ class UnlessTag extends IfTag
 
     public function compile(CompilerContext $context): void
     {
-        $context->write('try {')->indent();
-
         if ($this->unlessCondition !== null) {
             $conditionValue = $context->writeRuntimeValue($this->unlessCondition);
             $context->write('if (! '.$conditionValue.'->evaluate($context)) {');
             $context->indent();
 
             if ($this->unlessCondition->body !== null) {
-                $context->subcompile($this->unlessCondition->body);
+                $body = $context->compileBodyToMethod($this->unlessCondition->body);
+                $context->write('yield from $this->'.$body.'($context);');
             }
 
             $context->outdent()->write('}');
         }
 
         $this->compileConditions($context, $this->conditions, false);
-        $context->writeNodeErrorHandling($this->lineNumber());
     }
 
     public function parseTreeVisitorChildren(): array

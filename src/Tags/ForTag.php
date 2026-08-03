@@ -87,14 +87,17 @@ class ForTag extends TagBlock implements CanBeCompiled, HasParseTreeVisitorChild
     public function compile(CompilerContext $context): void
     {
         $tag = $context->writeRuntimeValue($this);
-        $forBody = $context->compileBodyToMethod($this->forBlock);
-        $elseBody = $this->elseBlock !== null
-            ? '$this->'.$context->compileBodyToMethod($this->elseBlock).'(...)'
+        $forBodyMethod = $context->compileBodyToMethod($this->forBlock);
+        $elseBodyMethod = $this->elseBlock !== null
+            ? $context->compileBodyToMethod($this->elseBlock)
+            : null;
+
+        $forBody = 'fn (RenderContext $context) => $this->collectCompiled($context, $this->'.$forBodyMethod.'($context))';
+        $elseBody = $elseBodyMethod !== null
+            ? 'fn (RenderContext $context) => $this->collectCompiled($context, $this->'.$elseBodyMethod.'($context))'
             : 'null';
 
-        $context->write('try {')->indent();
-        $context->writeOutput($tag.'->renderBlocks($context, $this->'.$forBody.'(...), '.$elseBody.')');
-        $context->writeNodeErrorHandling($this->lineNumber());
+        $context->write('yield '.$tag.'->renderBlocks($context, '.$forBody.', '.$elseBody.');');
     }
 
     public function renderBlocks(RenderContext $context, ?Closure $forBody = null, ?Closure $elseBody = null): string

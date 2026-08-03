@@ -70,7 +70,6 @@ class CaseTag extends TagBlock implements CanBeCompiled
 
     public function compile(CompilerContext $context): void
     {
-        $context->write('try {')->indent();
         $first = true;
 
         foreach ($this->conditions as $condition) {
@@ -78,7 +77,8 @@ class CaseTag extends TagBlock implements CanBeCompiled
 
             if ($isElse && $first) {
                 if ($condition->body !== null) {
-                    $context->subcompile($condition->body);
+                    $body = $context->compileBodyToMethod($condition->body);
+                    $context->write('yield from $this->'.$body.'($context);');
                 }
 
                 break;
@@ -95,7 +95,8 @@ class CaseTag extends TagBlock implements CanBeCompiled
             $context->indent();
 
             if ($condition->body !== null) {
-                $context->subcompile($condition->body);
+                $body = $context->compileBodyToMethod($condition->body);
+                $context->write('yield from $this->'.$body.'($context);');
             }
 
             $context->outdent()->write('}');
@@ -106,8 +107,6 @@ class CaseTag extends TagBlock implements CanBeCompiled
 
             $first = false;
         }
-
-        $context->writeNodeErrorHandling($this->lineNumber());
     }
 
     public function children(): array

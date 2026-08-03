@@ -46,9 +46,9 @@ class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
     }
 
     /**
-     * The body is inlined instead of wrapped in a closure: a closure costs an
-     * allocation and a call frame on every render, and a body carries no state
-     * that needs its own scope beyond the accumulator.
+     * The body is compiled into a lazy generator method: the base template owns
+     * its error boundary, while the body carries no state that needs its own
+     * scope beyond the render context.
      *
      * Mirrors render(): Text cannot fail or interrupt, so it needs no guard, and
      * every other child is followed by a bail-out rather than the whole body
@@ -64,16 +64,6 @@ class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
 
                 break;
             }
-        }
-
-        $root = $context->isRootBody($this);
-        $parentOutput = $context->outputVariable();
-        $output = $root ? $parentOutput : $context->pushOutputScope();
-
-        $context->write('$context->resourceLimits->incrementRenderScore('.count($this->children).');');
-
-        if (! $root) {
-            $context->write($output.' = \'\';');
         }
 
         if ($interruptible) {
@@ -111,16 +101,6 @@ class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
 
         if ($interruptible) {
             $context->outdent()->write('} while (false);');
-        }
-
-        if ($root) {
-            $context->write('$context->resourceLimits->incrementWriteScore('.$output.');');
-        } else {
-            $context
-                ->write('$context->resourceLimits->incrementWriteScore('.$output.');')
-                ->write($parentOutput.' .= '.$output.';');
-
-            $context->popOutputScope();
         }
     }
 

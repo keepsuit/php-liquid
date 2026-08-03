@@ -88,25 +88,23 @@ class Compiler
             ->dedent()
             ->writeLine('}')
             ->writeLine()
-            ->writeLine('protected function renderCompiled(RenderContext $context): string')
+            ->writeLine('protected function renderCompiled(RenderContext $context): iterable')
             ->writeLine('{')
             ->indent();
-
-        $builder->writeLine('$output = \'\';');
 
         foreach (explode("\n", rtrim($body, "\n")) as $line) {
             $builder->writeLine($line);
         }
 
         $builder
-            ->writeLine('return $output;')
+            ->writeLine('yield from [];')
             ->dedent()
             ->writeLine('}');
 
         foreach ($methods as $methodName => $methodSource) {
             $builder
                 ->writeLine()
-                ->writeLine('private function '.$methodName.'(RenderContext $context): string')
+                ->writeLine('private function '.$methodName.'(RenderContext $context): \\Generator')
                 ->writeLine('{')
                 ->indent();
 
@@ -115,6 +113,7 @@ class Compiler
             }
 
             $builder
+                ->writeLine('yield from [];')
                 ->dedent()
                 ->writeLine('}');
         }

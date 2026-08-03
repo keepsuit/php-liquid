@@ -55,9 +55,7 @@ class IfTag extends TagBlock implements CanBeCompiled
 
     public function compile(CompilerContext $context): void
     {
-        $context->write('try {')->indent();
         $this->compileConditions($context, $this->conditions);
-        $context->writeNodeErrorHandling($this->lineNumber());
     }
 
     /**
@@ -70,7 +68,8 @@ class IfTag extends TagBlock implements CanBeCompiled
 
             if ($isElse && $first) {
                 if ($condition->body !== null) {
-                    $context->subcompile($condition->body);
+                    $body = $context->compileBodyToMethod($condition->body);
+                    $context->write('yield from $this->'.$body.'($context);');
                 }
 
                 break;
@@ -87,7 +86,8 @@ class IfTag extends TagBlock implements CanBeCompiled
             $context->indent();
 
             if ($condition->body !== null) {
-                $context->subcompile($condition->body);
+                $body = $context->compileBodyToMethod($condition->body);
+                $context->write('yield from $this->'.$body.'($context);');
             }
 
             $context->outdent()->write('}');

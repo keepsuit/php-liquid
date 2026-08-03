@@ -150,14 +150,61 @@ test('compiled render and stream both surface the compiled body', function () {
             return null;
         }
 
-        protected function renderCompiled(RenderContext $context): string
+        protected function renderCompiled(RenderContext $context): iterable
         {
-            return 'compiled body';
+            yield 'compiled ';
+            yield 'body';
         }
     };
 
     expect($compiled->render(new RenderContext))->toBe('compiled body');
-    expect(iterator_to_array($compiled->stream(new RenderContext)))->toBe(['compiled body']);
+    expect(iterator_to_array($compiled->stream(new RenderContext)))->toBe(['compiled ', 'body']);
+});
+
+test('compiled templates stream generated chunks without an output accumulator', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('Hello {{ name }}!');
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+        $compiledSource = file_get_contents($compiledPath);
+
+        expect($compiledSource)
+            ->toContain('protected function renderCompiled(RenderContext $context): iterable')
+            ->toContain('yield ')
+            ->not->toContain('$output')
+            ->not->toContain('resourceLimits->')
+            ->not->toContain('try {')
+            ->not->toContain('catch (');
+
+        /** @var CompiledTemplate $compiled */
+        $compiled = require $compiledPath;
+        $context = $environment->newRenderContext(data: ['name' => 'World']);
+
+        expect(iterator_to_array($compiled->stream($context)))
+            ->toBe(['Hello ', 'World', '!']);
+        expect($compiled->render($environment->newRenderContext(data: ['name' => 'World'])))
+            ->toBe('Hello World!');
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('compiled empty bodies still satisfy the generator contract', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($environment->parseString(''), $compiledPath);
+
+        /** @var CompiledTemplate $compiled */
+        $compiled = require $compiledPath;
+
+        expect($compiled->render($environment->newRenderContext()))->toBe('');
+    } finally {
+        @unlink($compiledPath);
+    }
 });
 
 test('environment compiles a template to a requireable artifact', function () {
@@ -351,8 +398,9 @@ test('for bodies are compiled into methods the tag drives', function () {
         // Both bodies become methods; the loop itself stays in the tag.
         expect(file_get_contents($compiledPath))
             ->toContain('private function body0')
-            ->toContain('private function body1')
-            ->toContain('->renderBlocks($context, $this->body0(...), $this->body1(...))');
+            ->toContain('private function body3')
+            ->toContain('->renderBlocks($context')
+            ->toContain('collectCompiled');
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
@@ -555,6 +603,29 @@ test('compiled rendering preserves collected errors and exception metadata', fun
                 1,
                 null,
             ]]);
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('compiled streaming continues after handled node errors', function () {
+    $environment = EnvironmentFactory::new()
+        ->setStrictVariables(true)
+        ->setRethrowErrors(false)
+        ->build();
+    $template = $environment->parseString('a{{ missing }}b{{ also_missing }}c', name: 'stream-errors.liquid');
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+
+        /** @var CompiledTemplate $compiled */
+        $compiled = require $compiledPath;
+        $context = $environment->newRenderContext();
+
+        expect(implode('', iterator_to_array($compiled->stream($context))))
+            ->toBe('abc')
+            ->and($compiled->getErrors())->toHaveCount(2);
     } finally {
         @unlink($compiledPath);
     }
