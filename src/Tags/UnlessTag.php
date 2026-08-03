@@ -37,6 +37,24 @@ class UnlessTag extends IfTag
         return parent::render($context);
     }
 
+    /**
+     * @return \Generator<string>
+     */
+    public function stream(RenderContext $context): \Generator
+    {
+        $result = $this->unlessCondition?->evaluate($context);
+
+        if (! $result) {
+            if ($this->unlessCondition?->body !== null) {
+                yield from $this->unlessCondition->body->stream($context);
+            }
+
+            return;
+        }
+
+        yield from $this->streamConditions($context, $this->conditions);
+    }
+
     public function parseTreeVisitorChildren(): array
     {
         return [$this->unlessCondition, ...$this->conditions];

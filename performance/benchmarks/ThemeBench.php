@@ -93,5 +93,4 @@ class ThemeBench
             $stream->next();
         }
     }
-
 }

@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Drops\ForLoopDrop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
@@ -23,7 +24,7 @@ use Traversable;
 /**
  * @phpstan-import-type Expression from ExpressionParser
  */
-class ForTag extends TagBlock implements HasParseTreeVisitorChildren
+class ForTag extends TagBlock implements CanBeStreamed, HasParseTreeVisitorChildren
 {
     protected string $variableName;
 
@@ -80,6 +81,24 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
         }
 
         return $this->renderSegment($context, $segment);
+    }
+
+    /**
+     * @return \Generator<string>
+     */
+    public function stream(RenderContext $context): \Generator
+    {
+        $segment = $this->collectionSegment($context);
+
+        if ($segment === []) {
+            if ($this->elseBlock !== null) {
+                yield from $this->elseBlock->stream($context);
+            }
+
+            return;
+        }
+
+        yield from $this->streamSegment($context, $segment);
     }
 
     public function children(): array
@@ -208,6 +227,48 @@ class ForTag extends TagBlock implements HasParseTreeVisitorChildren
             }
 
             return $output;
+        });
+    }
+
+    /**
+     * @return \Generator<string>
+     */
+    protected function streamSegment(RenderContext $context, array $segment): \Generator
+    {
+        /** @var ForLoopDrop[] $forStack */
+        $forStack = $context->getRegister('for_stack') ?? [];
+        assert(is_array($forStack));
+
+        yield from $context->streamedStack(function () use ($context, $segment, $forStack): \Generator {
+            $loopVars = new ForLoopDrop(
+                name: $this->name,
+                length: count($segment),
+                parentLoop: $forStack !== [] ? $forStack[count($forStack) - 1] : null,
+            );
+
+            $forStack[] = $loopVars;
+            $context->setRegister('for_stack', $forStack);
+
+            try {
+                $context->set('forloop', $loopVars);
+
+                foreach ($segment as $value) {
+                    $context->set($this->variableName, $value);
+                    yield from $this->forBlock->stream($context);
+                    $loopVars->increment();
+
+                    $interrupt = $context->popInterrupt();
+
+                    if ($interrupt instanceof BreakInterrupt) {
+                        break;
+                    }
+                }
+            } finally {
+                $forStack = $context->getRegister('for_stack');
+                assert(is_array($forStack));
+                array_pop($forStack);
+                $context->setRegister('for_stack', $forStack);
+            }
         });
     }
 

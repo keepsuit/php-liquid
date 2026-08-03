@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Render;
 
 use ArithmeticError;
 use Closure;
+use Generator;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Contracts\LiquidErrorHandler;
@@ -145,6 +146,21 @@ final class RenderContext
         }
 
         return $result;
+    }
+
+    /**
+     * @param  Closure(RenderContext $context): Generator<string>  $closure
+     * @return Generator<string>
+     */
+    public function streamedStack(Closure $closure)
+    {
+        $this->push();
+
+        try {
+            yield from $closure($this);
+        } finally {
+            $this->pop();
+        }
     }
 
     public function evaluate(mixed $value): mixed
