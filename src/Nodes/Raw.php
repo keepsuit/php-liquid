@@ -20,7 +20,7 @@ class Raw extends Node implements CanBeCompiled, HasParseTreeVisitorChildren
 
     public function compile(CompilerContext $context): void
     {
-        $context->writeOutput($context->writeValue($this->value));
+        $context->writeText($this->value);
     }
 
     public function blank(): bool
