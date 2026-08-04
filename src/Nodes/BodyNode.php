@@ -77,8 +77,6 @@ class BodyNode extends Node implements CanBeStreamed
             }
         }
 
-        $context->resourceLimits->incrementWriteScore($output);
-
         return $output;
     }
 
@@ -94,7 +92,6 @@ class BodyNode extends Node implements CanBeStreamed
         foreach ($this->children as $node) {
             // Text is the majority of children and cannot fail or interrupt.
             if ($node instanceof Text) {
-                $context->resourceLimits->incrementWriteScore($node->value);
                 yield $node->value;
 
                 continue;
@@ -106,21 +103,14 @@ class BodyNode extends Node implements CanBeStreamed
                 }
 
                 if ($node instanceof CanBeStreamed) {
-                    foreach ($node->stream($context) as $output) {
-                        $context->resourceLimits->incrementWriteScore($output);
-                        yield $output;
-                    }
+                    yield from $node->stream($context);
                 } else {
-                    $output = $node->render($context);
-                    $context->resourceLimits->incrementWriteScore($output);
-                    yield $output;
+                    yield $node->render($context);
                 }
             } catch (UndefinedVariableException|UndefinedDropMethodException|UndefinedFilterException $exception) {
                 $context->handleError($exception, $node->lineNumber);
             } catch (\Throwable $exception) {
-                $output = $context->handleError($exception, $node->lineNumber);
-                $context->resourceLimits->incrementWriteScore($output);
-                yield $output;
+                yield $context->handleError($exception, $node->lineNumber);
             }
 
             if ($context->hasInterrupt()) {
