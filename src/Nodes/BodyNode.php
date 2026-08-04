@@ -13,6 +13,8 @@ use Keepsuit\Liquid\Tag;
 
 class BodyNode extends Node implements CanBeStreamed
 {
+    private const MAX_BUFFERED_BYTES = 4096;
+
     public function __construct(
         /** @var array<Node> */
         protected array $children = [],
@@ -89,12 +91,19 @@ class BodyNode extends Node implements CanBeStreamed
     {
         $context->resourceLimits->incrementRenderScore(count($this->children));
 
+        $buffer = '';
+
         foreach ($this->children as $node) {
             // Text is the majority of children and cannot fail or interrupt.
             if ($node instanceof Text) {
-                yield $node->value;
+                $buffer .= $node->value;
 
                 continue;
+            }
+
+            if (strlen($buffer) >= self::MAX_BUFFERED_BYTES) {
+                yield $buffer;
+                $buffer = '';
             }
 
             try {
@@ -103,19 +112,40 @@ class BodyNode extends Node implements CanBeStreamed
                 }
 
                 if ($node instanceof CanBeStreamed) {
-                    yield from $node->stream($context);
+                    foreach ($node->stream($context) as $output) {
+                        $buffer .= $output;
+
+                        if (strlen($buffer) >= self::MAX_BUFFERED_BYTES) {
+                            yield $buffer;
+                            $buffer = '';
+                        }
+                    }
                 } else {
-                    yield $node->render($context);
+                    $buffer .= $node->render($context);
                 }
             } catch (UndefinedVariableException|UndefinedDropMethodException|UndefinedFilterException $exception) {
+                if ($buffer !== '') {
+                    yield $buffer;
+                    $buffer = '';
+                }
+
                 $context->handleError($exception, $node->lineNumber);
             } catch (\Throwable $exception) {
-                yield $context->handleError($exception, $node->lineNumber);
+                if ($buffer !== '') {
+                    yield $buffer;
+                    $buffer = '';
+                }
+
+                $buffer .= $context->handleError($exception, $node->lineNumber);
             }
 
             if ($context->hasInterrupt()) {
                 break;
             }
+        }
+
+        if ($buffer !== '') {
+            yield $buffer;
         }
     }
 
