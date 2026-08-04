@@ -177,7 +177,9 @@ class ResourceLimits
     {
         $result = $closure();
 
-        $this->incrementAssignScore(strlen($result));
+        if (is_string($result)) {
+            $this->incrementAssignScore(strlen($result));
+        }
 
         return $result;
     }
