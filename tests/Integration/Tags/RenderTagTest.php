@@ -341,13 +341,10 @@ test('render stream', function () {
 
     $output = iterator_to_array($stream);
 
+    // Both rendered items fit under the grouping threshold, so they arrive
+    // together rather than one chunk per node.
     expect($output)
         ->toBe([
-            'Product: ',
-            'Draft 151cm',
-            ' ',
-            'Product: ',
-            'Element 155cm',
-            ' ',
+            'Product: Draft 151cm Product: Element 155cm ',
         ]);
 });

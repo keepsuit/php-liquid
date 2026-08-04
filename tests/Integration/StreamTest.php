@@ -11,25 +11,21 @@ test('template can be streamed', function () {
 
     $output = iterator_to_array($stream);
 
-    expect($output)->toBe([
-        "text\n",
-        '1',
-        "\n",
-        '2',
-        "\n",
-        '3',
-        "\n",
-    ]);
+    // Node chunks are grouped, so a template this small arrives in one piece.
+    expect($output)->toBe(["text\n1\n2\n3\n"]);
 });
 
 test('stream generator variable', function () {
+    // Values sized to the grouping threshold, so consuming the generator one
+    // value at a time stays visible: a materialised value could only arrive as
+    // a single chunk.
     $stream = streamTemplate(<<<'LIQUID'
     {{ var }}
     LIQUID,
         staticData: [
             'var' => function () {
-                yield 'text1';
-                yield 'text2';
+                yield str_repeat('a', 4096);
+                yield str_repeat('b', 4096);
             },
         ]
     );
@@ -38,18 +34,20 @@ test('stream generator variable', function () {
 
     expect($output)
         ->toHaveCount(2)
-        ->{0}->toBe('text1')
-        ->{1}->toBe('text2');
+        ->{0}->toBe(str_repeat('a', 4096))
+        ->{1}->toBe(str_repeat('b', 4096));
 });
 
 test('generator variable with filters is not streamed', function () {
+    // The same values as above, but a filter has to materialise the generator
+    // before it can run, so all of it is produced at once.
     $stream = streamTemplate(<<<'LIQUID'
     {{ var | join: ',' }}
     LIQUID,
         staticData: [
             'var' => function () {
-                yield 'text1';
-                yield 'text2';
+                yield str_repeat('a', 4096);
+                yield str_repeat('b', 4096);
             },
         ]
     );
@@ -58,7 +56,7 @@ test('generator variable with filters is not streamed', function () {
 
     expect($output)
         ->toHaveCount(1)
-        ->{0}->toBe('text1,text2');
+        ->{0}->toBe(str_repeat('a', 4096).','.str_repeat('b', 4096));
 });
 
 test('for tags stream their body chunks', function () {
@@ -67,14 +65,18 @@ test('for tags stream their body chunks', function () {
         staticData: ['items' => ['a', 'bb']],
     );
 
-    expect(iterator_to_array($stream))->toBe([
-        '<item>',
-        'a',
-        '</item>',
-        '<item>',
-        'bb',
-        '</item>',
-    ]);
+    expect(iterator_to_array($stream))->toBe(['<item>a</item><item>bb</item>']);
+});
+
+test('a loop larger than the grouping threshold keeps output flowing', function () {
+    $stream = streamTemplate(
+        '{% for item in items %}{{ item }}{% endfor %}',
+        staticData: ['items' => array_fill(0, 8, str_repeat('x', 1024))],
+    );
+
+    // 8 KB cannot arrive as one chunk: output is emitted while the loop is
+    // still running, which is what bounds memory on a large template.
+    expect(iterator_to_array($stream))->toHaveCount(2);
 });
 
 test('if, unless, and case tags stream their selected body chunks', function () {
@@ -89,14 +91,7 @@ test('if, unless, and case tags stream their selected body chunks', function () 
         ],
     );
 
-    expect(iterator_to_array($stream))->toBe([
-        'if:',
-        'x',
-        'unless:',
-        'x',
-        'case:',
-        'x',
-    ]);
+    expect(iterator_to_array($stream))->toBe(['if:xunless:xcase:x']);
 });
 
 test('streaming enforces the render length limit across chunks', function () {
@@ -153,6 +148,77 @@ test('the render length limit caps one stream, not the context lifetime', functi
     expect(implode('', iterator_to_array($template->stream($context))))->toBe('abcdefgh');
     expect(implode('', iterator_to_array($template->stream($context))))->toBe('abcdefgh');
     expect($template->render($context))->toBe('abcdefgh');
+});
+
+test('grouped output reaches the consumer before a rethrown error', function () {
+    $environment = \Keepsuit\Liquid\EnvironmentFactory::new()->setRethrowErrors(true)->build();
+    $template = $environment->parseString('HELLO WORLD {{ boom.standard_error }} tail');
+
+    $context = $environment->newRenderContext(staticData: [
+        'boom' => new \Keepsuit\Liquid\Tests\Stubs\ErrorDrop,
+    ]);
+
+    $received = [];
+    try {
+        foreach ($template->stream($context) as $chunk) {
+            $received[] = $chunk;
+        }
+    } catch (\Throwable) {
+        // the error is expected; what matters is what arrived before it
+    }
+
+    // Output already produced must not be discarded along with the exception.
+    expect(implode('', $received))->toBe('HELLO WORLD ');
+});
+
+test('grouped output survives an error handler throwing a non liquid exception', function () {
+    // A custom handler can throw anything, so what escapes the stream is not
+    // always a LiquidException — the buffer still has to be flushed.
+    $handler = new class implements \Keepsuit\Liquid\Contracts\LiquidErrorHandler
+    {
+        public function handle(\Throwable $error): string
+        {
+            throw new \RuntimeException('from handler');
+        }
+    };
+
+    $environment = \Keepsuit\Liquid\EnvironmentFactory::new()
+        ->setErrorHandler($handler)
+        ->setRethrowErrors(false)
+        ->build();
+    $template = $environment->parseString('PREFIX {{ boom.standard_error }} tail');
+
+    $context = $environment->newRenderContext(staticData: [
+        'boom' => new \Keepsuit\Liquid\Tests\Stubs\ErrorDrop,
+    ]);
+
+    $received = [];
+    expect(function () use ($template, $context, &$received) {
+        foreach ($template->stream($context) as $chunk) {
+            $received[] = $chunk;
+        }
+    })->toThrow(RuntimeException::class);
+
+    expect(implode('', $received))->toBe('PREFIX ');
+});
+
+test('a consumer can stop reading a stream part way through', function () {
+    $environment = \Keepsuit\Liquid\Environment::default();
+    $template = $environment->parseString('{% for i in items %}{{ i }}{% endfor %}');
+
+    $context = $environment->newRenderContext(staticData: [
+        'items' => array_fill(0, 8, str_repeat('x', 1024)),
+    ]);
+
+    // Abandoning the generator force-closes it, so the pending buffer must not
+    // be flushed from a finally block: yielding from one there is fatal.
+    $first = null;
+    foreach ($template->stream($context) as $chunk) {
+        $first = $chunk;
+        break;
+    }
+
+    expect($first)->toBe(str_repeat('x', 4096));
 });
 
 test('streamed for tags preserve break and continue behavior', function () {

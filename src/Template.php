@@ -8,6 +8,8 @@ use Keepsuit\Liquid\Render\RenderContext;
 
 class Template
 {
+    private const MAX_BUFFERED_BYTES = 4096;
+
     public function __construct(
         public readonly Document $root,
         public readonly TemplateSharedState $state = new TemplateSharedState
@@ -43,6 +45,8 @@ class Template
      */
     public function stream(RenderContext $context): \Generator
     {
+        $buffer = '';
+
         try {
             $context->mergeOutputs($this->state->outputs);
 
@@ -55,8 +59,9 @@ class Template
 
             /*
              * The one place every chunk is guaranteed to pass through exactly once,
-             * whichever node produced it. Two jobs happen here:
-             * - increment the write score and checked against a running total
+             * whichever node produced it. Three jobs happen here:
+             * - increment the write score, checked against a running total.
+             * - Buffer streamed output in larger chunks.
              * - renumbering the keys, since nodes delegate with `yield from`, which passes the inner generators' keys through and restarts them at 0
              */
             $context->resourceLimits->resetStreamWriteScore();
@@ -64,10 +69,29 @@ class Template
             foreach ($this->root->stream($context) as $output) {
                 $context->resourceLimits->incrementStreamWriteScore($output);
 
-                yield $output;
+                $buffer .= $output;
+
+                if (strlen($buffer) >= self::MAX_BUFFERED_BYTES) {
+                    yield $buffer;
+                    $buffer = '';
+                }
+            }
+
+            if ($buffer !== '') {
+                yield $buffer;
             }
         } catch (LiquidException $e) {
+            if ($buffer !== '') {
+                yield $buffer;
+            }
+
             $e->templateName = $e->templateName ?? $this->root->name;
+            throw $e;
+        } catch (\Throwable $e) {
+            if ($buffer !== '') {
+                yield $buffer;
+            }
+
             throw $e;
         } finally {
             $this->state->errors = $context->getErrors();
