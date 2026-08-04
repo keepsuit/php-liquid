@@ -30,6 +30,13 @@ test('assigned variable', function () {
     );
 });
 
+test('assign preserves values already stored in the active scope', function () {
+    assertTemplateResult(
+        'first-second',
+        '{% assign first = "first" %}{% assign second = "second" %}{{ first }}-{{ second }}',
+    );
+});
+
 test('assigned with filter', function () {
     assertTemplateResult(
         '.bar.',

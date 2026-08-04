@@ -386,10 +386,9 @@ final class RenderContext
     {
         $index = count($this->scopes) - 1;
 
-        return $this->scopes[$index] = [
-            ...$this->scopes[$index],
-            $key => $value,
-        ];
+        $this->scopes[$index][$key] = $value;
+
+        return $this->scopes[$index];
     }
 
     public function pushInterrupt(Interrupt $interrupt): void

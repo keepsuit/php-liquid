@@ -9,7 +9,6 @@ use Keepsuit\Liquid\Parse\ExpressionParser;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\RenderContext;
-use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Tag;
 
 /**
@@ -65,11 +64,25 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
 
     protected static function computeAssignScore(mixed $value): int
     {
-        return match (true) {
-            is_string($value) => strlen($value),
-            is_array($value) && array_is_list($value) => 1 + (int) array_sum(Arr::map($value, fn (mixed $item) => static::computeAssignScore($item))),
-            is_array($value) => 1 + (int) array_sum(Arr::map($value, fn (mixed $key, mixed $item) => static::computeAssignScore($key) + static::computeAssignScore($item))),
-            default => 1,
-        };
+        if (is_string($value)) {
+            return strlen($value);
+        }
+
+        if (! is_array($value)) {
+            return 1;
+        }
+
+        $score = 1;
+        $isList = array_is_list($value);
+
+        foreach ($value as $key => $item) {
+            if (! $isList) {
+                $score += static::computeAssignScore($key);
+            }
+
+            $score += static::computeAssignScore($item);
+        }
+
+        return $score;
     }
 }
