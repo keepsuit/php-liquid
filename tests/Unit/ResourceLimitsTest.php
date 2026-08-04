@@ -51,6 +51,45 @@ test('resource limits reset leaves cumulative scores intact', function () {
         ->and($limits->getCumulativeAssignScore())->toBe(3);
 });
 
+test('a zero limit rejects everything instead of disabling the limit', function () {
+    expect(fn () => (new ResourceLimits(renderScoreLimit: 0))->incrementRenderScore(1))
+        ->toThrow(ResourceLimitException::class);
+    expect(fn () => (new ResourceLimits(assignScoreLimit: 0))->incrementAssignScore(1))
+        ->toThrow(ResourceLimitException::class);
+    expect(fn () => (new ResourceLimits(cumulativeRenderScoreLimit: 0))->incrementRenderScore(1))
+        ->toThrow(ResourceLimitException::class);
+    expect(fn () => (new ResourceLimits(cumulativeAssignScoreLimit: 0))->incrementAssignScore(1))
+        ->toThrow(ResourceLimitException::class);
+});
+
+test('withCapture charges the returned string to the assign score', function () {
+    $limits = new ResourceLimits;
+
+    expect($limits->withCapture(fn () => 'abcd'))->toBe('abcd')
+        ->and($limits->getAssignScore())->toBe(4);
+
+    // Nested, as {% capture %} inside {% capture %}: two variables, both charged.
+    $limits = new ResourceLimits;
+    $limits->withCapture(fn () => $limits->withCapture(fn () => 'abcd'));
+    expect($limits->getAssignScore())->toBe(8);
+
+    // The length is read off the returned string, so a closure that captures
+    // without returning the text is charged nothing.
+    $limits = new ResourceLimits;
+    $limits->withCapture(fn () => null);
+    expect($limits->getAssignScore())->toBe(0);
+});
+
+test('withCapture does not charge the render length limit', function () {
+    // Captured text is assigned, not written, so only the assign limit applies.
+    $limits = new ResourceLimits(renderLengthLimit: 2);
+    expect($limits->withCapture(fn () => 'abcd'))->toBe('abcd');
+
+    $limits = new ResourceLimits(assignScoreLimit: 2);
+    expect(fn () => $limits->withCapture(fn () => 'abcd'))
+        ->toThrow(ResourceLimitException::class);
+});
+
 test('resource limits cumulative render score limit', function () {
     $limits = new ResourceLimits(cumulativeRenderScoreLimit: 3);
 

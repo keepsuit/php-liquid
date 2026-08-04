@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Render;
 
 use ArithmeticError;
 use Closure;
+use Generator;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Contracts\LiquidErrorHandler;
@@ -148,12 +149,10 @@ final class RenderContext
     }
 
     /**
-     * Execute a generator while keeping a temporary scope active until the
-     * generator is fully consumed.
-     *
-     * @param  Closure(RenderContext): \Generator  $closure
+     * @param  Closure(RenderContext $context): Generator<string>  $closure
+     * @return Generator<string>
      */
-    public function streamStack(Closure $closure): \Generator
+    public function streamedStack(Closure $closure)
     {
         $this->push();
 
@@ -387,10 +386,9 @@ final class RenderContext
     {
         $index = count($this->scopes) - 1;
 
-        return $this->scopes[$index] = [
-            ...$this->scopes[$index],
-            $key => $value,
-        ];
+        $this->scopes[$index][$key] = $value;
+
+        return $this->scopes[$index];
     }
 
     public function pushInterrupt(Interrupt $interrupt): void

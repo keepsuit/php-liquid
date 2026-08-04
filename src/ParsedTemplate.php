@@ -23,7 +23,13 @@ class ParsedTemplate extends AbstractTemplate
         try {
             $this->prepareContext($context);
 
-            return $this->root->render($context);
+            $output = $this->root->render($context);
+
+            if (! $context->isPartial()) {
+                $context->resourceLimits->incrementWriteScore($output);
+            }
+
+            return $output;
         } catch (LiquidException $e) {
             $this->attachTemplateName($e);
             throw $e;
@@ -40,7 +46,18 @@ class ParsedTemplate extends AbstractTemplate
         try {
             $this->prepareContext($context);
 
-            yield from $this->root->stream($context);
+            if ($context->isPartial()) {
+                yield from $this->root->stream($context);
+
+                return;
+            }
+
+            $context->resourceLimits->resetStreamWriteScore();
+
+            foreach ($this->root->stream($context) as $output) {
+                $context->resourceLimits->incrementStreamWriteScore($output);
+                yield $output;
+            }
         } catch (LiquidException $e) {
             $this->attachTemplateName($e);
             throw $e;

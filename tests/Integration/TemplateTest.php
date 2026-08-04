@@ -116,6 +116,43 @@ test('resource limits render length', function () {
     expect($context->resourceLimits->reached())->toBeFalse();
 });
 
+test('render length limit covers output from partials and custom nodes', function () {
+    $environment = EnvironmentFactory::new()
+        ->setFilesystem(new StubFileSystem(partials: ['snippet' => '{% streaming %}']))
+        ->build();
+    $environment->tagRegistry->register(\Keepsuit\Liquid\Tests\Stubs\StreamingTag::class);
+
+    // Checked once on the root output, so a node outside the library nested in
+    // a partial is covered without either of them counting anything.
+    $template = $environment->parseString('{% render "snippet" %}');
+
+    $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 5));
+    expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
+
+    $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 6));
+    expect($template->render($context))->toBe('abcdef');
+});
+
+test('capture charges the captured length to the assign score', function () {
+    // Several sibling bodies of differing lengths, so this pins the total to
+    // the captured string rather than to any one body inside it.
+    $context = new RenderContext;
+    parseTemplate('{% capture x %}{% if true %}aaaaaa{% endif %}{% if true %}b{% endif %}{% endcapture %}')
+        ->render($context);
+    expect($context->resourceLimits->getAssignScore())->toBe(7);
+
+    // Nested captures are two variables holding 4 bytes each, so they charge
+    // the same 8 as the two equivalent assigns below.
+    $context = new RenderContext;
+    parseTemplate('{% capture outer %}{% capture inner %}abcd{% endcapture %}{{ inner }}{% endcapture %}')
+        ->render($context);
+    expect($context->resourceLimits->getAssignScore())->toBe(8);
+
+    $context = new RenderContext;
+    parseTemplate('{% assign a = "abcd" %}{% assign b = a %}')->render($context);
+    expect($context->resourceLimits->getAssignScore())->toBe(8);
+});
+
 test('resource limits render score', function () {
     $template = parseTemplate('{% for a in (1..10) %} {% for a in (1..10) %} foo {% endfor %} {% endfor %}');
     $context = new RenderContext(

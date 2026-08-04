@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid\Tags;
 use Closure;
 use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
+use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Drops\ForLoopDrop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
@@ -21,12 +22,11 @@ use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\TagBlock;
-use Traversable;
 
 /**
  * @phpstan-import-type Expression from ExpressionParser
  */
-class ForTag extends TagBlock implements CanBeCompiled, HasParseTreeVisitorChildren
+class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseTreeVisitorChildren
 {
     protected string $variableName;
 
@@ -127,6 +127,24 @@ class ForTag extends TagBlock implements CanBeCompiled, HasParseTreeVisitorChild
         yield from $this->streamSegment($context, $segment, $forBody);
     }
 
+    /**
+     * @return \Generator<string>
+     */
+    public function stream(RenderContext $context): \Generator
+    {
+        $segment = $this->collectionSegment($context);
+
+        if ($segment === []) {
+            if ($this->elseBlock !== null) {
+                yield from $this->elseBlock->stream($context);
+            }
+
+            return;
+        }
+
+        yield from $this->streamSegment($context, $segment);
+    }
+
     public function children(): array
     {
         return $this->elseBlock ? [$this->forBlock, $this->elseBlock] : [$this->forBlock];
@@ -179,11 +197,9 @@ class ForTag extends TagBlock implements CanBeCompiled, HasParseTreeVisitorChild
         $collection = $context->evaluate($this->collection) ?? [];
         $collection = match (true) {
             $collection instanceof Range => $collection->toArray(),
-            $collection instanceof Traversable => iterator_to_array($collection),
-            is_iterable($collection) => (array) $collection,
-            default => $collection,
+            is_iterable($collection) => iterator_to_array($collection),
+            default => throw new InvalidArgumentException('Invalid array'),
         };
-        assert(is_array($collection));
 
         if ($this->from === 'continue') {
             $offset = $offsets[$this->name];
@@ -256,13 +272,16 @@ class ForTag extends TagBlock implements CanBeCompiled, HasParseTreeVisitorChild
         });
     }
 
+    /**
+     * @return \Generator<string>
+     */
     protected function streamSegment(RenderContext $context, array $segment, ?Closure $forBody = null): \Generator
     {
         /** @var ForLoopDrop[] $forStack */
         $forStack = $context->getRegister('for_stack') ?? [];
         assert(is_array($forStack));
 
-        yield from $context->streamStack(function () use ($context, $segment, $forStack, $forBody): \Generator {
+        yield from $context->streamedStack(function () use ($context, $segment, $forStack, $forBody): \Generator {
             $loopVars = new ForLoopDrop(
                 name: $this->name,
                 length: count($segment),

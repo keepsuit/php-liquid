@@ -6,6 +6,7 @@ use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Condition\ElseCondition;
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
+use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Parse\TokenType;
@@ -13,7 +14,7 @@ use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\TagBlock;
 
-class IfTag extends TagBlock implements CanBeCompiled
+class IfTag extends TagBlock implements CanBeCompiled, CanBeStreamed
 {
     /** @var Condition[] */
     protected array $conditions = [];
@@ -59,6 +60,14 @@ class IfTag extends TagBlock implements CanBeCompiled
     }
 
     /**
+     * @return \Generator<string>
+     */
+    public function stream(RenderContext $context): \Generator
+    {
+        yield from $this->streamConditions($context, $this->conditions);
+    }
+
+    /**
      * @param  array<Condition>  $conditions
      */
     protected function compileConditions(CompilerContext $context, array $conditions, bool $first = true): void
@@ -95,6 +104,24 @@ class IfTag extends TagBlock implements CanBeCompiled
             }
 
             $first = false;
+        }
+    }
+
+    /**
+     * @return \Generator<string>
+     */
+    protected function streamConditions(RenderContext $context, array $conditions): \Generator
+    {
+        foreach ($conditions as $condition) {
+            if (! $condition->evaluate($context)) {
+                continue;
+            }
+
+            if ($condition->body !== null) {
+                yield from $condition->body->stream($context);
+            }
+
+            return;
         }
     }
 

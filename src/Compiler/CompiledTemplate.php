@@ -40,10 +40,19 @@ abstract class CompiledTemplate extends AbstractTemplate
         try {
             $this->prepareContext($context);
 
+            if ($context->isPartial()) {
+                foreach ($this->renderCompiled($context) as $chunk) {
+                    yield (string) $chunk;
+                }
+
+                return;
+            }
+
+            $context->resourceLimits->resetStreamWriteScore();
+
             foreach ($this->renderCompiled($context) as $chunk) {
                 $chunk = (string) $chunk;
-                $context->resourceLimits->incrementWriteScore($chunk);
-
+                $context->resourceLimits->incrementStreamWriteScore($chunk);
                 yield $chunk;
             }
         } catch (LiquidException $e) {

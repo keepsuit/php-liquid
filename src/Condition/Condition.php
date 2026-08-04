@@ -21,6 +21,8 @@ class Condition implements CanBeExported, HasParseTreeVisitorChildren
 
     protected ?Condition $childCondition = null;
 
+    protected ?ConditionOperator $parsedOperator = null;
+
     public ?BodyNode $body = null;
 
     public function __construct(
@@ -128,7 +130,7 @@ class Condition implements CanBeExported, HasParseTreeVisitorChildren
             return (bool) static::$customOperators[$operator]($left, $right);
         }
 
-        return ConditionOperator::parse($operator)->evaluate($left, $right);
+        return ($this->parsedOperator ??= ConditionOperator::parse($operator))->evaluate($left, $right);
     }
 
     protected function toLiquidValue(mixed $value): mixed

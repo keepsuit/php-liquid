@@ -6,6 +6,7 @@ use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Condition\ElseCondition;
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
+use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Parse\ExpressionParser;
@@ -17,7 +18,7 @@ use Keepsuit\Liquid\TagBlock;
 /**
  * @phpstan-import-type Expression from ExpressionParser
  */
-class CaseTag extends TagBlock implements CanBeCompiled
+class CaseTag extends TagBlock implements CanBeCompiled, CanBeStreamed
 {
     /** @var Condition[] */
     protected array $conditions = [];
@@ -104,6 +105,24 @@ class CaseTag extends TagBlock implements CanBeCompiled
             }
 
             $first = false;
+        }
+    }
+
+    /**
+     * @return \Generator<string>
+     */
+    public function stream(RenderContext $context): \Generator
+    {
+        foreach ($this->conditions as $condition) {
+            if (! $condition->else() && ! $condition->evaluate($context)) {
+                continue;
+            }
+
+            if ($condition->body !== null) {
+                yield from $condition->body->stream($context);
+            }
+
+            return;
         }
     }
 
