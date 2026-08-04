@@ -19,7 +19,6 @@ use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\TagBlock;
-use Traversable;
 
 /**
  * @phpstan-import-type Expression from ExpressionParser
@@ -153,11 +152,9 @@ class ForTag extends TagBlock implements CanBeStreamed, HasParseTreeVisitorChild
         $collection = $context->evaluate($this->collection) ?? [];
         $collection = match (true) {
             $collection instanceof Range => $collection->toArray(),
-            $collection instanceof Traversable => iterator_to_array($collection),
-            is_iterable($collection) => (array) $collection,
-            default => $collection,
+            is_iterable($collection) => iterator_to_array($collection),
+            default => throw new InvalidArgumentException('Invalid array'),
         };
-        assert(is_array($collection));
 
         if ($this->from === 'continue') {
             $offset = $offsets[$this->name];
