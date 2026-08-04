@@ -41,6 +41,8 @@ class OperationBench
 
     private Template $productListTemplate;
 
+    private Template $conditionTemplate;
+
     /**
      * Built in setUp, not in the subject: these two subjects measure how
      * Drop::__get resolves a property, and constructing a ProductDrop (variants,
@@ -64,6 +66,7 @@ class OperationBench
         $this->dropMethodMissingHitTemplate = $this->environment->parseString(str_repeat('{{ product.metafields.material }}', 64));
         $this->dropMethodMissingMissTemplate = $this->environment->parseString(str_repeat('{{ product.metafields.unknown }}', 64));
         $this->productListTemplate = $this->environment->parseString('{% for product in products %}{{ product.title }}{% endfor %}');
+        $this->conditionTemplate = $this->environment->parseString(str_repeat('{% if value == expected %}x{% endif %}', 64));
         $this->productDrop = Database::product();
         $this->productList = Database::products();
     }
@@ -162,6 +165,14 @@ class OperationBench
     public function benchFilterWithArguments(): void
     {
         $this->filterWithArgumentsTemplate->render($this->filterContext());
+    }
+
+    public function benchConditionRender(): void
+    {
+        $this->conditionTemplate->render($this->environment->newRenderContext(staticData: [
+            'value' => 'value',
+            'expected' => 'value',
+        ]));
     }
 
     /**

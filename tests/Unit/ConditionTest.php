@@ -135,6 +135,18 @@ test('should allow custom operators', function () {
     expect((new Condition('bob', 'starts_with', 'o'))->evaluate($this->context))->toBeFalse();
 });
 
+test('custom operators override cached built-in operators', function () {
+    $condition = new Condition(1, '==', 1);
+
+    expect($condition->evaluate($this->context))->toBeTrue();
+
+    Condition::registerOperator('==', fn (mixed $left, mixed $right) => false);
+    expect($condition->evaluate($this->context))->toBeFalse();
+
+    Condition::deleteOperator('==');
+    expect($condition->evaluate($this->context))->toBeTrue();
+});
+
 test('compare two variable', function () {
     $this->context->set('one', 'gnomeslab-and-or-liquid');
     $this->context->set('another', 'gnomeslab-and-or-liquid');
