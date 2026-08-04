@@ -43,11 +43,9 @@ class CaptureTag extends TagBlock
 
     public function render(RenderContext $context): string
     {
-        $context->resourceLimits->withCapture(function () use ($context) {
-            $captureValue = $this->body->render($context);
+        $captureValue = $context->resourceLimits->withCapture(fn () => $this->body->render($context));
 
-            $context->setToActiveScope($this->to, $captureValue);
-        });
+        $context->setToActiveScope($this->to, $captureValue);
 
         return '';
     }

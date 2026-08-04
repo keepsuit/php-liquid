@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Render;
 
 use ArithmeticError;
 use Closure;
+use Generator;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Contracts\LiquidErrorHandler;
@@ -88,6 +89,11 @@ final class RenderContext
         public readonly RenderContextOptions $options = new RenderContextOptions,
         ?ResourceLimits $resourceLimits = null,
         ?Environment $environment = null,
+        /**
+         * Sub-contexts inherit the parent state; building a fresh one here would
+         * merge the environment registers only to have it replaced.
+         */
+        ?ContextSharedState $sharedState = null,
     ) {
         $this->environment = $environment ?? Environment::default();
         $this->resourceLimits = $resourceLimits ?? ResourceLimits::clone($this->environment->defaultResourceLimits);
@@ -95,7 +101,7 @@ final class RenderContext
 
         $this->scopes = [[]];
 
-        $this->sharedState = new ContextSharedState(
+        $this->sharedState = $sharedState ?? new ContextSharedState(
             staticVariables: $staticData,
             registers: array_merge($this->environment->getRegisters(), $registers),
         );
@@ -140,6 +146,21 @@ final class RenderContext
         }
 
         return $result;
+    }
+
+    /**
+     * @param  Closure(RenderContext $context): Generator<string>  $closure
+     * @return Generator<string>
+     */
+    public function streamedStack(Closure $closure)
+    {
+        $this->push();
+
+        try {
+            yield from $closure($this);
+        } finally {
+            $this->pop();
+        }
     }
 
     public function evaluate(mixed $value): mixed
@@ -365,10 +386,9 @@ final class RenderContext
     {
         $index = count($this->scopes) - 1;
 
-        return $this->scopes[$index] = [
-            ...$this->scopes[$index],
-            $key => $value,
-        ];
+        $this->scopes[$index][$key] = $value;
+
+        return $this->scopes[$index];
     }
 
     public function pushInterrupt(Interrupt $interrupt): void
@@ -458,9 +478,9 @@ final class RenderContext
             options: $options ?? $this->options,
             resourceLimits: $this->resourceLimits,
             environment: $this->environment,
+            sharedState: $this->sharedState,
         );
         $subContext->baseScopeDepth = $this->baseScopeDepth + 1;
-        $subContext->sharedState = $this->sharedState;
         $subContext->templateName = $templateName;
         $subContext->partial = true;
 

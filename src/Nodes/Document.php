@@ -22,6 +22,8 @@ class Document extends Node implements CanBeStreamed
     }
 
     /**
+     * @return \Generator<string>
+     *
      * @throws LiquidException
      */
     public function stream(RenderContext $context): \Generator

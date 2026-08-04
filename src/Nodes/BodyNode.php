@@ -13,6 +13,8 @@ use Keepsuit\Liquid\Tag;
 
 class BodyNode extends Node implements CanBeStreamed
 {
+    private const MAX_BUFFERED_BYTES = 4096;
+
     public function __construct(
         /** @var array<Node> */
         protected array $children = [],
@@ -77,8 +79,6 @@ class BodyNode extends Node implements CanBeStreamed
             }
         }
 
-        $context->resourceLimits->incrementWriteScore($output);
-
         return $output;
     }
 
@@ -91,13 +91,19 @@ class BodyNode extends Node implements CanBeStreamed
     {
         $context->resourceLimits->incrementRenderScore(count($this->children));
 
+        $buffer = '';
+
         foreach ($this->children as $node) {
             // Text is the majority of children and cannot fail or interrupt.
             if ($node instanceof Text) {
-                $context->resourceLimits->incrementWriteScore($node->value);
-                yield $node->value;
+                $buffer .= $node->value;
 
                 continue;
+            }
+
+            if (strlen($buffer) >= self::MAX_BUFFERED_BYTES) {
+                yield $buffer;
+                $buffer = '';
             }
 
             try {
@@ -107,25 +113,39 @@ class BodyNode extends Node implements CanBeStreamed
 
                 if ($node instanceof CanBeStreamed) {
                     foreach ($node->stream($context) as $output) {
-                        $context->resourceLimits->incrementWriteScore($output);
-                        yield $output;
+                        $buffer .= $output;
+
+                        if (strlen($buffer) >= self::MAX_BUFFERED_BYTES) {
+                            yield $buffer;
+                            $buffer = '';
+                        }
                     }
                 } else {
-                    $output = $node->render($context);
-                    $context->resourceLimits->incrementWriteScore($output);
-                    yield $output;
+                    $buffer .= $node->render($context);
                 }
             } catch (UndefinedVariableException|UndefinedDropMethodException|UndefinedFilterException $exception) {
+                if ($buffer !== '') {
+                    yield $buffer;
+                    $buffer = '';
+                }
+
                 $context->handleError($exception, $node->lineNumber);
             } catch (\Throwable $exception) {
-                $output = $context->handleError($exception, $node->lineNumber);
-                $context->resourceLimits->incrementWriteScore($output);
-                yield $output;
+                if ($buffer !== '') {
+                    yield $buffer;
+                    $buffer = '';
+                }
+
+                $buffer .= $context->handleError($exception, $node->lineNumber);
             }
 
             if ($context->hasInterrupt()) {
                 break;
             }
+        }
+
+        if ($buffer !== '') {
+            yield $buffer;
         }
     }
 

@@ -80,8 +80,17 @@ class ThemeBench
     public function benchStream(): void
     {
         foreach ($this->pageTemplateNames as $pageTemplateName) {
-            foreach (StorefrontTheme::streamPage($this->environment, $pageTemplateName) as $chunk) {
-            }
+            $this->drain(StorefrontTheme::streamPage($this->environment, $pageTemplateName));
+        }
+    }
+
+    /**
+     * @param  \Generator<string>  $stream
+     */
+    private function drain(\Generator $stream): void
+    {
+        while ($stream->valid()) {
+            $stream->next();
         }
     }
 }

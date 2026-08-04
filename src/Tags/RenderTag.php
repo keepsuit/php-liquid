@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid\Tags;
 use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Drops\ForLoopDrop;
+use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\ExpressionParser;
@@ -14,7 +15,6 @@ use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\Template;
-use Traversable;
 
 /**
  * @phpstan-import-type Expression from ExpressionParser
@@ -104,10 +104,32 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
 
     public function render(RenderContext $context): string
     {
+        $partial = $this->loadPartial($context);
+        $templateName = $partial->name() ?? '';
+
+        $contextVariableName = ($this->aliasName ?? Arr::last(explode('/', $templateName)));
+        assert(is_string($contextVariableName));
+
+        $variable = $this->variableNameExpression ? $context->evaluate($this->variableNameExpression) : null;
+
+        if (! $this->isForLoop) {
+            return $partial->render($this->buildPartialContext($context, $templateName, [
+                $contextVariableName => $variable,
+            ]));
+        }
+
+        $variable = $this->resolveLoopValues($variable);
+
+        $forLoop = new ForLoopDrop($templateName, count($variable));
         $output = '';
 
-        foreach ($this->stream($context) as $chunk) {
-            $output .= $chunk;
+        foreach ($variable as $value) {
+            $output .= $partial->render($this->buildPartialContext($context, $templateName, [
+                'forloop' => $forLoop,
+                $contextVariableName => $value,
+            ]));
+
+            $forLoop->increment();
         }
 
         return $output;
@@ -118,14 +140,13 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
         $partial = $this->loadPartial($context);
         $templateName = $partial->name() ?? '';
 
-        $contextVariableName = $this->aliasName ?? Arr::last(explode('/', $templateName));
+        $contextVariableName = ($this->aliasName ?? Arr::last(explode('/', $templateName)));
         assert(is_string($contextVariableName));
 
         $variable = $this->variableNameExpression ? $context->evaluate($this->variableNameExpression) : null;
 
         if ($this->isForLoop) {
-            $variable = $variable instanceof Traversable ? iterator_to_array($variable) : $variable;
-            assert(is_array($variable));
+            $variable = $this->resolveLoopValues($variable);
 
             $forLoop = new ForLoopDrop($templateName, count($variable));
 
@@ -171,6 +192,18 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
         }
 
         return $context->loadPartial($templateName);
+    }
+
+    /**
+     * @return array<mixed>
+     */
+    private function resolveLoopValues(mixed $variable): array
+    {
+        if (! is_iterable($variable)) {
+            throw new InvalidArgumentException('Invalid array');
+        }
+
+        return iterator_to_array($variable);
     }
 
     protected function buildPartialContext(RenderContext $rootContext, string $templateName, array $variables = []): RenderContext

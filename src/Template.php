@@ -21,7 +21,14 @@ class Template
         try {
             $context->mergeOutputs($this->state->outputs);
 
-            return $this->root->render($context);
+            $output = $this->root->render($context);
+
+            // Partials are already part of the root output
+            if (! $context->isPartial()) {
+                $context->resourceLimits->incrementWriteScore($output);
+            }
+
+            return $output;
         } catch (LiquidException $e) {
             $e->templateName = $e->templateName ?? $this->root->name;
             throw $e;
@@ -39,7 +46,25 @@ class Template
         try {
             $context->mergeOutputs($this->state->outputs);
 
-            yield from $this->root->stream($context);
+            // Partials are streamed through the root template's loop below
+            if ($context->isPartial()) {
+                yield from $this->root->stream($context);
+
+                return;
+            }
+
+            /*
+             * The one place every chunk is guaranteed to pass through exactly once,
+             * whichever node produced it. Two jobs happen here:
+             * - increment the write score, checked against a running total.
+             * - renumbering the keys, since nodes delegate with `yield from`, which passes the inner generators' keys through and restarts them at 0
+             */
+            $context->resourceLimits->resetStreamWriteScore();
+
+            foreach ($this->root->stream($context) as $output) {
+                $context->resourceLimits->incrementStreamWriteScore($output);
+                yield $output;
+            }
         } catch (LiquidException $e) {
             $e->templateName = $e->templateName ?? $this->root->name;
             throw $e;
