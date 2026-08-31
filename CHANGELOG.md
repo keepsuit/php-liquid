@@ -2,6 +2,22 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.12.0 - 2026-08-31
+
+### What's Changed
+
+* Speed up lexer: ~2x faster tokenization, ~1.5x faster parsing by @cappuc in https://github.com/keepsuit/php-liquid/pull/65
+* Improved parsing by 10% and rendering by 15% by @cappuc in https://github.com/keepsuit/php-liquid/pull/68
+* Optimize render and stream hot paths by @cappuc in https://github.com/keepsuit/php-liquid/pull/69
+* Support comment blocks inside liquid tags by @cappuc in https://github.com/keepsuit/php-liquid/pull/71
+* Stream control-flow tags and optimize render context by @cappuc in https://github.com/keepsuit/php-liquid/pull/74
+* Add PR-vs-base PHPBench workflow with automated benchmark diff comments by @cappuc with @Copilot in https://github.com/keepsuit/php-liquid/pull/63
+* Improve PHPBench comparison reporting by @cappuc in https://github.com/keepsuit/php-liquid/pull/66
+* Revamp benchmark suite with storefront workloads and guarded comparisons by @cappuc in https://github.com/keepsuit/php-liquid/pull/70
+* Bump actions/github-script from 8 to 9 by @dependabot[bot] in https://github.com/keepsuit/php-liquid/pull/73
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.11.0...v0.12.0
+
 ## v0.11.0 - 2026-07-10
 
 ### What's Changed
