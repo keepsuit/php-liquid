@@ -16,14 +16,14 @@ Liquid is a template engine with interesting advantages:
 
 ## Shopify Liquid version compatibility
 
-|  PHP Liquid | Shopify Liquid |
-|------------:|---------------:|
-|       v0.11 |          v5.13 |
-|       v0.10 |          v5.12 |
-|        v0.9 |           v5.8 |
-|        v0.8 |           v5.7 |
-|        v0.7 |           v5.6 |
-| v0.1 - v0.6 |           v5.5 |
+|    PHP Liquid | Shopify Liquid |
+| ------------: | -------------: |
+| v0.11 - v0.12 |          v5.13 |
+|         v0.10 |          v5.12 |
+|          v0.9 |           v5.8 |
+|          v0.8 |           v5.7 |
+|          v0.7 |           v5.6 |
+|   v0.1 - v0.6 |           v5.5 |
 
 #### Differences from Shopify Liquid
 
@@ -125,6 +125,7 @@ Public properties and public methods of the class will be accessible in the temp
 You can also override the `liquidMethodMissing` method to handle undefined properties.
 
 Liquid provides some attributes to control the behavior of the drops:
+
 - `Hidden`: Hide the method or the property from the template, it cannot be accessed from liquid.
 - `Cache`: Cache the result of the method, it will be called only once and the result will be stored in the drop.
 
@@ -141,12 +142,12 @@ class ProductDrop extends Drop {
     public function price(): float {
         return round($this->product->price, 2);
     }
-    
+
     #[\Keepsuit\Liquid\Attributes\Cache]
     public function expensiveOperation(){
         // complex operation
     }
-    
+
     #[\Keepsuit\Liquid\Attributes\Hidden]
     public function buy(){
         // Do something
@@ -154,7 +155,7 @@ class ProductDrop extends Drop {
 }
 ```
 
-If you implement the `MapsToLiquid` interface in your domain classes, 
+If you implement the `MapsToLiquid` interface in your domain classes,
 the liquid renderer will automatically convert your objects to drops.
 
 ```php
@@ -219,7 +220,7 @@ $environment->tagRegistry->register(CustomTag::class);
 
 To create a custom filter, you need to create a class that extends the `Keepsuit\Liquid\Filters\FiltersProvider` abstract class.
 
-Each public method of the class will be registered as a filter. 
+Each public method of the class will be registered as a filter.
 You can "hide" a public method with the `Hidden` attribute, so it will not be registered as filter.
 
 ```php
@@ -231,7 +232,7 @@ class CustomFilters extends FiltersProvider
     {
         return 'custom '.$value;
     }
-    
+
     #[\Keepsuit\Liquid\Attributes\Hidden]
     public function notAFilter(string $value): string
     {
@@ -266,13 +267,13 @@ class CustomExtension extends \Keepsuit\Liquid\Extensions\Extension
             CustomTag::class,
         ];
     }
-    
+
     public function getFiltersProviders() : array{
         return [
             CustomFilters::class,
         ];
     }
-    
+
     // custom registers passed to render context
     public function getRegisters() : array {
         return [
@@ -283,6 +284,7 @@ class CustomExtension extends \Keepsuit\Liquid\Extensions\Extension
 ```
 
 Then you need to register the extension in the environment:
+
 ```php
 // register when building the environment
 $environment = \Keepsuit\Liquid\EnvironmentFactory::new()
@@ -317,14 +319,14 @@ But this package provides some custom tags and filters that you can use.
 ### Filters
 
 - `TernaryFilter`
-  - `ternary`: adds a ternary operator.
-      ```liquid
-      {{ condition | ternary: true_value, false_value }}
-    
-      # Example
-      {{ true | ternary: 'yes', 'no' }} # yes
-      {{ false | ternary: 'yes', 'no' }} # no
-      ```
+    - `ternary`: adds a ternary operator.
+        ```liquid
+        {{ condition | ternary: true_value, false_value }}
+
+        # Example
+        {{ true | ternary: 'yes', 'no' }} # yes
+        {{ false | ternary: 'yes', 'no' }} # no
+        ```
 
 ## Testing
 
