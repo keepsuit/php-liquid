@@ -4,26 +4,58 @@
 composer benchmark             # default group: the storefront theme
 composer benchmark:cache       # cache group: template-cache backends
 composer benchmark:operations  # operations group: individual operations
+composer benchmark:compiler    # compiler group: compiled/interpreted pipeline
 php performance/profile-theme.php --output=profile.json
 ```
 
 ## What each group is for
 
-The three groups have different jobs, and conflating them is how a benchmark suite
+The benchmark groups have different jobs, and conflating them is how a benchmark suite
 stops being useful.
 
 **`default`** (`ThemeBench`) renders the storefront theme — 29 templates across
-four pages. It answers *"did rendering get slower"* and nothing more. It cannot
-tell you *what* got slower, because a regression in any one tag is averaged
-across everything else. Don't expect it to localize.
+four pages — with both interpreted `benchRender` and precompiled
+`benchRenderCompiled` subjects. Compilation and artifact loading happen during
+setup, outside the timed compiled-render subject. It answers *"did rendering get
+slower"* and nothing more. It cannot tell you *what* got slower, because a
+regression in any one tag is averaged across everything else. Don't expect it to
+localize.
 
-**`cache`** (`TemplateCacheBench`) measures compilation and fresh-environment
-loading for every supported template-cache backend.
+**`cache`** (`TemplateCacheBench`) measures template-cache build and
+fresh-environment load+render for every supported backend. The compiled subject
+builds deterministic PHP artifacts during setup, then
+`benchLoadAndRenderCompiled` measures their filesystem-backed load+render path;
+artifact compilation and cache setup are outside the timed boundary.
 
 **`operations`** (`OperationBench`) measures single operations on tiny templates.
 This is where per-feature sensitivity lives, and where a benchmark is allowed to
 be unrealistic: an artificial template that does one thing 64 times is a better
 instrument than a realistic page.
+
+**`compiler`** (`CompilerBench`) measures compile/write, fresh artifact
+require/load, compiled render, compiled stream, interpreted render and
+interpreted stream as separate subjects over the same storefront fixture. All
+template source reads, parsing, artifact setup and render data construction are
+performed in setup; render and stream subjects only exercise their named runtime
+path. Setup also compares complete compiled and interpreted output before timing begins,
+including templates reached through partial lookup; stream chunk boundaries may differ.
+The fresh artifact load subject invalidates filesystem metadata in a
+`BeforeMethods` hook; its timed body requires and validates all artifacts in an isolated
+PHP process, avoiding classes loaded during benchmark setup.
+
+Run the compiler group with the same aggregate shape as the existing baseline:
+
+```bash
+vendor/bin/phpbench run --group=compiler --warmup=1 --retry-threshold=5 \
+  --report=aggregate --output=json > /tmp/php-liquid-compiler.json
+php tools/phpbench-compare.php build/base.json /tmp/php-liquid-compiler.json
+```
+
+The current `build/base.json` contains only the four `ThemeBench` default-group
+rows, so compiler rows appear as branch-only rows with their PR throughput and
+are not treated as an improvement or regression. Establish a matching compiler
+baseline on `main` before drawing compiler performance conclusions; the ignored
+baseline artifact is intentionally not part of the repository.
 
 The split is what lets the theme be realistic. Whenever realism and measurement
 sensitivity conflict inside the theme, realism wins — sensitivity is not the
@@ -103,7 +135,7 @@ Known gaps, in rough priority order:
 - **Coverage-only tags.** `tablerow`, `increment`, `decrement`, `ifchanged`,
   `raw` and `doc` are unbenchmarked. Real themes barely use them, so they belong
   in `operations` rather than in the theme.
-- **`TemplateCacheBench` shape.** Six subjects are driven by six near-identical
+- **`TemplateCacheBench` shape.** Seven subjects are driven by seven near-identical
   `setUp*` wrappers around a string `match`; `ParamProviders` could reduce that
   repetition. Each benchmark setup now receives a unique temporary cache path,
   so concurrent runs do not share cache files.

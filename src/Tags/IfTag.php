@@ -2,8 +2,10 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Condition\ElseCondition;
+use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Parse\TagParseContext;
@@ -12,7 +14,7 @@ use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\TagBlock;
 
-class IfTag extends TagBlock implements CanBeStreamed
+class IfTag extends TagBlock implements CanBeCompiled, CanBeStreamed
 {
     /** @var Condition[] */
     protected array $conditions = [];
@@ -52,6 +54,11 @@ class IfTag extends TagBlock implements CanBeStreamed
         return $output;
     }
 
+    public function compile(CompilerContext $context): void
+    {
+        $this->compileConditions($context, $this->conditions);
+    }
+
     /**
      * @return \Generator<string>
      */
@@ -62,6 +69,45 @@ class IfTag extends TagBlock implements CanBeStreamed
 
     /**
      * @param  array<Condition>  $conditions
+     */
+    protected function compileConditions(CompilerContext $context, array $conditions, bool $first = true): void
+    {
+        foreach ($conditions as $condition) {
+            $isElse = $condition->else();
+
+            if ($isElse && $first) {
+                if ($condition->body !== null) {
+                    $context->compileBody($condition->body);
+                }
+
+                break;
+            }
+
+            if ($isElse) {
+                $context->write('else {');
+            } else {
+                $keyword = $first ? 'if' : 'elseif';
+                $conditionValue = $context->writeRuntimeValue($condition);
+                $context->write($keyword.' ('.$conditionValue.'->evaluate($context)) {');
+            }
+
+            $context->indent();
+
+            if ($condition->body !== null) {
+                $context->compileBody($condition->body);
+            }
+
+            $context->outdent()->write('}');
+
+            if ($isElse) {
+                break;
+            }
+
+            $first = false;
+        }
+    }
+
+    /**
      * @return \Generator<string>
      */
     protected function streamConditions(RenderContext $context, array $conditions): \Generator

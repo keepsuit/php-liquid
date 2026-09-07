@@ -4,6 +4,8 @@ namespace Keepsuit\Liquid\Performance\benchmarks;
 
 use Keepsuit\Liquid\Contracts\LiquidTemplatesCache;
 use Keepsuit\Liquid\Environment;
+use Keepsuit\Liquid\Performance\Support\CompiledTemplatesCache;
+use Keepsuit\Liquid\Performance\Support\CompilesThemeTemplates;
 use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
 use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
 use Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache;
@@ -24,6 +26,8 @@ use PhpBench\Attributes\Revs;
 #[AfterMethods('clearCache')]
 class TemplateCacheBench
 {
+    use CompilesThemeTemplates;
+
     private const CACHE_DIRECTORY = 'keepsuit-liquid-phpbench';
 
     private Environment $environment;
@@ -74,6 +78,12 @@ class TemplateCacheBench
         $this->renderCachedTheme();
     }
 
+    #[BeforeMethods('setUpCompiledCachedRender')]
+    public function benchLoadAndRenderCompiled(): void
+    {
+        $this->renderCachedTheme();
+    }
+
     public function setUpInMemoryBuild(): void
     {
         $this->setUpBuild('memory');
@@ -102,6 +112,25 @@ class TemplateCacheBench
     public function setUpVarExporterCachedRender(): void
     {
         $this->setUpCachedRender('var-exporter');
+    }
+
+    public function setUpCompiledCachedRender(): void
+    {
+        $this->templateNames = StorefrontTheme::templateNames();
+        $this->pageTemplateNames = StorefrontTheme::pageTemplateNames();
+        $this->cacheDirectory = sys_get_temp_dir().'/'.self::CACHE_DIRECTORY.'-'.bin2hex(random_bytes(8));
+        $compiledCache = new CompiledTemplatesCache($this->cachePath('compiled'));
+        $this->cache = $compiledCache;
+        $compilerEnvironment = $this->newCompiledEnvironment();
+
+        foreach ($this->templateNames as $templateName) {
+            $template = $compilerEnvironment->parseTemplate($templateName);
+            $this->compileTemplateToPath($compilerEnvironment, $template, $compiledCache->pathFor($templateName));
+        }
+
+        $this->environment = StorefrontTheme::environmentFactory()
+            ->setTemplatesCache($this->cache)
+            ->build();
     }
 
     public function clearCache(): void

@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid\Nodes;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
+use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Contracts\Disableable;
 use Keepsuit\Liquid\Exceptions\LiquidException;
@@ -11,7 +13,7 @@ use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tag;
 
-class BodyNode extends Node implements CanBeStreamed
+class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
 {
     private const MAX_BUFFERED_BYTES = 4096;
 
@@ -43,6 +45,65 @@ class BodyNode extends Node implements CanBeStreamed
         $this->children = $children;
 
         return $this;
+    }
+
+    /**
+     * The body is compiled into an inline lazy generator: the base template owns
+     * its error boundary, while the body carries no state that needs its own
+     * scope beyond the render context.
+     *
+     * Mirrors render(): Text cannot fail or interrupt, so it needs no guard, and
+     * every other child is followed by a bail-out rather than the whole body
+     * being wrapped in a per-child hasInterrupt() check.
+     */
+    public function compile(CompilerContext $context): void
+    {
+        $lastIndex = count($this->children) - 1;
+        $interruptible = false;
+        foreach ($this->children as $index => $child) {
+            if ($index !== $lastIndex && $context->canInterrupt($child)) {
+                $interruptible = true;
+
+                break;
+            }
+        }
+
+        if ($interruptible) {
+            $context->write('do {')->indent();
+        }
+
+        $literal = '';
+
+        foreach ($this->children as $index => $child) {
+            if ($child instanceof Text || $child instanceof Raw) {
+                $literal .= $child->value;
+
+                continue;
+            }
+
+            if ($literal !== '') {
+                $context->writeText($literal);
+                $literal = '';
+            }
+
+            $context->subcompile($child);
+
+            if ($index !== $lastIndex && $context->canInterrupt($child)) {
+                $context->write('if ($context->hasInterrupt()) {')
+                    ->indent()
+                    ->write('break;')
+                    ->outdent()
+                    ->write('}');
+            }
+        }
+
+        if ($literal !== '') {
+            $context->writeText($literal);
+        }
+
+        if ($interruptible) {
+            $context->outdent()->write('} while (false);');
+        }
     }
 
     /**
@@ -111,7 +172,16 @@ class BodyNode extends Node implements CanBeStreamed
                     $node->ensureTagIsEnabled($context);
                 }
 
-                if ($node instanceof CanBeStreamed) {
+                if ($node instanceof CanBeStreamed && ! $node instanceof CanBeCompiled) {
+                    if ($buffer !== '') {
+                        yield $buffer;
+                        $buffer = '';
+                    }
+
+                    foreach ($node->stream($context) as $output) {
+                        yield $output;
+                    }
+                } elseif ($node instanceof CanBeStreamed) {
                     foreach ($node->stream($context) as $output) {
                         $buffer .= $output;
 

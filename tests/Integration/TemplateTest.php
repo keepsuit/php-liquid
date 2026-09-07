@@ -1,5 +1,6 @@
 <?php
 
+use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
@@ -7,7 +8,64 @@ use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Render\RenderContextOptions;
 use Keepsuit\Liquid\Render\ResourceLimits;
+use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
+use Keepsuit\Liquid\TemplateSharedState;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
+
+test('parsed templates implement the template contract', function () {
+    $template = Environment::default()->parseString('hello', name: 'hello');
+
+    expect($template)
+        ->toBeInstanceOf(Template::class)
+        ->and($template->getState())->toBeInstanceOf(TemplateSharedState::class)
+        ->and($template->getErrors())->toBeEmpty()
+        ->and($template->name())->toBe('hello');
+});
+
+test('template caches and partial loading accept template interface implementations', function () {
+    $template = new class implements Template
+    {
+        private TemplateSharedState $state;
+
+        public function __construct()
+        {
+            $this->state = new TemplateSharedState;
+        }
+
+        public function render(RenderContext $context): string
+        {
+            return '';
+        }
+
+        public function stream(RenderContext $context): Generator
+        {
+            yield from [];
+        }
+
+        public function getState(): TemplateSharedState
+        {
+            return $this->state;
+        }
+
+        public function getErrors(): array
+        {
+            return $this->state->errors;
+        }
+
+        public function name(): string
+        {
+            return 'partial';
+        }
+    };
+
+    $cache = new MemoryTemplatesCache;
+    $cache->set('partial', $template);
+
+    $environment = new Environment(templatesCache: $cache);
+
+    expect($environment->newRenderContext()->loadPartial('partial'))->toBe($template);
+});
 
 test('assigns persist on same context between renders', function () {
     $template = parseTemplate("{{ foo }}{% assign foo = 'foo' %}{{ foo }}");

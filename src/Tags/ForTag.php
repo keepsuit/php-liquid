@@ -2,6 +2,9 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Closure;
+use Keepsuit\Liquid\Compiler\CompilerContext;
+use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Drops\ForLoopDrop;
@@ -23,7 +26,7 @@ use Keepsuit\Liquid\TagBlock;
 /**
  * @phpstan-import-type Expression from ExpressionParser
  */
-class ForTag extends TagBlock implements CanBeStreamed, HasParseTreeVisitorChildren
+class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseTreeVisitorChildren
 {
     protected string $variableName;
 
@@ -73,13 +76,55 @@ class ForTag extends TagBlock implements CanBeStreamed, HasParseTreeVisitorChild
 
     public function render(RenderContext $context): string
     {
+        return $this->renderBlocks($context);
+    }
+
+    /**
+     * The loop, scope and interrupt handling stay here rather than being emitted
+     * as code: only the two bodies are compiled and streamed through closures.
+     */
+    public function compile(CompilerContext $context): void
+    {
+        $tag = $context->writeRuntimeValue($this);
+        $context->write('yield from '.$tag.'->streamBlocks($context,');
+        $context->indent();
+        $context->writeBodyCallback($this->forBlock, ',');
+
+        if ($this->elseBlock !== null) {
+            $context->writeBodyCallback($this->elseBlock);
+        } else {
+            $context->write('null');
+        }
+
+        $context->outdent()->write(');');
+    }
+
+    public function renderBlocks(RenderContext $context, ?Closure $forBody = null, ?Closure $elseBody = null): string
+    {
         $segment = $this->collectionSegment($context);
 
         if ($segment === []) {
-            return $this->renderElse($context);
+            return $elseBody !== null ? $elseBody($context) : $this->renderElse($context);
         }
 
-        return $this->renderSegment($context, $segment);
+        return $this->renderSegment($context, $segment, $forBody);
+    }
+
+    public function streamBlocks(RenderContext $context, ?Closure $forBody = null, ?Closure $elseBody = null): \Generator
+    {
+        $segment = $this->collectionSegment($context);
+
+        if ($segment === []) {
+            if ($elseBody !== null) {
+                yield from $elseBody($context);
+            } elseif ($this->elseBlock !== null) {
+                yield from $this->elseBlock->stream($context);
+            }
+
+            return;
+        }
+
+        yield from $this->streamSegment($context, $segment, $forBody);
     }
 
     /**
@@ -186,13 +231,13 @@ class ForTag extends TagBlock implements CanBeStreamed, HasParseTreeVisitorChild
         return $segment;
     }
 
-    protected function renderSegment(RenderContext $context, array $segment): string
+    protected function renderSegment(RenderContext $context, array $segment, ?Closure $forBody = null): string
     {
         /** @var ForLoopDrop[] $forStack */
         $forStack = $context->getRegister('for_stack') ?? [];
         assert(is_array($forStack));
 
-        return $context->stack(function () use ($context, $segment, $forStack) {
+        return $context->stack(function () use ($context, $segment, $forStack, $forBody) {
             $loopVars = new ForLoopDrop(
                 name: $this->name,
                 length: count($segment),
@@ -207,7 +252,7 @@ class ForTag extends TagBlock implements CanBeStreamed, HasParseTreeVisitorChild
                 $output = '';
                 foreach ($segment as $value) {
                     $context->set($this->variableName, $value);
-                    $output .= $this->forBlock->render($context);
+                    $output .= $forBody !== null ? $forBody($context) : $this->forBlock->render($context);
                     $loopVars->increment();
 
                     $interrupt = $context->popInterrupt();
@@ -230,13 +275,13 @@ class ForTag extends TagBlock implements CanBeStreamed, HasParseTreeVisitorChild
     /**
      * @return \Generator<string>
      */
-    protected function streamSegment(RenderContext $context, array $segment): \Generator
+    protected function streamSegment(RenderContext $context, array $segment, ?Closure $forBody = null): \Generator
     {
         /** @var ForLoopDrop[] $forStack */
         $forStack = $context->getRegister('for_stack') ?? [];
         assert(is_array($forStack));
 
-        yield from $context->streamedStack(function () use ($context, $segment, $forStack): \Generator {
+        yield from $context->streamedStack(function () use ($context, $segment, $forStack, $forBody): \Generator {
             $loopVars = new ForLoopDrop(
                 name: $this->name,
                 length: count($segment),
@@ -251,7 +296,13 @@ class ForTag extends TagBlock implements CanBeStreamed, HasParseTreeVisitorChild
 
                 foreach ($segment as $value) {
                     $context->set($this->variableName, $value);
-                    yield from $this->forBlock->stream($context);
+
+                    if ($forBody !== null) {
+                        yield from $forBody($context);
+                    } else {
+                        yield from $this->forBlock->stream($context);
+                    }
+
                     $loopVars->increment();
 
                     $interrupt = $context->popInterrupt();

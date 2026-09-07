@@ -14,7 +14,7 @@ test('templates cache', function (LiquidTemplatesCache $cache) {
     $cache->set('test', $template);
     expect($cache)
         ->has('test')->toBe(true)
-        ->get('test')->toBeInstanceOf(\Keepsuit\Liquid\Template::class);
+        ->get('test')->toBeInstanceOf(\Keepsuit\Liquid\ParsedTemplate::class);
 
     $renderContext = new \Keepsuit\Liquid\Render\RenderContext(['name' => 'John']);
     $cachedTemplate = $cache->get('test');

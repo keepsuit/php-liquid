@@ -4,6 +4,7 @@
     },
     "exclude": [
         "tests/cache",
-        "performance/cache"
+        "performance/cache",
+        "performance/benchmarks/cache"
     ]
 }

@@ -450,7 +450,7 @@ final class RenderContext
 
         $template = $parseContext->loadPartial($templateName);
 
-        $this->sharedState->outputs->merge($template->state->outputs);
+        $this->sharedState->outputs->merge($template->getState()->outputs);
 
         return $template;
     }

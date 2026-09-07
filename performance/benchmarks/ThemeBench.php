@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid\Performance\benchmarks;
 
 use Keepsuit\Liquid\Environment;
+use Keepsuit\Liquid\Performance\Support\CompilesThemeTemplates;
 use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
 use PhpBench\Attributes\BeforeMethods;
 use PhpBench\Attributes\Groups;
@@ -30,7 +31,11 @@ use PhpBench\Attributes\Revs;
 #[BeforeMethods('setUp')]
 class ThemeBench
 {
+    use CompilesThemeTemplates;
+
     private Environment $environment;
+
+    private Environment $compiledEnvironment;
 
     /**
      * Sources are read up front: reading them inside a benchmark would measure
@@ -46,6 +51,9 @@ class ThemeBench
     public function setUp(): void
     {
         $this->environment = StorefrontTheme::environment();
+        $this->compiledEnvironment = $this->newCompiledEnvironment();
+        $this->compileThemeTemplates($this->compiledEnvironment, __DIR__.'/cache/compiled');
+
         $this->sources = [];
 
         foreach (StorefrontTheme::templateNames() as $name) {
@@ -77,10 +85,24 @@ class ThemeBench
         }
     }
 
+    public function benchRenderCompiled(): void
+    {
+        foreach ($this->pageTemplateNames as $pageTemplateName) {
+            StorefrontTheme::renderPage($this->compiledEnvironment, $pageTemplateName);
+        }
+    }
+
     public function benchStream(): void
     {
         foreach ($this->pageTemplateNames as $pageTemplateName) {
             $this->drain(StorefrontTheme::streamPage($this->environment, $pageTemplateName));
+        }
+    }
+
+    public function benchStreamCompiled(): void
+    {
+        foreach ($this->pageTemplateNames as $pageTemplateName) {
+            $this->drain(StorefrontTheme::streamPage($this->compiledEnvironment, $pageTemplateName));
         }
     }
 

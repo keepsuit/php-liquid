@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
+use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Drops\ForLoopDrop;
@@ -19,7 +21,7 @@ use Keepsuit\Liquid\Template;
 /**
  * @phpstan-import-type Expression from ExpressionParser
  */
-class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildren
+class RenderTag extends Tag implements CanBeCompiled, CanBeStreamed, HasParseTreeVisitorChildren
 {
     protected string|VariableLookup $templateNameExpression;
 
@@ -102,12 +104,17 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
         return $this;
     }
 
+    /**
+     * Rendering does not go through stream(): a partial reached through the
+     * generator chain pays for a Generator per nesting level, and render tags
+     * are the most common node in a real theme.
+     */
     public function render(RenderContext $context): string
     {
         $partial = $this->loadPartial($context);
         $templateName = $partial->name() ?? '';
 
-        $contextVariableName = ($this->aliasName ?? Arr::last(explode('/', $templateName)));
+        $contextVariableName = $this->aliasName ?? Arr::last(explode('/', $templateName));
         assert(is_string($contextVariableName));
 
         $variable = $this->variableNameExpression ? $context->evaluate($this->variableNameExpression) : null;
@@ -133,6 +140,27 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
         }
 
         return $output;
+    }
+
+    /**
+     * Compile the common static partial form without rebuilding the tag object
+     * in the generated template.
+     */
+    public function compile(CompilerContext $context): void
+    {
+        if ($this->isForLoop || ! is_string($this->templateNameExpression)) {
+            $context->compileFallback($this);
+
+            return;
+        }
+
+        $context->write(sprintf(
+            'yield from $this->yieldPartial($context, %s, %s, %s, %s);',
+            $context->writeValue($this->templateNameExpression),
+            $context->writeValue($this->variableNameExpression),
+            $context->writeValue($this->aliasName),
+            $context->writeValue($this->attributes),
+        ));
     }
 
     public function stream(RenderContext $context): \Generator
