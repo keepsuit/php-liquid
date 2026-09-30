@@ -2,6 +2,14 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.12.1 - 2026-09-30
+
+### What's Changed
+
+* Define empty and blank condition matching by @cappuc in https://github.com/keepsuit/php-liquid/pull/75
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.12.0...v0.12.1
+
 ## v0.12.0 - 2026-08-31
 
 ### What's Changed
