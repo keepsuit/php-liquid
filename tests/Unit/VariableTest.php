@@ -185,6 +185,13 @@ test('variable lookup from markup', function (string $markup, string $name, arra
     ["a['0']", 'a', ['0']],
 ]);
 
+test('negative numeric indexes stay distinct from quoted negative keys', function () {
+    expect(createVariable('a[-1]')->name->lookups)->toBe([-1]);
+    expect(createVariable('a["-1"]')->name->lookups)->toBe(['-1']);
+    expect(VariableLookup::fromMarkup('a[-1]')->lookups)->toBe([-1]);
+    expect(VariableLookup::fromMarkup('a["-1"]')->lookups)->toBe(['-1']);
+});
+
 test('variable lookup from invalid markup', function (string $markup) {
     expect(fn () => VariableLookup::fromMarkup($markup))
         ->toThrow(SyntaxException::class);
@@ -192,6 +199,8 @@ test('variable lookup from invalid markup', function (string $markup) {
     ['a.'],
     ['a[]'],
     ['a[0'],
+    ['a[-]'],
+    ['a[--1]'],
     ['a["b]'],
     // Trailing junk used to be skipped silently, yielding just ['b'].
     ['a.b!!'],

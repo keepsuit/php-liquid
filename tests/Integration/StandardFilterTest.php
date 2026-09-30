@@ -15,6 +15,7 @@ beforeEach(function () {
 
 test('size', function () {
     expect($this->filters->invoke($this->context, 'size', [1, 2, 3]))->toBe(3);
+    expect($this->filters->invoke($this->context, 'size', 'Hello World'))->toBe(11);
     expect($this->filters->invoke($this->context, 'size', []))->toBe(0);
     expect($this->filters->invoke($this->context, 'size', null))->toBe(0);
 });
@@ -413,9 +414,15 @@ test('date', function () {
 test('first last', function () {
     expect($this->filters->invoke($this->context, 'first', [1, 2, 3]))->toBe(1);
     expect($this->filters->invoke($this->context, 'last', [1, 2, 3]))->toBe(3);
+    expect($this->filters->invoke($this->context, 'first', 'Hello World'))->toBe('H');
+    expect($this->filters->invoke($this->context, 'last', 'Hello World'))->toBe('d');
+    expect($this->filters->invoke($this->context, 'first', 'éclair'))->toBe('é');
+    expect($this->filters->invoke($this->context, 'last', 'éclair'))->toBe('r');
 
     expect($this->filters->invoke($this->context, 'first', []))->toBeNull();
     expect($this->filters->invoke($this->context, 'last', []))->toBeNull();
+    expect($this->filters->invoke($this->context, 'first', ['a' => 1, 'b' => 2]))->toBeNull();
+    expect($this->filters->invoke($this->context, 'last', ['a' => 1, 'b' => 2]))->toBeNull();
 });
 
 test('replace', function () {

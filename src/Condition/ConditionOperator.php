@@ -35,11 +35,17 @@ enum ConditionOperator
 
     public function evaluate(mixed $left, mixed $right): bool
     {
+        if ($this === ConditionOperator::Equal || $this === ConditionOperator::NotEqual) {
+            return $this->regularEvaluation($left, $right);
+        }
+
         if ($left === null || $right === null) {
-            return match ($this) {
-                ConditionOperator::Equal, ConditionOperator::NotEqual => $this->regularEvaluation($left, $right),
-                default => false,
-            };
+            return false;
+        }
+
+        // PHP compares numeric strings numerically; Liquid compares them lexically.
+        if (is_string($left) && is_string($right) && $this !== ConditionOperator::Contains) {
+            return $this->regularEvaluation(strcmp($left, $right), 0);
         }
 
         if (gettype($left) === gettype($right)) {
@@ -54,7 +60,7 @@ enum ConditionOperator
         }
 
         return match ($this) {
-            ConditionOperator::Equal, ConditionOperator::NotEqual, ConditionOperator::Contains => $this->regularEvaluation($left, $right),
+            ConditionOperator::Contains => $this->regularEvaluation($left, $right),
             default => $this->throwCompareTypesException($left, $right),
         };
     }
@@ -76,6 +82,10 @@ enum ConditionOperator
     {
         if ($left === $right) {
             return true;
+        }
+
+        if ((is_int($left) || is_float($left)) && (is_int($right) || is_float($right))) {
+            return $left == $right;
         }
 
         if ($left instanceof Range && $right instanceof Range) {
@@ -113,7 +123,9 @@ enum ConditionOperator
     protected function evaluateContains(mixed $left, mixed $right): bool
     {
         return match (gettype($left)) {
-            'array' => in_array($right, $left, true),
+            'array' => array_is_list($left)
+                ? in_array($right, $left, true)
+                : ((is_string($right) || is_int($right)) && array_key_exists($right, $left)),
             'string' => assert(is_numeric($right) || is_string($right)) && str_contains($left, (string) $right),
             default => false,
         };

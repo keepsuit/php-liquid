@@ -226,8 +226,12 @@ class StandardFilters extends FiltersProvider
     /**
      * Returns the first item in an array.
      */
-    public function first(iterable $input): mixed
+    public function first(string|iterable $input): mixed
     {
+        if (is_string($input)) {
+            return Str::substr($input, 0, 1);
+        }
+
         $input = $this->mapToLiquid($input);
 
         if (count($input) === 0) {
@@ -260,11 +264,15 @@ class StandardFilters extends FiltersProvider
     /**
      * Returns the last item in an array.
      */
-    public function last(iterable $input): mixed
+    public function last(string|iterable $input): mixed
     {
+        if (is_string($input)) {
+            return Str::substr($input, -1);
+        }
+
         $input = $this->mapToLiquid($input);
 
-        if (count($input) === 0) {
+        if (count($input) === 0 || ! array_is_list($input)) {
             return null;
         }
 

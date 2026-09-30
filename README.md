@@ -28,6 +28,11 @@ Liquid is a template engine with interesting advantages:
 #### Differences from Shopify Liquid
 
 - **Error Modes** are not implemented, the parsing is always strict.
+- `case` deliberately renders only the first matching `when`. A `case` block
+  can contain at most one `else`, after its `when` sections; `else` before a
+  `when` or a `when` after `else` is a syntax error.
+- `size`, `first` and `last` work with both dot and bracket notation (`a.first` and `a["first"]`);
+  Shopify Liquid supports them only with dot notation.
 - `include` tag is not implemented because it is deprecated and can be replaced with `render`.
 
 ## Installation

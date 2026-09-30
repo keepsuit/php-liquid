@@ -14,7 +14,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 {
     const FILTER_METHODS = ['size', 'first', 'last'];
 
-    private const LOOKUP_REGEX = '{\.([\w\-]+)|\["([\w\-]+)"\]|\[\'([\w\-]+)\'\]|\[(\d+)\]}';
+    private const LOOKUP_REGEX = '{\.([\w\-]+)|\["([\w\-]+)"\]|\[\'([\w\-]+)\'\]|\[(-?\d+)\]}';
 
     public function __construct(
         public readonly string $name,
@@ -47,6 +47,10 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
             // Every alternative in the pattern captures, so one of them is set.
             $lookup = $matches[1][$i] ?? $matches[2][$i] ?? $matches[3][$i] ?? $matches[4][$i];
             assert($lookup !== null);
+
+            if ($matches[4][$i] !== null && str_starts_with($lookup, '-')) {
+                $lookup = (int) $lookup;
+            }
 
             $lookups[] = $lookup;
         }
@@ -135,6 +139,10 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
                 return new MissingValue;
             }
 
+            if (is_array($object) && array_is_list($object) && is_int($key) && $key < 0) {
+                $key += count($object);
+            }
+
             $nextObject = $context->internalContextLookup($object, $key);
 
             if ($nextObject instanceof CanBeEvaluated) {
@@ -142,7 +150,7 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
             }
 
             if ($nextObject instanceof MissingValue) {
-                if (is_iterable($object) && is_string($lookup) && in_array($lookup, self::FILTER_METHODS, true)) {
+                if ((is_iterable($object) || is_string($object)) && is_string($lookup) && in_array($lookup, self::FILTER_METHODS, true)) {
                     $nextObject = $context->applyFilter($lookup, $object);
                 } else {
                     return $nextObject;
