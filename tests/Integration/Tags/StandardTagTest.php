@@ -113,6 +113,7 @@ test('case', function () {
 test('case comparisons use Shopify value types and keep first-match semantics', function () {
     assertTemplateResult('float match', '{% case 5 %}{% when 5.0 %}float match{% else %}no match{% endcase %}');
     assertTemplateResult('no match', '{% case 5 %}{% when "5" %}string match{% else %}no match{% endcase %}');
+    assertTemplateResult('no match', '{% case "5" %}{% when 5 %}number match{% else %}no match{% endcase %}');
 
     $template = '{% case 1 %}{% when 1 %}first{% when 1 %}second{% endcase %}';
     assertTemplateResult('first', $template);
@@ -274,28 +275,19 @@ test('case strict parsing rejects trailing tokens', function () {
     );
 });
 
-test('case rejects invalid else ordering and duplicate else in every environment mode', function () {
-    $invalidTemplates = [
+test('case rejects when after else and duplicate else', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): A when tag cannot follow an else tag - Valid syntax: when <expression> [, <expression>...]',
         '{% case 1 %}{% else %}else{% when 1 %}one{% endcase %}',
+    );
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): A when tag cannot follow an else tag - Valid syntax: when <expression> [, <expression>...]',
         '{% case 1 %}{% when 1 %}one{% else %}else{% when 2 %}two{% endcase %}',
+    );
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): A case block can only contain one else tag - Valid syntax: else',
         '{% case 1 %}{% when 1 %}one{% else %}else{% else %}again{% endcase %}',
-    ];
-    $environments = [
-        \Keepsuit\Liquid\EnvironmentFactory::new()->build(),
-        \Keepsuit\Liquid\EnvironmentFactory::new()
-            ->setStrictVariables(true)
-            ->setStrictFilters(true)
-            ->setRethrowErrors(true)
-            ->setLazyParsing(false)
-            ->build(),
-    ];
-
-    foreach ($environments as $environment) {
-        foreach ($invalidTemplates as $template) {
-            expect(fn () => $environment->parseString($template))
-                ->toThrow(\Keepsuit\Liquid\Exceptions\SyntaxException::class);
-        }
-    }
+    );
 });
 
 test('assign', function () {

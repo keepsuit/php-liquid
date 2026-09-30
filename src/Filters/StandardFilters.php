@@ -272,7 +272,7 @@ class StandardFilters extends FiltersProvider
 
         $input = $this->mapToLiquid($input);
 
-        if (count($input) === 0) {
+        if (count($input) === 0 || ! array_is_list($input)) {
             return null;
         }
 

@@ -421,6 +421,8 @@ test('first last', function () {
 
     expect($this->filters->invoke($this->context, 'first', []))->toBeNull();
     expect($this->filters->invoke($this->context, 'last', []))->toBeNull();
+    expect($this->filters->invoke($this->context, 'first', ['a' => 1, 'b' => 2]))->toBeNull();
+    expect($this->filters->invoke($this->context, 'last', ['a' => 1, 'b' => 2]))->toBeNull();
 });
 
 test('replace', function () {

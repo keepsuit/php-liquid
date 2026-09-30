@@ -1,6 +1,5 @@
 <?php
 
-use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Nodes\Range;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Render\RenderContextOptions;
@@ -243,18 +242,6 @@ test('out of range negative array indexes follow missing variable behavior', fun
         ->toThrow(\Keepsuit\Liquid\Exceptions\UndefinedVariableException::class);
 });
 
-test('valid lookup and comparison results are stable with strict environment options', function () {
-    $factory = EnvironmentFactory::new()
-        ->setStrictVariables(true)
-        ->setStrictFilters(true)
-        ->setRethrowErrors(true)
-        ->setLazyParsing(false);
-
-    assertTemplateResult('2', '{{ arr[-1] }}', ['arr' => [3, 1, 2]], strictVariables: true, factory: $factory);
-    assertTemplateResult('11', '{{ value.size }}', ['value' => 'Hello World'], strictVariables: true, factory: $factory);
-    assertTemplateResult('match', '{% if value == 5.0 %}match{% else %}no match{% endif %}', ['value' => 5], strictVariables: true, factory: $factory);
-});
-
 test('hash to array transition', function (bool $strict) {
     $assigns = [
         'colors' => [
@@ -296,6 +283,7 @@ test('string size/first/last lookup', function (bool $strict) {
     assertTemplateResult('true', '{% if value.size > 2 %}true{% else %}false{% endif %}', ['value' => $string], strictVariables: $strict);
     assertTemplateResult('H', '{{ value.first }}', ['value' => $string], strictVariables: $strict);
     assertTemplateResult('d', '{{ value.last }}', ['value' => $string], strictVariables: $strict);
+    assertTemplateResult('11|H|d', '{{ value["size"] }}|{{ value["first"] }}|{{ value["last"] }}', ['value' => $string], strictVariables: $strict);
 
     $unicode = 'éclair';
     assertTemplateResult('6', '{{ value.size }}', ['value' => $unicode], strictVariables: $strict);

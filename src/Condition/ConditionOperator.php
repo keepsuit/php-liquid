@@ -36,17 +36,16 @@ enum ConditionOperator
     public function evaluate(mixed $left, mixed $right): bool
     {
         if ($this === ConditionOperator::Equal || $this === ConditionOperator::NotEqual) {
-            $equal = $this->evaluateEquality($left, $right);
-
-            return $this === ConditionOperator::Equal ? $equal : ! $equal;
+            return $this->regularEvaluation($left, $right);
         }
 
         if ($left === null || $right === null) {
             return false;
         }
 
+        // PHP compares numeric strings numerically; Liquid compares them lexically.
         if (is_string($left) && is_string($right) && $this !== ConditionOperator::Contains) {
-            return $this->evaluateStringComparison($left, $right);
+            return $this->regularEvaluation(strcmp($left, $right), 0);
         }
 
         if (gettype($left) === gettype($right)) {
@@ -63,36 +62,6 @@ enum ConditionOperator
         return match ($this) {
             ConditionOperator::Contains => $this->regularEvaluation($left, $right),
             default => $this->throwCompareTypesException($left, $right),
-        };
-    }
-
-    protected function evaluateEquality(mixed $left, mixed $right): bool
-    {
-        if ((is_int($left) || is_float($left)) && (is_int($right) || is_float($right))) {
-            return $left == $right;
-        }
-
-        if ((is_int($left) || is_float($left)) && is_string($right)) {
-            return false;
-        }
-
-        if (is_string($left) && (is_int($right) || is_float($right))) {
-            return false;
-        }
-
-        return $this->evaluateEqual($left, $right);
-    }
-
-    protected function evaluateStringComparison(string $left, string $right): bool
-    {
-        $comparison = strcmp($left, $right);
-
-        return match ($this) {
-            ConditionOperator::GreaterThan => $comparison > 0,
-            ConditionOperator::GreaterThanOrEqual => $comparison >= 0,
-            ConditionOperator::LessThan => $comparison < 0,
-            ConditionOperator::LessThanOrEqual => $comparison <= 0,
-            default => false,
         };
     }
 
@@ -113,6 +82,10 @@ enum ConditionOperator
     {
         if ($left === $right) {
             return true;
+        }
+
+        if ((is_int($left) || is_float($left)) && (is_int($right) || is_float($right))) {
+            return $left == $right;
         }
 
         if ($left instanceof Range && $right instanceof Range) {
