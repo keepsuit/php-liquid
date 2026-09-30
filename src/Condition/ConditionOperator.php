@@ -35,11 +35,18 @@ enum ConditionOperator
 
     public function evaluate(mixed $left, mixed $right): bool
     {
+        if ($this === ConditionOperator::Equal || $this === ConditionOperator::NotEqual) {
+            $equal = $this->evaluateEquality($left, $right);
+
+            return $this === ConditionOperator::Equal ? $equal : ! $equal;
+        }
+
         if ($left === null || $right === null) {
-            return match ($this) {
-                ConditionOperator::Equal, ConditionOperator::NotEqual => $this->regularEvaluation($left, $right),
-                default => false,
-            };
+            return false;
+        }
+
+        if (is_string($left) && is_string($right) && $this !== ConditionOperator::Contains) {
+            return $this->evaluateStringComparison($left, $right);
         }
 
         if (gettype($left) === gettype($right)) {
@@ -54,8 +61,38 @@ enum ConditionOperator
         }
 
         return match ($this) {
-            ConditionOperator::Equal, ConditionOperator::NotEqual, ConditionOperator::Contains => $this->regularEvaluation($left, $right),
+            ConditionOperator::Contains => $this->regularEvaluation($left, $right),
             default => $this->throwCompareTypesException($left, $right),
+        };
+    }
+
+    protected function evaluateEquality(mixed $left, mixed $right): bool
+    {
+        if ((is_int($left) || is_float($left)) && (is_int($right) || is_float($right))) {
+            return $left == $right;
+        }
+
+        if ((is_int($left) || is_float($left)) && is_string($right)) {
+            return false;
+        }
+
+        if (is_string($left) && (is_int($right) || is_float($right))) {
+            return false;
+        }
+
+        return $this->evaluateEqual($left, $right);
+    }
+
+    protected function evaluateStringComparison(string $left, string $right): bool
+    {
+        $comparison = strcmp($left, $right);
+
+        return match ($this) {
+            ConditionOperator::GreaterThan => $comparison > 0,
+            ConditionOperator::GreaterThanOrEqual => $comparison >= 0,
+            ConditionOperator::LessThan => $comparison < 0,
+            ConditionOperator::LessThanOrEqual => $comparison <= 0,
+            default => false,
         };
     }
 
@@ -113,7 +150,9 @@ enum ConditionOperator
     protected function evaluateContains(mixed $left, mixed $right): bool
     {
         return match (gettype($left)) {
-            'array' => in_array($right, $left, true),
+            'array' => array_is_list($left)
+                ? in_array($right, $left, true)
+                : ((is_string($right) || is_int($right)) && array_key_exists($right, $left)),
             'string' => assert(is_numeric($right) || is_string($right)) && str_contains($left, (string) $right),
             default => false,
         };

@@ -18,6 +18,19 @@ test('basic condition', function () {
     expect(new Condition(1, '==', 1))->evaluate($this->context)->toBeTrue();
 });
 
+test('numbers compare across int and float types but not to numeric strings', function () {
+    expect(new Condition(5, '==', 5.0)->evaluate($this->context))->toBeTrue();
+    expect(new Condition(1, '==', 1.0)->evaluate($this->context))->toBeTrue();
+    expect(new Condition(5, '!=', 5.0)->evaluate($this->context))->toBeFalse();
+    expect(new Condition(5, '==', '5')->evaluate($this->context))->toBeFalse();
+    expect(new Condition(5, '!=', '5')->evaluate($this->context))->toBeTrue();
+});
+
+test('string ordering is lexical for numeric strings', function () {
+    expect(new Condition('10', '<', '9')->evaluate($this->context))->toBeTrue();
+    expect(new Condition('10', '>', '9')->evaluate($this->context))->toBeFalse();
+});
+
 test('default operators evaluate true', function (mixed $left, string $operator, mixed $right) {
     expect(new Condition($left, $operator, $right))->evaluate($this->context)->toBeTrue();
 })->with([
@@ -91,6 +104,16 @@ test('contains works on arrays', function (mixed $value, bool $result) {
     [6, false],
     ['1', false],
 ]);
+
+test('contains checks hash keys and retains list value membership', function () {
+    $this->context->set('hash', ['a' => 1]);
+    $this->context->set('list', ['a', 'b']);
+
+    expect(new Condition(new VariableLookup('hash'), 'contains', 'a')->evaluate($this->context))->toBeTrue();
+    expect(new Condition(new VariableLookup('hash'), 'contains', 'missing')->evaluate($this->context))->toBeFalse();
+    expect(new Condition(new VariableLookup('list'), 'contains', 'a')->evaluate($this->context))->toBeTrue();
+    expect(new Condition(new VariableLookup('list'), 'contains', 1)->evaluate($this->context))->toBeFalse();
+});
 
 test('contains returns false for null operands', function () {
     expect((new Condition(new VariableLookup('not_assigned'), 'contains', '0'))->evaluate($this->context))->toBeFalse();

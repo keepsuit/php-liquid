@@ -21,6 +21,8 @@ class CaseTag extends TagBlock implements CanBeStreamed
     /** @var Condition[] */
     protected array $conditions = [];
 
+    protected bool $hasElse = false;
+
     /**
      * @var Expression
      */
@@ -114,6 +116,14 @@ class CaseTag extends TagBlock implements CanBeStreamed
      */
     protected function mapBodySectionToCondition(TagParseContext $bodySection): Condition
     {
+        if ($bodySection->tag === 'when' && $this->hasElse) {
+            throw new SyntaxException('A when tag cannot follow an else tag');
+        }
+
+        if ($bodySection->tag === 'else' && $this->hasElse) {
+            throw new SyntaxException('A case block can only contain one else tag');
+        }
+
         $condition = match ($bodySection->tag) {
             'when' => $this->recordWhenCondition($bodySection),
             'else' => $this->recordElseCondition($bodySection),
@@ -127,6 +137,10 @@ class CaseTag extends TagBlock implements CanBeStreamed
         $condition->body($bodySection->body);
 
         $bodySection->params->assertEnd();
+
+        if ($bodySection->tag === 'else') {
+            $this->hasElse = true;
+        }
 
         return $condition;
     }

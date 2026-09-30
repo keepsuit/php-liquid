@@ -17,6 +17,19 @@ test('literal comparisons', function () {
     assertTemplateResult(' YES ', '{% assign v = nil %}{% if v == nil %} YES {% else %} NO {% endif %}');
 });
 
+test('comparison branch selection matches Shopify value types', function () {
+    assertTemplateResult('equal', '{% if value == 5.0 %}equal{% else %}different{% endif %}', ['value' => 5]);
+    assertTemplateResult('different', '{% if value == "5" %}equal{% else %}different{% endif %}', ['value' => 5]);
+    assertTemplateResult('less', "{% if value < '9' %}less{% else %}not less{% endif %}", ['value' => '10']);
+    assertTemplateResult('different', '{% unless value == "5" %}different{% else %}equal{% endunless %}', ['value' => 5]);
+});
+
+test('contains finds hash keys while preserving list values', function () {
+    assertTemplateResult('key found', "{% if value contains 'a' %}key found{% else %}missing{% endif %}", ['value' => ['a' => 1]]);
+    assertTemplateResult('value found', "{% if value contains 'a' %}value found{% else %}missing{% endif %}", ['value' => ['a', 'b']]);
+    assertTemplateResult('missing', "{% if value contains 'a' %}found{% else %}missing{% endif %}", ['value' => ['b']]);
+});
+
 test('if else', function () {
     assertTemplateResult(' YES ', '{% if false %} NO {% else %} YES {% endif %}');
     assertTemplateResult(' YES ', '{% if true %} YES {% else %} NO {% endif %}');
