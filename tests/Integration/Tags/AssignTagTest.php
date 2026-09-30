@@ -100,6 +100,19 @@ test('range assignment limits are checked without materializing the range', func
     'integer overflow' => [PHP_INT_MIN, PHP_INT_MAX],
 ])->with(['', '{% assign small = 0 %}']);
 
+test('nested range assignment scores cannot overflow', function (bool $rethrowErrors, bool $associative) {
+    $environment = EnvironmentFactory::new()->setRethrowErrors($rethrowErrors)->build();
+    $template = $environment->parseString('{% assign values = items %}');
+    $range = new \Keepsuit\Liquid\Nodes\Range(PHP_INT_MIN, PHP_INT_MAX);
+    $context = $environment->newRenderContext(
+        data: ['items' => $associative ? ['range' => $range] : [$range]],
+        resourceLimits: new ResourceLimits(assignScoreLimit: 1),
+    );
+
+    expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
+    expect($context->resourceLimits->reached())->toBeTrue();
+})->with([false, true])->with([false, true]);
+
 test('assign score exceeding resource limit from composite object', function () {
     $environment = EnvironmentFactory::new()
         ->setRethrowErrors(true)

@@ -67,7 +67,13 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
     {
         if ($value instanceof Range) {
             // Count the collection and its integers without allocating an array.
-            return $value->start > $value->end ? 1 : (int) min(PHP_INT_MAX, $value->end - $value->start + 2);
+            if ($value->start > $value->end) {
+                return 1;
+            }
+
+            $distance = $value->end - $value->start;
+
+            return $distance >= PHP_INT_MAX - 1 ? PHP_INT_MAX : $distance + 2;
         }
 
         if (is_string($value)) {
@@ -83,12 +89,17 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
 
         foreach ($value as $key => $item) {
             if (! $isList) {
-                $score += static::computeAssignScore($key);
+                $score = static::addAssignScores($score, static::computeAssignScore($key));
             }
 
-            $score += static::computeAssignScore($item);
+            $score = static::addAssignScores($score, static::computeAssignScore($item));
         }
 
         return $score;
+    }
+
+    protected static function addAssignScores(int $score, int $amount): int
+    {
+        return $amount > PHP_INT_MAX - $score ? PHP_INT_MAX : $score + $amount;
     }
 }
