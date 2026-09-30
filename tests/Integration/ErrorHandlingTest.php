@@ -1,6 +1,7 @@
 <?php
 
 use Keepsuit\Liquid\EnvironmentFactory;
+use Keepsuit\Liquid\Exceptions\ArithmeticException;
 use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Exceptions\StandardException;
@@ -214,4 +215,29 @@ test('internal error is thrown with template name', function () {
 
     expect(fn () => $environment->parseString("{% render 'snippet' with errors %}"))
         ->toThrow(InternalException::class);
+});
+
+test('arithmetic errors render only the short message', function (string $template) {
+    $output = renderTemplate($template, renderErrors: true);
+
+    expect($output)
+        ->toBe('Liquid error (line 1): divided by 0')
+        ->not->toContain('Stack trace')
+        ->not->toContain('.php');
+})->with([
+    '{{ 1 | divided_by: 0 }}',
+    '{{ 1 | modulo: 0 }}',
+]);
+
+test('arithmetic errors are thrown with the short message when rethrowing errors', function () {
+    try {
+        renderTemplate('{{ 1 | divided_by: 0 }}');
+    } catch (ArithmeticException $exception) {
+        expect($exception->toLiquidErrorMessage())->toBe('Liquid error (line 1): divided by 0');
+        expect($exception->getPrevious())->toBeInstanceOf(DivisionByZeroError::class);
+
+        return;
+    }
+
+    $this->fail('Expected ArithmeticException to be thrown.');
 });

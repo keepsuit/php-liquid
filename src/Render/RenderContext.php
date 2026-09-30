@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Render;
 
 use ArithmeticError;
 use Closure;
+use DivisionByZeroError;
 use Generator;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
 use Keepsuit\Liquid\Contracts\IsContextAware;
@@ -413,7 +414,8 @@ final class RenderContext
     {
         $error = match (true) {
             $error instanceof ResourceLimitException => throw $error,
-            $error instanceof ArithmeticError => new ArithmeticException($error),
+            $error instanceof DivisionByZeroError => new ArithmeticException('divided by 0', previous: $error),
+            $error instanceof ArithmeticError => new ArithmeticException($error->getMessage(), previous: $error),
             $error instanceof LiquidException => $error,
             default => new InternalException($error),
         };
