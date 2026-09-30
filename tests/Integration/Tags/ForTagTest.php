@@ -56,6 +56,37 @@ test('for reversed', function () {
     );
 });
 
+test('for uses Shopify collection semantics', function (string $source, array $data, string $expected) {
+    assertTemplateResult($expected, $source, data: $data);
+    expect(implode('', iterator_to_array(streamTemplate($source, data: $data))))->toBe($expected);
+})->with([
+    'first offset continue' => ['{% for i in items offset:continue limit:2 %}{{ i }}{% endfor %}', ['items' => [1, 2, 3]], '12'],
+    'descending range' => ['{% for i in (3..1) %}{{ i }}{% else %}E{% endfor %}', [], 'E'],
+    'string' => ['{% for i in s %}[{{ i }}]{% else %}E{% endfor %}', ['s' => 'abc'], '[abc]'],
+    'empty string' => ['{% for i in s %}{{ i }}{% else %}E{% endfor %}', ['s' => ''], 'E'],
+    'number' => ['{% for i in s %}{{ i }}{% else %}E{% endfor %}', ['s' => 5], 'E'],
+    'literal number' => ['{% for i in 5 %}{{ i }}{% else %}E{% endfor %}', [], 'E'],
+    'literal nil' => ['{% for i in nil %}x{% else %}E{% endfor %}', [], 'E'],
+    'explicit nil' => ['{% for i in s %}x{% else %}E{% endfor %}', ['s' => null], 'E'],
+]);
+
+test('for distinguishes missing variables from nil in strict variables mode', function () {
+    assertTemplateResult('E', '{% for i in s %}x{% else %}E{% endfor %}', data: ['s' => null], strictVariables: true);
+    expect(fn () => renderTemplate('{% for i in missing %}x{% endfor %}', strictVariables: true))
+        ->toThrow(\Keepsuit\Liquid\Exceptions\UndefinedVariableException::class);
+});
+
+test('for strict parsing rejects an absent collection', function () {
+    expect(fn () => parseTemplate('{% for i in %}x{% endfor %}'))->toThrow(SyntaxException::class);
+});
+
+test('forloop exposes its name and its parent name', function () {
+    $source = '{% for i in arr %}{{ forloop.name }}{% for j in (1..1) %}:{{ forloop.name }}:{{ forloop.parentloop.name }}{% endfor %}{% endfor %}';
+    assertTemplateResult('i-arr:j-(1..1):i-arr', $source, data: ['arr' => [1]], strictVariables: true);
+    expect(implode('', iterator_to_array(streamTemplate($source, data: ['arr' => [1]], strictVariables: true))))
+        ->toBe('i-arr:j-(1..1):i-arr');
+});
+
 test('for with range', function () {
     assertTemplateResult(
         ' 1  2  3 ',

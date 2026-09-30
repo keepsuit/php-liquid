@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Nodes\Range;
 use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Parse\ExpressionParser;
 use Keepsuit\Liquid\Parse\TagParseContext;
@@ -64,6 +65,11 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
 
     protected static function computeAssignScore(mixed $value): int
     {
+        if ($value instanceof Range) {
+            // Count the collection and its integers without allocating an array.
+            return $value->start > $value->end ? 1 : (int) min(PHP_INT_MAX, $value->end - $value->start + 2);
+        }
+
         if (is_string($value)) {
             return strlen($value);
         }

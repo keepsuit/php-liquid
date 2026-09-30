@@ -7,10 +7,10 @@ use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Drops\ForLoopDrop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Interrupts\BreakInterrupt;
 use Keepsuit\Liquid\Nodes\BodyNode;
-use Keepsuit\Liquid\Nodes\Range;
-use Keepsuit\Liquid\Nodes\RangeLookup;
+use Keepsuit\Liquid\Nodes\Literal;
 use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\ExpressionParser;
 use Keepsuit\Liquid\Parse\TagParseContext;
@@ -18,6 +18,7 @@ use Keepsuit\Liquid\Parse\TokenStream;
 use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
+use Keepsuit\Liquid\Support\UndefinedVariable;
 use Keepsuit\Liquid\TagBlock;
 
 /**
@@ -27,7 +28,10 @@ class ForTag extends TagBlock implements CanBeStreamed, HasParseTreeVisitorChild
 {
     protected string $variableName;
 
-    protected VariableLookup|RangeLookup|string $collection;
+    /**
+     * @var Expression
+     */
+    protected mixed $collection;
 
     protected string $name;
 
@@ -151,13 +155,14 @@ class ForTag extends TagBlock implements CanBeStreamed, HasParseTreeVisitorChild
 
         $collection = $context->evaluate($this->collection) ?? [];
         $collection = match (true) {
-            $collection instanceof Range => $collection->toArray(),
+            $collection instanceof UndefinedVariable => throw new UndefinedVariableException($collection->variableName),
             is_iterable($collection) => iterator_to_array($collection),
-            default => throw new InvalidArgumentException('Invalid array'),
+            is_string($collection) => $collection === '' ? [] : [$collection],
+            default => [],
         };
 
         if ($this->from === 'continue') {
-            $offset = $offsets[$this->name];
+            $offset = $offsets[$this->name] ?? 0;
         } else {
             $fromValue = $context->evaluate($this->from);
             $offset = match (true) {
@@ -289,13 +294,18 @@ class ForTag extends TagBlock implements CanBeStreamed, HasParseTreeVisitorChild
             throw new SyntaxException("For loops require an 'in' clause");
         }
 
-        $collection = $context->params->expression();
-        $this->collection = match (true) {
-            $collection instanceof VariableLookup, $collection instanceof RangeLookup, is_string($collection) => $collection,
-            default => throw new SyntaxException('Invalid collection'),
-        };
+        if ($context->params->isEnd()) {
+            throw new SyntaxException('Invalid collection');
+        }
 
-        $this->name = sprintf('%s-%s', $this->variableName, $this->collection);
+        $this->collection = $context->params->expression();
+
+        $this->name = sprintf('%s-%s', $this->variableName, match (true) {
+            $this->collection instanceof Literal => $this->collection->value,
+            $this->collection === null => 'nil',
+            is_bool($this->collection) => $this->collection ? 'true' : 'false',
+            default => (string) $this->collection,
+        });
         $this->reversed = $context->params->idOrFalse('reversed') !== false;
 
         while ($context->params->look(TokenType::Comma) || $context->params->look(TokenType::Identifier)) {

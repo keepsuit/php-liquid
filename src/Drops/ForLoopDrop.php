@@ -14,6 +14,7 @@ use Keepsuit\Liquid\Drop;
  * @property-read int              $rindex     The 1-based index of the current iteration, in reverse order.
  * @property-read int              $rindex0    The 0-based index of the current iteration, in reverse order.
  * @property-read int              $length     The total number of iterations in the loop.
+ * @property-read string           $name       The variable and collection names identifying the loop.
  * @property-read ForLoopDrop|null $parentloop The parent forloop object. If the current for loop isn’t nested inside another for loop, then null is returned.
  */
 class ForLoopDrop extends Drop
@@ -32,7 +33,7 @@ class ForLoopDrop extends Drop
         $this->index += 1;
     }
 
-    #[DropDynamicProperties(['first', 'last', 'index', 'index0', 'rindex', 'rindex0', 'length', 'parentloop'])]
+    #[DropDynamicProperties(['first', 'last', 'index', 'index0', 'rindex', 'rindex0', 'length', 'name', 'parentloop'])]
     protected function liquidMethodMissing(string $name): mixed
     {
         return match ($name) {
@@ -43,6 +44,7 @@ class ForLoopDrop extends Drop
             'rindex' => $this->length - $this->index,
             'rindex0' => $this->length - $this->index - 1,
             'length' => $this->length,
+            'name' => $this->name,
             'parentloop' => $this->parentLoop,
             default => parent::liquidMethodMissing($name),
         };

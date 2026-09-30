@@ -121,6 +121,11 @@ test('cycle', function () {
     expect(Arr::compact(Arr::flatten($traversal->visit())))->toBe(['test']);
 });
 
+test('cycle exposes variable value lookups to the visitor', function () {
+    expect(visitTree('{% cycle item.name, other %}'))->toBe(['item', 'other']);
+    expect(visitTree('{% cycle group.name: item, other %}'))->toBe(['group', 'item', 'other']);
+});
+
 test('assign', function () {
     expect(visitTree('{% assign x = test %}'))->toBe(['test']);
 });

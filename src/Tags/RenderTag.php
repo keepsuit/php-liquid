@@ -7,12 +7,14 @@ use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Drops\ForLoopDrop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\ExpressionParser;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
+use Keepsuit\Liquid\Support\UndefinedVariable;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\Template;
 
@@ -199,6 +201,10 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
      */
     private function resolveLoopValues(mixed $variable): array
     {
+        if ($variable instanceof UndefinedVariable) {
+            throw new UndefinedVariableException($variable->variableName);
+        }
+
         if (! is_iterable($variable)) {
             throw new InvalidArgumentException('Invalid array');
         }

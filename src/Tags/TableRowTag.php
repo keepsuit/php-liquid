@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid\Tags;
 use Keepsuit\Liquid\Drops\TableRowLoopDrop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Interrupts\BreakInterrupt;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Nodes\Range;
@@ -12,6 +13,7 @@ use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
+use Keepsuit\Liquid\Support\UndefinedVariable;
 use Keepsuit\Liquid\TagBlock;
 use Traversable;
 
@@ -64,7 +66,15 @@ class TableRowTag extends TagBlock
 
     public function render(RenderContext $context): string
     {
-        $collection = $context->evaluate($this->collectionName) ?? [];
+        $collection = $context->evaluate($this->collectionName);
+        if ($collection === null) {
+            return '';
+        }
+
+        if ($collection instanceof UndefinedVariable) {
+            throw new UndefinedVariableException($collection->variableName);
+        }
+
         $collection = match (true) {
             $collection instanceof Range => $collection->toArray(),
             $collection instanceof Traversable => iterator_to_array($collection),

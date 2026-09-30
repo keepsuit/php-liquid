@@ -352,6 +352,25 @@ test('cycle strict parsing rejects trailing tokens', function () {
     );
 });
 
+test('cycle evaluates variables and dynamic group names', function (string $source, array $data, string $expected) {
+    assertTemplateResult($expected, $source, data: $data);
+    expect(implode('', iterator_to_array(streamTemplate($source, data: $data))))->toBe($expected);
+})->with([
+    'variable value' => ["{% cycle n, 'b' %}", ['n' => 5], '5'],
+    'repeated tag' => ["{% for i in (1..3) %}{% cycle n, 'b' %}{% endfor %}", ['n' => 5], '5b5'],
+    'lookup group' => ["{% cycle group.name: n, 'b' %}{% cycle group.name: n, 'b' %}", ['group' => ['name' => 'a'], 'n' => 5], '5b'],
+    'independent anonymous variable tags' => ["{% cycle n, 'b' %}{% cycle n, 'b' %}", ['n' => 5], '55'],
+    'evaluated literal groups' => ["{% cycle a: 'x', 'y' %}{% cycle b: 'x', 'y' %}", ['a' => 'same', 'b' => 'same'], 'xy'],
+    'array value' => ["{% cycle n, 'b' %}", ['n' => [1, 2]], '12'],
+]);
+
+test('cycle reports an undefined selected value in strict variables mode', function () {
+    assertTemplateResult('', '{% cycle missing %}');
+    expect(fn () => renderTemplate('{% cycle missing %}', strictVariables: true))
+        ->toThrow(\Keepsuit\Liquid\Exceptions\UndefinedVariableException::class);
+    assertTemplateResult('ok', "{% cycle 'ok', missing %}", strictVariables: true);
+});
+
 test('size of array', function () {
     assertTemplateResult(
         'array has 4 elements',

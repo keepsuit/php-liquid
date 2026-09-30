@@ -62,6 +62,10 @@ class ResourceLimits
      */
     public function incrementAssignScore(int $amount = 1): ResourceLimits
     {
+        if ($amount > PHP_INT_MAX - $this->assignScore || $amount > PHP_INT_MAX - $this->cumulativeAssignScore) {
+            $this->throwLimitReachedException();
+        }
+
         $this->assignScore += $amount;
         $this->cumulativeAssignScore += $amount;
 

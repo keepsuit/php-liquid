@@ -4,7 +4,10 @@ namespace Keepsuit\Liquid\Nodes;
 
 use Keepsuit\Liquid\Render\RenderContext;
 
-class Range extends Node
+/**
+ * @implements \IteratorAggregate<int, int>
+ */
+class Range extends Node implements \IteratorAggregate
 {
     public function __construct(
         public readonly int $start,
@@ -16,9 +19,20 @@ class Range extends Node
         return sprintf('%d..%d', $this->start, $this->end);
     }
 
+    /**
+     * @return list<int>
+     */
     public function toArray(): array
     {
-        return range($this->start, $this->end);
+        return $this->start > $this->end ? [] : range($this->start, $this->end);
+    }
+
+    /**
+     * @return \ArrayIterator<int, int>
+     */
+    public function getIterator(): \ArrayIterator
+    {
+        return new \ArrayIterator($this->toArray());
     }
 
     public function debugLabel(): string

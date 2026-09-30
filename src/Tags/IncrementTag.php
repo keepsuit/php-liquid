@@ -33,9 +33,9 @@ class IncrementTag extends Tag
     {
         $counter = $context->getData($this->variableName);
 
-        $counter = is_int($counter) ? $counter + 1 : 0;
+        $counter = is_int($counter) ? $counter : 0;
 
-        $context->setData($this->variableName, $counter);
+        $context->setData($this->variableName, $counter + 1);
 
         return (string) $counter;
     }

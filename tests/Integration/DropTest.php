@@ -128,8 +128,8 @@ test('drop toArray dynamic properties', function () {
     $drop->setContext($context);
 
     expect($drop->toArray())
-        ->toHaveKeys(['length', 'index', 'index0', 'rindex', 'rindex0', 'first', 'last'])
-        ->not->toHaveKeys(['name', 'context']);
+        ->toHaveKeys(['length', 'index', 'index0', 'rindex', 'rindex0', 'first', 'last', 'name'])
+        ->not->toHaveKey('context');
 });
 
 test('drop metadata', function () {

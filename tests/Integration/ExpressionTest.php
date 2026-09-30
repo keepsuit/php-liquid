@@ -39,6 +39,18 @@ test('range', function () {
     );
 });
 
+test('ranges can be filtered and assigned', function (string $source, string $expected) {
+    assertTemplateResult($expected, $source);
+    expect(implode('', iterator_to_array(streamTemplate($source))))->toBe($expected);
+})->with([
+    'join' => ["{{ (1..3) | join: ',' }}", '1,2,3'],
+    'size' => ['{{ (1..3) | size }}', '3'],
+    'reverse' => ["{{ (1..3) | reverse | join: ' ' }}", '3 2 1'],
+    'assign' => ['{% assign x = (1..3) %}{{ x | join }}', '1 2 3'],
+    'assigned size and endpoints' => ['{% assign x = (1..3) %}{{ x.size }}:{{ x.first }}:{{ x.last }}', '3:1:3'],
+    'descending' => ['{{ (3..1) | size }}', '0'],
+]);
+
 test('bare bracket is not a valid expression', function () {
     assertMatchSyntaxError(
         'Liquid syntax error (line 1): `[` is not a valid expression',
