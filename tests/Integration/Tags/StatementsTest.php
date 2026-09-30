@@ -65,6 +65,41 @@ test('string is not empty', function () {
     assertTemplateResult('  false  ', ' {% if var == empty %} true {% else %} false {% endif %} ', ['var' => 'hello']);
 });
 
+test('empty only matches empty strings and collections', function (mixed $value, bool $expected) {
+    assertTemplateResult($expected ? 'T' : 'F', '{% if var == empty %}T{% else %}F{% endif %}', ['var' => $value]);
+    assertTemplateResult($expected ? 'F' : 'T', '{% if var != empty %}T{% else %}F{% endif %}', ['var' => $value]);
+})->with([
+    'empty string' => ['', true],
+    'empty array' => [[], true],
+    'whitespace' => [' ', false],
+    'zero' => [0, false],
+    'zero string' => ['0', false],
+    'false' => [false, false],
+    'null' => [null, false],
+    'string' => ['a', false],
+    'array' => [[1], false],
+    'empty iterable' => [new \Keepsuit\Liquid\Tests\Stubs\Collection([]), true],
+    'iterable' => [new \Keepsuit\Liquid\Tests\Stubs\Collection([1]), false],
+]);
+
+test('blank matches nil, false, whitespace strings and empty collections', function (mixed $value, bool $expected) {
+    assertTemplateResult($expected ? 'T' : 'F', '{% if var == blank %}T{% else %}F{% endif %}', ['var' => $value]);
+    assertTemplateResult($expected ? 'T' : 'F', '{% if blank == var %}T{% else %}F{% endif %}', ['var' => $value]);
+    assertTemplateResult($expected ? 'F' : 'T', '{% if var != blank %}T{% else %}F{% endif %}', ['var' => $value]);
+})->with([
+    'empty string' => ['', true],
+    'whitespace' => ["  \n", true],
+    'empty array' => [[], true],
+    'null' => [null, true],
+    'false' => [false, true],
+    'true' => [true, false],
+    'zero' => [0, false],
+    'string' => ['a', false],
+    'array' => [[1], false],
+    'empty iterable' => [new \Keepsuit\Liquid\Tests\Stubs\Collection([]), true],
+    'iterable' => [new \Keepsuit\Liquid\Tests\Stubs\Collection([1]), false],
+]);
+
 test('null', function () {
     assertTemplateResult('  true  ', ' {% if var == nil %} true {% else %} false {% endif %} ', ['var' => null]);
     assertTemplateResult('  true  ', ' {% if var == null %} true {% else %} false {% endif %} ', ['var' => null]);
