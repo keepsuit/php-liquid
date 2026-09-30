@@ -89,12 +89,25 @@ enum ConditionOperator
 
         if ($left instanceof Literal) {
             return match ($left) {
-                Literal::Empty => empty($right),
-                default => false
+                Literal::Empty => $right === '' || $this->isEmptyIterable($right),
+                Literal::Blank => $right === null || $right === false || $this->isEmptyIterable($right) || (is_string($right) && trim($right) === ''),
             };
         }
 
         return false;
+    }
+
+    protected function isEmptyIterable(mixed $value): bool
+    {
+        if (! is_iterable($value)) {
+            return false;
+        }
+
+        foreach ($value as $_) {
+            return false;
+        }
+
+        return true;
     }
 
     protected function evaluateContains(mixed $left, mixed $right): bool
