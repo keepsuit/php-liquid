@@ -4,14 +4,13 @@ namespace Keepsuit\Liquid\Filters;
 
 use DateTime;
 use DateTimeZone;
+use Keepsuit\Liquid\Attributes\Hidden;
 use Keepsuit\Liquid\Condition\ConditionOperator;
 use Keepsuit\Liquid\Contracts\AsLiquidValue;
-use Keepsuit\Liquid\Contracts\IsContextAware;
-use Keepsuit\Liquid\Drop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
-use Keepsuit\Liquid\Support\Arr;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\FilterCoercion;
-use Keepsuit\Liquid\Support\FilterInputIterator;
+use Keepsuit\Liquid\Support\FilterSupport;
 use Keepsuit\Liquid\Support\Str;
 use Keepsuit\Liquid\Support\StrftimeFormatter;
 use Keepsuit\Liquid\Support\UndefinedVariable;
@@ -19,6 +18,15 @@ use Traversable;
 
 class StandardFilters extends FiltersProvider
 {
+    protected FilterSupport $filterSupport;
+
+    #[Hidden]
+    public function setContext(RenderContext $context): void
+    {
+        $this->context = $context;
+        $this->filterSupport = new FilterSupport($context);
+    }
+
     private const HTML_ESCAPE = [
         '&' => '&amp;',
         '<' => '&lt;',
@@ -135,15 +143,15 @@ class StandardFilters extends FiltersProvider
      */
     public function compact(mixed $input, mixed $property = null): ?array
     {
-        $this->validateProperty($property);
+        $this->filterSupport->validateProperty($property);
         $result = [];
 
-        foreach (new FilterInputIterator($input, $this->context) as $item) {
-            if ($property !== null && ! $this->canSelectProperty($item)) {
+        foreach ($this->filterSupport->iterate($input) as $item) {
+            if ($property !== null && ! $this->filterSupport->canSelectProperty($item)) {
                 return null;
             }
 
-            if (($property === null ? $item : $this->propertyValue($item, $property)) !== null) {
+            if (($property === null ? $item : $this->filterSupport->property($item, $property)) !== null) {
                 $result[] = $item;
             }
         }
@@ -164,7 +172,7 @@ class StandardFilters extends FiltersProvider
             throw new InvalidArgumentException('concat filter requires an array argument');
         }
 
-        return [...new FilterInputIterator($input, $this->context), ...$this->mapToLiquid($join)];
+        return [...$this->filterSupport->iterate($input), ...$this->filterSupport->normalizeCollection($join)];
     }
 
     /**
@@ -322,7 +330,7 @@ class StandardFilters extends FiltersProvider
         }
 
         $isHash = is_array($input) && ! array_is_list($input);
-        $input = $this->mapToLiquid($input);
+        $input = $this->filterSupport->normalizeCollection($input);
 
         if (count($input) === 0) {
             return null;
@@ -352,12 +360,12 @@ class StandardFilters extends FiltersProvider
      */
     public function join(mixed $input, mixed $glue = ' '): string
     {
-        $glue = $this->arrayValueToString($glue);
+        $glue = $this->filterSupport->stringify($glue);
         $output = '';
         $first = true;
 
-        foreach (new FilterInputIterator($input, $this->context) as $value) {
-            $output .= ($first ? '' : $glue).$this->arrayValueToString($value);
+        foreach ($this->filterSupport->iterate($input) as $value) {
+            $output .= ($first ? '' : $glue).$this->filterSupport->stringify($value);
             $first = false;
         }
 
@@ -381,7 +389,7 @@ class StandardFilters extends FiltersProvider
             return null;
         }
 
-        $input = $this->mapToLiquid($input);
+        $input = $this->filterSupport->normalizeCollection($input);
 
         if (count($input) === 0 || ! array_is_list($input)) {
             return null;
@@ -395,11 +403,11 @@ class StandardFilters extends FiltersProvider
      */
     public function map(mixed $input, mixed $property): array
     {
-        $this->validateProperty($property);
+        $this->filterSupport->validateProperty($property);
         $result = [];
 
-        foreach (new FilterInputIterator($input, $this->context) as $item) {
-            $result[] = $property === 'to_liquid' ? $item : $this->propertyValue($item, $property);
+        foreach ($this->filterSupport->iterate($input) as $item) {
+            $result[] = $property === 'to_liquid' ? $item : $this->filterSupport->property($item, $property);
         }
 
         return $result;
@@ -529,7 +537,7 @@ class StandardFilters extends FiltersProvider
      */
     public function reverse(mixed $input): array
     {
-        return array_reverse(iterator_to_array(new FilterInputIterator($input, $this->context)));
+        return array_reverse(iterator_to_array($this->filterSupport->iterate($input)));
     }
 
     /**
@@ -706,16 +714,16 @@ class StandardFilters extends FiltersProvider
      */
     public function sum(mixed $input, mixed $property = null): int|float
     {
-        $this->validateProperty($property);
+        $this->filterSupport->validateProperty($property);
         $values = [];
 
-        foreach (new FilterInputIterator($input, $this->context) as $item) {
-            $values[] = $property === null ? $item : $this->propertyValue($item, $property);
+        foreach ($this->filterSupport->iterate($input) as $item) {
+            $values[] = $property === null ? $item : $this->filterSupport->property($item, $property);
         }
 
         $sum = 0;
 
-        foreach (new FilterInputIterator($values, $this->context) as $value) {
+        foreach ($this->filterSupport->iterate($values) as $value) {
             $value = $value instanceof AsLiquidValue ? $value->toLiquidValue() : $value;
             $sum += FilterCoercion::toNumber($value);
         }
@@ -799,8 +807,8 @@ class StandardFilters extends FiltersProvider
      */
     public function uniq(mixed $input, mixed $property = null): ?array
     {
-        $this->validateProperty($property);
-        $input = iterator_to_array(new FilterInputIterator($input, $this->context));
+        $this->filterSupport->validateProperty($property);
+        $input = iterator_to_array($this->filterSupport->iterate($input));
         if (count($input) < 2) {
             return $input;
         }
@@ -810,10 +818,10 @@ class StandardFilters extends FiltersProvider
 
         foreach ($input as $item) {
             $value = $item instanceof AsLiquidValue ? $item->toLiquidValue() : $item;
-            if ($property !== null && ! $this->canSelectProperty($value)) {
+            if ($property !== null && ! $this->filterSupport->canSelectProperty($value)) {
                 return null;
             }
-            $value = $property === null ? $value : $this->propertyValue($value, $property);
+            $value = $property === null ? $value : $this->filterSupport->property($value, $property);
 
             $key = $this->uniqueKey($value);
             if (isset($seen[$key])) {
@@ -892,27 +900,14 @@ class StandardFilters extends FiltersProvider
         return $this->filterArray($input, $property, $targetValue, 'findIndex');
     }
 
-    protected function mapToLiquid(iterable $input): array
-    {
-        return Arr::map(Arr::from($input), function (mixed $value) {
-            $value = $this->context->normalizeValue($value);
-
-            if ($value instanceof IsContextAware) {
-                $value->setContext($this->context);
-            }
-
-            return $value;
-        });
-    }
-
     protected function sortInput(mixed $input, mixed $property, bool $natural): ?array
     {
-        $this->validateProperty($property);
-        $input = iterator_to_array(new FilterInputIterator($input, $this->context));
+        $this->filterSupport->validateProperty($property);
+        $input = iterator_to_array($this->filterSupport->iterate($input));
 
         if ($property !== null) {
             foreach ($input as $item) {
-                if (! $this->canSelectProperty($item)) {
+                if (! $this->filterSupport->canSelectProperty($item)) {
                     return null;
                 }
             }
@@ -924,7 +919,7 @@ class StandardFilters extends FiltersProvider
 
         $values = [];
         foreach ($input as $item) {
-            $values[] = $property === null ? $item : $this->propertyValue($item, $property);
+            $values[] = $property === null ? $item : $this->filterSupport->property($item, $property);
         }
 
         uasort($values, function (mixed $a, mixed $b) use ($natural): int {
@@ -933,7 +928,7 @@ class StandardFilters extends FiltersProvider
             }
 
             return $natural
-                ? strcasecmp($this->arrayValueToString($a), $this->arrayValueToString($b))
+                ? strcasecmp($this->filterSupport->stringify($a), $this->filterSupport->stringify($b))
                 : $this->compareArrayValues($a, $b);
         });
 
@@ -979,7 +974,7 @@ class StandardFilters extends FiltersProvider
 
     protected function filterArray(mixed $input, mixed $property, mixed $targetValue, string $filter): mixed
     {
-        $this->validateProperty($property);
+        $this->filterSupport->validateProperty($property);
         if ($targetValue instanceof UndefinedVariable) {
             throw $targetValue->toException();
         }
@@ -987,12 +982,12 @@ class StandardFilters extends FiltersProvider
         $targetValue = $targetValue instanceof AsLiquidValue ? $targetValue->toLiquidValue() : $targetValue;
         $result = [];
 
-        foreach (new FilterInputIterator($input, $this->context) as $index => $item) {
-            if (! $this->canSelectProperty($item)) {
+        foreach ($this->filterSupport->iterate($input) as $index => $item) {
+            if (! $this->filterSupport->canSelectProperty($item)) {
                 return null;
             }
 
-            $value = $this->propertyValue($item, $property);
+            $value = $this->filterSupport->property($item, $property);
             $value = $value instanceof AsLiquidValue ? $value->toLiquidValue() : $value;
             $matches = $targetValue === null
                 ? $value !== false && $value !== null
@@ -1060,82 +1055,5 @@ class StandardFilters extends FiltersProvider
         }
 
         return true;
-    }
-
-    protected function arrayValueToString(mixed $value): string
-    {
-        if (is_array($value)) {
-            return $this->inspectArrayValue($value);
-        }
-
-        if (is_float($value) && is_finite($value)) {
-            return strtolower((string) json_encode($value, JSON_PRESERVE_ZERO_FRACTION));
-        }
-
-        return FilterCoercion::toString($value);
-    }
-
-    protected function inspectArrayValue(mixed $value): string
-    {
-        if (is_string($value)) {
-            return (string) json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
-        }
-
-        if ($value === null) {
-            return 'nil';
-        }
-
-        if (is_array($value)) {
-            $list = array_is_list($value);
-            $items = [];
-
-            foreach ($value as $key => $item) {
-                $items[] = ($list ? '' : $this->inspectArrayValue($key).'=>').$this->inspectArrayValue($item);
-            }
-
-            return ($list ? '[' : '{').implode(', ', $items).($list ? ']' : '}');
-        }
-
-        return $this->arrayValueToString($value);
-    }
-
-    protected function canSelectProperty(mixed $item): bool
-    {
-        return is_array($item) || is_object($item) || is_string($item) || is_int($item);
-    }
-
-    /**
-     * @phpstan-assert int|string|null $property
-     */
-    protected function validateProperty(mixed $property): void
-    {
-        if ($property instanceof UndefinedVariable) {
-            throw $property->toException();
-        }
-
-        if ($property !== null && ! is_string($property) && ! is_int($property)) {
-            throw new InvalidArgumentException('invalid property');
-        }
-    }
-
-    protected function propertyValue(mixed $item, string|int|null $property): mixed
-    {
-        $value = match (true) {
-            is_array($item) => $item[$property ?? ''] ?? null,
-            is_string($item) && is_string($property) => str_contains($item, $property) ? $property : null,
-            is_string($item) && is_int($property) => $property >= -Str::length($item) && $property < Str::length($item) ? Str::substr($item, $property, 1) : null,
-            is_string($item), is_int($item) => throw new InvalidArgumentException('cannot select the property '.FilterCoercion::toString($property)),
-            $item instanceof Drop => $item->{(string) $property},
-            is_object($item) => $item->{(string) $property} ?? null,
-            default => null,
-        };
-
-        $value = $this->context->normalizeValue($value);
-
-        if ($value instanceof IsContextAware) {
-            $value->setContext($this->context);
-        }
-
-        return $value;
     }
 }

@@ -3,8 +3,6 @@
 namespace Keepsuit\Liquid\Support;
 
 use IteratorAggregate;
-use Keepsuit\Liquid\Contracts\IsContextAware;
-use Keepsuit\Liquid\Render\RenderContext;
 use Traversable;
 
 /**
@@ -18,7 +16,7 @@ class FilterInputIterator implements IteratorAggregate
 {
     public function __construct(
         protected mixed $input,
-        protected RenderContext $context,
+        protected FilterSupport $support,
     ) {}
 
     public function getIterator(): Traversable
@@ -35,13 +33,7 @@ class FilterInputIterator implements IteratorAggregate
         };
 
         foreach ($input as $value) {
-            $value = $this->context->normalizeValue($value);
-
-            if ($value instanceof IsContextAware) {
-                $value->setContext($this->context);
-            }
-
-            yield $value;
+            yield $this->support->normalize($value);
         }
     }
 

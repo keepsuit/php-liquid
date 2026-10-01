@@ -11,6 +11,7 @@ use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Filters\FiltersProvider;
 use Keepsuit\Liquid\Nodes\Range;
 use Keepsuit\Liquid\Render\RenderContextOptions;
+use Keepsuit\Liquid\Support\FilterSupport;
 use Keepsuit\Liquid\Tests\Stubs\BooleanDrop;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
@@ -174,6 +175,31 @@ class ArrayFilterOverride extends FiltersProvider
     public function join(array $input, string $glue = ' '): string
     {
         return 'custom';
+    }
+}
+
+test('custom filters can compose internal filter support with the current context', function () {
+    $environment = EnvironmentFactory::new()->registerFilters(ArraySupportFilters::class)->build();
+    $template = $environment->parseString('{{ items | labels }}');
+    $drop = new \Keepsuit\Liquid\Tests\Stubs\ContextDrop;
+    foreach (['first', 'second'] as $label) {
+        $context = $environment->newRenderContext(data: ['items' => [[['label' => fn () => 1.0]], $drop], 'label' => $label]);
+        expect($template->render($context))->toBe('1.0|'.$label);
+    }
+    expect($environment->filterRegistry->has('set_context'))->toBeFalse();
+});
+
+class ArraySupportFilters extends FiltersProvider
+{
+    public function labels(mixed $input): string
+    {
+        $support = new FilterSupport($this->context);
+        $labels = [];
+        foreach ($support->iterate($input) as $item) {
+            $labels[] = $support->stringify($support->property($item, 'label'));
+        }
+
+        return implode('|', $labels);
     }
 }
 
