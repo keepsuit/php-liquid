@@ -25,13 +25,21 @@ class FilterInputIterator implements IteratorAggregate
             throw $this->input->toException();
         }
 
+        if (is_array($this->input) && array_is_list($this->input)) {
+            return $this->flatten($this->input);
+        }
+
         $input = match (true) {
             $this->input === null => [],
-            is_array($this->input) && array_is_list($this->input) => $this->flatten($this->input),
             $this->input instanceof Traversable => $this->input,
             default => [$this->input],
         };
 
+        return $this->normalize($input);
+    }
+
+    protected function normalize(iterable $input): Traversable
+    {
         foreach ($input as $value) {
             yield $this->support->normalize($value);
         }
@@ -41,9 +49,11 @@ class FilterInputIterator implements IteratorAggregate
     {
         foreach ($input as $value) {
             if (is_array($value) && array_is_list($value)) {
-                yield from $this->flatten($value);
+                foreach ($this->flatten($value) as $item) {
+                    yield $item;
+                }
             } else {
-                yield $value;
+                yield $this->support->normalize($value);
             }
         }
     }

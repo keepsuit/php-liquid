@@ -93,7 +93,12 @@ class FilterSupport
 
     public function property(mixed $item, mixed $property): mixed
     {
-        $this->validateProperty($property);
+        if ($property !== null && ! is_string($property) && ! is_int($property)) {
+            throw $property instanceof UndefinedVariable
+                ? $property->toException()
+                : new InvalidArgumentException('invalid property');
+        }
+
         $value = match (true) {
             is_array($item) => $item[$property ?? ''] ?? null,
             is_string($item) && is_string($property) => str_contains($item, $property) ? $property : null,

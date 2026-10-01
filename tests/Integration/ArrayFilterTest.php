@@ -265,6 +265,15 @@ test('singleton uniq and sort do not read unused properties', function () {
     expect($context->applyFilter('uniq', [false, true], ['v']))->toBeNull();
 });
 
+test('string-only array filters preserve exact equality and lexical stable ordering', function () {
+    $context = EnvironmentFactory::new()->build()->newRenderContext();
+
+    expect($context->applyFilter('uniq', ['1', '01', '1', '+1', '-0', '0', '', 'a', 'A', '']))
+        ->toBe(['1', '01', '+1', '-0', '0', '', 'a', 'A']);
+    expect($context->applyFilter('sort', ['10', '2', '02', '1']))->toBe(['02', '1', '10', '2']);
+    expect($context->applyFilter('sort_natural', ['b', 'A', 'a', 'B']))->toBe(['A', 'a', 'b', 'B']);
+});
+
 test('uniq preserves types and compares hash content and drop identity', function () {
     $context = EnvironmentFactory::new()->build()->newRenderContext();
     $first = new \Keepsuit\Liquid\Tests\Stubs\TestDrop('a');
