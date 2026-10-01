@@ -7,13 +7,11 @@ use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Interrupts\BreakInterrupt;
 use Keepsuit\Liquid\Nodes\BodyNode;
-use Keepsuit\Liquid\Nodes\Range;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\TagBlock;
-use Traversable;
 
 class TableRowTag extends TagBlock
 {
@@ -64,14 +62,12 @@ class TableRowTag extends TagBlock
 
     public function render(RenderContext $context): string
     {
-        $collection = $context->evaluate($this->collectionName) ?? [];
-        $collection = match (true) {
-            $collection instanceof Range => $collection->toArray(),
-            $collection instanceof Traversable => iterator_to_array($collection),
-            is_string($collection) => $collection === '' ? [] : str_split($collection),
-            default => $collection
-        };
-        assert(is_array($collection));
+        $collection = $context->evaluate($this->collectionName);
+        if ($collection === null || $collection === false) {
+            return '';
+        }
+
+        $collection = Arr::fromCollection($collection);
 
         $offset = Arr::has($this->attributes, 'offset') ? ($context->evaluate($this->attributes['offset']) ?? 0) : 0;
         if (! is_int($offset)) {

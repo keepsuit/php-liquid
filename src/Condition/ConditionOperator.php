@@ -122,11 +122,12 @@ enum ConditionOperator
 
     protected function evaluateContains(mixed $left, mixed $right): bool
     {
-        return match (gettype($left)) {
-            'array' => array_is_list($left)
+        return match (true) {
+            is_array($left) => array_is_list($left)
                 ? in_array($right, $left, true)
                 : ((is_string($right) || is_int($right)) && array_key_exists($right, $left)),
-            'string' => assert(is_numeric($right) || is_string($right)) && str_contains($left, (string) $right),
+            is_string($left) => assert(is_numeric($right) || is_string($right)) && str_contains($left, (string) $right),
+            $left instanceof Range => (is_int($right) || is_float($right)) && $left->start <= $right && $right <= $left->end,
             default => false,
         };
     }

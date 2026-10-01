@@ -3,21 +3,28 @@
 namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
+use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Nodes\VariableLookup;
+use Keepsuit\Liquid\Parse\ExpressionParser;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\RenderContext;
+use Keepsuit\Liquid\Support\UndefinedVariable;
 use Keepsuit\Liquid\Tag;
 
+/**
+ * @phpstan-import-type Expression from ExpressionParser
+ */
 class CycleTag extends Tag implements HasParseTreeVisitorChildren
 {
     /**
-     * @var (string|int|float)[]
+     * @var list<Expression>
      */
     protected array $variables = [];
 
-    protected ?string $name = null;
+    protected string|int|float|VariableLookup|null $name = null;
 
     public static function tagName(): string
     {
@@ -30,38 +37,30 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
             $this->name = null;
             $this->variables = [];
 
-            if ($context->params->look(TokenType::Colon, 1)) {
-                $currentToken = $context->params->current();
-
-                $name = $context->params->expression();
-                $this->name = match (true) {
-                    is_string($name), is_numeric($name), $name instanceof VariableLookup => (string) $name,
-                    $currentToken === null => throw SyntaxException::unexpectedEndOfTemplate(),
-                    default => throw SyntaxException::unexpectedToken($currentToken),
-                };
-
-                $context->params->consume(TokenType::Colon);
+            if ($context->params->current() === null) {
+                throw SyntaxException::unexpectedEndOfTemplate();
             }
 
-            do {
-                $currentToken = $context->params->current();
+            $first = $context->params->expression();
+            if ($context->params->consumeOrFalse(TokenType::Colon)) {
+                $this->name = match (true) {
+                    is_string($first), is_int($first), is_float($first), $first instanceof VariableLookup => $first,
+                    default => throw new SyntaxException('Invalid cycle name'),
+                };
+            } else {
+                $this->variables[] = $first;
+            }
 
-                if (! $currentToken) {
+            while ($this->variables === [] || $context->params->consumeOrFalse(TokenType::Comma)) {
+                if ($context->params->isEnd()) {
                     throw SyntaxException::unexpectedEndOfTemplate();
                 }
 
-                if (! in_array($currentToken->type, [TokenType::String, TokenType::Number])) {
-                    throw SyntaxException::unexpectedToken($currentToken);
-                }
+                $this->variables[] = $context->params->expression();
+            }
 
-                $variable = $context->params->expression();
-                $this->variables[] = match (true) {
-                    is_string($variable), is_numeric($variable) => $variable,
-                    default => throw SyntaxException::unexpectedToken($currentToken)
-                };
-            } while ($context->params->consumeOrFalse(TokenType::Comma));
-
-            if ($this->name === null) {
+            $hasLookups = array_filter($this->variables, fn (mixed $value) => $value instanceof VariableLookup) !== [];
+            if ($this->name === null && ! $hasLookups) {
                 $this->name = json_encode($this->variables, JSON_THROW_ON_ERROR);
             }
 
@@ -75,26 +74,23 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
 
     public function render(RenderContext $context): string
     {
-        $output = '';
-
         $register = $context->getRegister('cycle') ?? [];
         assert(is_array($register));
-        $key = $context->evaluate($this->name);
-        assert(is_string($key) || is_int($key));
+        $key = $this->name === null ? sprintf('cycle:%d', spl_object_id($this)) : $context->evaluate($this->name);
+        $key = match (true) {
+            $key instanceof UndefinedVariable => throw $key->toException(),
+            is_string($key), is_int($key) => $key,
+            $key === null => '',
+            is_float($key), is_bool($key) => (string) $key,
+            default => throw new InvalidArgumentException('Invalid cycle name'),
+        };
 
         $iteration = match (true) {
             isset($register[$key]) && is_int($register[$key]) => $register[$key],
             default => 0,
         };
 
-        $value = $this->variables[$iteration];
-
-        $value = match (true) {
-            is_array($value) => implode('', $value),
-            default => (string) $value,
-        };
-
-        $output .= $value;
+        $output = (new Variable($this->variables[$iteration]))->render($context);
 
         $iteration += 1;
         $iteration = $iteration >= count($this->variables) ? 0 : $iteration;
@@ -107,6 +103,6 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
 
     public function parseTreeVisitorChildren(): array
     {
-        return $this->variables;
+        return $this->name instanceof VariableLookup ? [$this->name, ...$this->variables] : $this->variables;
     }
 }

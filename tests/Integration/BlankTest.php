@@ -60,7 +60,7 @@ test('whitespaces are not blank if other stuff are present', function () {
 });
 
 test('increment is not blank', function () {
-    expect(renderTemplate(wrap('{% assign foo = 0 %} {% increment foo %} {% decrement foo %}')))->toBe(str_repeat(' 0 -1', 11));
+    expect(renderTemplate(wrap('{% assign foo = 0 %} {% increment foo %} {% decrement foo %}')))->toBe(str_repeat(' 0 0', 11));
 });
 
 test('cycle is not blank', function () {

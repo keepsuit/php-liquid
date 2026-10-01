@@ -74,6 +74,45 @@ test('assign score exceeding resource limit', function () {
     expect($context->resourceLimits->getAssignScore())->toBe(2);
 });
 
+test('assigned ranges have the same resource score as arrays', function () {
+    $environment = EnvironmentFactory::new()->setRethrowErrors(true)->build();
+    $template = $environment->parseString('{% assign values = (1..3) %}{{ values | join }}');
+    $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(assignScoreLimit: 3));
+    expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
+
+    $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(assignScoreLimit: 4));
+    expect($template->render($context))->toBe('1 2 3');
+    expect($context->resourceLimits->getAssignScore())->toBe(4);
+});
+
+test('range assignment limits are checked without materializing the range', function (int $start, int $end, string $prefix) {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString($prefix.'{% assign values = (start..end) %}');
+    $context = $environment->newRenderContext(
+        data: ['start' => $start, 'end' => $end],
+        resourceLimits: new ResourceLimits(assignScoreLimit: 1),
+    );
+
+    expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
+    expect($context->resourceLimits->reached())->toBeTrue();
+})->with([
+    'large range' => [1, 10_000_000],
+    'integer overflow' => [PHP_INT_MIN, PHP_INT_MAX],
+])->with(['', '{% assign small = 0 %}']);
+
+test('nested range assignment scores cannot overflow', function (bool $rethrowErrors, bool $associative) {
+    $environment = EnvironmentFactory::new()->setRethrowErrors($rethrowErrors)->build();
+    $template = $environment->parseString('{% assign values = items %}');
+    $range = new \Keepsuit\Liquid\Nodes\Range(PHP_INT_MIN, PHP_INT_MAX);
+    $context = $environment->newRenderContext(
+        data: ['items' => $associative ? ['range' => $range] : [$range]],
+        resourceLimits: new ResourceLimits(assignScoreLimit: 1),
+    );
+
+    expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
+    expect($context->resourceLimits->reached())->toBeTrue();
+})->with([false, true])->with([false, true]);
+
 test('assign score exceeding resource limit from composite object', function () {
     $environment = EnvironmentFactory::new()
         ->setRethrowErrors(true)

@@ -9,8 +9,7 @@ use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Interrupts\BreakInterrupt;
 use Keepsuit\Liquid\Nodes\BodyNode;
-use Keepsuit\Liquid\Nodes\Range;
-use Keepsuit\Liquid\Nodes\RangeLookup;
+use Keepsuit\Liquid\Nodes\Literal;
 use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\ExpressionParser;
 use Keepsuit\Liquid\Parse\TagParseContext;
@@ -27,7 +26,10 @@ class ForTag extends TagBlock implements CanBeStreamed, HasParseTreeVisitorChild
 {
     protected string $variableName;
 
-    protected VariableLookup|RangeLookup|string $collection;
+    /**
+     * @var Expression
+     */
+    protected mixed $collection;
 
     protected string $name;
 
@@ -149,15 +151,10 @@ class ForTag extends TagBlock implements CanBeStreamed, HasParseTreeVisitorChild
         $offsets = $context->getRegister('for') ?? [];
         assert(is_array($offsets));
 
-        $collection = $context->evaluate($this->collection) ?? [];
-        $collection = match (true) {
-            $collection instanceof Range => $collection->toArray(),
-            is_iterable($collection) => iterator_to_array($collection),
-            default => throw new InvalidArgumentException('Invalid array'),
-        };
+        $collection = Arr::fromCollection($context->evaluate($this->collection));
 
         if ($this->from === 'continue') {
-            $offset = $offsets[$this->name];
+            $offset = $offsets[$this->name] ?? 0;
         } else {
             $fromValue = $context->evaluate($this->from);
             $offset = match (true) {
@@ -289,13 +286,19 @@ class ForTag extends TagBlock implements CanBeStreamed, HasParseTreeVisitorChild
             throw new SyntaxException("For loops require an 'in' clause");
         }
 
-        $collection = $context->params->expression();
-        $this->collection = match (true) {
-            $collection instanceof VariableLookup, $collection instanceof RangeLookup, is_string($collection) => $collection,
-            default => throw new SyntaxException('Invalid collection'),
-        };
+        if ($context->params->isEnd()) {
+            throw new SyntaxException('Invalid collection');
+        }
 
-        $this->name = sprintf('%s-%s', $this->variableName, $this->collection);
+        $this->collection = $context->params->expression();
+
+        $this->name = sprintf('%s-%s', $this->variableName, match (true) {
+            $this->collection instanceof Literal => $this->collection->value,
+            $this->collection === null => 'nil',
+            is_bool($this->collection) => $this->collection ? 'true' : 'false',
+            is_string($this->collection) => sprintf("'%s'", $this->collection),
+            default => (string) $this->collection,
+        });
         $this->reversed = $context->params->idOrFalse('reversed') !== false;
 
         while ($context->params->look(TokenType::Comma) || $context->params->look(TokenType::Identifier)) {

@@ -24,6 +24,10 @@ test('comparison branch selection matches Shopify value types', function () {
     assertTemplateResult('different', '{% unless value == "5" %}different{% else %}equal{% endunless %}', ['value' => 5]);
 });
 
+test('contains on ranges matches numbers within bounds', function () {
+    assertTemplateResult('ABF', "{% assign x = (1..3) %}{% if x contains 2 %}A{% endif %}{% if (1..3) contains 2 %}B{% endif %}{% if (1..3) contains 2.5 %}F{% endif %}{% if (1..3) contains '2' %}S{% endif %}{% if (1..3) contains 4 %}O{% endif %}");
+});
+
 test('contains finds hash keys while preserving list values', function () {
     assertTemplateResult('key found', "{% if value contains 'a' %}key found{% else %}missing{% endif %}", ['value' => ['a' => 1]]);
     assertTemplateResult('value found', "{% if value contains 'a' %}value found{% else %}missing{% endif %}", ['value' => ['a', 'b']]);

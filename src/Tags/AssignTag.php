@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Tags;
 
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\Nodes\Range;
 use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Parse\ExpressionParser;
 use Keepsuit\Liquid\Parse\TagParseContext;
@@ -64,6 +65,10 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
 
     protected static function computeAssignScore(mixed $value): int
     {
+        if ($value instanceof Range) {
+            return static::addAssignScores($value->length(), 1);
+        }
+
         if (is_string($value)) {
             return strlen($value);
         }
@@ -77,12 +82,17 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
 
         foreach ($value as $key => $item) {
             if (! $isList) {
-                $score += static::computeAssignScore($key);
+                $score = static::addAssignScores($score, static::computeAssignScore($key));
             }
 
-            $score += static::computeAssignScore($item);
+            $score = static::addAssignScores($score, static::computeAssignScore($item));
         }
 
         return $score;
+    }
+
+    protected static function addAssignScores(int $score, int $amount): int
+    {
+        return $amount > PHP_INT_MAX - $score ? PHP_INT_MAX : $score + $amount;
     }
 }

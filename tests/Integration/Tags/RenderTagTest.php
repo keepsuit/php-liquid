@@ -15,6 +15,31 @@ test('render with no arguments', function () {
     );
 });
 
+test('render for accepts ranges with inherited strict options', function (string $source, string $expected) {
+    $factory = EnvironmentFactory::new()->setStrictFilters(true)->setLazyParsing(false);
+    assertTemplateResult($expected, $source, partials: ['p' => '{{ i }}'], strictVariables: true, factory: $factory);
+    expect(implode('', iterator_to_array(streamTemplate($source, partials: ['p' => '{{ i }}'], strictVariables: true, factory: $factory))))
+        ->toBe($expected);
+})->with([
+    'ascending' => ["{% render 'p' for (1..3) as i %}", '123'],
+    'descending' => ["{% render 'p' for (3..1) as i %}", ''],
+    'assigned' => ["{% assign items = (1..3) %}{% render 'p' for items as i %}", '123'],
+]);
+
+test('render for over a non-iterable renders the partial once', function (array $data, string $expected) {
+    assertTemplateResult($expected, "{% render 'p' for v as i %}", data: $data, partials: ['p' => '<{{ i }}>']);
+    expect(implode('', iterator_to_array(streamTemplate("{% render 'p' for v as i %}", data: $data, partials: ['p' => '<{{ i }}>']))))->toBe($expected);
+})->with([
+    'string' => [['v' => 'abc'], '<abc>'],
+    'number' => [['v' => 5], '<5>'],
+    'nil' => [['v' => null], '<>'],
+]);
+
+test('render for reports missing variables in strict variables mode', function () {
+    expect(fn () => renderTemplate("{% render 'p' for missing as i %}", partials: ['p' => '{{ i }}'], strictVariables: true))
+        ->toThrow(\Keepsuit\Liquid\Exceptions\UndefinedVariableException::class);
+});
+
 test('render passes named arguments into inner scope', function () {
     assertTemplateResult(
         'My Product',

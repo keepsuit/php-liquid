@@ -178,6 +178,19 @@ class Arr
         };
     }
 
+    /**
+     * Normalises a value iterated by `for` and `tablerow`: strings iterate once, non-iterables are empty.
+     */
+    public static function fromCollection(mixed $collection): array
+    {
+        return match (true) {
+            $collection instanceof UndefinedVariable => throw $collection->toException(),
+            is_iterable($collection) => iterator_to_array($collection),
+            is_string($collection) => $collection === '' ? [] : [$collection],
+            default => [],
+        };
+    }
+
     protected static function valueGetter(mixed $value, mixed $key, Closure|string $callbackOrProperty): mixed
     {
         if ($value instanceof Closure) {

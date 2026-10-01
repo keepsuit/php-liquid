@@ -14,10 +14,15 @@ class UndefinedVariable implements AsLiquidValue, CanBeRendered
     public function render(RenderContext $context): string
     {
         if ($context->options->strictVariables) {
-            throw new UndefinedVariableException($this->variableName);
+            throw $this->toException();
         }
 
         return '';
+    }
+
+    public function toException(): UndefinedVariableException
+    {
+        return new UndefinedVariableException($this->variableName);
     }
 
     public function toLiquidValue(): string|int|float|bool|null

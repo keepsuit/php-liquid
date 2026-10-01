@@ -1,5 +1,22 @@
 <?php
 
+test('tablerow over nil renders nothing', function () {
+    assertTemplateResult('', '{% tablerow i in nil %}x{% endtablerow %}');
+    assertTemplateResult('', '{% tablerow i in items %}x{% endtablerow %}', data: ['items' => null], strictVariables: true);
+    expect(implode('', iterator_to_array(streamTemplate('{% tablerow i in nil %}x{% endtablerow %}'))))->toBe('');
+});
+
+test('tablerow over a string renders one cell and over a number renders an empty row', function () {
+    assertTemplateResult("<tr class=\"row1\">\n<td class=\"col1\">ab</td>\n</tr>", '{% tablerow i in s %}{{ i }}{% endtablerow %}', data: ['s' => 'ab']);
+    assertTemplateResult("<tr class=\"row1\">\n</tr>", '{% tablerow i in n %}{{ i }}{% endtablerow %}', data: ['n' => 5]);
+    assertTemplateResult('', '{% tablerow i in f %}x{% endtablerow %}', data: ['f' => false]);
+});
+
+test('tablerow reports missing variables in strict variables mode', function () {
+    expect(fn () => renderTemplate('{% tablerow i in missing %}x{% endtablerow %}', strictVariables: true))
+        ->toThrow(\Keepsuit\Liquid\Exceptions\UndefinedVariableException::class);
+});
+
 test('table row', function () {
     assertTemplateResult(
         <<<'HTML'
