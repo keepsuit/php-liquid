@@ -123,20 +123,9 @@ $stream = $template->stream($context);
 
 ### Date formatting
 
-The `date` filter uses Ruby-style strftime directives. Only `%` directives are
-formatted; other text is literal (`date: 'Day %d at %H'` produces `Day 05 at 14`).
-Day and month names are always English, independent of the server locale.
-`%L` and `%N` use PHP's microsecond precision, padding additional fractional digits with zeros.
-
-Unparseable date strings, floats, and booleans are returned unchanged, without
-recording an error, including when `rethrowErrors` is enabled. Integer timestamps
-and strings containing only digits are interpreted as Unix timestamps in PHP's
-default timezone; explicit timezones in date strings are preserved.
-
-Incomplete formats (such as a trailing `%`) raise a Liquid argument error and
-follow the configured error handler or `rethrowErrors` option. `strictVariables`
-still reports missing variables, and `strictFilters` controls undefined filters.
-Applications can override `date` with `registerFilters()` to enforce their own date validation.
+The `date` filter uses Ruby-style strftime directives: only `%` directives are formatted, other text is literal
+(`date: 'Day %d at %H'` produces `Day 05 at 14`). Day and month names are always English.
+Values that cannot be parsed as a date (including floats and booleans) are returned unchanged, without errors.
 
 ## Drops
 

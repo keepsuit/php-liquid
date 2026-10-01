@@ -430,17 +430,16 @@ test('date supports strftime directives and flags', function (string $format, st
     ['%-d/%-m', '5/3'],
     ['%^a %^B', 'TUE MARCH'],
     ['%c', 'Tue Mar  5 14:07:09 2024'],
-    ['%L %N %3N %12N', '123 123456000 123 123456000000'],
-    ['%-N %-12N %-L %-12L', '123456000 123456000000 123 123456000000'],
+    ['%L %N', '123 123456000'],
     ['%C %G %V %g', '20 2024 10 24'],
     ['%D %F %v %r %R %T %x %X', '03/05/24 2024-03-05  5-MAR-2024 02:07:09 PM 14:07 14:07:09 03/05/24 14:07:09'],
-    ['%_d %0e %5d %-5d %05e', ' 5 05 00005 5 00005'],
-    ['%#a %#p %#P %^c', 'TUE pm PM TUE MAR  5 14:07:09 2024'],
+    ['%_d %0e %-e', ' 5 05 5'],
+    ['%^c', 'TUE MAR  5 14:07:09 2024'],
     ['%a %A %b %B %h %u %w %p %P', 'Tue Tuesday Mar March Mar 2 2 PM pm'],
     ['%H %I %M %S %m %y %Y', '14 02 07 09 03 24 2024'],
-    ['%n%t%5%', "\n\t    %"],
-    ['%3u %3w %12s %-12D', '002 002 001709647629     03/05/24'],
-    ['%Ec %Od %OY %:Y', 'Tue Mar  5 14:07:09 2024 05 %OY %:Y'],
+    ['%n%t%%', "\n\t%"],
+    ['%s', '1709647629'],
+    ['%5d %#a %Ec %::z %', '%5d %#a %Ec %::z %'],
 ]);
 
 test('date preserves unparseable values without warnings or coercion', function (mixed $input) {
@@ -455,11 +454,6 @@ test('date preserves unparseable values without warnings or coercion', function 
     }
 })->with(['garbage', '2024-13-45', '3.7', '-1', '999999999999999999999999999999', "invalid\0date", '', null, 3.7, true, false]);
 
-test('date rejects incomplete formats', function (string $format) {
-    expect(fn () => $this->filters->invoke($this->context, 'date', '2024-03-05 UTC', [$format]))
-        ->toThrow(\Keepsuit\Liquid\Exceptions\InvalidArgumentException::class);
-})->with(['%', '%_', '%12', '%E%', '%O%']);
-
 test('date handles week boundaries and leap years', function (string $input, string $expected) {
     expect($this->filters->invoke($this->context, 'date', $input, ['%j %U %W %G %V %g']))->toBe($expected);
 })->with([
@@ -471,11 +465,11 @@ test('date handles week boundaries and leap years', function (string $input, str
 ]);
 
 test('date preserves timezone offsets', function (string $input, string $expected) {
-    expect($this->filters->invoke($this->context, 'date', $input, ['%z %:z %::z %:::z %Z']))->toBe($expected);
+    expect($this->filters->invoke($this->context, 'date', $input, ['%z %:z %Z']))->toBe($expected);
 })->with([
-    ['2024-03-05 14:07:09 UTC', '+0000 +00:00 +00:00:00 +00 UTC'],
-    ['2024-03-05 14:07:09 +0530', '+0530 +05:30 +05:30:00 +05:30 '],
-    ['2024-03-05 14:07:09 -0330', '-0330 -03:30 -03:30:00 -03:30 '],
+    ['2024-03-05 14:07:09 UTC', '+0000 +00:00 UTC'],
+    ['2024-03-05 14:07:09 +0530', '+0530 +05:30 '],
+    ['2024-03-05 14:07:09 -0330', '-0330 -03:30 '],
 ]);
 
 test('date formats timestamps in the default timezone', function () {
@@ -491,28 +485,6 @@ test('date formats timestamps in the default timezone', function () {
         date_default_timezone_set($timezone);
     }
 });
-
-test('date formats years before the common era', function () {
-    expect($this->filters->invoke($this->context, 'date', -62193693171, ['%Y %C %y %G %g']))
-        ->toBe('-0001 -1 99 -0001 99');
-
-    expect($this->filters->invoke($this->context, 'date', -62193693171, ['%-Y %_Y %-G %_G']))
-        ->toBe('-1    -1 -1    -1');
-    expect($this->filters->invoke($this->context, 'date', -62135596800, ['%Y %-Y %G %-G %_Y']))
-        ->toBe('0001 1 0001 1    1');
-    expect($this->filters->invoke($this->context, 'date', -62135596800, ['%-Y %_Y %1Y']))
-        ->toBe('1    1 1');
-});
-
-test('date preserves overflowing strftime widths as literal text', function (string $format) {
-    expect($this->filters->invoke($this->context, 'date', '2024-03-05', [$format]))->toBe($format);
-})->with([
-    '%999999999999999999999999d',
-    '%999999999999999999999999L',
-    '%999999999999999999999999N',
-    '%2147483648d',
-    '%2147483648N',
-]);
 
 test('first last', function () {
     expect($this->filters->invoke($this->context, 'first', [1, 2, 3]))->toBe(1);

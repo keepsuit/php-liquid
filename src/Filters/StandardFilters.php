@@ -140,28 +140,21 @@ class StandardFilters extends FiltersProvider
             return $input;
         }
 
-        if (is_string($input) && is_numeric($input) && preg_match('/\A[0-9]+\z/', $input) !== 1) {
+        if (is_string($input) && is_numeric($input) && ! ctype_digit($input)) {
             return $input;
         }
 
         try {
-            if (is_int($input) || (is_string($input) && preg_match('/\A[0-9]+\z/', $input) === 1)) {
-                $date = (new DateTime('@'.$input))->setTimezone(new DateTimeZone(date_default_timezone_get()));
-            } elseif (is_string($input)) {
-                $date = new DateTime($input);
-            } else {
-                $date = $input;
-            }
+            $date = match (true) {
+                $input instanceof DateTime => $input,
+                is_int($input) || ctype_digit($input) => (new DateTime('@'.$input))->setTimezone(new DateTimeZone(date_default_timezone_get())),
+                default => new DateTime($input),
+            };
         } catch (\Exception|\ValueError) {
-            // DateTime throws Exception on PHP 8.2 and DateMalformedStringException on PHP 8.3+.
             return $input;
         }
 
-        return (new StrftimeFormatter)->format(
-            $date,
-            $format,
-            isset($this->context) ? $this->context->resourceLimits->renderLengthLimit : null,
-        );
+        return (new StrftimeFormatter)->format($date, $format);
     }
 
     /**
