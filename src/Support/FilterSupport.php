@@ -12,33 +12,31 @@ use Keepsuit\Liquid\Render\RenderContext;
  */
 class FilterSupport
 {
-    public function __construct(protected RenderContext $context) {}
-
-    public function normalize(mixed $value): mixed
+    public static function normalize(mixed $value, RenderContext $context): mixed
     {
-        $value = $this->context->normalizeValue($value);
+        $value = $context->normalizeValue($value);
 
         if ($value instanceof IsContextAware) {
-            $value->setContext($this->context);
+            $value->setContext($context);
         }
 
         return $value;
     }
 
-    public function normalizeCollection(iterable $input): array
+    public static function normalizeCollection(iterable $input, RenderContext $context): array
     {
-        return Arr::map(Arr::from($input), $this->normalize(...));
+        return Arr::map(Arr::from($input), fn (mixed $value) => self::normalize($value, $context));
     }
 
-    public function iterate(mixed $input): FilterInputIterator
+    public static function iterate(mixed $input, RenderContext $context): FilterInputIterator
     {
-        return new FilterInputIterator($input, $this);
+        return new FilterInputIterator($input, $context);
     }
 
-    public function stringify(mixed $value): string
+    public static function stringify(mixed $value): string
     {
         if (is_array($value)) {
-            return $this->inspectArrayValue($value);
+            return self::inspectArrayValue($value);
         }
 
         if (is_float($value) && is_finite($value)) {
@@ -48,7 +46,7 @@ class FilterSupport
         return FilterCoercion::toString($value);
     }
 
-    protected function inspectArrayValue(mixed $value): string
+    protected static function inspectArrayValue(mixed $value): string
     {
         if (is_string($value)) {
             return (string) json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
@@ -63,16 +61,16 @@ class FilterSupport
             $items = [];
 
             foreach ($value as $key => $item) {
-                $items[] = ($list ? '' : $this->inspectArrayValue($key).'=>').$this->inspectArrayValue($item);
+                $items[] = ($list ? '' : self::inspectArrayValue($key).'=>').self::inspectArrayValue($item);
             }
 
             return ($list ? '[' : '{').implode(', ', $items).($list ? ']' : '}');
         }
 
-        return $this->stringify($value);
+        return self::stringify($value);
     }
 
-    public function canSelectProperty(mixed $item): bool
+    public static function canSelectProperty(mixed $item): bool
     {
         return is_array($item) || is_object($item) || is_string($item) || is_int($item);
     }
@@ -80,7 +78,7 @@ class FilterSupport
     /**
      * @phpstan-assert int|string|null $property
      */
-    public function validateProperty(mixed $property): void
+    public static function validateProperty(mixed $property): void
     {
         if ($property instanceof UndefinedVariable) {
             throw $property->toException();
@@ -91,9 +89,9 @@ class FilterSupport
         }
     }
 
-    public function property(mixed $item, mixed $property): mixed
+    public static function property(mixed $item, mixed $property, RenderContext $context): mixed
     {
-        $this->validateProperty($property);
+        self::validateProperty($property);
         $value = match (true) {
             is_array($item) => $item[$property ?? ''] ?? null,
             is_string($item) && is_string($property) => str_contains($item, $property) ? $property : null,
@@ -104,6 +102,6 @@ class FilterSupport
             default => null,
         };
 
-        return $this->normalize($value);
+        return self::normalize($value, $context);
     }
 }

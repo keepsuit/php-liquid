@@ -178,7 +178,7 @@ class ArrayFilterOverride extends FiltersProvider
     }
 }
 
-test('custom filters can compose internal filter support with the current context', function () {
+test('custom filters can reuse internal static filter support with the current context', function () {
     $environment = EnvironmentFactory::new()->registerFilters(ArraySupportFilters::class)->build();
     $template = $environment->parseString('{{ items | labels }}');
     $drop = new \Keepsuit\Liquid\Tests\Stubs\ContextDrop;
@@ -193,10 +193,9 @@ class ArraySupportFilters extends FiltersProvider
 {
     public function labels(mixed $input): string
     {
-        $support = new FilterSupport($this->context);
         $labels = [];
-        foreach ($support->iterate($input) as $item) {
-            $labels[] = $support->stringify($support->property($item, 'label'));
+        foreach (FilterSupport::iterate($input, $this->context) as $item) {
+            $labels[] = FilterSupport::stringify(FilterSupport::property($item, 'label', $this->context));
         }
 
         return implode('|', $labels);
