@@ -330,6 +330,8 @@ test('hash notation for lookup filters', function (bool $strict) {
 
     assertTemplateResult('Hello', '{{ value["first"] }}', ['value' => ['first' => 'Hello']], strictVariables: $strict);
     assertTemplateResult('', '{{ value["first"] }}', ['value' => ['key' => 'value']], strictVariables: $strict);
+    assertTemplateResult('|keyvalue', '{{ value.first }}|{{ value | first }}', ['value' => ['key' => 'value']], strictVariables: $strict);
+    assertTemplateResult('', '{{ value.first }}', ['value' => new ArrayIterator(['key' => 'value'])], strictVariables: $strict);
 })->with([
     'default' => false,
     'strict' => true,

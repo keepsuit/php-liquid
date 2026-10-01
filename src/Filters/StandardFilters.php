@@ -4,12 +4,14 @@ namespace Keepsuit\Liquid\Filters;
 
 use DateTime;
 use DateTimeZone;
+use Keepsuit\Liquid\Condition\ConditionOperator;
 use Keepsuit\Liquid\Contracts\AsLiquidValue;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Drop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\FilterCoercion;
+use Keepsuit\Liquid\Support\FilterInputIterator;
 use Keepsuit\Liquid\Support\Str;
 use Keepsuit\Liquid\Support\StrftimeFormatter;
 use Keepsuit\Liquid\Support\UndefinedVariable;
@@ -131,17 +133,38 @@ class StandardFilters extends FiltersProvider
     /**
      * Removes any `nil` items from an array.
      */
-    public function compact(array $input, ?string $property = null): array
+    public function compact(mixed $input, mixed $property = null): ?array
     {
-        return Arr::compact($this->mapToLiquid($input), $property);
+        $this->validateProperty($property);
+        $result = [];
+
+        foreach (new FilterInputIterator($input, $this->context) as $item) {
+            if ($property !== null && ! $this->canSelectProperty($item)) {
+                return null;
+            }
+
+            if (($property === null ? $item : $this->propertyValue($item, $property)) !== null) {
+                $result[] = $item;
+            }
+        }
+
+        return $result;
     }
 
     /**
      * Concatenates (combines) two arrays.
      */
-    public function concat(array $input, array $join): array
+    public function concat(mixed $input, mixed $join): array
     {
-        return $this->mapToLiquid([...$input, ...$join]);
+        if ($join instanceof UndefinedVariable) {
+            throw $join->toException();
+        }
+
+        if (! is_array($join) || ! array_is_list($join)) {
+            throw new InvalidArgumentException('concat filter requires an array argument');
+        }
+
+        return [...new FilterInputIterator($input, $this->context), ...$this->mapToLiquid($join)];
     }
 
     /**
@@ -284,12 +307,21 @@ class StandardFilters extends FiltersProvider
     /**
      * Returns the first item in an array.
      */
-    public function first(string|iterable $input): mixed
+    public function first(mixed $input): mixed
     {
+        if ($input instanceof UndefinedVariable) {
+            throw $input->toException();
+        }
+
         if (is_string($input)) {
             return Str::substr($input, 0, 1);
         }
 
+        if (! is_iterable($input)) {
+            return null;
+        }
+
+        $isHash = is_array($input) && ! array_is_list($input);
         $input = $this->mapToLiquid($input);
 
         if (count($input) === 0) {
@@ -297,7 +329,9 @@ class StandardFilters extends FiltersProvider
         }
 
         if (! array_is_list($input)) {
-            return null;
+            $key = array_key_first($input);
+
+            return $isHash ? [$key, $input[$key]] : null;
         }
 
         return $input[0] ?? null;
@@ -316,18 +350,35 @@ class StandardFilters extends FiltersProvider
     /**
      * Combines all the items in an array into a single string, separated by a space.
      */
-    public function join(iterable $input, string $glue = ' '): string
+    public function join(mixed $input, mixed $glue = ' '): string
     {
-        return implode($glue, $this->mapToLiquid($input));
+        $glue = $this->arrayValueToString($glue);
+        $output = '';
+        $first = true;
+
+        foreach (new FilterInputIterator($input, $this->context) as $value) {
+            $output .= ($first ? '' : $glue).$this->arrayValueToString($value);
+            $first = false;
+        }
+
+        return $output;
     }
 
     /**
      * Returns the last item in an array.
      */
-    public function last(string|iterable $input): mixed
+    public function last(mixed $input): mixed
     {
+        if ($input instanceof UndefinedVariable) {
+            throw $input->toException();
+        }
+
         if (is_string($input)) {
             return Str::substr($input, -1);
+        }
+
+        if (! is_iterable($input)) {
+            return null;
         }
 
         $input = $this->mapToLiquid($input);
@@ -342,30 +393,16 @@ class StandardFilters extends FiltersProvider
     /**
      * Creates an array of values from a specific property of the items in an array.
      */
-    public function map(iterable|Drop $input, string $property): mixed
+    public function map(mixed $input, mixed $property): array
     {
-        if ($input instanceof Drop) {
-            if ($input instanceof Traversable) {
-                return $this->map(iterator_to_array($input), $property);
-            }
+        $this->validateProperty($property);
+        $result = [];
 
-            return $input->$property;
+        foreach (new FilterInputIterator($input, $this->context) as $item) {
+            $result[] = $property === 'to_liquid' ? $item : $this->propertyValue($item, $property);
         }
 
-        $input = $this->mapToLiquid($input);
-
-        if (array_is_list($input)) {
-            return Arr::map($input, $property);
-        }
-
-        if (array_key_exists($property, $input)) {
-            return $input[$property];
-        }
-
-        throw new InvalidArgumentException(sprintf(
-            'Property "%s" does not exist on array',
-            $property
-        ));
+        return $result;
     }
 
     /**
@@ -490,9 +527,9 @@ class StandardFilters extends FiltersProvider
     /**
      * Reverses the order of the items in an array.
      */
-    public function reverse(iterable $input): array
+    public function reverse(mixed $input): array
     {
-        return array_reverse($this->mapToLiquid($input));
+        return array_reverse(iterator_to_array(new FilterInputIterator($input, $this->context)));
     }
 
     /**
@@ -509,17 +546,25 @@ class StandardFilters extends FiltersProvider
     /**
      * Returns the size of an array or a string.
      */
-    public function size(string|iterable|null $input): int
+    public function size(mixed $input): int
     {
-        if ($input === null) {
-            return 0;
+        if ($input instanceof UndefinedVariable) {
+            throw $input->toException();
         }
 
-        if (is_iterable($input) && ! is_array($input)) {
+        if (is_string($input)) {
+            return Str::length($input);
+        }
+
+        if ($input instanceof Traversable) {
             $input = iterator_to_array($input);
         }
 
-        return is_array($input) ? count($input) : Str::length($input);
+        return match (true) {
+            is_array($input) => count($input),
+            is_int($input) => PHP_INT_SIZE,
+            default => 0,
+        };
     }
 
     /**
@@ -554,66 +599,17 @@ class StandardFilters extends FiltersProvider
     /**
      * Sorts the items in an array in case-sensitive alphabetical, or numerical, order.
      */
-    public function sort(mixed $input, ?string $property = null): array
+    public function sort(mixed $input, mixed $property = null): ?array
     {
-        $input = match (true) {
-            is_array($input) && ! array_is_list($input) => [$input],
-            is_array($input) => $input,
-            is_iterable($input) => iterator_to_array($input),
-            default => [$input],
-        };
-
-        $input = $this->mapToLiquid($input);
-
-        $result = $property === null ? $input : Arr::map($input, $property);
-
-        uasort($result, function ($a, $b) {
-            return match (true) {
-                $a === $b => 0,
-                $a === null => 1,
-                $b === null => -1,
-                is_string($a) && is_string($b) => strcmp($a, $b),
-                default => $a <=> $b,
-            };
-        });
-
-        foreach (array_keys($result) as $key) {
-            $result[$key] = $input[$key];
-        }
-
-        return array_values($result);
+        return $this->sortInput($input, $property, natural: false);
     }
 
     /**
      * Sorts the items in an array in case-insensitive alphabetical order.
      */
-    public function sortNatural(mixed $input, ?string $property = null): array
+    public function sortNatural(mixed $input, mixed $property = null): ?array
     {
-        $input = match (true) {
-            is_array($input) && ! array_is_list($input) => [$input],
-            is_array($input) => $input,
-            is_iterable($input) => iterator_to_array($input),
-            default => [$input],
-        };
-
-        $input = $this->mapToLiquid($input);
-
-        $result = $property === null ? $input : Arr::map($input, $property);
-
-        uasort($result, function ($a, $b) {
-            return match (true) {
-                $a === $b => 0,
-                $a === null => 1,
-                $b === null => -1,
-                default => strcasecmp($a, $b),
-            };
-        });
-
-        foreach (array_keys($result) as $key) {
-            $result[$key] = $input[$key];
-        }
-
-        return array_values($result);
+        return $this->sortInput($input, $property, natural: true);
     }
 
     /**
@@ -708,20 +704,23 @@ class StandardFilters extends FiltersProvider
     /**
      * Returns the sum of all elements in an array.
      */
-    public function sum(iterable $input, ?string $property = null): int|float
+    public function sum(mixed $input, mixed $property = null): int|float
     {
-        $input = $this->mapToLiquid($input);
+        $this->validateProperty($property);
+        $values = [];
 
-        if ($input === []) {
-            return 0;
+        foreach (new FilterInputIterator($input, $this->context) as $item) {
+            $values[] = $property === null ? $item : $this->propertyValue($item, $property);
         }
 
-        $values = array_filter(
-            $property !== null ? $this->mapToLiquid(Arr::map($input, $property)) : $input,
-            fn (mixed $value) => is_numeric($value)
-        );
+        $sum = 0;
 
-        return array_sum($values);
+        foreach (new FilterInputIterator($values, $this->context) as $value) {
+            $value = $value instanceof AsLiquidValue ? $value->toLiquidValue() : $value;
+            $sum += FilterCoercion::toNumber($value);
+        }
+
+        return $sum;
     }
 
     /**
@@ -798,9 +797,34 @@ class StandardFilters extends FiltersProvider
     /**
      * Removes any duplicate items in an array.
      */
-    public function uniq(iterable $input, ?string $property = null): array
+    public function uniq(mixed $input, mixed $property = null): ?array
     {
-        return Arr::unique($this->mapToLiquid($input), $property);
+        $this->validateProperty($property);
+        $input = iterator_to_array(new FilterInputIterator($input, $this->context));
+        if (count($input) < 2) {
+            return $input;
+        }
+
+        $result = [];
+        $seen = [];
+
+        foreach ($input as $item) {
+            $value = $item instanceof AsLiquidValue ? $item->toLiquidValue() : $item;
+            if ($property !== null && ! $this->canSelectProperty($value)) {
+                return null;
+            }
+            $value = $property === null ? $value : $this->propertyValue($value, $property);
+
+            $key = $this->uniqueKey($value);
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $result[] = $item;
+        }
+
+        return $result;
     }
 
     /**
@@ -831,69 +855,41 @@ class StandardFilters extends FiltersProvider
     /**
      * Filters an array to include only items with a specific property value.
      */
-    public function where(iterable $input, string $property, mixed $targetValue = null): array
+    public function where(mixed $input, mixed $property, mixed $targetValue = null): ?array
     {
-        $input = $this->iterableToList($input);
-
-        return array_values(array_filter($input, fn (mixed $item) => $this->objectHasPropertyWithValue($item, $property, $targetValue)));
+        return $this->filterArray($input, $property, $targetValue, 'where');
     }
 
     /**
      * Filters an array to exclude items with a specific property value.
      */
-    public function reject(iterable $input, string $property, mixed $targetValue = null): array
+    public function reject(mixed $input, mixed $property, mixed $targetValue = null): ?array
     {
-        $input = $this->iterableToList($input);
-
-        return array_values(array_filter($input, fn (mixed $item) => ! $this->objectHasPropertyWithValue($item, $property, $targetValue)));
+        return $this->filterArray($input, $property, $targetValue, 'reject');
     }
 
     /**
      * Tests if any item in an array has a specific property value.
      */
-    public function has(iterable $input, string $property, mixed $targetValue = null): bool
+    public function has(mixed $input, mixed $property, mixed $targetValue = null): ?bool
     {
-        $input = $this->iterableToList($input);
-
-        foreach ($input as $item) {
-            if ($this->objectHasPropertyWithValue($item, $property, $targetValue)) {
-                return true;
-            }
-        }
-
-        return false;
+        return $this->filterArray($input, $property, $targetValue, 'has');
     }
 
     /**
      * Returns the first item in an array with a specific property value.
      */
-    public function find(iterable $input, string $property, mixed $targetValue = null): mixed
+    public function find(mixed $input, mixed $property, mixed $targetValue = null): mixed
     {
-        $input = $this->iterableToList($input);
-
-        foreach ($input as $item) {
-            if ($this->objectHasPropertyWithValue($item, $property, $targetValue)) {
-                return $item;
-            }
-        }
-
-        return null;
+        return $this->filterArray($input, $property, $targetValue, 'find');
     }
 
     /**
      * Returns the index of the first item in an array with a specific property value.
      */
-    public function findIndex(iterable $input, string $property, mixed $targetValue = null): ?int
+    public function findIndex(mixed $input, mixed $property, mixed $targetValue = null): ?int
     {
-        $input = $this->iterableToList($input);
-
-        foreach ($input as $index => $item) {
-            if ($this->objectHasPropertyWithValue($item, $property, $targetValue)) {
-                return $index;
-            }
-        }
-
-        return null;
+        return $this->filterArray($input, $property, $targetValue, 'findIndex');
     }
 
     protected function mapToLiquid(iterable $input): array
@@ -909,37 +905,237 @@ class StandardFilters extends FiltersProvider
         });
     }
 
-    /**
-     * Convert an iterable to a list.
-     */
-    protected function iterableToList(iterable $input): array
+    protected function sortInput(mixed $input, mixed $property, bool $natural): ?array
     {
-        $input = $this->mapToLiquid($input);
+        $this->validateProperty($property);
+        $input = iterator_to_array(new FilterInputIterator($input, $this->context));
 
-        if ($input === []) {
-            return [];
+        if ($property !== null) {
+            foreach ($input as $item) {
+                if (! $this->canSelectProperty($item)) {
+                    return null;
+                }
+            }
         }
 
-        return array_is_list($input) ? $input : [$input];
+        if (count($input) < 2) {
+            return $input;
+        }
+
+        $values = [];
+        foreach ($input as $item) {
+            $values[] = $property === null ? $item : $this->propertyValue($item, $property);
+        }
+
+        uasort($values, function (mixed $a, mixed $b) use ($natural): int {
+            if ($a === null || $b === null) {
+                return $a === $b ? 0 : ($a === null ? 1 : -1);
+            }
+
+            return $natural
+                ? strcasecmp($this->arrayValueToString($a), $this->arrayValueToString($b))
+                : $this->compareArrayValues($a, $b);
+        });
+
+        return array_map(fn (int $key) => $input[$key], array_keys($values));
+    }
+
+    protected function compareArrayValues(mixed $a, mixed $b): int
+    {
+        if ($a === $b) {
+            return 0;
+        }
+
+        if ((is_int($a) || is_float($a)) && (is_int($b) || is_float($b))) {
+            return $a <=> $b;
+        }
+
+        if (is_string($a) && is_string($b)) {
+            return strcmp($a, $b);
+        }
+
+        if (is_array($a) && is_array($b)) {
+            if ($this->arrayValuesEqual($a, $b)) {
+                return 0;
+            }
+
+            if (array_is_list($a) && array_is_list($b)) {
+                foreach ($a as $key => $value) {
+                    if (! array_key_exists($key, $b)) {
+                        break;
+                    }
+                    $comparison = $this->compareArrayValues($value, $b[$key]);
+                    if ($comparison !== 0) {
+                        return $comparison;
+                    }
+                }
+
+                return count($a) <=> count($b);
+            }
+        }
+
+        throw new InvalidArgumentException('cannot sort values of incompatible types');
+    }
+
+    protected function filterArray(mixed $input, mixed $property, mixed $targetValue, string $filter): mixed
+    {
+        $this->validateProperty($property);
+        if ($targetValue instanceof UndefinedVariable) {
+            throw $targetValue->toException();
+        }
+
+        $targetValue = $targetValue instanceof AsLiquidValue ? $targetValue->toLiquidValue() : $targetValue;
+        $result = [];
+
+        foreach (new FilterInputIterator($input, $this->context) as $index => $item) {
+            if (! $this->canSelectProperty($item)) {
+                return null;
+            }
+
+            $value = $this->propertyValue($item, $property);
+            $value = $value instanceof AsLiquidValue ? $value->toLiquidValue() : $value;
+            $matches = $targetValue === null
+                ? $value !== false && $value !== null
+                : ConditionOperator::Equal->evaluate($value, $targetValue);
+
+            if ($filter === 'reject' ? ! $matches : $matches) {
+                if ($filter === 'has') {
+                    return true;
+                }
+                if ($filter === 'find') {
+                    return $item;
+                }
+                if ($filter === 'findIndex') {
+                    return $index;
+                }
+                $result[] = $item;
+            }
+        }
+
+        return match ($filter) {
+            'has' => false,
+            'find', 'findIndex' => null,
+            default => $result,
+        };
+    }
+
+    protected function uniqueKey(mixed $value): string
+    {
+        if (is_object($value)) {
+            return 'object:'.spl_object_id($value);
+        }
+
+        if (is_array($value)) {
+            ksort($value);
+
+            return 'array:'.serialize(array_map($this->uniqueKey(...), $value));
+        }
+
+        if (is_resource($value)) {
+            return 'resource:'.get_resource_id($value);
+        }
+
+        // Ruby's eql? distinguishes numeric types, but not the sign of zero.
+        if (is_float($value) && $value == 0) {
+            $value = 0.0;
+        }
+
+        return serialize($value);
+    }
+
+    protected function arrayValuesEqual(mixed $left, mixed $right): bool
+    {
+        if (ConditionOperator::Equal->evaluate($left, $right)) {
+            return true;
+        }
+
+        if (! is_array($left) || ! is_array($right) || count($left) !== count($right)) {
+            return false;
+        }
+
+        foreach ($left as $key => $value) {
+            if (! array_key_exists($key, $right) || ! $this->arrayValuesEqual($value, $right[$key])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    protected function arrayValueToString(mixed $value): string
+    {
+        if (is_array($value)) {
+            return $this->inspectArrayValue($value);
+        }
+
+        if (is_float($value) && is_finite($value)) {
+            return strtolower((string) json_encode($value, JSON_PRESERVE_ZERO_FRACTION));
+        }
+
+        return FilterCoercion::toString($value);
+    }
+
+    protected function inspectArrayValue(mixed $value): string
+    {
+        if (is_string($value)) {
+            return (string) json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+        }
+
+        if ($value === null) {
+            return 'nil';
+        }
+
+        if (is_array($value)) {
+            $list = array_is_list($value);
+            $items = [];
+
+            foreach ($value as $key => $item) {
+                $items[] = ($list ? '' : $this->inspectArrayValue($key).'=>').$this->inspectArrayValue($item);
+            }
+
+            return ($list ? '[' : '{').implode(', ', $items).($list ? ']' : '}');
+        }
+
+        return $this->arrayValueToString($value);
+    }
+
+    protected function canSelectProperty(mixed $item): bool
+    {
+        return is_array($item) || is_object($item) || is_string($item) || is_int($item);
     }
 
     /**
-     * Check if an object has a property with a specific value.
-     * If item is a string, check if it starts with the property name.
+     * @phpstan-assert int|string|null $property
      */
-    protected function objectHasPropertyWithValue(mixed $item, string $property, mixed $targetValue = null): bool
+    protected function validateProperty(mixed $property): void
+    {
+        if ($property instanceof UndefinedVariable) {
+            throw $property->toException();
+        }
+
+        if ($property !== null && ! is_string($property) && ! is_int($property)) {
+            throw new InvalidArgumentException('invalid property');
+        }
+    }
+
+    protected function propertyValue(mixed $item, string|int|null $property): mixed
     {
         $value = match (true) {
-            is_array($item) => ($item[$property] ?? null),
-            is_object($item) => ($item->$property ?? null),
-            $targetValue === null && is_string($item) && str_starts_with($item, $property) => true,
+            is_array($item) => $item[$property ?? ''] ?? null,
+            is_string($item) && is_string($property) => str_contains($item, $property) ? $property : null,
+            is_string($item) && is_int($property) => $property >= -Str::length($item) && $property < Str::length($item) ? Str::substr($item, $property, 1) : null,
+            is_string($item), is_int($item) => throw new InvalidArgumentException('cannot select the property '.FilterCoercion::toString($property)),
+            $item instanceof Drop => $item->{(string) $property},
+            is_object($item) => $item->{(string) $property} ?? null,
             default => null,
         };
 
-        if ($targetValue === null) {
-            return $value !== false && $value !== null && $value !== '' && $value !== [];
-        } else {
-            return $value === $targetValue;
+        $value = $this->context->normalizeValue($value);
+
+        if ($value instanceof IsContextAware) {
+            $value->setContext($this->context);
         }
+
+        return $value;
     }
 }

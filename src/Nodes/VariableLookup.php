@@ -151,7 +151,11 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 
             if ($nextObject instanceof MissingValue) {
                 if ((is_iterable($object) || is_string($object)) && is_string($lookup) && in_array($lookup, self::FILTER_METHODS, true)) {
-                    $nextObject = $context->applyFilter($lookup, $object);
+                    // Hash lookups keep their key-based semantics; the explicit
+                    // first filter may return a key/value pair instead.
+                    $nextObject = $lookup === 'first' && is_array($object) && ! array_is_list($object)
+                        ? null
+                        : $context->applyFilter($lookup, $object);
                 } else {
                     return $nextObject;
                 }
