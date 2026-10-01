@@ -2,6 +2,15 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## Unreleased
+
+### Breaking changes
+
+- Reject incomplete `if`/`elsif`/`unless` conditions, empty tags, duplicate `for` `else`
+  sections, and missing filter arguments with `SyntaxException` during parsing. Templates
+  previously accepted with these syntax errors must be corrected. Parsing remains strict
+  independently of render options; existing strict2-aligned syntax restrictions are unchanged.
+
 ## v0.12.1 - 2026-09-30
 
 ### What's Changed

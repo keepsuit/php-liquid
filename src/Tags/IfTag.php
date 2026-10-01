@@ -156,9 +156,17 @@ class IfTag extends TagBlock implements CanBeStreamed
      */
     protected function parseComparison(TagParseContext $bodySection): Condition
     {
+        if ($bodySection->params->isEnd()) {
+            throw SyntaxException::unexpectedEndOfTemplate();
+        }
+
         $a = $bodySection->params->expression();
 
         if ($operator = $bodySection->params->consumeOrFalse(TokenType::Comparison)) {
+            if ($bodySection->params->isEnd()) {
+                throw SyntaxException::unexpectedEndOfTemplate();
+            }
+
             $b = $bodySection->params->expression();
 
             return new Condition($a, $operator->data, $b);

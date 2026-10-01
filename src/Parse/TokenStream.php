@@ -204,6 +204,8 @@ class TokenStream
     /**
      * @return Expression
      *
+     * @phpstan-impure
+     *
      * @throws SyntaxException
      */
     public function expression(): mixed

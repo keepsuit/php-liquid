@@ -28,6 +28,10 @@ Liquid is a template engine with interesting advantages:
 #### Differences from Shopify Liquid
 
 - **Error Modes** are not implemented, the parsing is always strict.
+  Invalid syntax raises `SyntaxException` when parsed, independently of `strictVariables`,
+  `strictFilters`, and `rethrowErrors`. These options control rendering errors.
+  `lazyParsing` permits loading uncached partials during rendering; their syntax is still
+  parsed strictly, and errors then follow the rendering error handler or `rethrowErrors`.
 - `case` deliberately renders only the first matching `when`. A `case` block
   can contain at most one `else`, after its `when` sections; `else` before a
   `when` or a `when` after `else` is a syntax error.

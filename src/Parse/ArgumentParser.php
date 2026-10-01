@@ -33,7 +33,21 @@ class ArgumentParser
             $identifier = $this->tokenStream->consume(TokenType::Identifier);
             $this->tokenStream->consume(TokenType::Colon);
 
-            return [$identifier->data => $this->tokenStream->expression()];
+            return [$identifier->data => $this->parseRequiredExpression()];
+        }
+
+        return $this->parseRequiredExpression();
+    }
+
+    /**
+     * @return Expression
+     *
+     * @throws SyntaxException
+     */
+    protected function parseRequiredExpression(): mixed
+    {
+        if ($this->tokenStream->isEnd() || $this->tokenStream->look(TokenType::VariableEnd)) {
+            throw SyntaxException::unexpectedEndOfTemplate();
         }
 
         return $this->tokenStream->expression();
