@@ -23,6 +23,10 @@ class StandardFilters extends FiltersProvider
     #[Hidden]
     public function setContext(RenderContext $context): void
     {
+        if (isset($this->context) && $this->context === $context) {
+            return;
+        }
+
         $this->context = $context;
         $this->filterSupport = new FilterSupport($context);
     }

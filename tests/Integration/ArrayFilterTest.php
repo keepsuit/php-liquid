@@ -189,6 +189,23 @@ test('custom filters can compose internal filter support with the current contex
     expect($environment->filterRegistry->has('set_context'))->toBeFalse();
 });
 
+test('standard filter support follows context changes and updates in the same context', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $first = $environment->newRenderContext(data: ['label' => 'first']);
+    $second = $environment->newRenderContext(data: ['label' => 'second']);
+    $drop = new \Keepsuit\Liquid\Tests\Stubs\ContextDrop;
+
+    expect($first->applyFilter('map', [$drop], ['label']))->toBe(['first']);
+    expect($first->applyFilter('map', [$drop], ['label']))->toBe(['first']);
+    expect($second->applyFilter('map', [$drop], ['label']))->toBe(['second']);
+
+    $first->set('label', 'updated');
+    expect($first->applyFilter('map', [$drop], ['label']))->toBe(['updated']);
+
+    $first->set('label', 'again');
+    expect($first->applyFilter('map', [$drop], ['label']))->toBe(['again']);
+});
+
 class ArraySupportFilters extends FiltersProvider
 {
     public function labels(mixed $input): string
