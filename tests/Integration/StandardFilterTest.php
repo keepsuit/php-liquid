@@ -431,6 +431,7 @@ test('date supports strftime directives and flags', function (string $format, st
     ['%^a %^B', 'TUE MARCH'],
     ['%c', 'Tue Mar  5 14:07:09 2024'],
     ['%L %N %3N %12N', '123 123456000 123 123456000000'],
+    ['%-N %-12N %-L %-12L', '123456000 123456000000 123 123456000000'],
     ['%C %G %V %g', '20 2024 10 24'],
     ['%D %F %v %r %R %T %x %X', '03/05/24 2024-03-05  5-MAR-2024 02:07:09 PM 14:07 14:07:09 03/05/24 14:07:09'],
     ['%_d %0e %5d %-5d %05e', ' 5 05 00005 5 00005'],
@@ -494,6 +495,13 @@ test('date formats timestamps in the default timezone', function () {
 test('date formats years before the common era', function () {
     expect($this->filters->invoke($this->context, 'date', -62193693171, ['%Y %C %y %G %g']))
         ->toBe('-0001 -1 99 -0001 99');
+
+    expect($this->filters->invoke($this->context, 'date', -62193693171, ['%-Y %_Y %-G %_G']))
+        ->toBe('-1    -1 -1    -1');
+    expect($this->filters->invoke($this->context, 'date', -62135596800, ['%Y %-Y %G %-G %_Y']))
+        ->toBe('0001 1 0001 1    1');
+    expect($this->filters->invoke($this->context, 'date', -62135596800, ['%-Y %_Y %1Y']))
+        ->toBe('1    1 1');
 });
 
 test('date preserves overflowing strftime widths as literal text', function (string $format) {
@@ -502,6 +510,8 @@ test('date preserves overflowing strftime widths as literal text', function (str
     '%999999999999999999999999d',
     '%999999999999999999999999L',
     '%999999999999999999999999N',
+    '%2147483648d',
+    '%2147483648N',
 ]);
 
 test('first last', function () {

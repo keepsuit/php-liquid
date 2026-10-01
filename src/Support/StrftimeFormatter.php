@@ -55,7 +55,7 @@ final class StrftimeFormatter
                     return $append($value ?? $match[0]);
                 }
 
-                if ($maxOutputLength !== null && $width !== null && ! str_contains($flags, '-')) {
+                if ($maxOutputLength !== null && $width !== null && $this->widthRequiresPadding($directive, $flags)) {
                     $this->ensureWithinOutputLimit($width, $outputLength, $maxOutputLength);
                 }
 
@@ -72,9 +72,6 @@ final class StrftimeFormatter
 
                 if ($directive === 'L' || $directive === 'N') {
                     $fraction = str_pad($date->format('u'), 9, '0');
-                    if (str_contains($flags, '-')) {
-                        $fraction = rtrim($fraction, '0');
-                    }
                     $fractionWidth = $width ?? ($directive === 'L' ? 3 : 9);
 
                     return $append(substr(str_pad($fraction, $fractionWidth, '0'), 0, $fractionWidth));
@@ -119,9 +116,14 @@ final class StrftimeFormatter
         return $result;
     }
 
+    private function widthRequiresPadding(string $directive, string $flags): bool
+    {
+        return ! str_contains($flags, '-') || str_contains('cDFvrRTXxLNz', $directive);
+    }
+
     private function widthExceedsIntegerLimit(string $width): bool
     {
-        $maxWidth = (string) PHP_INT_MAX;
+        $maxWidth = '2147483647';
 
         return strlen($width) > strlen($maxWidth)
             || (strlen($width) === strlen($maxWidth) && strcmp($width, $maxWidth) > 0);
@@ -139,7 +141,7 @@ final class StrftimeFormatter
         $phpFormat = match ($directive) {
             'a' => 'D', 'A' => 'l', 'b', 'h' => 'M', 'B' => 'F',
             'd', 'e' => 'j', 'u' => 'N', 'w' => 'w', 'V' => 'W',
-            'm' => 'n', 'Y' => 'Y', 'G' => 'o',
+            'm' => 'n',
             'H', 'k' => 'G', 'I', 'l' => 'g', 'M' => 'i', 'S' => 's',
             'p' => 'A', 'P' => 'a', 's' => 'U',
             default => null,
@@ -153,6 +155,7 @@ final class StrftimeFormatter
         return match ($directive) {
             '%' => '%', 'n' => "\n", 't' => "\t",
             'C' => (string) (int) floor((int) $date->format('Y') / 100),
+            'Y', 'G' => (string) (int) $date->format($directive === 'Y' ? 'Y' : 'o'),
             'g' => (string) (((int) $date->format('o') % 100 + 100) % 100),
             'y' => (string) (((int) $date->format('Y') % 100 + 100) % 100),
             'j' => (string) ((int) $date->format('z') + 1),

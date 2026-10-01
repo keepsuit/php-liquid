@@ -49,6 +49,17 @@ test('date formatting respects configured output length limits before padding', 
         ->toThrow(\Keepsuit\Liquid\Exceptions\ResourceLimitException::class);
 });
 
+test('date formatting respects output limits with dash width flags', function (string $format) {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString("{{ '2024-03-05' | date: '$format' }}");
+    $context = $environment->newRenderContext(
+        resourceLimits: new \Keepsuit\Liquid\Render\ResourceLimits(renderLengthLimit: 16),
+    );
+
+    expect(fn () => $template->render($context))
+        ->toThrow(\Keepsuit\Liquid\Exceptions\ResourceLimitException::class);
+})->with(['%-30000000N', '%-30000000z', '%-30000000c']);
+
 test('date formatting respects cumulative output limits before padding', function () {
     $environment = EnvironmentFactory::new()->build();
     $template = $environment->parseString("{{ '2024-03-05' | date: '%8N%8N' }}");
