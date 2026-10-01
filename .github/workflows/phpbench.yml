@@ -130,18 +130,6 @@ jobs:
 
           exit "$STATUS"
 
-      - name: Diagnose PHP 8.5 operation costs
-        if: matrix.php == '8.5'
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          cp "$PR_DIR/performance/benchmarks/OperationBench.php" "$BASE_DIR/performance/benchmarks/OperationBench.php"
-          cd "$PR_DIR"
-          vendor/bin/phpbench run --group=operations --filter='benchArrayFilters$' --revs=200 --warmup=20 --progress=none --retry-threshold=5 --report=aggregate --output=json > "$WORKSPACE/operations-pr.json"
-          cd "$BASE_DIR"
-          vendor/bin/phpbench run --group=operations --filter='benchArrayFilters$' --revs=200 --warmup=20 --progress=none --retry-threshold=5 --report=aggregate --output=json > "$WORKSPACE/operations-base.json"
-          PHPBENCH_MAX_REG='' php "$GITHUB_WORKSPACE/tools/phpbench-compare.php" "$WORKSPACE/operations-base.json" "$WORKSPACE/operations-pr.json"
-
       - name: Post benchmark comment
         if: always() && github.event.pull_request.head.repo.fork == false
         uses: actions/github-script@v9
