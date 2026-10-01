@@ -528,7 +528,7 @@ class StandardFilters extends FiltersProvider
     public function slice(mixed $input, mixed $start, mixed $length = 1): string|array
     {
         $start = FilterCoercion::toInteger($start);
-        $length = $length === null ? 1 : FilterCoercion::toInteger($length);
+        $length = $length === null || $length === false ? 1 : FilterCoercion::toInteger($length);
 
         if (is_iterable($input) && ! is_array($input)) {
             $input = iterator_to_array($input);
@@ -780,7 +780,7 @@ class StandardFilters extends FiltersProvider
             return $input;
         }
 
-        $wordlist = preg_split('/[\x09-\x0d ]+/', ltrim($input, " \t\n\r\v\f"), $words + 1, PREG_SPLIT_NO_EMPTY);
+        $wordlist = preg_split('/[\x09-\x0d ]+/', ltrim($input, " \t\n\r\v\f"), $words + 1);
 
         if ($wordlist === false) {
             return $input;
