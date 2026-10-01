@@ -143,6 +143,28 @@ report an error under `strictVariables`; `strictFilters` controls unknown filter
 `rethrowErrors` controls error propagation, and `lazyParsing` controls loading partials during rendering.
 Custom filters retain their own parameter types. Arithmetic uses PHP's native integer and float precision.
 
+### String and HTML filters
+
+Standard string and HTML filters use the shared Liquid string coercion: booleans become `true`/`false`
+and `nil` becomes an empty string. Supplied string arguments use the same conversion. Optional arguments
+follow the filter's defaults (`replace` and `replace_first` default to an empty replacement);
+required arguments remain required. Integer arguments use Liquid integer validation.
+
+`split` with `' '` splits whitespace runs, with `''` splits multibyte characters, and otherwise drops
+trailing empty fields. `slice` accepts an offset of `-size`. `truncatewords` ignores leading whitespace
+when counting words and preserves the original input when no truncation is needed.
+
+`escape`, its alias `h`, and `escape_once` encode only `& < > " '`, using `&#39;` for apostrophes.
+`strip_html` removes multiline script/style blocks and comments. URL-safe Base64 filters are available;
+encoding includes padding, while decoding accepts omitted padding and rejects malformed encodings.
+Standard Base64 decoding requires correctly padded input.
+
+These conversions also apply with strict options enabled. Missing variables still report errors under
+`strictVariables`, unknown filters follow `strictFilters`, and `rethrowErrors` controls propagation.
+`lazyParsing` only controls partial loading. Custom filters retain their own parameter types.
+The shared string coercion supports scalars and `Stringable` objects; arrays and other objects become
+empty strings rather than Ruby-style representations.
+
 ## Drops
 
 Liquid support almost any kind of object but in order to have a better control over the accessible data in the templates,
