@@ -2,6 +2,7 @@
 
 use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\Exceptions\ArithmeticException;
+use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Support\UndefinedVariable;
 use Keepsuit\Liquid\Tests\Stubs\BooleanDrop;
 use Keepsuit\Liquid\Tests\Stubs\NumberDrop;
@@ -146,7 +147,7 @@ test('sort', function () {
     expect($this->filters->invoke($this->context, 'sort', [4, 3, 2, 1]))->toBe([1, 2, 3, 4]);
     expect($this->filters->invoke($this->context, 'sort', [['a' => 4], ['a' => 3], ['a' => 1], ['a' => 2]], ['a']))->toBe([['a' => 1], ['a' => 2], ['a' => 3], ['a' => 4]]);
     expect($this->filters->invoke($this->context, 'sort', [null, 4, 3, 2, 1]))->toBe([1, 2, 3, 4, null]);
-    expect($this->filters->invoke($this->context, 'sort', [['a' => 4], ['a' => 3], [], ['a' => 1], ['a' => 2]], ['a']))->toBe([['a' => 1], ['a' => 2], ['a' => 3], ['a' => 4], []]);
+    expect($this->filters->invoke($this->context, 'sort', [['a' => 4], ['a' => 3], [], ['a' => 1], ['a' => 2]], ['a']))->toBe([['a' => 1], ['a' => 2], ['a' => 3], ['a' => 4]]);
 });
 
 test('sort when property is sometimes missing puts nulls last', function () {
@@ -169,11 +170,11 @@ test('sort natural', function () {
     expect($this->filters->invoke($this->context, 'sort_natural', ['c', 'D', 'a', 'B']))->toBe(['a', 'B', 'c', 'D']);
     expect($this->filters->invoke($this->context, 'sort_natural', [['a' => 'D'], ['a' => 'c'], ['a' => 'a'], ['a' => 'B']], ['a']))->toBe([['a' => 'a'], ['a' => 'B'], ['a' => 'c'], ['a' => 'D']]);
     expect($this->filters->invoke($this->context, 'sort_natural', [null, 'c', 'D', 'a', 'B']))->toBe(['a', 'B', 'c', 'D', null]);
-    expect($this->filters->invoke($this->context, 'sort_natural', [['a' => 'D'], ['a' => 'c'], [], ['a' => 'a'], ['a' => 'B']], ['a']))->toBe([['a' => 'a'], ['a' => 'B'], ['a' => 'c'], ['a' => 'D'], []]);
+    expect($this->filters->invoke($this->context, 'sort_natural', [['a' => 'D'], ['a' => 'c'], [], ['a' => 'a'], ['a' => 'B']], ['a']))->toBe([['a' => 'a'], ['a' => 'B'], ['a' => 'c'], ['a' => 'D']]);
 });
 
 test('sort natural when property is sometimes missing puts nulls last', function () {
-    expect($this->filters->invoke($this->context, 'sort', [
+    expect($this->filters->invoke($this->context, 'sort_natural', [
         ['price' => '4', 'handle' => 'alpha'],
         ['handle' => 'beta'],
         ['price' => '1', 'handle' => 'gamma'],
@@ -354,7 +355,7 @@ test('map returns empty with no property', function () {
         [3],
     ];
 
-    expect(fn () => $this->filters->invoke($this->context, 'map', $foo, [null]))->toThrow(TypeError::class);
+    expect(fn () => $this->filters->invoke($this->context, 'map', $foo, [null]))->toThrow(InvalidArgumentException::class);
 });
 
 test('sort works on iterator', function () {
@@ -496,7 +497,7 @@ test('first last', function () {
 
     expect($this->filters->invoke($this->context, 'first', []))->toBeNull();
     expect($this->filters->invoke($this->context, 'last', []))->toBeNull();
-    expect($this->filters->invoke($this->context, 'first', ['a' => 1, 'b' => 2]))->toBeNull();
+    expect($this->filters->invoke($this->context, 'first', ['a' => 1, 'b' => 2]))->toBe(['a', 1]);
     expect($this->filters->invoke($this->context, 'last', ['a' => 1, 'b' => 2]))->toBeNull();
 });
 
@@ -690,7 +691,7 @@ test('concat', function () {
     expect($this->filters->invoke($this->context, 'concat', [1, 2], [['a']]))->toBe([1, 2, 'a']);
     expect($this->filters->invoke($this->context, 'concat', [1, 2], [[10]]))->toBe([1, 2, 10]);
 
-    expect(fn () => $this->filters->invoke($this->context, 'concat', [1, 2], [10]))->toThrow(TypeError::class);
+    expect(fn () => $this->filters->invoke($this->context, 'concat', [1, 2], [10]))->toThrow(InvalidArgumentException::class);
 });
 
 test('default', function () {
@@ -814,13 +815,13 @@ test('where non array map input', function () {
 });
 
 test('where indexable but non map value', function () {
-    expect(fn () => $this->filters->invoke($this->context, 'where', 1, ['ok', true]))->toThrow(TypeError::class);
-    expect(fn () => $this->filters->invoke($this->context, 'where', 1, ['ok']))->toThrow(TypeError::class);
+    expect(fn () => $this->filters->invoke($this->context, 'where', 1, ['ok', true]))->toThrow(InvalidArgumentException::class);
+    expect(fn () => $this->filters->invoke($this->context, 'where', 1, ['ok']))->toThrow(InvalidArgumentException::class);
 });
 
 test('where array of only unindexable values', function () {
-    expect($this->filters->invoke($this->context, 'where', [null], ['ok', true]))->toBe([]);
-    expect($this->filters->invoke($this->context, 'where', [null], ['ok']))->toBe([]);
+    expect($this->filters->invoke($this->context, 'where', [null], ['ok', true]))->toBeNull();
+    expect($this->filters->invoke($this->context, 'where', [null], ['ok']))->toBeNull();
 });
 
 test('where no target value', function () {

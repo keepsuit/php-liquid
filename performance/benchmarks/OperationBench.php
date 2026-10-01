@@ -33,6 +33,8 @@ class OperationBench
 
     private Template $filterWithArgumentsTemplate;
 
+    private Template $arrayFiltersTemplate;
+
     private Template $dropMethodTemplate;
 
     private Template $dropMethodMissingHitTemplate;
@@ -71,6 +73,7 @@ class OperationBench
         $this->nestedTemplate = $this->environment->parseString(str_repeat('{{ product.title }}', 64));
         $this->filterWithoutArgumentsTemplate = $this->environment->parseString(str_repeat('{{ value | upcase | escape }}', 32));
         $this->filterWithArgumentsTemplate = $this->environment->parseString(str_repeat('{{ value | append: suffix | replace: from, to }}', 32));
+        $this->arrayFiltersTemplate = $this->environment->parseString(str_repeat("{{ products | map: 'vendor' | uniq | sort | join: ',' }}", 16));
         $this->dropMethodTemplate = $this->environment->parseString(str_repeat('{{ product.url }}', 64));
         $this->dropMethodMissingHitTemplate = $this->environment->parseString(str_repeat('{{ product.metafields.material }}', 64));
         $this->dropMethodMissingMissTemplate = $this->environment->parseString(str_repeat('{{ product.metafields.unknown }}', 64));
@@ -182,6 +185,13 @@ class OperationBench
     public function benchFilterWithArguments(): void
     {
         $this->filterWithArgumentsTemplate->render($this->filterContext());
+    }
+
+    public function benchArrayFilters(): void
+    {
+        $this->arrayFiltersTemplate->render($this->environment->newRenderContext(
+            staticData: ['products' => $this->productList],
+        ));
     }
 
     public function benchConditionRender(): void

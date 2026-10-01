@@ -12,6 +12,10 @@ trait ContextAware
     #[Hidden]
     public function setContext(RenderContext $context): void
     {
+        if (isset($this->context) && $this->context === $context) {
+            return;
+        }
+
         $this->context = $context;
     }
 }

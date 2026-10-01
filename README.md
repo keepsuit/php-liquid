@@ -165,6 +165,33 @@ These conversions also apply with strict options enabled. Missing variables stil
 The shared string coercion supports scalars and `Stringable` objects; arrays and other objects become
 empty strings rather than Ruby-style representations.
 
+### Array filters
+
+Standard array filters accept `nil`, scalars, lists, hashes, and iterators. Filters using a collection
+flatten nested PHP lists, preserve associative arrays as hashes, and bind drops to the current context.
+An empty PHP array is a list, so nested empty arrays disappear during flattening. Iterator entries
+retain their structure. `first`, `last`, and `size` preserve the original collection shape;
+`first` on a hash returns its first key/value pair, while `last` returns `nil`.
+Hash lookups retain their existing key-based behavior; use the explicit `first` filter for a pair.
+On integers, `size` returns the native integer byte size, as in Ruby.
+
+`map` retains arrays returned by properties; a subsequent `join` flattens them.
+`concat` flattens its input but keeps the appended array's structure and requires an array argument.
+`join` uses Liquid string conversion, including boolean names, float types, and Ruby-style hash
+representations. `sum` uses the shared numeric coercion, including leading numeric prefixes.
+
+`uniq` preserves the first occurrence and distinguishes integers, floats, strings, and booleans.
+Hashes compare by content regardless of key order, and drops compare by identity unless they expose
+a Liquid value. `compact` removes only `nil`. Without a target, `where`, `reject`, `has`, `find`,
+and `find_index` treat only `nil` and `false` as falsy; with a target they use condition equality.
+`sort` rejects incompatible types with a Liquid argument error; `sort_natural` compares strings
+case-insensitively.
+
+These rules apply with strict options enabled. Missing variables still follow `strictVariables`,
+unknown filters follow `strictFilters`, and rendering errors follow the configured handler or
+`rethrowErrors`. `lazyParsing` only controls partial loading, and parsing remains strict.
+Custom filters retain their parameter types.
+
 ## Drops
 
 Liquid support almost any kind of object but in order to have a better control over the accessible data in the templates,
