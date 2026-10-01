@@ -125,6 +125,26 @@ $stream = $template->stream($context);
 // $stream is a Generator<string>
 ```
 
+### Output formatting
+
+Float output follows Shopify Liquid 5.13: integral floats keep `.0` (`{{ 2 | times: 1.5 }}` renders
+`3.0`), and other floats retain the shortest decimal representation that preserves their full precision.
+Variables, string filters and `join` use the same float formatting, including Ruby-style scientific
+notation, `-0.0`, `Infinity`, `-Infinity` and `NaN`. Formatting is independent of PHP's `precision`,
+`serialize_precision` and numeric locale. Arithmetic still uses PHP's native numeric precision:
+for example, `{{ 0.0725 | times: 100 }}` renders `7.249999999999999`, rather than hiding that rounding.
+
+`tablerow` follows Shopify's HTML whitespace exactly: a newline follows the first opening `<tr>`,
+cells are adjacent, rows are separated by `\n`, and the final `</tr>` ends with `\n`.
+The whitespace-control markers on `raw` delimiters trim only the surrounding text, preserving
+whitespace inside the raw body: `{%- raw -%} a {%- endraw -%}` renders ` a `.
+
+**Compatibility change:** float strings and `tablerow` HTML differ from earlier releases. Prices,
+string conversions and exact-output snapshots may need updating. These formatting rules apply to
+both `render()` and `stream()`, independently of all environment options. `strictVariables` and
+`strictFilters` control missing names, `rethrowErrors` controls rendering error propagation,
+and `lazyParsing` controls loading uncached partials. Parsing remains strict.
+
 ### Date formatting
 
 The `date` filter uses Ruby-style strftime directives: only `%` directives are formatted, other text is literal

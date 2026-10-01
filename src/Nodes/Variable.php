@@ -117,7 +117,7 @@ class Variable extends Node implements CanBeEvaluated, CanBeStreamed, HasParseTr
             return $output ? 'true' : 'false';
         }
 
-        if (is_float($output) && ! is_finite($output)) {
+        if (is_float($output)) {
             return FilterCoercion::toString($output);
         }
 

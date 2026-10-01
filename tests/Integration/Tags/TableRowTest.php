@@ -1,5 +1,13 @@
 <?php
 
+test('tablerow markup matches Shopify byte for byte in render and stream', function () {
+    $source = '{% tablerow i in arr cols:2 %}{{ i }}{% endtablerow %}';
+    $expected = "<tr class=\"row1\">\n<td class=\"col1\">1</td><td class=\"col2\">2</td></tr>\n<tr class=\"row2\"><td class=\"col1\">3</td></tr>\n";
+
+    assertTemplateResult($expected, $source, data: ['arr' => [1, 2, 3]]);
+    expect(implode('', iterator_to_array(streamTemplate($source, data: ['arr' => [1, 2, 3]]))))->toBe($expected);
+});
+
 test('tablerow over nil renders nothing', function () {
     assertTemplateResult('', '{% tablerow i in nil %}x{% endtablerow %}');
     assertTemplateResult('', '{% tablerow i in items %}x{% endtablerow %}', data: ['items' => null], strictVariables: true);
@@ -7,8 +15,8 @@ test('tablerow over nil renders nothing', function () {
 });
 
 test('tablerow over a string renders one cell and over a number renders an empty row', function () {
-    assertTemplateResult("<tr class=\"row1\">\n<td class=\"col1\">ab</td>\n</tr>", '{% tablerow i in s %}{{ i }}{% endtablerow %}', data: ['s' => 'ab']);
-    assertTemplateResult("<tr class=\"row1\">\n</tr>", '{% tablerow i in n %}{{ i }}{% endtablerow %}', data: ['n' => 5]);
+    assertTemplateResult("<tr class=\"row1\">\n<td class=\"col1\">ab</td></tr>\n", '{% tablerow i in s %}{{ i }}{% endtablerow %}', data: ['s' => 'ab']);
+    assertTemplateResult("<tr class=\"row1\">\n</tr>\n", '{% tablerow i in n %}{{ i }}{% endtablerow %}', data: ['n' => 5]);
     assertTemplateResult('', '{% tablerow i in f %}x{% endtablerow %}', data: ['f' => false]);
 });
 
@@ -21,22 +29,15 @@ test('table row', function () {
     assertTemplateResult(
         <<<'HTML'
         <tr class="row1">
-        <td class="col1"> 1 </td>
-        <td class="col2"> 2 </td>
-        <td class="col3"> 3 </td>
-        </tr>
-        <tr class="row2">
-        <td class="col1"> 4 </td>
-        <td class="col2"> 5 </td>
-        <td class="col3"> 6 </td>
-        </tr>
-        HTML,
+        <td class="col1"> 1 </td><td class="col2"> 2 </td><td class="col3"> 3 </td></tr>
+        <tr class="row2"><td class="col1"> 4 </td><td class="col2"> 5 </td><td class="col3"> 6 </td></tr>
+        HTML."\n",
         '{% tablerow n in numbers cols:3%} {{n}} {% endtablerow %}',
         ['numbers' => [1, 2, 3, 4, 5, 6]],
     );
 
     assertTemplateResult(
-        "<tr class=\"row1\">\n</tr>",
+        "<tr class=\"row1\">\n</tr>\n",
         '{% tablerow n in numbers cols:3%} {{n}} {% endtablerow %}',
         ['numbers' => []],
     );
@@ -46,16 +47,9 @@ test('table row with different cols', function () {
     assertTemplateResult(
         <<<'HTML'
         <tr class="row1">
-        <td class="col1"> 1 </td>
-        <td class="col2"> 2 </td>
-        <td class="col3"> 3 </td>
-        <td class="col4"> 4 </td>
-        <td class="col5"> 5 </td>
-        </tr>
-        <tr class="row2">
-        <td class="col1"> 6 </td>
-        </tr>
-        HTML,
+        <td class="col1"> 1 </td><td class="col2"> 2 </td><td class="col3"> 3 </td><td class="col4"> 4 </td><td class="col5"> 5 </td></tr>
+        <tr class="row2"><td class="col1"> 6 </td></tr>
+        HTML."\n",
         '{% tablerow n in numbers cols:5%} {{n}} {% endtablerow %}',
         ['numbers' => [1, 2, 3, 4, 5, 6]],
     );
@@ -65,18 +59,10 @@ test('table col counter', function () {
     assertTemplateResult(
         <<<'HTML'
         <tr class="row1">
-        <td class="col1">1</td>
-        <td class="col2">2</td>
-        </tr>
-        <tr class="row2">
-        <td class="col1">1</td>
-        <td class="col2">2</td>
-        </tr>
-        <tr class="row3">
-        <td class="col1">1</td>
-        <td class="col2">2</td>
-        </tr>
-        HTML,
+        <td class="col1">1</td><td class="col2">2</td></tr>
+        <tr class="row2"><td class="col1">1</td><td class="col2">2</td></tr>
+        <tr class="row3"><td class="col1">1</td><td class="col2">2</td></tr>
+        HTML."\n",
         '{% tablerow n in numbers cols:2%}{{tablerowloop.col}}{% endtablerow %}',
         ['numbers' => [1, 2, 3, 4, 5, 6]],
     );
@@ -86,32 +72,18 @@ test('quoted fragment', function () {
     assertTemplateResult(
         <<<'HTML'
         <tr class="row1">
-        <td class="col1"> 1 </td>
-        <td class="col2"> 2 </td>
-        <td class="col3"> 3 </td>
-        </tr>
-        <tr class="row2">
-        <td class="col1"> 4 </td>
-        <td class="col2"> 5 </td>
-        <td class="col3"> 6 </td>
-        </tr>
-        HTML,
+        <td class="col1"> 1 </td><td class="col2"> 2 </td><td class="col3"> 3 </td></tr>
+        <tr class="row2"><td class="col1"> 4 </td><td class="col2"> 5 </td><td class="col3"> 6 </td></tr>
+        HTML."\n",
         '{% tablerow n in collections.frontpage cols:3%} {{n}} {% endtablerow %}',
         ['collections' => ['frontpage' => [1, 2, 3, 4, 5, 6]]],
     );
     assertTemplateResult(
         <<<'HTML'
         <tr class="row1">
-        <td class="col1"> 1 </td>
-        <td class="col2"> 2 </td>
-        <td class="col3"> 3 </td>
-        </tr>
-        <tr class="row2">
-        <td class="col1"> 4 </td>
-        <td class="col2"> 5 </td>
-        <td class="col3"> 6 </td>
-        </tr>
-        HTML,
+        <td class="col1"> 1 </td><td class="col2"> 2 </td><td class="col3"> 3 </td></tr>
+        <tr class="row2"><td class="col1"> 4 </td><td class="col2"> 5 </td><td class="col3"> 6 </td></tr>
+        HTML."\n",
         "{% tablerow n in collections['frontpage'] cols:3%} {{n}} {% endtablerow %}",
         ['collections' => ['frontpage' => [1, 2, 3, 4, 5, 6]]],
     );
@@ -121,16 +93,9 @@ test('enumerable drop', function () {
     assertTemplateResult(
         <<<'HTML'
         <tr class="row1">
-        <td class="col1"> 1 </td>
-        <td class="col2"> 2 </td>
-        <td class="col3"> 3 </td>
-        </tr>
-        <tr class="row2">
-        <td class="col1"> 4 </td>
-        <td class="col2"> 5 </td>
-        <td class="col3"> 6 </td>
-        </tr>
-        HTML,
+        <td class="col1"> 1 </td><td class="col2"> 2 </td><td class="col3"> 3 </td></tr>
+        <tr class="row2"><td class="col1"> 4 </td><td class="col2"> 5 </td><td class="col3"> 6 </td></tr>
+        HTML."\n",
         '{% tablerow n in numbers cols:3%} {{n}} {% endtablerow %}',
         ['numbers' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop([1, 2, 3, 4, 5, 6])],
     );
@@ -140,16 +105,9 @@ test('offset and limit', function () {
     assertTemplateResult(
         <<<'HTML'
         <tr class="row1">
-        <td class="col1"> 1 </td>
-        <td class="col2"> 2 </td>
-        <td class="col3"> 3 </td>
-        </tr>
-        <tr class="row2">
-        <td class="col1"> 4 </td>
-        <td class="col2"> 5 </td>
-        <td class="col3"> 6 </td>
-        </tr>
-        HTML,
+        <td class="col1"> 1 </td><td class="col2"> 2 </td><td class="col3"> 3 </td></tr>
+        <tr class="row2"><td class="col1"> 4 </td><td class="col2"> 5 </td><td class="col3"> 6 </td></tr>
+        HTML."\n",
         '{% tablerow n in numbers cols:3 offset:1 limit:6%} {{n}} {% endtablerow %}',
         ['numbers' => [0, 1, 2, 3, 4, 5, 6, 7]],
     );
@@ -157,16 +115,9 @@ test('offset and limit', function () {
     assertTemplateResult(
         <<<'HTML'
         <tr class="row1">
-        <td class="col1"> 1 </td>
-        <td class="col2"> 2 </td>
-        <td class="col3"> 3 </td>
-        </tr>
-        <tr class="row2">
-        <td class="col1"> 4 </td>
-        <td class="col2"> 5 </td>
-        <td class="col3"> 6 </td>
-        </tr>
-        HTML,
+        <td class="col1"> 1 </td><td class="col2"> 2 </td><td class="col3"> 3 </td></tr>
+        <tr class="row2"><td class="col1"> 4 </td><td class="col2"> 5 </td><td class="col3"> 6 </td></tr>
+        HTML."\n",
         '{% tablerow n in numbers, cols:3, offset:1, limit:6 %} {{n}} {% endtablerow %}',
         ['numbers' => [0, 1, 2, 3, 4, 5, 6, 7]],
     );
@@ -174,7 +125,7 @@ test('offset and limit', function () {
 
 test('blank string not iterable', function () {
     assertTemplateResult(
-        "<tr class=\"row1\">\n</tr>",
+        "<tr class=\"row1\">\n</tr>\n",
         '{% tablerow char in characters cols:3 %}I WILL NOT BE OUTPUT{% endtablerow %}',
         ['characters' => ''],
     );
@@ -183,10 +134,8 @@ test('blank string not iterable', function () {
 test('cols null constant same as evaluated null expression', function () {
     $expect = <<<'HTML'
         <tr class="row1">
-        <td class="col1">false</td>
-        <td class="col2">false</td>
-        </tr>
-        HTML;
+        <td class="col1">false</td><td class="col2">false</td></tr>
+        HTML."\n";
 
     assertTemplateResult(
         $expect,
@@ -200,7 +149,7 @@ test('cols null constant same as evaluated null expression', function () {
 });
 
 test('nil limit is treated as zero', function () {
-    $expect = "<tr class=\"row1\">\n</tr>";
+    $expect = "<tr class=\"row1\">\n</tr>\n";
 
     assertTemplateResult(
         $expect,
@@ -216,10 +165,8 @@ test('nil limit is treated as zero', function () {
 test('nil offset is treated as zero', function () {
     $expect = <<<'HTML'
         <tr class="row1">
-        <td class="col1">1:false</td>
-        <td class="col2">2:true</td>
-        </tr>
-        HTML;
+        <td class="col1">1:false</td><td class="col2">2:true</td></tr>
+        HTML."\n";
 
     assertTemplateResult(
         $expect,
@@ -265,8 +212,7 @@ test('tablerow loop drop attributes', function () {
     rindex: 2
     rindex0: 1
     row: 1
-    </td>
-    <td class="col2">
+    </td><td class="col2">
     col: 2
     col0: 1
     col_first: false
@@ -279,9 +225,8 @@ test('tablerow loop drop attributes', function () {
     rindex: 1
     rindex0: 0
     row: 1
-    </td>
-    </tr>
-    HTML;
+    </td></tr>
+    HTML."\n";
 
     assertTemplateResult($expect, $template);
 });
@@ -319,12 +264,12 @@ test('tablerow strict parsing rejects malformed params', function () {
 
 test('tablerow handles interrupts', function () {
     assertTemplateResult(
-        "<tr class=\"row1\">\n<td class=\"col1\"> 1 </td>\n</tr>",
+        "<tr class=\"row1\">\n<td class=\"col1\"> 1 </td></tr>\n",
         '{% tablerow n in (1..3) cols:2 %} {{n}} {% break %} {{n}} {% endtablerow %}'
     );
 
     assertTemplateResult(
-        "<tr class=\"row1\">\n<td class=\"col1\"> 1 </td>\n<td class=\"col2\"> 2 </td>\n</tr>\n<tr class=\"row2\">\n<td class=\"col1\"> 3 </td>\n</tr>",
+        "<tr class=\"row1\">\n<td class=\"col1\"> 1 </td><td class=\"col2\"> 2 </td></tr>\n<tr class=\"row2\"><td class=\"col1\"> 3 </td></tr>\n",
         '{% tablerow n in (1..3) cols:2 %} {{n}} {% continue %} {{n}} {% endtablerow %}',
     );
 });
@@ -343,21 +288,21 @@ test('tablerow does not leak interrupts', function () {
 
     $expected = <<<'HTML'
         <tr class="row1">
-        <td class="col1"></td>
-        </tr>
+        <td class="col1"></td></tr>
+
         loop j=1
         <tr class="row1">
-        <td class="col1"></td>
-        </tr>
+        <td class="col1"></td></tr>
+
         loop j=2
         loop i=1
         <tr class="row1">
-        <td class="col1"></td>
-        </tr>
+        <td class="col1"></td></tr>
+
         loop j=1
         <tr class="row1">
-        <td class="col1"></td>
-        </tr>
+        <td class="col1"></td></tr>
+
         loop j=2
         loop i=2
         after loop

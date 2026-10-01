@@ -41,10 +41,6 @@ class FilterSupport
             return $this->inspectArrayValue($value);
         }
 
-        if (is_float($value) && is_finite($value)) {
-            return strtolower((string) json_encode($value, JSON_PRESERVE_ZERO_FRACTION));
-        }
-
         return FilterCoercion::toString($value);
     }
 

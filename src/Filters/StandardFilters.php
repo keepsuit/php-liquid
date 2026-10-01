@@ -562,7 +562,15 @@ class StandardFilters extends FiltersProvider
         $input = FilterCoercion::toFiniteNumber($input);
         $precision = (int) FilterCoercion::toFiniteNumber($precision);
 
-        return is_int($input) && $precision >= 0 ? $input : round($input, $precision);
+        if (is_int($input) && $precision >= 0) {
+            return $input;
+        }
+
+        $rounded = round($input, $precision);
+
+        return $precision <= 0 && $rounded >= PHP_INT_MIN && $rounded < PHP_INT_MAX
+            ? (int) $rounded
+            : $rounded;
     }
 
     /**

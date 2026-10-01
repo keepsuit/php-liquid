@@ -18,7 +18,7 @@ class FilterCoercion
             $value === null => '',
             $value === true => 'true',
             $value === false => 'false',
-            is_float($value) && ! is_finite($value) => is_nan($value) ? 'NaN' : ($value < 0 ? '-Infinity' : 'Infinity'),
+            is_float($value) => FloatFormatter::format($value),
             is_scalar($value), $value instanceof Stringable => (string) $value,
             default => '',
         };

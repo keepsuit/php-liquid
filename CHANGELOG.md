@@ -6,6 +6,13 @@ All notable changes to `liquid` will be documented in this file.
 
 ### Breaking changes
 
+- Align float output and string conversions with Shopify Liquid 5.13: integral floats
+  retain `.0`, full float precision is preserved, and scientific notation follows Ruby.
+  Native PHP arithmetic rounding is now visible; prices and output snapshots may change.
+- Align `tablerow` HTML whitespace with Shopify: adjacent cells, newlines between rows,
+  and a final newline after `</tr>`. Remove reliance on platform-specific line endings.
+- Preserve whitespace inside `raw` bodies when their delimiters use whitespace control;
+  the markers continue to trim surrounding text. Environment options remain independent.
 - Reject incomplete `if`/`elsif`/`unless` conditions, empty tags, duplicate `for` `else`
   sections, and missing filter arguments with `SyntaxException` during parsing. Templates
   previously accepted with these syntax errors must be corrected. Parsing remains strict

@@ -1,5 +1,13 @@
 <?php
 
+class VerbatimOutputTag extends \Keepsuit\Liquid\Tags\RawTag
+{
+    public static function tagName(): string
+    {
+        return 'verbatim';
+    }
+}
+
 test('tag in raw', function () {
     assertTemplateResult(
         '{% comment %} test {% endcomment %}',
@@ -7,10 +15,35 @@ test('tag in raw', function () {
     );
 });
 
+test('raw preserves inner whitespace while its delimiters trim outer whitespace', function (string $source, string $expected) {
+    assertTemplateResult($expected, $source);
+    expect(implode('', iterator_to_array(streamTemplate($source))))->toBe($expected);
+})->with([
+    ['{%- raw -%} a {%- endraw -%}', ' a '],
+    ["before \n{%- raw -%} a {%- endraw -%}\n after", 'before a after'],
+]);
+
+test('raw delimiter combinations preserve opaque multiline content', function (bool $left, bool $innerLeft, bool $innerRight, bool $right) {
+    $body = "\t \n{{ invalid | }} {% unclosed %} \n";
+    $source = "before \n{%".($left ? '-' : '').' raw '.($innerLeft ? '-' : '').'%}'
+        .$body.'{%'.($innerRight ? '-' : '').' endraw '.($right ? '-' : '')."%}\n after";
+    $expected = ($left ? 'before' : "before \n").$body.($right ? 'after' : "\n after");
+
+    assertTemplateResult($expected, $source);
+    expect(implode('', iterator_to_array(streamTemplate($source))))->toBe($expected);
+})->with([false, true], [false, true], [false, true], [false, true]);
+
+test('empty raw content and custom raw body tags preserve their content', function () {
+    assertTemplateResult('', '{%- raw -%}{%- endraw -%}');
+    assertTemplateResult(" \n ", "{%- raw -%} \n {%- endraw -%}");
+    assertTemplateResult(' {{ invalid | }} ', '{%- verbatim -%} {{ invalid | }} {%- endverbatim -%}',
+        factory: \Keepsuit\Liquid\EnvironmentFactory::new()->registerTag(VerbatimOutputTag::class));
+});
+
 test('output in raw', function () {
     assertTemplateResult('>{{ test }}<', '> {%- raw -%}{{ test }}{%- endraw -%} <');
-    assertTemplateResult('>inner <', '> {%- raw -%} inner {%- endraw %} <');
-    assertTemplateResult('>inner<', '> {%- raw -%} inner {%- endraw -%} <');
+    assertTemplateResult('> inner  <', '> {%- raw -%} inner {%- endraw %} <');
+    assertTemplateResult('> inner <', '> {%- raw -%} inner {%- endraw -%} <');
     assertTemplateResult('{Hello}', '{% raw %}{{% endraw %}Hello{% raw %}}{% endraw %}');
 });
 
