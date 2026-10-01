@@ -18,7 +18,7 @@ use Traversable;
 
 class StandardFilters extends FiltersProvider
 {
-    protected FilterSupport $filterSupport;
+    protected ?FilterSupport $filterSupport = null;
 
     #[Hidden]
     public function setContext(RenderContext $context): void
@@ -28,7 +28,12 @@ class StandardFilters extends FiltersProvider
         }
 
         $this->context = $context;
-        $this->filterSupport = new FilterSupport($context);
+        $this->filterSupport = null;
+    }
+
+    protected function filterSupport(): FilterSupport
+    {
+        return $this->filterSupport ??= new FilterSupport($this->context);
     }
 
     private const HTML_ESCAPE = [
@@ -147,15 +152,15 @@ class StandardFilters extends FiltersProvider
      */
     public function compact(mixed $input, mixed $property = null): ?array
     {
-        $this->filterSupport->validateProperty($property);
+        $this->filterSupport()->validateProperty($property);
         $result = [];
 
-        foreach ($this->filterSupport->iterate($input) as $item) {
-            if ($property !== null && ! $this->filterSupport->canSelectProperty($item)) {
+        foreach ($this->filterSupport()->iterate($input) as $item) {
+            if ($property !== null && ! $this->filterSupport()->canSelectProperty($item)) {
                 return null;
             }
 
-            if (($property === null ? $item : $this->filterSupport->property($item, $property)) !== null) {
+            if (($property === null ? $item : $this->filterSupport()->property($item, $property)) !== null) {
                 $result[] = $item;
             }
         }
@@ -176,7 +181,7 @@ class StandardFilters extends FiltersProvider
             throw new InvalidArgumentException('concat filter requires an array argument');
         }
 
-        return [...$this->filterSupport->iterate($input), ...$this->filterSupport->normalizeCollection($join)];
+        return [...$this->filterSupport()->iterate($input), ...$this->filterSupport()->normalizeCollection($join)];
     }
 
     /**
@@ -334,7 +339,7 @@ class StandardFilters extends FiltersProvider
         }
 
         $isHash = is_array($input) && ! array_is_list($input);
-        $input = $this->filterSupport->normalizeCollection($input);
+        $input = $this->filterSupport()->normalizeCollection($input);
 
         if (count($input) === 0) {
             return null;
@@ -364,12 +369,12 @@ class StandardFilters extends FiltersProvider
      */
     public function join(mixed $input, mixed $glue = ' '): string
     {
-        $glue = $this->filterSupport->stringify($glue);
+        $glue = $this->filterSupport()->stringify($glue);
         $output = '';
         $first = true;
 
-        foreach ($this->filterSupport->iterate($input) as $value) {
-            $output .= ($first ? '' : $glue).$this->filterSupport->stringify($value);
+        foreach ($this->filterSupport()->iterate($input) as $value) {
+            $output .= ($first ? '' : $glue).$this->filterSupport()->stringify($value);
             $first = false;
         }
 
@@ -393,7 +398,7 @@ class StandardFilters extends FiltersProvider
             return null;
         }
 
-        $input = $this->filterSupport->normalizeCollection($input);
+        $input = $this->filterSupport()->normalizeCollection($input);
 
         if (count($input) === 0 || ! array_is_list($input)) {
             return null;
@@ -407,11 +412,11 @@ class StandardFilters extends FiltersProvider
      */
     public function map(mixed $input, mixed $property): array
     {
-        $this->filterSupport->validateProperty($property);
+        $this->filterSupport()->validateProperty($property);
         $result = [];
 
-        foreach ($this->filterSupport->iterate($input) as $item) {
-            $result[] = $property === 'to_liquid' ? $item : $this->filterSupport->property($item, $property);
+        foreach ($this->filterSupport()->iterate($input) as $item) {
+            $result[] = $property === 'to_liquid' ? $item : $this->filterSupport()->property($item, $property);
         }
 
         return $result;
@@ -541,7 +546,7 @@ class StandardFilters extends FiltersProvider
      */
     public function reverse(mixed $input): array
     {
-        return array_reverse(iterator_to_array($this->filterSupport->iterate($input)));
+        return array_reverse(iterator_to_array($this->filterSupport()->iterate($input)));
     }
 
     /**
@@ -718,16 +723,16 @@ class StandardFilters extends FiltersProvider
      */
     public function sum(mixed $input, mixed $property = null): int|float
     {
-        $this->filterSupport->validateProperty($property);
+        $this->filterSupport()->validateProperty($property);
         $values = [];
 
-        foreach ($this->filterSupport->iterate($input) as $item) {
-            $values[] = $property === null ? $item : $this->filterSupport->property($item, $property);
+        foreach ($this->filterSupport()->iterate($input) as $item) {
+            $values[] = $property === null ? $item : $this->filterSupport()->property($item, $property);
         }
 
         $sum = 0;
 
-        foreach ($this->filterSupport->iterate($values) as $value) {
+        foreach ($this->filterSupport()->iterate($values) as $value) {
             $value = $value instanceof AsLiquidValue ? $value->toLiquidValue() : $value;
             $sum += FilterCoercion::toNumber($value);
         }
@@ -811,8 +816,8 @@ class StandardFilters extends FiltersProvider
      */
     public function uniq(mixed $input, mixed $property = null): ?array
     {
-        $this->filterSupport->validateProperty($property);
-        $input = iterator_to_array($this->filterSupport->iterate($input));
+        $this->filterSupport()->validateProperty($property);
+        $input = iterator_to_array($this->filterSupport()->iterate($input));
         if (count($input) < 2) {
             return $input;
         }
@@ -822,10 +827,10 @@ class StandardFilters extends FiltersProvider
 
         foreach ($input as $item) {
             $value = $item instanceof AsLiquidValue ? $item->toLiquidValue() : $item;
-            if ($property !== null && ! $this->filterSupport->canSelectProperty($value)) {
+            if ($property !== null && ! $this->filterSupport()->canSelectProperty($value)) {
                 return null;
             }
-            $value = $property === null ? $value : $this->filterSupport->property($value, $property);
+            $value = $property === null ? $value : $this->filterSupport()->property($value, $property);
 
             $key = $this->uniqueKey($value);
             if (isset($seen[$key])) {
@@ -906,12 +911,12 @@ class StandardFilters extends FiltersProvider
 
     protected function sortInput(mixed $input, mixed $property, bool $natural): ?array
     {
-        $this->filterSupport->validateProperty($property);
-        $input = iterator_to_array($this->filterSupport->iterate($input));
+        $this->filterSupport()->validateProperty($property);
+        $input = iterator_to_array($this->filterSupport()->iterate($input));
 
         if ($property !== null) {
             foreach ($input as $item) {
-                if (! $this->filterSupport->canSelectProperty($item)) {
+                if (! $this->filterSupport()->canSelectProperty($item)) {
                     return null;
                 }
             }
@@ -923,7 +928,7 @@ class StandardFilters extends FiltersProvider
 
         $values = [];
         foreach ($input as $item) {
-            $values[] = $property === null ? $item : $this->filterSupport->property($item, $property);
+            $values[] = $property === null ? $item : $this->filterSupport()->property($item, $property);
         }
 
         uasort($values, function (mixed $a, mixed $b) use ($natural): int {
@@ -932,7 +937,7 @@ class StandardFilters extends FiltersProvider
             }
 
             return $natural
-                ? strcasecmp($this->filterSupport->stringify($a), $this->filterSupport->stringify($b))
+                ? strcasecmp($this->filterSupport()->stringify($a), $this->filterSupport()->stringify($b))
                 : $this->compareArrayValues($a, $b);
         });
 
@@ -978,7 +983,7 @@ class StandardFilters extends FiltersProvider
 
     protected function filterArray(mixed $input, mixed $property, mixed $targetValue, string $filter): mixed
     {
-        $this->filterSupport->validateProperty($property);
+        $this->filterSupport()->validateProperty($property);
         if ($targetValue instanceof UndefinedVariable) {
             throw $targetValue->toException();
         }
@@ -986,12 +991,12 @@ class StandardFilters extends FiltersProvider
         $targetValue = $targetValue instanceof AsLiquidValue ? $targetValue->toLiquidValue() : $targetValue;
         $result = [];
 
-        foreach ($this->filterSupport->iterate($input) as $index => $item) {
-            if (! $this->filterSupport->canSelectProperty($item)) {
+        foreach ($this->filterSupport()->iterate($input) as $index => $item) {
+            if (! $this->filterSupport()->canSelectProperty($item)) {
                 return null;
             }
 
-            $value = $this->filterSupport->property($item, $property);
+            $value = $this->filterSupport()->property($item, $property);
             $value = $value instanceof AsLiquidValue ? $value->toLiquidValue() : $value;
             $matches = $targetValue === null
                 ? $value !== false && $value !== null
