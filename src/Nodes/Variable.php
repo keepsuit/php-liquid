@@ -9,6 +9,7 @@ use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Parse\ExpressionParser;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
+use Keepsuit\Liquid\Support\FilterCoercion;
 
 /**
  * @phpstan-import-type Expression from ExpressionParser
@@ -114,6 +115,10 @@ class Variable extends Node implements CanBeEvaluated, CanBeStreamed, HasParseTr
 
         if (is_bool($output)) {
             return $output ? 'true' : 'false';
+        }
+
+        if (is_float($output) && ! is_finite($output)) {
+            return FilterCoercion::toString($output);
         }
 
         if (is_numeric($output)) {

@@ -9,6 +9,7 @@ use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Drop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Support\Arr;
+use Keepsuit\Liquid\Support\FilterCoercion;
 use Keepsuit\Liquid\Support\Str;
 use Keepsuit\Liquid\Support\StrftimeFormatter;
 use Traversable;
@@ -18,9 +19,9 @@ class StandardFilters extends FiltersProvider
     /**
      * Returns the absolute value of a number.
      */
-    public function abs(int|float $input): int|float
+    public function abs(mixed $input): int|float
     {
-        return abs($input);
+        return abs(FilterCoercion::toNumber($input));
     }
 
     /**
@@ -34,17 +35,17 @@ class StandardFilters extends FiltersProvider
     /**
      * Limits a number to a minimum value.
      */
-    public function atLeast(int|float $input, int|float $minValue): int|float
+    public function atLeast(mixed $input, mixed $minValue): int|float
     {
-        return max($minValue, $input);
+        return max(FilterCoercion::toNumber($minValue), FilterCoercion::toNumber($input));
     }
 
     /**
      * Limits a number to a maximum value.
      */
-    public function atMost(int|float $input, int|float $maxValue): int|float
+    public function atMost(mixed $input, mixed $maxValue): int|float
     {
-        return min($maxValue, $input);
+        return min(FilterCoercion::toNumber($maxValue), FilterCoercion::toNumber($input));
     }
 
     /**
@@ -82,9 +83,11 @@ class StandardFilters extends FiltersProvider
     /**
      * Rounds a number up to the nearest integer.
      */
-    public function ceil(int|float $input): int
+    public function ceil(mixed $input): int
     {
-        return (int) ceil($input);
+        $input = FilterCoercion::toFiniteNumber($input);
+
+        return is_int($input) ? $input : (int) ceil($input);
     }
 
     /**
@@ -181,11 +184,24 @@ class StandardFilters extends FiltersProvider
      * This means if you divide by an integer, the result will be an integer,
      * and if you divide by a float, the result will be a float.
      */
-    public function dividedBy(int|float $input, int|float $operand): int|float
+    public function dividedBy(mixed $input, mixed $operand): int|float
     {
-        $result = $input / $operand;
+        $input = FilterCoercion::toNumber($input);
+        $operand = FilterCoercion::toNumber($operand);
 
-        return is_int($input) && is_int($operand) ? (int) $result : $result;
+        if (is_int($input) && is_int($operand)) {
+            if ($input === PHP_INT_MIN && $operand === -1) {
+                return -(float) $input;
+            }
+
+            $quotient = intdiv($input, $operand);
+
+            return $input % $operand !== 0 && ($input < 0) !== ($operand < 0)
+                ? $quotient - 1
+                : $quotient;
+        }
+
+        return fdiv($input, $operand);
     }
 
     /**
@@ -246,9 +262,11 @@ class StandardFilters extends FiltersProvider
     /**
      * Rounds a number down to the nearest integer.
      */
-    public function floor(int|float $input): int
+    public function floor(mixed $input): int
     {
-        return (int) floor($input);
+        $input = FilterCoercion::toFiniteNumber($input);
+
+        return is_int($input) ? $input : (int) floor($input);
     }
 
     /**
@@ -309,17 +327,30 @@ class StandardFilters extends FiltersProvider
     /**
      * Subtracts a given number from another number.
      */
-    public function minus(int|float $input, int|float $operand): int|float
+    public function minus(mixed $input, mixed $operand): int|float
     {
-        return $input - $operand;
+        return FilterCoercion::toNumber($input) - FilterCoercion::toNumber($operand);
     }
 
     /**
      * Returns the remainder of dividing a number by a given number.
      */
-    public function modulo(int|float $input, int|float $operand): int|float
+    public function modulo(mixed $input, mixed $operand): int|float
     {
-        return $input % $operand;
+        $input = FilterCoercion::toNumber($input);
+        $operand = FilterCoercion::toNumber($operand);
+
+        if ($operand == 0) {
+            throw new \DivisionByZeroError;
+        }
+
+        $remainder = is_int($input) && is_int($operand)
+            ? $input % $operand
+            : fmod($input, $operand);
+
+        return $remainder != 0 && ($remainder < 0) !== ($operand < 0)
+            ? $remainder + $operand
+            : $remainder;
     }
 
     /**
@@ -335,9 +366,9 @@ class StandardFilters extends FiltersProvider
     /**
      * Adds two numbers.
      */
-    public function plus(int|float $input, int|float $operand): int|float
+    public function plus(mixed $input, mixed $operand): int|float
     {
-        return $input + $operand;
+        return FilterCoercion::toNumber($input) + FilterCoercion::toNumber($operand);
     }
 
     /**
@@ -407,9 +438,12 @@ class StandardFilters extends FiltersProvider
     /**
      * Rounds a number to the nearest integer or to the requested decimal places.
      */
-    public function round(int|float $input, int $precision = 0): int|float
+    public function round(mixed $input, mixed $precision = 0): int|float
     {
-        return round($input, $precision);
+        $input = FilterCoercion::toFiniteNumber($input);
+        $precision = (int) FilterCoercion::toFiniteNumber($precision);
+
+        return is_int($input) && $precision >= 0 ? $input : round($input, $precision);
     }
 
     /**
@@ -612,9 +646,9 @@ class StandardFilters extends FiltersProvider
     /**
      * Multiplies a number by a given number.
      */
-    public function times(int|float $input, int|float $operand): int|float
+    public function times(mixed $input, mixed $operand): int|float
     {
-        return $input * $operand;
+        return FilterCoercion::toNumber($input) * FilterCoercion::toNumber($operand);
     }
 
     /**

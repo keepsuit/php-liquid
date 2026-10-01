@@ -127,6 +127,18 @@ The `date` filter uses Ruby-style strftime directives: only `%` directives are f
 (`date: 'Day %d at %H'` produces `Day 05 at 14`). Day and month names are always English.
 Values that cannot be parsed as a date (including floats and booleans) are returned unchanged, without errors.
 
+### Numeric filters
+
+Standard numeric filters use Liquid coercion: `nil`, booleans and non-numeric strings become zero;
+strings can supply a leading integer prefix (`'1abc' | plus: 1` produces `2`).
+Integer division rounds down, and modulo follows the divisor's sign, including for floats.
+Float division by zero produces `Infinity`, `-Infinity` or `NaN`; integer division by zero remains a Liquid error.
+
+These conversions also apply with `strictVariables` and `strictFilters` enabled. Missing variables still
+report an error under `strictVariables`; `strictFilters` controls unknown filter names.
+`rethrowErrors` controls error propagation, and `lazyParsing` controls loading partials during rendering.
+Custom filters retain their own parameter types. Arithmetic uses PHP's native integer and float precision.
+
 ## Drops
 
 Liquid support almost any kind of object but in order to have a better control over the accessible data in the templates,
