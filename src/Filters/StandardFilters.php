@@ -4,9 +4,11 @@ namespace Keepsuit\Liquid\Filters;
 
 use DateTime;
 use DateTimeZone;
+use Keepsuit\Liquid\Attributes\Hidden;
 use Keepsuit\Liquid\Condition\ConditionOperator;
 use Keepsuit\Liquid\Contracts\AsLiquidValue;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\FilterCoercion;
 use Keepsuit\Liquid\Support\FilterSupport;
 use Keepsuit\Liquid\Support\Str;
@@ -16,6 +18,15 @@ use Traversable;
 
 class StandardFilters extends FiltersProvider
 {
+    protected FilterSupport $filterSupport;
+
+    #[Hidden]
+    public function setContext(RenderContext $context): void
+    {
+        $this->context = $context;
+        $this->filterSupport = new FilterSupport($context);
+    }
+
     private const HTML_ESCAPE = [
         '&' => '&amp;',
         '<' => '&lt;',
@@ -132,15 +143,15 @@ class StandardFilters extends FiltersProvider
      */
     public function compact(mixed $input, mixed $property = null): ?array
     {
-        FilterSupport::validateProperty($property);
+        $this->filterSupport->validateProperty($property);
         $result = [];
 
-        foreach (FilterSupport::iterate($input, $this->context) as $item) {
-            if ($property !== null && ! FilterSupport::canSelectProperty($item)) {
+        foreach ($this->filterSupport->iterate($input) as $item) {
+            if ($property !== null && ! $this->filterSupport->canSelectProperty($item)) {
                 return null;
             }
 
-            if (($property === null ? $item : FilterSupport::property($item, $property, $this->context)) !== null) {
+            if (($property === null ? $item : $this->filterSupport->property($item, $property)) !== null) {
                 $result[] = $item;
             }
         }
@@ -161,7 +172,7 @@ class StandardFilters extends FiltersProvider
             throw new InvalidArgumentException('concat filter requires an array argument');
         }
 
-        return [...FilterSupport::iterate($input, $this->context), ...FilterSupport::normalizeCollection($join, $this->context)];
+        return [...$this->filterSupport->iterate($input), ...$this->filterSupport->normalizeCollection($join)];
     }
 
     /**
@@ -319,7 +330,7 @@ class StandardFilters extends FiltersProvider
         }
 
         $isHash = is_array($input) && ! array_is_list($input);
-        $input = FilterSupport::normalizeCollection($input, $this->context);
+        $input = $this->filterSupport->normalizeCollection($input);
 
         if (count($input) === 0) {
             return null;
@@ -349,12 +360,12 @@ class StandardFilters extends FiltersProvider
      */
     public function join(mixed $input, mixed $glue = ' '): string
     {
-        $glue = FilterSupport::stringify($glue);
+        $glue = $this->filterSupport->stringify($glue);
         $output = '';
         $first = true;
 
-        foreach (FilterSupport::iterate($input, $this->context) as $value) {
-            $output .= ($first ? '' : $glue).FilterSupport::stringify($value);
+        foreach ($this->filterSupport->iterate($input) as $value) {
+            $output .= ($first ? '' : $glue).$this->filterSupport->stringify($value);
             $first = false;
         }
 
@@ -378,7 +389,7 @@ class StandardFilters extends FiltersProvider
             return null;
         }
 
-        $input = FilterSupport::normalizeCollection($input, $this->context);
+        $input = $this->filterSupport->normalizeCollection($input);
 
         if (count($input) === 0 || ! array_is_list($input)) {
             return null;
@@ -392,11 +403,11 @@ class StandardFilters extends FiltersProvider
      */
     public function map(mixed $input, mixed $property): array
     {
-        FilterSupport::validateProperty($property);
+        $this->filterSupport->validateProperty($property);
         $result = [];
 
-        foreach (FilterSupport::iterate($input, $this->context) as $item) {
-            $result[] = $property === 'to_liquid' ? $item : FilterSupport::property($item, $property, $this->context);
+        foreach ($this->filterSupport->iterate($input) as $item) {
+            $result[] = $property === 'to_liquid' ? $item : $this->filterSupport->property($item, $property);
         }
 
         return $result;
@@ -526,7 +537,7 @@ class StandardFilters extends FiltersProvider
      */
     public function reverse(mixed $input): array
     {
-        return array_reverse(iterator_to_array(FilterSupport::iterate($input, $this->context)));
+        return array_reverse(iterator_to_array($this->filterSupport->iterate($input)));
     }
 
     /**
@@ -703,16 +714,16 @@ class StandardFilters extends FiltersProvider
      */
     public function sum(mixed $input, mixed $property = null): int|float
     {
-        FilterSupport::validateProperty($property);
+        $this->filterSupport->validateProperty($property);
         $values = [];
 
-        foreach (FilterSupport::iterate($input, $this->context) as $item) {
-            $values[] = $property === null ? $item : FilterSupport::property($item, $property, $this->context);
+        foreach ($this->filterSupport->iterate($input) as $item) {
+            $values[] = $property === null ? $item : $this->filterSupport->property($item, $property);
         }
 
         $sum = 0;
 
-        foreach (FilterSupport::iterate($values, $this->context) as $value) {
+        foreach ($this->filterSupport->iterate($values) as $value) {
             $value = $value instanceof AsLiquidValue ? $value->toLiquidValue() : $value;
             $sum += FilterCoercion::toNumber($value);
         }
@@ -796,8 +807,8 @@ class StandardFilters extends FiltersProvider
      */
     public function uniq(mixed $input, mixed $property = null): ?array
     {
-        FilterSupport::validateProperty($property);
-        $input = iterator_to_array(FilterSupport::iterate($input, $this->context));
+        $this->filterSupport->validateProperty($property);
+        $input = iterator_to_array($this->filterSupport->iterate($input));
         if (count($input) < 2) {
             return $input;
         }
@@ -807,10 +818,10 @@ class StandardFilters extends FiltersProvider
 
         foreach ($input as $item) {
             $value = $item instanceof AsLiquidValue ? $item->toLiquidValue() : $item;
-            if ($property !== null && ! FilterSupport::canSelectProperty($value)) {
+            if ($property !== null && ! $this->filterSupport->canSelectProperty($value)) {
                 return null;
             }
-            $value = $property === null ? $value : FilterSupport::property($value, $property, $this->context);
+            $value = $property === null ? $value : $this->filterSupport->property($value, $property);
 
             $key = $this->uniqueKey($value);
             if (isset($seen[$key])) {
@@ -891,12 +902,12 @@ class StandardFilters extends FiltersProvider
 
     protected function sortInput(mixed $input, mixed $property, bool $natural): ?array
     {
-        FilterSupport::validateProperty($property);
-        $input = iterator_to_array(FilterSupport::iterate($input, $this->context));
+        $this->filterSupport->validateProperty($property);
+        $input = iterator_to_array($this->filterSupport->iterate($input));
 
         if ($property !== null) {
             foreach ($input as $item) {
-                if (! FilterSupport::canSelectProperty($item)) {
+                if (! $this->filterSupport->canSelectProperty($item)) {
                     return null;
                 }
             }
@@ -908,7 +919,7 @@ class StandardFilters extends FiltersProvider
 
         $values = [];
         foreach ($input as $item) {
-            $values[] = $property === null ? $item : FilterSupport::property($item, $property, $this->context);
+            $values[] = $property === null ? $item : $this->filterSupport->property($item, $property);
         }
 
         uasort($values, function (mixed $a, mixed $b) use ($natural): int {
@@ -917,7 +928,7 @@ class StandardFilters extends FiltersProvider
             }
 
             return $natural
-                ? strcasecmp(FilterSupport::stringify($a), FilterSupport::stringify($b))
+                ? strcasecmp($this->filterSupport->stringify($a), $this->filterSupport->stringify($b))
                 : $this->compareArrayValues($a, $b);
         });
 
@@ -963,7 +974,7 @@ class StandardFilters extends FiltersProvider
 
     protected function filterArray(mixed $input, mixed $property, mixed $targetValue, string $filter): mixed
     {
-        FilterSupport::validateProperty($property);
+        $this->filterSupport->validateProperty($property);
         if ($targetValue instanceof UndefinedVariable) {
             throw $targetValue->toException();
         }
@@ -971,12 +982,12 @@ class StandardFilters extends FiltersProvider
         $targetValue = $targetValue instanceof AsLiquidValue ? $targetValue->toLiquidValue() : $targetValue;
         $result = [];
 
-        foreach (FilterSupport::iterate($input, $this->context) as $index => $item) {
-            if (! FilterSupport::canSelectProperty($item)) {
+        foreach ($this->filterSupport->iterate($input) as $index => $item) {
+            if (! $this->filterSupport->canSelectProperty($item)) {
                 return null;
             }
 
-            $value = FilterSupport::property($item, $property, $this->context);
+            $value = $this->filterSupport->property($item, $property);
             $value = $value instanceof AsLiquidValue ? $value->toLiquidValue() : $value;
             $matches = $targetValue === null
                 ? $value !== false && $value !== null

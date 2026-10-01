@@ -3,7 +3,6 @@
 namespace Keepsuit\Liquid\Support;
 
 use IteratorAggregate;
-use Keepsuit\Liquid\Render\RenderContext;
 use Traversable;
 
 /**
@@ -17,7 +16,7 @@ class FilterInputIterator implements IteratorAggregate
 {
     public function __construct(
         protected mixed $input,
-        protected RenderContext $context,
+        protected FilterSupport $support,
     ) {}
 
     public function getIterator(): Traversable
@@ -34,7 +33,7 @@ class FilterInputIterator implements IteratorAggregate
         };
 
         foreach ($input as $value) {
-            yield FilterSupport::normalize($value, $this->context);
+            yield $this->support->normalize($value);
         }
     }
 
