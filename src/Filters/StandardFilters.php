@@ -12,10 +12,19 @@ use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\FilterCoercion;
 use Keepsuit\Liquid\Support\Str;
 use Keepsuit\Liquid\Support\StrftimeFormatter;
+use Keepsuit\Liquid\Support\UndefinedVariable;
 use Traversable;
 
 class StandardFilters extends FiltersProvider
 {
+    private const HTML_ESCAPE = [
+        '&' => '&amp;',
+        '<' => '&lt;',
+        '>' => '&gt;',
+        '"' => '&quot;',
+        "'" => '&#39;',
+    ];
+
     /**
      * Returns the absolute value of a number.
      */
@@ -27,9 +36,9 @@ class StandardFilters extends FiltersProvider
     /**
      * Adds a given string to the end of a string.
      */
-    public function append(?string $input, string $append): string
+    public function append(mixed $input, mixed $append): string
     {
-        return ($input ?? '').$append;
+        return FilterCoercion::toString($input).FilterCoercion::toString($append);
     }
 
     /**
@@ -51,20 +60,49 @@ class StandardFilters extends FiltersProvider
     /**
      * Encodes a string to [Base64 format](https://developer.mozilla.org/en-US/docs/Glossary/Base64).
      */
-    public function base64Encode(?string $input): string
+    public function base64Encode(mixed $input): string
     {
-        return base64_encode($input ?? '');
+        return base64_encode(FilterCoercion::toString($input));
     }
 
     /**
      * Decodes a string in [Base64 format](https://developer.mozilla.org/en-US/docs/Glossary/Base64).
      */
-    public function base64Decode(?string $input): string
+    public function base64Decode(mixed $input): string
     {
-        $decoded = base64_decode($input ?? '', true);
+        $input = FilterCoercion::toString($input);
+        $decoded = base64_decode($input, true);
 
-        if ($decoded === false) {
+        if ($decoded === false || base64_encode($decoded) !== $input) {
             throw new InvalidArgumentException('Invalid base64 string provided to base64_decode filter');
+        }
+
+        return $decoded;
+    }
+
+    /**
+     * Encodes a string in URL-safe Base64 format.
+     */
+    public function base64UrlSafeEncode(mixed $input): string
+    {
+        return strtr($this->base64Encode($input), '+/', '-_');
+    }
+
+    /**
+     * Decodes a string in URL-safe Base64 format, with optional padding.
+     */
+    public function base64UrlSafeDecode(mixed $input): string
+    {
+        $input = strtr(FilterCoercion::toString($input), '-_', '+/');
+
+        if (! str_contains($input, '=')) {
+            $input .= str_repeat('=', (4 - strlen($input) % 4) % 4);
+        }
+
+        $decoded = base64_decode($input, true);
+
+        if ($decoded === false || base64_encode($decoded) !== $input) {
+            throw new InvalidArgumentException('Invalid base64 string provided to base64_url_safe_decode filter');
         }
 
         return $decoded;
@@ -73,9 +111,9 @@ class StandardFilters extends FiltersProvider
     /**
      * Capitalizes the first word in a string and downcases the remaining characters.
      */
-    public function capitalize(?string $input): string
+    public function capitalize(mixed $input): string
     {
-        $input = $input ?? '';
+        $input = FilterCoercion::toString($input);
 
         return Str::upper(Str::substr($input, 0, 1)).Str::lower(Str::substr($input, 1));
     }
@@ -207,34 +245,40 @@ class StandardFilters extends FiltersProvider
     /**
      * Converts a string to all lowercase characters.
      */
-    public function downcase(?string $input): string
+    public function downcase(mixed $input): string
     {
-        return Str::lower($input ?? '');
+        return Str::lower(FilterCoercion::toString($input));
     }
 
     /**
      * Escapes special characters in HTML, such as `<>`, `'`, and `&`, and converts characters into escape sequences.
      * The filter doesn't effect characters within the string that don’t have a corresponding escape sequence.
      */
-    public function escape(?string $input): ?string
+    public function escape(mixed $input): ?string
     {
         if ($input === null) {
             return null;
         }
 
-        return htmlentities($input, ENT_QUOTES);
+        return strtr(FilterCoercion::toString($input), self::HTML_ESCAPE);
+    }
+
+    /**
+     * Alias of escape.
+     */
+    public function h(mixed $input): ?string
+    {
+        return $this->escape($input);
     }
 
     /**
      * Escape a string once, keeping all previous HTML entities intact
      */
-    public function escapeOnce(?string $input): string
+    public function escapeOnce(mixed $input): string
     {
-        if ($input === null) {
-            return '';
-        }
+        $input = FilterCoercion::toString($input);
 
-        return htmlentities($input, double_encode: false);
+        return preg_replace_callback('/[><"\']|&(?!([a-zA-Z]+|#\d+);)/', fn (array $match) => self::HTML_ESCAPE[$match[0]], $input) ?? $input;
     }
 
     /**
@@ -356,9 +400,9 @@ class StandardFilters extends FiltersProvider
     /**
      * Converts newlines (`\n`) in a string to HTML line breaks (`<br>`).
      */
-    public function newlineToBr(?string $input): string
+    public function newlineToBr(mixed $input): string
     {
-        $input = $input ?? '';
+        $input = FilterCoercion::toString($input);
 
         return preg_replace('/\r?\n/', "<br />\n", $input) ?? $input;
     }
@@ -374,57 +418,73 @@ class StandardFilters extends FiltersProvider
     /**
      * Adds a given string to the beginning of a string.
      */
-    public function prepend(?string $input, string $prepend): string
+    public function prepend(mixed $input, mixed $prepend): string
     {
-        return $prepend.($input ?? '');
+        return FilterCoercion::toString($prepend).FilterCoercion::toString($input);
     }
 
     /**
      * Removes any instance of a substring inside a string.
      */
-    public function remove(?string $input, string $search): string
+    public function remove(mixed $input, mixed $search): string
     {
-        return $this->replace($input ?? '', $search, '');
+        return $this->replace($input, $search, '');
     }
 
     /**
      * Removes the first instance of a substring inside a string.
      */
-    public function removeFirst(?string $input, string $search): string
+    public function removeFirst(mixed $input, mixed $search): string
     {
-        return $this->replaceFirst($input ?? '', $search, '');
+        return $this->replaceFirst($input, $search, '');
     }
 
     /**
      * Removes the last instance of a substring inside a string.
      */
-    public function removeLast(?string $input, string $search): string
+    public function removeLast(mixed $input, mixed $search): string
     {
-        return $this->replaceLast($input ?? '', $search, '');
+        return $this->replaceLast($input, $search, '');
     }
 
     /**
      * Replaces any instance of a substring inside a string with a given string.
      */
-    public function replace(?string $input, string $search, string $replace): string
+    public function replace(mixed $input, mixed $search, mixed $replace = ''): string
     {
-        return str_replace($search, $replace, $input ?? '');
+        $input = FilterCoercion::toString($input);
+        $search = FilterCoercion::toString($search);
+        $replace = FilterCoercion::toString($replace);
+
+        if ($search === '') {
+            return $input === '' ? $replace : $replace.implode($replace, mb_str_split($input)).$replace;
+        }
+
+        return str_replace($search, $replace, $input);
     }
 
     /**
      * Replaces the first instance of a substring inside a string with a given string.
      */
-    public function replaceFirst(?string $input, string $search, string $replace): string
+    public function replaceFirst(mixed $input, mixed $search, mixed $replace = ''): string
     {
-        return Str::replaceFirst($search, $replace, $input ?? '');
+        $input = FilterCoercion::toString($input);
+        $search = FilterCoercion::toString($search);
+        $replace = FilterCoercion::toString($replace);
+
+        return $search === '' ? $replace.$input : Str::replaceFirst($search, $replace, $input);
     }
 
     /**
      * Replaces the last instance of a substring inside a string with a given string.
      */
-    public function replaceLast(?string $input, string $search, string $replace): string
+    public function replaceLast(mixed $input, mixed $search, mixed $replace): string
     {
-        return Str::replaceLast($search, $replace, $input ?? '');
+        $input = FilterCoercion::toString($input);
+        $search = FilterCoercion::toString($search);
+        $replace = FilterCoercion::toString($replace);
+
+        return $search === '' ? $input.$replace : Str::replaceLast($search, $replace, $input);
     }
 
     /**
@@ -465,15 +525,22 @@ class StandardFilters extends FiltersProvider
     /**
      * Returns a substring or series of array items, starting at a given 0-based index.
      */
-    public function slice(string|iterable|null $input, int $start, int $length = 1): string|array
+    public function slice(mixed $input, mixed $start, mixed $length = 1): string|array
     {
+        $start = FilterCoercion::toInteger($start);
+        $length = $length === null ? 1 : FilterCoercion::toInteger($length);
+
         if (is_iterable($input) && ! is_array($input)) {
             $input = iterator_to_array($input);
         }
 
+        if (! is_array($input)) {
+            $input = FilterCoercion::toString($input);
+        }
+
         $count = static::size($input);
 
-        if (abs($start) >= $count) {
+        if ($start < -$count || $start >= $count || $length <= 0) {
             return is_array($input) ? [] : '';
         }
 
@@ -481,7 +548,7 @@ class StandardFilters extends FiltersProvider
             return array_slice($input, $start, $length);
         }
 
-        return Str::substr($input ?? '', $start, $length);
+        return Str::substr($input, $start, $length);
     }
 
     /**
@@ -551,52 +618,63 @@ class StandardFilters extends FiltersProvider
 
     /**
      * Splits a string into an array of substrings based on a given separator.
-     *
-     * @param  non-empty-string  $delimiter
      */
-    public function split(?string $input, string $delimiter): array
+    public function split(mixed $input, mixed $delimiter): array
     {
-        if ($input === null) {
+        $input = FilterCoercion::toString($input);
+        $delimiter = FilterCoercion::toString($delimiter);
+
+        if ($input === '') {
             return [];
         }
 
         if ($delimiter === '') {
-            return str_split($input);
+            return mb_str_split($input);
         }
 
-        return explode($delimiter, $input);
+        if ($delimiter === ' ') {
+            return preg_split('/[\x09-\x0d ]+/', $input, flags: PREG_SPLIT_NO_EMPTY) ?: [];
+        }
+
+        $parts = explode($delimiter, $input);
+
+        while ($parts !== [] && end($parts) === '') {
+            array_pop($parts);
+        }
+
+        return $parts;
     }
 
     /**
      * Strips all whitespace from the left and right of a string.
      */
-    public function strip(?string $input): string
+    public function strip(mixed $input): string
     {
-        return trim($input ?? '');
+        return trim(FilterCoercion::toString($input));
     }
 
     /**
      * Strips all whitespace from the left and right of a string.
      */
-    public function lstrip(?string $input): string
+    public function lstrip(mixed $input): string
     {
-        return ltrim($input ?? '');
+        return ltrim(FilterCoercion::toString($input));
     }
 
     /**
      * Strips all whitespace from the left and right of a string.
      */
-    public function rstrip(?string $input): string
+    public function rstrip(mixed $input): string
     {
-        return rtrim($input ?? '');
+        return rtrim(FilterCoercion::toString($input));
     }
 
     /**
      * Trims surrounding whitespace and collapses internal whitespace runs to single spaces.
      */
-    public function squish(?string $input): string
+    public function squish(mixed $input): string
     {
-        $input = trim($input ?? '');
+        $input = trim(FilterCoercion::toString($input));
 
         if ($input === '') {
             return '';
@@ -608,20 +686,23 @@ class StandardFilters extends FiltersProvider
     /**
      * Strips all HTML tags from a string.
      */
-    public function stripHtml(?string $input): string
+    public function stripHtml(mixed $input): string
     {
-        $STRIP_HTML_TAGS = '/<[\S\s]*?>/m';
-        $STRIP_HTLM_BLOCKS = '/((<script.*?<\/script>)|(<!--.*?-->)|(<style.*?<\/style>))/m';
+        $input = FilterCoercion::toString($input);
+        $stripHtmlTags = '/<.*?>/s';
+        $stripHtmlBlocks = '/<script.*?<\/script>|<!--.*?-->|<style.*?<\/style>/s';
 
-        return preg_replace([$STRIP_HTLM_BLOCKS, $STRIP_HTML_TAGS], '', $input ?? '') ?? $input ?? '';
+        return preg_replace([$stripHtmlBlocks, $stripHtmlTags], '', $input) ?? $input;
     }
 
     /**
      * Strips all newline characters (line breaks) from a string.
      */
-    public function stripNewlines(?string $input): string
+    public function stripNewlines(mixed $input): string
     {
-        return preg_replace('/\r?\n/', '', $input ?? '') ?? $input ?? '';
+        $input = FilterCoercion::toString($input);
+
+        return preg_replace('/\r?\n/', '', $input) ?? $input;
     }
 
     /**
@@ -654,11 +735,20 @@ class StandardFilters extends FiltersProvider
     /**
      * Truncates a string down to a given number of characters.
      */
-    public function truncate(?string $input, int $length = 50, string $ellipsis = '...'): string
+    public function truncate(mixed $input, mixed $length = 50, mixed $ellipsis = '...'): string
     {
+        if ($length instanceof UndefinedVariable) {
+            throw $length->toException();
+        }
+
+        $ellipsis = FilterCoercion::toString($ellipsis);
+
         if ($input === null) {
             return '';
         }
+
+        $input = FilterCoercion::toString($input);
+        $length = FilterCoercion::toInteger($length);
 
         if (Str::length($input) <= $length) {
             return $input;
@@ -670,15 +760,27 @@ class StandardFilters extends FiltersProvider
     /**
      * Truncates a string down to a given number of words.
      */
-    public function truncatewords(?string $input, int $words = 15, string $ellipsis = '...'): string
+    public function truncatewords(mixed $input, mixed $words = 15, mixed $ellipsis = '...'): string
     {
+        if ($words instanceof UndefinedVariable) {
+            throw $words->toException();
+        }
+
+        $ellipsis = FilterCoercion::toString($ellipsis);
+
         if ($input === null) {
             return '';
         }
 
-        $words = max(1, $words);
+        $input = FilterCoercion::toString($input);
 
-        $wordlist = mb_split('\s+', $input, $words + 1);
+        $words = max(1, FilterCoercion::toInteger($words));
+
+        if ($words >= PHP_INT_MAX) {
+            return $input;
+        }
+
+        $wordlist = preg_split('/[\x09-\x0d ]+/', ltrim($input, " \t\n\r\v\f"), $words + 1, PREG_SPLIT_NO_EMPTY);
 
         if ($wordlist === false) {
             return $input;
@@ -704,26 +806,26 @@ class StandardFilters extends FiltersProvider
     /**
      * Converts a string to all uppercase characters.
      */
-    public function upcase(?string $input): string
+    public function upcase(mixed $input): string
     {
-        return Str::upper($input ?? '');
+        return Str::upper(FilterCoercion::toString($input));
     }
 
     /**
      * Decodes any [percent-encoded](https://developer.mozilla.org/en-US/docs/Glossary/percent-encoding) characters in a string.
      */
-    public function urlDecode(?string $input): string
+    public function urlDecode(mixed $input): string
     {
-        return urldecode($input ?? '');
+        return urldecode(FilterCoercion::toString($input));
     }
 
     /**
      * Converts any URL-unsafe characters in a string to the
      * [percent-encoded](https://developer.mozilla.org/en-US/docs/Glossary/percent-encoding) equivalent.
      */
-    public function urlEncode(string|int|float|null $input): string
+    public function urlEncode(mixed $input): string
     {
-        return urlencode((string) ($input ?? ''));
+        return urlencode(FilterCoercion::toString($input));
     }
 
     /**
