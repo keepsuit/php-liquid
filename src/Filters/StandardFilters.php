@@ -157,7 +157,11 @@ class StandardFilters extends FiltersProvider
             return $input;
         }
 
-        return (new StrftimeFormatter)->format($date, $format);
+        return (new StrftimeFormatter)->format(
+            $date,
+            $format,
+            isset($this->context) ? $this->context->resourceLimits->renderLengthLimit : null,
+        );
     }
 
     /**

@@ -38,6 +38,28 @@ test('date fallback does not report errors under render options', function (bool
     [true, true, false], [true, true, true],
 ]);
 
+test('date formatting respects configured output length limits before padding', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString("{{ '2024-03-05' | date: '%30000000N' }}");
+    $context = $environment->newRenderContext(
+        resourceLimits: new \Keepsuit\Liquid\Render\ResourceLimits(renderLengthLimit: 16),
+    );
+
+    expect(fn () => $template->render($context))
+        ->toThrow(\Keepsuit\Liquid\Exceptions\ResourceLimitException::class);
+});
+
+test('date formatting respects cumulative output limits before padding', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString("{{ '2024-03-05' | date: '%8N%8N' }}");
+    $context = $environment->newRenderContext(
+        resourceLimits: new \Keepsuit\Liquid\Render\ResourceLimits(renderLengthLimit: 12),
+    );
+
+    expect(fn () => $template->render($context))
+        ->toThrow(\Keepsuit\Liquid\Exceptions\ResourceLimitException::class);
+});
+
 test('date preserves strict undefined variable errors', function () {
     $environment = EnvironmentFactory::new()->setStrictVariables(true)->setRethrowErrors(true)->build();
     $template = $environment->parseString("{{ missing | date: '%Y' }}");

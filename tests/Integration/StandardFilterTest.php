@@ -491,6 +491,19 @@ test('date formats timestamps in the default timezone', function () {
     }
 });
 
+test('date formats years before the common era', function () {
+    expect($this->filters->invoke($this->context, 'date', -62193693171, ['%Y %C %y %G %g']))
+        ->toBe('-0001 -1 99 -0001 99');
+});
+
+test('date preserves overflowing strftime widths as literal text', function (string $format) {
+    expect($this->filters->invoke($this->context, 'date', '2024-03-05', [$format]))->toBe($format);
+})->with([
+    '%999999999999999999999999d',
+    '%999999999999999999999999L',
+    '%999999999999999999999999N',
+]);
+
 test('first last', function () {
     expect($this->filters->invoke($this->context, 'first', [1, 2, 3]))->toBe(1);
     expect($this->filters->invoke($this->context, 'last', [1, 2, 3]))->toBe(3);
