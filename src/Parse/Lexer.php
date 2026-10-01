@@ -180,10 +180,12 @@ class Lexer
     protected function lexBlock(): void
     {
         $tag = null;
+        $hasInlineComment = false;
 
         $this->skipWhitespace();
 
         while (($terminator = $this->terminatorLength(self::BLOCK_END)) === null) {
+            $hasInlineComment = $hasInlineComment || $this->current === self::INLINE_COMMENT;
             $this->lexExpression();
             $this->skipWhitespace();
 
@@ -223,6 +225,10 @@ class Lexer
         }
 
         if ($lastToken->type === TokenType::BlockStart) {
+            if (! $hasInlineComment) {
+                throw new SyntaxException('A block must start with a tag name.');
+            }
+
             array_pop($this->tokens);
         } else {
             $this->pushToken(TokenType::BlockEnd);

@@ -324,6 +324,10 @@ class ForTag extends TagBlock implements CanBeStreamed, HasParseTreeVisitorChild
 
     protected function parseElseBlock(TagParseContext $context): void
     {
+        if ($this->elseBlock !== null) {
+            throw new SyntaxException('A for block can only contain one else tag.');
+        }
+
         $this->elseBlock = $context->body;
         $context->params->assertEnd();
 
