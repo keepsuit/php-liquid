@@ -5,7 +5,6 @@ namespace Keepsuit\Liquid\Tags;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
-use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\ExpressionParser;
@@ -60,7 +59,8 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
                 $this->variables[] = $context->params->expression();
             }
 
-            if ($this->name === null && array_filter($this->variables, fn (mixed $value) => $value instanceof VariableLookup) === []) {
+            $hasLookups = array_filter($this->variables, fn (mixed $value) => $value instanceof VariableLookup) !== [];
+            if ($this->name === null && ! $hasLookups) {
                 $this->name = json_encode($this->variables, JSON_THROW_ON_ERROR);
             }
 
@@ -78,7 +78,7 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
         assert(is_array($register));
         $key = $this->name === null ? sprintf('cycle:%d', spl_object_id($this)) : $context->evaluate($this->name);
         $key = match (true) {
-            $key instanceof UndefinedVariable => throw new UndefinedVariableException($key->variableName),
+            $key instanceof UndefinedVariable => throw $key->toException(),
             is_string($key), is_int($key) => $key,
             $key === null => '',
             is_float($key), is_bool($key) => (string) $key,

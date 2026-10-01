@@ -68,6 +68,8 @@ test('for uses Shopify collection semantics', function (string $source, array $d
     'literal number' => ['{% for i in 5 %}{{ i }}{% else %}E{% endfor %}', [], 'E'],
     'literal nil' => ['{% for i in nil %}x{% else %}E{% endfor %}', [], 'E'],
     'explicit nil' => ['{% for i in s %}x{% else %}E{% endfor %}', ['s' => null], 'E'],
+    'string literal name' => ["{% for i in 'abc' %}{{ forloop.name }}{% endfor %}", [], "i-'abc'"],
+    'string literal does not share offsets with variable' => ["{% for i in abc limit:1 %}{{ i }}{% endfor %}{% for i in 'abc' offset:continue %}{{ i }}{% endfor %}", ['abc' => [1, 2]], '1abc'],
 ]);
 
 test('for distinguishes missing variables from nil in strict variables mode', function () {

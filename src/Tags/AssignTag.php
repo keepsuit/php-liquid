@@ -66,14 +66,7 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
     protected static function computeAssignScore(mixed $value): int
     {
         if ($value instanceof Range) {
-            // Count the collection and its integers without allocating an array.
-            if ($value->start > $value->end) {
-                return 1;
-            }
-
-            $distance = $value->end - $value->start;
-
-            return $distance >= PHP_INT_MAX - 1 ? PHP_INT_MAX : $distance + 2;
+            return static::addAssignScores($value->length(), 1);
         }
 
         if (is_string($value)) {

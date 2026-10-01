@@ -28,6 +28,22 @@ class Range extends Node implements \IteratorAggregate
     }
 
     /**
+     * Saturates at PHP_INT_MAX so huge ranges can be measured without allocating them.
+     */
+    public function length(): int
+    {
+        if ($this->start > $this->end) {
+            return 0;
+        }
+
+        if ($this->start <= 0 && $this->end >= PHP_INT_MAX + $this->start) {
+            return PHP_INT_MAX;
+        }
+
+        return $this->end - $this->start + 1;
+    }
+
+    /**
      * @return \ArrayIterator<int, int>
      */
     public function getIterator(): \ArrayIterator

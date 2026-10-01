@@ -26,6 +26,15 @@ test('render for accepts ranges with inherited strict options', function (string
     'assigned' => ["{% assign items = (1..3) %}{% render 'p' for items as i %}", '123'],
 ]);
 
+test('render for over a non-iterable renders the partial once', function (array $data, string $expected) {
+    assertTemplateResult($expected, "{% render 'p' for v as i %}", data: $data, partials: ['p' => '<{{ i }}>']);
+    expect(implode('', iterator_to_array(streamTemplate("{% render 'p' for v as i %}", data: $data, partials: ['p' => '<{{ i }}>']))))->toBe($expected);
+})->with([
+    'string' => [['v' => 'abc'], '<abc>'],
+    'number' => [['v' => 5], '<5>'],
+    'nil' => [['v' => null], '<>'],
+]);
+
 test('render for reports missing variables in strict variables mode', function () {
     expect(fn () => renderTemplate("{% render 'p' for missing as i %}", partials: ['p' => '{{ i }}'], strictVariables: true))
         ->toThrow(\Keepsuit\Liquid\Exceptions\UndefinedVariableException::class);
