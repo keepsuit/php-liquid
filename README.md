@@ -121,6 +121,12 @@ $stream = $template->stream($context);
 // $stream is a Generator<string>
 ```
 
+### Date formatting
+
+The `date` filter uses Ruby-style strftime directives: only `%` directives are formatted, other text is literal
+(`date: 'Day %d at %H'` produces `Day 05 at 14`). Day and month names are always English.
+Values that cannot be parsed as a date (including floats and booleans) are returned unchanged, without errors.
+
 ## Drops
 
 Liquid support almost any kind of object but in order to have a better control over the accessible data in the templates,

@@ -3,12 +3,14 @@
 namespace Keepsuit\Liquid\Filters;
 
 use DateTime;
+use DateTimeZone;
 use Keepsuit\Liquid\Contracts\AsLiquidValue;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Drop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\Str;
+use Keepsuit\Liquid\Support\StrftimeFormatter;
 use Traversable;
 
 class StandardFilters extends FiltersProvider
@@ -132,31 +134,27 @@ class StandardFilters extends FiltersProvider
      *   %Z - Time zone name
      *   %% - Literal ``%'' character
      */
-    public function date(DateTime|string|int|null $input, ?string $format = null): DateTime|string|int|null
+    public function date(DateTime|string|int|float|bool|null $input, ?string $format = null): DateTime|string|int|float|bool|null
     {
-        if ($input === null || $input === '') {
+        if ($input === null || $input === '' || is_float($input) || is_bool($input) || $format === null || $format === '') {
             return $input;
         }
 
-        if ($format === null || $format === '') {
+        if (is_string($input) && is_numeric($input) && ! ctype_digit($input)) {
             return $input;
         }
 
-        if (is_numeric($input)) {
-            $input = date('Y-m-d H:i:s', (int) $input);
+        try {
+            $date = match (true) {
+                $input instanceof DateTime => $input,
+                is_int($input) || ctype_digit($input) => (new DateTime('@'.$input))->setTimezone(new DateTimeZone(date_default_timezone_get())),
+                default => new DateTime($input),
+            };
+        } catch (\Exception|\ValueError) {
+            return $input;
         }
 
-        if (is_string($input)) {
-            $input = new DateTime($input);
-        }
-
-        $dateFormat = str_replace(
-            ['at', '%a', '%A', '%d', '%e', '%u', '%w', '%W', '%b', '%h', '%B', '%m', '%y', '%Y', '%D', '%F', '%x', '%n', '%t', '%H', '%k', '%I', '%l', '%M', '%p', '%P', '%r', '%R', '%S', '%T', '%X', '%z', '%Z', '%c', '%s', '%%'],
-            ['\a\t', 'D', 'l', 'd', 'j', 'N', 'w', 'W', 'M', 'M', 'F', 'm', 'y', 'Y', 'm/d/y', 'Y-m-d', 'm/d/y', "\n", "\t", 'H', 'G', 'h', 'g', 'i', 'A', 'a', 'h:i:s A', 'H:i', 's', 'H:i:s', 'H:i:s', 'O', 'T', 'D M j H:i:s Y', 'U', '%'],
-            $format
-        );
-
-        return $input->format($dateFormat);
+        return (new StrftimeFormatter)->format($date, $format);
     }
 
     /**

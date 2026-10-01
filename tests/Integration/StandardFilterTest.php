@@ -411,6 +411,81 @@ test('date', function () {
     expect($this->filters->invoke($this->context, 'date', '1152098955', ['%m/%d/%Y']))->toBe('07/05/2006');
 });
 
+test('date preserves literal text and escaped percent signs', function (string $format, string $expected) {
+    expect($this->filters->invoke($this->context, 'date', '2024-03-05 14:07:09 UTC', [$format]))
+        ->toBe($expected);
+})->with([
+    ['Day %d at %H', 'Day 05 at 14'],
+    ['Today is %A', 'Today is Tuesday'],
+    ['Y-m-d', 'Y-m-d'],
+    ['%%Y', '%Y'],
+    ['%q %Q', '%q %Q'],
+]);
+
+test('date supports strftime directives and flags', function (string $format, string $expected) {
+    expect($this->filters->invoke($this->context, 'date', '2024-03-05 14:07:09.123456 UTC', [$format]))
+        ->toBe($expected);
+})->with([
+    ['%j %U %W %e %k %l', '065 09 10  5 14  2'],
+    ['%-d/%-m', '5/3'],
+    ['%^a %^B', 'TUE MARCH'],
+    ['%c', 'Tue Mar  5 14:07:09 2024'],
+    ['%L %N', '123 123456000'],
+    ['%C %G %V %g', '20 2024 10 24'],
+    ['%D %F %v %r %R %T %x %X', '03/05/24 2024-03-05  5-MAR-2024 02:07:09 PM 14:07 14:07:09 03/05/24 14:07:09'],
+    ['%_d %0e %-e', ' 5 05 5'],
+    ['%^c', 'TUE MAR  5 14:07:09 2024'],
+    ['%a %A %b %B %h %u %w %p %P', 'Tue Tuesday Mar March Mar 2 2 PM pm'],
+    ['%H %I %M %S %m %y %Y', '14 02 07 09 03 24 2024'],
+    ['%n%t%%', "\n\t%"],
+    ['%s', '1709647629'],
+    ['%5d %#a %Ec %::z %', '%5d %#a %Ec %::z %'],
+]);
+
+test('date preserves unparseable values without warnings or coercion', function (mixed $input) {
+    set_error_handler(function (int $severity, string $message): never {
+        throw new ErrorException($message, 0, $severity);
+    });
+
+    try {
+        expect($this->filters->invoke($this->context, 'date', $input, ['%Y']))->toBe($input);
+    } finally {
+        restore_error_handler();
+    }
+})->with(['garbage', '2024-13-45', '3.7', '-1', '999999999999999999999999999999', "invalid\0date", '', null, 3.7, true, false]);
+
+test('date handles week boundaries and leap years', function (string $input, string $expected) {
+    expect($this->filters->invoke($this->context, 'date', $input, ['%j %U %W %G %V %g']))->toBe($expected);
+})->with([
+    ['2021-01-01 UTC', '001 00 00 2020 53 20'],
+    ['2023-01-01 UTC', '001 01 00 2022 52 22'],
+    ['2024-01-01 UTC', '001 00 01 2024 01 24'],
+    ['2020-02-29 UTC', '060 08 08 2020 09 20'],
+    ['2024-12-31 UTC', '366 52 53 2025 01 25'],
+]);
+
+test('date preserves timezone offsets', function (string $input, string $expected) {
+    expect($this->filters->invoke($this->context, 'date', $input, ['%z %:z %Z']))->toBe($expected);
+})->with([
+    ['2024-03-05 14:07:09 UTC', '+0000 +00:00 UTC'],
+    ['2024-03-05 14:07:09 +0530', '+0530 +05:30 '],
+    ['2024-03-05 14:07:09 -0330', '-0330 -03:30 '],
+]);
+
+test('date formats timestamps in the default timezone', function () {
+    $timezone = date_default_timezone_get();
+    date_default_timezone_set('America/New_York');
+
+    try {
+        foreach ([0, '0', -1] as $input) {
+            expect($this->filters->invoke($this->context, 'date', $input, ['%F %T %z']))
+                ->toBe($input === -1 ? '1969-12-31 18:59:59 -0500' : '1969-12-31 19:00:00 -0500');
+        }
+    } finally {
+        date_default_timezone_set($timezone);
+    }
+});
+
 test('first last', function () {
     expect($this->filters->invoke($this->context, 'first', [1, 2, 3]))->toBe(1);
     expect($this->filters->invoke($this->context, 'last', [1, 2, 3]))->toBe(3);
