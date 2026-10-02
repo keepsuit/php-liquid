@@ -320,19 +320,70 @@ test('compiled stream preserves complete output', function () {
         ->toBe("text\ntext1text2");
 });
 
-test('compiled for loops stream each body chunk before the next iteration', function () {
+test('compiled for loops enforce the length limit across buffered iterations', function () {
     $environment = Environment::default();
     $template = $environment->parseString('{% for item in items %}{{ item }}{% endfor %}');
     $compiled = compileStreamTestTemplate($environment, $template);
     $context = $environment->newRenderContext(
-        staticData: ['items' => ['a', 'bb', 'c']],
-        resourceLimits: new ResourceLimits(renderLengthLimit: 1),
+        staticData: ['items' => [str_repeat('a', 4096), 'bb', 'c']],
+        resourceLimits: new ResourceLimits(renderLengthLimit: 4096),
     );
 
     $stream = $compiled->stream($context);
 
-    expect($stream->current())->toBe('a');
+    expect($stream->current())->toBe(str_repeat('a', 4096));
     expect(fn () => $stream->next())->toThrow(ResourceLimitException::class);
+});
+
+test('abandoning a buffered compiled stream restores nested loop scopes', function () {
+    $environment = Environment::default();
+    $template = $environment->parseString('{% for item in items %}{% for inner in items %}{{ inner }}{% endfor %}{% endfor %}');
+    $compiled = compileStreamTestTemplate($environment, $template);
+    $context = $environment->newRenderContext(data: [
+        'items' => array_fill(0, 8, str_repeat('x', 1024)),
+        'item' => 'outer item',
+        'inner' => 'outer inner',
+        'forloop' => 'outer loop',
+    ]);
+    $stream = $compiled->stream($context);
+
+    expect($stream->current())->toBe(str_repeat('x', 4096));
+    expect($context->getRegister('for_stack'))->toHaveCount(2);
+    unset($stream);
+
+    expect($context->getRegister('for_stack'))->toBe([]);
+    expect($context->get('item'))->toBe('outer item');
+    expect($context->get('inner'))->toBe('outer inner');
+    expect($context->get('forloop'))->toBe('outer loop');
+});
+
+test('compiled stream flushes its prefix before an error handler throws and restores loop scopes', function () {
+    $handler = new class implements \Keepsuit\Liquid\Contracts\LiquidErrorHandler
+    {
+        public function handle(Throwable $error): string
+        {
+            throw new RuntimeException('from handler');
+        }
+    };
+    $environment = EnvironmentFactory::new()->setErrorHandler($handler)->setRethrowErrors(false)->build();
+    $template = $environment->parseString('PREFIX {% for item in items %}{{ boom.standard_error }}{% endfor %} tail');
+    $compiled = compileStreamTestTemplate($environment, $template);
+    $context = $environment->newRenderContext(data: [
+        'items' => [1, 2],
+        'item' => 'outer',
+        'boom' => new \Keepsuit\Liquid\Tests\Stubs\ErrorDrop,
+    ]);
+    $received = [];
+
+    expect(function () use ($compiled, $context, &$received) {
+        foreach ($compiled->stream($context) as $chunk) {
+            $received[] = $chunk;
+        }
+    })->toThrow(RuntimeException::class, 'from handler');
+
+    expect($received)->toBe(['PREFIX ']);
+    expect($context->getRegister('for_stack'))->toBe([]);
+    expect($context->get('item'))->toBe('outer');
 });
 
 test('compiled stream does not evaluate until the generator is consumed', function () {

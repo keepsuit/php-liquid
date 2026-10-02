@@ -46,7 +46,8 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
         }
 
         if ($this->filters !== []) {
-            $this->compileFilters($context);
+            $value = $this->compileValue($context);
+            $context->writeOutput('\\'.self::class.'::renderEvaluated($context, '.$value.')');
 
             return;
         }
@@ -57,20 +58,29 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
         } else {
             $context->write('if (is_string($value = \\'.self::class.'::streamValue($context, '
                 .$context->writeVariableExpression($this->name).'))) {')
-                ->indent()
-                ->write('yield $value;')
-                ->outdent()
-                ->write('} else {')
-                ->indent()
-                ->write('yield from $value;')
-                ->outdent()
-                ->write('}');
+                ->indent();
+            $context->writeOutput('$value');
+            $context->outdent()->write('} else {')->indent();
+            $context->flushStreamBuffer();
+            $context->write('yield from $value;')->outdent()->write('}');
         }
     }
 
-    private function compileFilters(CompilerContext $context): void
+    public function compileValue(CompilerContext $context): string
     {
-        $context->write('$value = \\'.self::class.'::filterInput($context, '
+        $value = $context->temporaryVariable();
+        if (static::class !== self::class) {
+            $context->write($value.' = '.$context->writeRuntimeValue($this).'->evaluate($context);');
+
+            return $value;
+        }
+        if ($this->filters === []) {
+            $context->write($value.' = $context->evaluate('.$context->writeVariableExpression($this->name).');');
+
+            return $value;
+        }
+
+        $context->write($value.' = \\'.self::class.'::filterInput($context, '
             .$context->writeVariableExpression($this->name).');');
 
         foreach ($this->filters as [$filterName, $filterArgs, $filterNamedArgs]) {
@@ -84,10 +94,10 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
                 $args = ', '.$args;
             }
 
-            $context->write('$value = $context->applyFilter('.$context->writeValue($filterName).', $value'.$args.');');
+            $context->write($value.' = $context->applyFilter('.$context->writeValue($filterName).', '.$value.$args.');');
         }
 
-        $context->writeOutput('\\'.self::class.'::renderEvaluated($context, $value)');
+        return $value;
     }
 
     private function compileFilterArguments(CompilerContext $context, array $arguments): string

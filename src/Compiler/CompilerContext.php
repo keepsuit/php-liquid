@@ -14,6 +14,8 @@ use Keepsuit\Liquid\Nodes\Text;
 use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Tag;
+use Keepsuit\Liquid\Tags\AssignTag;
+use Keepsuit\Liquid\Tags\CaptureTag;
 use Keepsuit\Liquid\Tags\CaseTag;
 use Keepsuit\Liquid\Tags\ForTag;
 use Keepsuit\Liquid\Tags\IfTag;
@@ -34,6 +36,15 @@ final class CompilerContext
     private array $extensionSources = [];
 
     private bool $rendering = false;
+
+    private bool $buffering = true;
+
+    private int $temporaryCount = 0;
+
+    public function temporaryVariable(): string
+    {
+        return '$temp'.$this->temporaryCount++;
+    }
 
     public function __construct(private CodeBuilder $builder = new CodeBuilder) {}
 
@@ -88,6 +99,8 @@ final class CompilerContext
         $this->indent();
         if ($this->rendering) {
             $this->write('$output = "";');
+        } elseif ($this->buffering && $source['hasYield']) {
+            $this->write('$buffer = "";');
         }
         $this->write(sprintf(
             '$this->incrementCompiledRenderScore($context, %s);',
@@ -96,12 +109,32 @@ final class CompilerContext
         $this->writeSource($source['source']);
         if ($this->rendering) {
             $this->write('return $output;');
+        } elseif ($this->buffering && $source['hasYield']) {
+            $this->flushStreamBuffer();
         } elseif (! $source['hasYield']) {
             $this->write('return [];');
         }
         $this->outdent()->write('}'.$suffix);
 
         return $this;
+    }
+
+    public function writeCaptureBody(BodyNode $body, string $result): void
+    {
+        $rendering = $this->rendering;
+        $this->rendering = true;
+        try {
+            $source = $this->compileBodySource($body);
+        } finally {
+            $this->rendering = $rendering;
+        }
+
+        $this->write($result.' = $context->resourceLimits->withCapture(function () use ($context): string {')->indent();
+        $this->write('$output = "";');
+        $this->write('$this->incrementCompiledRenderScore($context, '.count($body->children()).');');
+        $this->writeSource($source['source']);
+        $this->write('return $output;');
+        $this->outdent()->write('});');
     }
 
     /**
@@ -140,6 +173,8 @@ final class CompilerContext
 
         if ($this->rendering) {
             $this->write('$output = "";');
+        } elseif ($this->buffering && $source['hasYield']) {
+            $this->write('$buffer = "";');
         }
 
         $this->write(sprintf(
@@ -150,6 +185,8 @@ final class CompilerContext
 
         if ($this->rendering) {
             $this->write('return $output;');
+        } elseif ($this->buffering && $source['hasYield']) {
+            $this->flushStreamBuffer();
         } elseif (! $source['hasYield']) {
             $this->write('return [];');
         }
@@ -192,9 +229,30 @@ final class CompilerContext
 
     public function writeOutput(string $expression, string $suffix = ';'): static
     {
-        $this->write(($this->rendering ? '$output .= ' : 'yield ').$expression.$suffix);
+        $this->write(($this->rendering ? '$output .= ' : ($this->buffering ? '$buffer .= ' : 'yield ')).$expression.$suffix);
+        if ($suffix === ';') {
+            $this->flushStreamBufferIfFull();
+        }
 
         return $this;
+    }
+
+    public function flushStreamBufferIfFull(): void
+    {
+        if (! $this->rendering && $this->buffering) {
+            $this->write('if (strlen($buffer) >= 4096) {')->indent();
+            $this->write('yield $buffer;')->write('$buffer = "";');
+            $this->outdent()->write('}');
+        }
+    }
+
+    public function flushStreamBuffer(): void
+    {
+        if (! $this->rendering && $this->buffering) {
+            $this->write('if ($buffer !== "") {')->indent();
+            $this->write('yield $buffer;')->write('$buffer = "";');
+            $this->outdent()->write('}');
+        }
     }
 
     public function writeText(string $value): static
@@ -235,18 +293,23 @@ final class CompilerContext
 
     private function compileNode(Node $node): void
     {
+        $this->flushStreamBufferIfFull();
         $checkpoint = $this->builder->checkpoint();
         $fallbackValueCount = count($this->fallbackValues);
         $extensionSourceCount = count($this->extensionSources);
         $rendering = $this->rendering;
         $id = spl_object_id($node);
         $fallback = isset($this->extensionSources[$id]) && $this->extensionSources[$id]['source'] === null;
+        if ($node instanceof AssignTag || $node instanceof CaptureTag || $node instanceof ForTag) {
+            $compilerClass = (new \ReflectionMethod($node, 'compile'))->getDeclaringClass()->getName();
+            $fallback = $fallback || ($node::class !== $compilerClass && in_array($compilerClass, [AssignTag::class, CaptureTag::class, ForTag::class], true));
+        }
 
         // Extension fragments may return from their node or yield before failing.
         // Keep their lazy boundary; native nodes can use an inline try/catch.
         $extension = $node instanceof CanBeCompiled && ! in_array($node::class, [
             Variable::class, IfTag::class, UnlessTag::class, CaseTag::class,
-            ForTag::class, RenderTag::class,
+            ForTag::class, RenderTag::class, AssignTag::class, CaptureTag::class,
         ], true);
         $lazy = $extension && ! $fallback;
 
@@ -288,8 +351,10 @@ final class CompilerContext
 
         $outerBuilder = $this->builder;
         $rendering = $this->rendering;
+        $buffering = $this->buffering;
         $this->builder = new CodeBuilder;
         $this->rendering = false;
+        $this->buffering = false;
 
         try {
             assert($node instanceof CanBeCompiled);
@@ -307,12 +372,14 @@ final class CompilerContext
         } finally {
             $this->builder = $outerBuilder;
             $this->rendering = $rendering;
+            $this->buffering = $buffering;
         }
     }
 
     private function writeNodeStart(Node $node, bool $lazy): void
     {
         if ($lazy) {
+            $this->flushStreamBuffer();
             $this->write(sprintf(
                 ($this->rendering ? 'foreach (' : 'yield from ').'$this->yieldNode($context, %s, function () use ($context): iterable {',
                 $this->writeValue($node->lineNumber()),
@@ -340,9 +407,13 @@ final class CompilerContext
 
         $line = $this->writeValue($node->lineNumber());
         $this->outdent()->write('} catch (\\Keepsuit\\Liquid\\Exceptions\\UndefinedVariableException|\\Keepsuit\\Liquid\\Exceptions\\UndefinedDropMethodException|\\Keepsuit\\Liquid\\Exceptions\\UndefinedFilterException $exception) {');
-        $this->indent()->write('$context->handleError($exception, '.$line.');');
+        $this->indent();
+        $this->flushStreamBuffer();
+        $this->write('$context->handleError($exception, '.$line.');');
         $this->outdent()->write('} catch (\\Throwable $exception) {');
-        $this->indent()->writeOutput('$context->handleError($exception, '.$line.')');
+        $this->indent();
+        $this->flushStreamBuffer();
+        $this->writeOutput('$context->handleError($exception, '.$line.')');
         $this->outdent()->write('}');
     }
 
@@ -359,6 +430,7 @@ final class CompilerContext
         }
 
         if (! $this->rendering && $node instanceof CanBeStreamed) {
+            $this->flushStreamBuffer();
             $this->write('yield from '.$value.'->stream($context);');
         } else {
             $this->writeOutput($value.'->render($context)');

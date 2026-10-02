@@ -82,27 +82,73 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
     }
 
     /**
-     * The loop, scope and interrupt handling stay here rather than being emitted
-     * as code: only the two bodies are compiled and streamed through closures.
+     * Emit the loop bodies in the caller's frame. Collection and scope policies
+     * remain shared runtime helpers; each iteration needs no callback or generator.
      */
     public function compile(CompilerContext $context): void
     {
-        $tag = $context->writeRuntimeValue($this);
-        if ($context->isRendering()) {
-            $context->writeOutput($tag.'->renderBlocks($context,', suffix: '');
-        } else {
-            $context->write('yield from '.$tag.'->streamBlocks($context,');
-        }
-        $context->indent();
-        $context->writeBodyCallback($this->forBlock, ',');
+        if (static::class !== self::class) {
+            $context->compileFallback($this);
 
+            return;
+        }
+
+        $segment = $context->temporaryVariable();
+        $loop = $context->temporaryVariable();
+        $value = $context->temporaryVariable();
+        $context->write($segment.' = \\'.self::class.'::collectionSegmentFor($context, '
+            .$context->writeCachedValue($this->collection).', '
+            .$context->writeCachedValue($this->from).', '
+            .$context->writeCachedValue($this->limit).', '
+            .$context->writeValue($this->reversed).', '.$context->writeValue($this->name).');');
+        $context->write('if ('.$segment.' !== []) {')->indent();
+        $context->write($loop.' = \\'.self::class.'::enterLoop($context, '.$context->writeValue($this->name).', count('.$segment.'));');
+        $context->write('try {')->indent();
+        $context->write('foreach ('.$segment.' as '.$value.') {')->indent();
+        $context->write('$context->set('.$context->writeValue($this->variableName).', '.$value.');');
+        $context->compileBody($this->forBlock);
+        $context->write($loop.'->increment();');
+        $context->write('if ($context->popInterrupt() instanceof \\Keepsuit\\Liquid\\Interrupts\\BreakInterrupt) {')->indent();
+        $context->write('break;')->outdent()->write('}');
+        $context->outdent()->write('}');
+        $context->outdent()->write('} finally {')->indent();
+        $context->write('\\'.self::class.'::leaveLoop($context);');
+        $context->outdent()->write('}');
+        $context->outdent();
         if ($this->elseBlock !== null) {
-            $context->writeBodyCallback($this->elseBlock);
-        } else {
-            $context->write('null');
+            $context->write('} else {')->indent();
+            $context->compileBody($this->elseBlock);
+            $context->outdent();
         }
+        $context->write('}');
+    }
 
-        $context->outdent()->write(');');
+    /** @internal */
+    public static function enterLoop(RenderContext $context, string $name, int $length): ForLoopDrop
+    {
+        /** @var ForLoopDrop[] $stack */
+        $stack = $context->getRegister('for_stack') ?? [];
+        assert(is_array($stack));
+        $loop = new ForLoopDrop($name, $length, $stack !== [] ? $stack[count($stack) - 1] : null);
+        $context->enterScope();
+        $stack[] = $loop;
+        $context->setRegister('for_stack', $stack);
+        $context->set('forloop', $loop);
+
+        return $loop;
+    }
+
+    /** @internal */
+    public static function leaveLoop(RenderContext $context): void
+    {
+        try {
+            $stack = $context->getRegister('for_stack');
+            assert(is_array($stack));
+            array_pop($stack);
+            $context->setRegister('for_stack', $stack);
+        } finally {
+            $context->leaveScope();
+        }
     }
 
     public function renderBlocks(RenderContext $context, ?Closure $forBody = null, ?Closure $elseBody = null): string
@@ -192,15 +238,21 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
 
     protected function collectionSegment(RenderContext $context): array
     {
+        return self::collectionSegmentFor($context, $this->collection, $this->from, $this->limit, $this->reversed, $this->name);
+    }
+
+    /** @internal */
+    public static function collectionSegmentFor(RenderContext $context, mixed $expression, mixed $from, mixed $limit, bool $reversed, string $name): array
+    {
         $offsets = $context->getRegister('for') ?? [];
         assert(is_array($offsets));
 
-        $collection = Arr::fromCollection($context->evaluate($this->collection));
+        $collection = Arr::fromCollection($context->evaluate($expression));
 
-        if ($this->from === 'continue') {
-            $offset = $offsets[$this->name] ?? 0;
+        if ($from === 'continue') {
+            $offset = $offsets[$name] ?? 0;
         } else {
-            $fromValue = $context->evaluate($this->from);
+            $fromValue = $context->evaluate($from);
             $offset = match (true) {
                 $fromValue === null => 0,
                 is_numeric($fromValue) => (int) $fromValue,
@@ -209,7 +261,7 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
         }
         assert(is_int($offset));
 
-        $limitValue = $context->evaluate($this->limit);
+        $limitValue = $context->evaluate($limit);
         $length = match (true) {
             $limitValue === null => null,
             is_numeric($limitValue) => (int) $limitValue,
@@ -219,9 +271,9 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
             $offset === 0 && $length === null => $collection,
             default => array_slice($collection, $offset, $length)
         };
-        $segment = $this->reversed ? array_reverse($segment) : $segment;
+        $segment = $reversed ? array_reverse($segment) : $segment;
 
-        $offsets[$this->name] = $offset + count($segment);
+        $offsets[$name] = $offset + count($segment);
         $context->setRegister('for', $offsets);
 
         return $segment;

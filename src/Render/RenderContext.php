@@ -130,6 +130,23 @@ final class RenderContext
         return array_shift($this->scopes) ?? [];
     }
 
+    /** @internal Paired by generated loops using try/finally. */
+    public function enterScope(): void
+    {
+        try {
+            $this->push();
+        } catch (\Throwable $exception) {
+            $this->pop();
+            throw $exception;
+        }
+    }
+
+    /** @internal */
+    public function leaveScope(): void
+    {
+        $this->pop();
+    }
+
     /**
      * @template TResult
      *

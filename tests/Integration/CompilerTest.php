@@ -370,7 +370,7 @@ test('compiled static partials preserve literal with expressions', function (str
     }
 })->with(['0', 'false', '""', 'nil', '"value"']);
 
-test('compiled templates stream generated chunks without an output accumulator', function () {
+test('compiled templates buffer native chunks without using the render accumulator', function () {
     $environment = EnvironmentFactory::new()->build();
     $template = $environment->parseString('Hello {{ name }}!');
     $compiledPath = temporaryCompiledTemplatePath();
@@ -404,7 +404,7 @@ test('compiled templates stream generated chunks without an output accumulator',
         $context = $environment->newRenderContext(data: ['name' => 'World']);
 
         expect(iterator_to_array($compiled->stream($context)))
-            ->toBe(['Hello ', 'World', '!']);
+            ->toBe(['Hello World!']);
         expect($compiled->render($environment->newRenderContext(data: ['name' => 'World'])))
             ->toBe('Hello World!');
     } finally {
@@ -647,7 +647,7 @@ test('compiled nested bodies stop at an interrupt exactly where the parsed templ
     'nested loops' => ['{% for i in (1..3) %}{% for j in (1..3) %}{{ i }}{{ j }}{% if j == 2 %}{% break %}{% endif %}{% endfor %}|{% endfor %}', []],
 ]);
 
-test('for bodies are compiled inline while the tag drives the loop', function () {
+test('compiled for bodies run in the caller frame without callback generators', function () {
     $environment = EnvironmentFactory::new()->build();
     $template = $environment->parseString('{% for i in items %}{{ i }}{% else %}none{% endfor %}');
     $compiledPath = temporaryCompiledTemplatePath();
@@ -655,10 +655,12 @@ test('for bodies are compiled inline while the tag drives the loop', function ()
     try {
         $environment->compile($template, $compiledPath);
 
-        // Both bodies are inline generator closures; the loop itself stays in the tag.
         expect(file_get_contents($compiledPath))
-            ->toContain('function (RenderContext $context): iterable {')
-            ->toContain('->streamBlocks($context')
+            ->not->toContain('function (RenderContext $context): iterable {')
+            ->not->toContain('->streamBlocks($context')
+            ->toContain('::collectionSegmentFor($context,')
+            ->toContain('foreach (')
+            ->toContain('::leaveLoop($context);')
             ->not->toContain('collectCompiled')
             ->not->toContain('yieldBody')
             ->not->toContain('yield from [];')
@@ -677,7 +679,7 @@ test('for bodies are compiled inline while the tag drives the loop', function ()
     }
 });
 
-test('empty compiled for bodies use empty iterables instead of empty generators', function () {
+test('empty compiled for bodies do not allocate callback generators', function () {
     $environment = EnvironmentFactory::new()->build();
     $template = $environment->parseString('{% for i in items %}{% else %}{% endfor %}');
     $compiledPath = temporaryCompiledTemplatePath();
@@ -688,9 +690,9 @@ test('empty compiled for bodies use empty iterables instead of empty generators'
         $compiledSource = file_get_contents($compiledPath);
 
         expect($compiledSource)
-            ->toContain('function (RenderContext $context): iterable {')
+            ->not->toContain('function (RenderContext $context): iterable {')
             ->not->toContain('yield from [];');
-        expect(substr_count($compiledSource ?: '', 'return [];'))->toBe(2);
+        expect($compiledSource)->not->toContain('return [];');
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
@@ -705,7 +707,7 @@ test('empty compiled for bodies use empty iterables instead of empty generators'
     }
 });
 
-test('compiled for loops match parsed rendering', function (string $source, array $data) {
+test('compiled for loops match parsed rendering and streaming scopes and scores', function (string $source, array $data) {
     $environment = EnvironmentFactory::new()->build();
     $template = $environment->parseString($source);
     $compiledPath = temporaryCompiledTemplatePath();
@@ -716,8 +718,21 @@ test('compiled for loops match parsed rendering', function (string $source, arra
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
 
-        expect($compiled->render($environment->newRenderContext(data: $data)))
-            ->toBe($template->render($environment->newRenderContext(data: $data)));
+        foreach (['render', 'stream'] as $method) {
+            $parsedContext = $environment->newRenderContext(data: $data + ['i' => 'outer']);
+            $compiledContext = $environment->newRenderContext(data: $data + ['i' => 'outer']);
+            $parsedOutput = $template->$method($parsedContext);
+            $compiledOutput = $compiled->$method($compiledContext);
+            if ($method === 'stream') {
+                $parsedOutput = implode('', iterator_to_array($parsedOutput));
+                $compiledOutput = implode('', iterator_to_array($compiledOutput));
+            }
+            expect($compiledOutput)->toBe($parsedOutput);
+            expect($compiledContext->getRegister('for'))->toBe($parsedContext->getRegister('for'));
+            expect($compiledContext->getRegister('for_stack'))->toBe($parsedContext->getRegister('for_stack'));
+            expect($compiledContext->get('i'))->toBe('outer');
+            expect($compiledContext->resourceLimits->getRenderScore())->toBe($parsedContext->resourceLimits->getRenderScore());
+        }
     } finally {
         @unlink($compiledPath);
     }
@@ -725,12 +740,174 @@ test('compiled for loops match parsed rendering', function (string $source, arra
     'forloop drop' => ['{% for i in items %}{{ forloop.index }}/{{ forloop.length }}{% if forloop.first %}F{% endif %}{% if forloop.last %}L{% endif %} {% endfor %}', ['items' => ['a', 'b', 'c']]],
     'nested loops share the parent drop' => ['{% for i in outer %}{% for j in inner %}{{ forloop.parentloop.index }}.{{ forloop.index }} {% endfor %}{% endfor %}', ['outer' => [1, 2], 'inner' => [1, 2]]],
     'limit and offset' => ['{% for i in items limit: 2 offset: 1 %}{{ i }}{% endfor %}', ['items' => [1, 2, 3, 4, 5]]],
+    'offset continue' => ['{% for i in items limit: 2 %}{{ i }}{% endfor %}|{% for i in items offset: continue %}{{ i }}{% endfor %}', ['items' => [1, 2, 3, 4, 5]]],
+    'dynamic limit and offset' => ['{% for i in items limit: amount offset: start %}{{ i }}{% endfor %}', ['items' => [1, 2, 3, 4, 5], 'amount' => 2, 'start' => 1]],
     'reversed' => ['{% for i in items reversed %}{{ i }}{% endfor %}', ['items' => [1, 2, 3]]],
     'range' => ['{% for i in (1..4) %}{{ i }}{% endfor %}', []],
     'else branch' => ['{% for i in items %}{{ i }}{% else %}empty{% endfor %}', ['items' => []]],
     'break out of nested loop' => ['{% for i in outer %}{% for j in inner %}{{ j }}{% break %}{% endfor %}|{% endfor %}', ['outer' => [1, 2], 'inner' => [1, 2, 3]]],
     'continue skips' => ['{% for i in items %}{% if i == 2 %}{% continue %}{% endif %}{{ i }}{% endfor %}', ['items' => [1, 2, 3]]],
 ]);
+
+test('native compiled assignments and captures preserve values scopes and resource scores', function (string $source, array $data) {
+    $environment = EnvironmentFactory::new()->addExtension(new CompilerTestExtension)->build();
+    $template = $environment->parseString($source);
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+        $compiled = require $compiledPath;
+
+        expect(file_get_contents($compiledPath))
+            ->not->toContain('new \\Keepsuit\\Liquid\\Tags\\AssignTag(')
+            ->not->toContain('new \\Keepsuit\\Liquid\\Tags\\CaptureTag(')
+            ->not->toContain('new \\Keepsuit\\Liquid\\Tags\\ForTag(');
+
+        foreach (['render', 'stream'] as $method) {
+            $contexts = [];
+            $outputs = [];
+            foreach ([$template, $compiled] as $candidate) {
+                $context = $environment->newRenderContext(data: $data);
+                $output = $candidate->$method($context);
+                $outputs[] = $method === 'stream' ? implode('', iterator_to_array($output)) : $output;
+                $contexts[] = $context;
+            }
+            expect($outputs[1])->toBe($outputs[0]);
+            expect($contexts[1]->get('saved'))->toEqual($contexts[0]->get('saved'));
+            expect($contexts[1]->resourceLimits->getAssignScore())->toBe($contexts[0]->resourceLimits->getAssignScore());
+            expect($contexts[1]->resourceLimits->getCumulativeAssignScore())->toBe($contexts[0]->resourceLimits->getCumulativeAssignScore());
+            expect($contexts[1]->resourceLimits->getRenderScore())->toBe($contexts[0]->resourceLimits->getRenderScore());
+        }
+    } finally {
+        @unlink($compiledPath);
+    }
+})->with([
+    'raw array' => ['{% assign saved = items %}{{ saved[1] }}', ['items' => ['a', 'b']]],
+    'filtered array' => ['{% assign saved = items | split: "," %}{{ saved[1] }}', ['items' => 'a,b']],
+    'filtered lookup remains an evaluator' => ['{% assign saved = "ignored" | compiler_lookup %}{{ saved }}', ['target' => 'value']],
+    'range' => ['{% assign saved = (1..3) %}{{ saved | join }}', []],
+    'nil' => ['{% assign saved = nil %}{% if saved %}wrong{% else %}nil{% endif %}', []],
+    'false' => ['{% assign saved = false %}{% if saved %}wrong{% else %}false{% endif %}', []],
+    'nested capture' => ['{% capture saved %}a{% capture inner %}b{{ value }}{% endcapture %}{{ inner }}{% endcapture %}{{ saved }}', ['value' => 'c']],
+    'capture and assign inside a loop persist in the active scope' => ['{% for i in (1..3) %}{% assign last = i %}{% capture saved %}{{ last }}{% endcapture %}{% endfor %}{{ last }}{{ saved }}', []],
+]);
+
+test('compiled assignments and captures enforce resource limits at the same point', function (string $source, array $data, int $limit) {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString($source);
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+        $compiled = require $compiledPath;
+        foreach (['render', 'stream'] as $method) {
+            $results = [];
+            foreach ([$template, $compiled] as $candidate) {
+                $context = $environment->newRenderContext(data: $data, resourceLimits: new ResourceLimits(
+                    assignScoreLimit: $limit,
+                    cumulativeAssignScoreLimit: $limit,
+                ));
+                $error = null;
+                try {
+                    $output = $candidate->$method($context);
+                    if ($method === 'stream') {
+                        iterator_to_array($output);
+                    }
+                } catch (ResourceLimitException $exception) {
+                    $error = $exception::class;
+                }
+                $results[] = [$error, $context->get('saved'), $context->resourceLimits->getAssignScore(), $context->resourceLimits->getRenderScore()];
+            }
+            expect($results[1])->toEqual($results[0]);
+            if ($limit === 1) {
+                expect($results[1][0])->toBe(ResourceLimitException::class);
+            }
+        }
+    } finally {
+        @unlink($compiledPath);
+    }
+})->with([
+    'array' => ['{% assign saved = items %}', ['items' => ['a', 'b', 'c']]],
+    'large range' => ['{% assign saved = (start..end) %}', ['start' => 1, 'end' => 10_000_000]],
+    'overflow range' => ['{% assign saved = (start..end) %}', ['start' => PHP_INT_MIN, 'end' => PHP_INT_MAX]],
+    'capture' => ['{% capture saved %}abc{% endcapture %}', []],
+    'nested capture' => ['{% capture saved %}a{% capture inner %}bc{% endcapture %}{{ inner }}{% endcapture %}', []],
+])->with([1, 3, 4, 5]);
+
+test('compiled assignment preserves generator laziness', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('{% assign saved = value %}');
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+        $compiled = require $compiledPath;
+        foreach (['render', 'stream'] as $method) {
+            $consumed = 0;
+            $value = (static function () use (&$consumed): Generator {
+                $consumed++;
+                yield 'value';
+            })();
+            $context = $environment->newRenderContext(data: ['value' => $value]);
+            $output = $compiled->$method($context);
+            if ($method === 'stream') {
+                iterator_to_array($output);
+            }
+            expect($context->get('saved'))->toBe($value);
+            expect($consumed)->toBe(0);
+        }
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('native tag subclasses retain their runtime overrides when compiled', function () {
+    $environment = EnvironmentFactory::new()
+        ->registerTag(CustomCompilerTestAssignTag::class)
+        ->registerTag(CustomCompilerTestCaptureTag::class)
+        ->registerTag(CustomCompilerTestForTag::class)
+        ->build();
+    $template = $environment->parseString('{% assign a = 1 %}{% capture b %}ignored{% endcapture %}{% for i in (1..2) %}ignored{% endfor %}');
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+        $compiled = require $compiledPath;
+        expect($compiled->render($environment->newRenderContext()))->toBe('assigncapturefor');
+        expect(implode('', iterator_to_array($compiled->stream($environment->newRenderContext()))))->toBe('assigncapturestream');
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+class CustomCompilerTestAssignTag extends \Keepsuit\Liquid\Tags\AssignTag
+{
+    public function render(RenderContext $context): string
+    {
+        return 'assign';
+    }
+}
+
+class CustomCompilerTestCaptureTag extends \Keepsuit\Liquid\Tags\CaptureTag
+{
+    public function render(RenderContext $context): string
+    {
+        return 'capture';
+    }
+}
+
+class CustomCompilerTestForTag extends \Keepsuit\Liquid\Tags\ForTag
+{
+    public function render(RenderContext $context): string
+    {
+        return 'for';
+    }
+
+    public function stream(RenderContext $context): Generator
+    {
+        yield 'stream';
+    }
+}
 
 test('exportable nodes are rebuilt with constructors instead of serialization', function () {
     $environment = EnvironmentFactory::new()->build();

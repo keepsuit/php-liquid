@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
+use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\Range;
@@ -15,7 +17,7 @@ use Keepsuit\Liquid\Tag;
 /**
  * @phpstan-import-type Expression from ExpressionParser
  */
-class AssignTag extends Tag implements HasParseTreeVisitorChildren
+class AssignTag extends Tag implements CanBeCompiled, HasParseTreeVisitorChildren
 {
     protected string $to;
 
@@ -51,6 +53,24 @@ class AssignTag extends Tag implements HasParseTreeVisitorChildren
         $context->resourceLimits->incrementAssignScore(static::computeAssignScore($value));
 
         return '';
+    }
+
+    public function compile(CompilerContext $context): void
+    {
+        if (static::class !== self::class) {
+            $context->compileFallback($this);
+
+            return;
+        }
+
+        $value = $this->from->compileValue($context);
+        $context->write('\\'.self::class.'::assignValue($context, '.$context->writeValue($this->to).', '.$value.');');
+    }
+
+    public static function assignValue(RenderContext $context, string $name, mixed $value): void
+    {
+        $context->setToActiveScope($name, $value);
+        $context->resourceLimits->incrementAssignScore(static::computeAssignScore($value));
     }
 
     public function blank(): bool

@@ -52,6 +52,14 @@ handled errors cannot terminate the surrounding template.
 Native variable lookups and filter chains are emitted directly. Scalar streamed
 values avoid per-variable generators; generator-valued variables remain lazy.
 Only expression objects needed at runtime are reconstructed when artifacts load.
+Native `for` bodies run inline without callback or generator layers. `assign`
+evaluates directly into the active scope, and `capture` uses a compiled string
+body while retaining assignment and render-score accounting.
+Compiled streams buffer native output until it reaches 4096 bytes, flushing
+before custom streamed nodes, generator-valued variables, partial streams and
+error handling. Chunk boundaries can change; complete output and resource limits
+remain the same. Abandoning a stream unwinds loop scopes without flushing pending
+output.
 The default-group compiled subjects use their own setup so compiled artifacts
 cannot affect the interpreted subjects' baseline timing and memory measurements.
 The fresh artifact load subject invalidates filesystem metadata in a
