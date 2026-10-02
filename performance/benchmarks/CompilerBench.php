@@ -8,6 +8,7 @@ use Keepsuit\Liquid\Performance\Support\CompilesThemeTemplates;
 use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
+use Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache;
 use PhpBench\Attributes\AfterMethods;
 use PhpBench\Attributes\BeforeMethods;
 use PhpBench\Attributes\Groups;
@@ -40,6 +41,8 @@ class CompilerBench
 
     private Environment $compiledEnvironment;
 
+    private Environment $serializedEnvironment;
+
     private string $artifactDirectory;
 
     /** @var list<string> */
@@ -55,6 +58,9 @@ class CompilerBench
 
     /** @var array<string, CompiledTemplate> */
     private array $compiledTemplates;
+
+    /** @var array<string, Template> */
+    private array $serializedTemplates;
 
     /** @var array<string, string> */
     private array $artifactPaths;
@@ -90,6 +96,7 @@ class CompilerBench
         $this->compiledEnvironment = $this->newCompiledEnvironment();
         $this->interpretedTemplates = [];
         $this->compiledTemplates = [];
+        $this->serializedTemplates = [];
         $this->artifactPaths = [];
         $this->dataSetIndex = 0;
 
@@ -109,6 +116,21 @@ class CompilerBench
         $this->compiledTemplates = $compiledTheme['templates'];
         $this->artifactPaths = $compiledTheme['paths'];
 
+        $serializedPath = $this->artifactDirectory.'/serialized';
+        $serializedCache = new SerializeTemplatesCache($serializedPath, keepInMemory: false);
+
+        foreach ($this->interpretedTemplates as $templateName => $template) {
+            $serializedCache->set($templateName, $template);
+        }
+
+        $this->serializedEnvironment = StorefrontTheme::environmentFactory()
+            ->setTemplatesCache(new SerializeTemplatesCache($serializedPath))
+            ->build();
+
+        foreach ($this->templateNames as $templateName) {
+            $this->serializedTemplates[$templateName] = $this->serializedEnvironment->parseTemplate($templateName);
+        }
+
         $this->writeFreshLoadScript();
 
         // Keep fixture/data creation out of render and stream timing.
@@ -121,6 +143,9 @@ class CompilerBench
 
     public function tearDown(): void
     {
+        $this->serializedEnvironment->templatesCache->clear();
+        rmdir($this->artifactDirectory.'/serialized');
+
         foreach ($this->artifactPaths as $artifactPath) {
             if (is_file($artifactPath)) {
                 unlink($artifactPath);
@@ -223,6 +248,34 @@ class CompilerBench
             $this->drain($this->streamPage(
                 $this->interpretedEnvironment,
                 $this->interpretedTemplates,
+                $pageTemplateName,
+                $renderData[$pageTemplateName],
+            ));
+        }
+    }
+
+    public function benchSerializedRender(): void
+    {
+        $renderData = $this->nextRenderDataSet();
+
+        foreach ($this->pageTemplateNames as $pageTemplateName) {
+            $this->renderPage(
+                $this->serializedEnvironment,
+                $this->serializedTemplates,
+                $pageTemplateName,
+                $renderData[$pageTemplateName],
+            );
+        }
+    }
+
+    public function benchSerializedStream(): void
+    {
+        $renderData = $this->nextRenderDataSet();
+
+        foreach ($this->pageTemplateNames as $pageTemplateName) {
+            $this->drain($this->streamPage(
+                $this->serializedEnvironment,
+                $this->serializedTemplates,
                 $pageTemplateName,
                 $renderData[$pageTemplateName],
             ));
@@ -350,6 +403,17 @@ class CompilerBench
                 if ($actual !== $expected) {
                     throw new \RuntimeException("Compiled render mismatch for {$pageTemplateName}.");
                 }
+
+                $serialized = $this->renderPage(
+                    $this->serializedEnvironment,
+                    $this->serializedTemplates,
+                    $pageTemplateName,
+                    $renderData[$pageTemplateName],
+                );
+
+                if ($serialized !== $expected) {
+                    throw new \RuntimeException("Serialized render mismatch for {$pageTemplateName}.");
+                }
             }
         }
 
@@ -370,6 +434,17 @@ class CompilerBench
 
                 if ($actual !== $expected) {
                     throw new \RuntimeException("Compiled stream mismatch for {$pageTemplateName}.");
+                }
+
+                $serialized = $this->collect($this->streamPage(
+                    $this->serializedEnvironment,
+                    $this->serializedTemplates,
+                    $pageTemplateName,
+                    $renderData[$pageTemplateName],
+                ));
+
+                if ($serialized !== $expected) {
+                    throw new \RuntimeException("Serialized stream mismatch for {$pageTemplateName}.");
                 }
             }
         }

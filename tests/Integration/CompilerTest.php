@@ -6,6 +6,7 @@ use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeExported;
+use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Contracts\Disableable;
 use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Exceptions\ResourceLimitException;
@@ -106,6 +107,8 @@ class RuntimeFallbackCompilerTestTag extends Tag implements Disableable
 
 class FailingCompilableCompilerTestNode extends Node implements CanBeCompiled
 {
+    public static int $compilations = 0;
+
     public function render(RenderContext $context): string
     {
         return 'fallback output';
@@ -113,9 +116,28 @@ class FailingCompilableCompilerTestNode extends Node implements CanBeCompiled
 
     public function compile(CompilerContext $context): void
     {
+        self::$compilations++;
         $context->writeOutput($context->writeValue('partial output'));
+        $context->writeRuntimeValue($this);
 
         throw new RuntimeException('compiler test failure');
+    }
+}
+
+class ReturningCompilableCompilerTestNode extends Node implements CanBeCompiled
+{
+    public static int $compilations = 0;
+
+    public function render(RenderContext $context): string
+    {
+        return 'custom';
+    }
+
+    public function compile(CompilerContext $context): void
+    {
+        self::$compilations++;
+        $context->writeOutput($context->writeValue('custom'));
+        $context->write('return;');
     }
 }
 
@@ -142,6 +164,19 @@ class UnsafeFallbackCompilerTestNode extends Node
     public function render(RenderContext $context): string
     {
         return 'unsafe fallback';
+    }
+}
+
+class RenderAndStreamCompilerTestNode extends Node implements CanBeStreamed
+{
+    public function render(RenderContext $context): string
+    {
+        return 'rendered';
+    }
+
+    public function stream(RenderContext $context): Generator
+    {
+        yield 'streamed';
     }
 }
 
@@ -177,6 +212,94 @@ test('compiled render and stream both surface the compiled body', function () {
     expect(iterator_to_array($compiled->stream(new RenderContext)))->toBe(['compiled ', 'body']);
 });
 
+test('compiled render uses render semantics for variables and fallback nodes', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('{{ value }}|');
+    assert($template instanceof ParsedTemplate);
+    $template->root->body->pushChild(new RenderAndStreamCompilerTestNode);
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        $data = ['value' => new RenderAndStreamCompilerTestNode];
+
+        expect($compiled->render($environment->newRenderContext(data: $data)))
+            ->toBe($template->render($environment->newRenderContext(data: $data)))
+            ->toBe('rendered|rendered');
+        expect(implode('', iterator_to_array($compiled->stream($environment->newRenderContext(data: $data)))))
+            ->toBe('streamed|streamed');
+    } finally {
+        @unlink($path);
+    }
+});
+
+test('compiled direct lookups fully evaluate values returned from a scope', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('{{ value }}|{{ value | upcase }}');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        $data = ['value' => new VariableLookup('nested'), 'nested' => new VariableLookup('target'), 'target' => 'resolved'];
+
+        expect($compiled->render($environment->newRenderContext(data: $data)))
+            ->toBe($template->render($environment->newRenderContext(data: $data)))
+            ->toBe('resolved|RESOLVED');
+    } finally {
+        @unlink($path);
+    }
+});
+
+test('custom compiler fragments can return without skipping sibling nodes', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('');
+    assert($template instanceof ParsedTemplate);
+    $template->root->body->setChildren([
+        new Text('before'),
+        new ReturningCompilableCompilerTestNode,
+        new Text('after'),
+    ]);
+    $path = temporaryCompiledTemplatePath();
+    ReturningCompilableCompilerTestNode::$compilations = 0;
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+
+        expect(ReturningCompilableCompilerTestNode::$compilations)->toBe(1);
+
+        expect($compiled->render($environment->newRenderContext()))
+            ->toBe($template->render($environment->newRenderContext()))
+            ->toBe('beforecustomafter');
+        expect(implode('', iterator_to_array($compiled->stream($environment->newRenderContext()))))
+            ->toBe('beforecustomafter');
+    } finally {
+        @unlink($path);
+    }
+});
+
+test('compiled static partials preserve literal with expressions', function (string $expression) {
+    $environment = EnvironmentFactory::new()
+        ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem(['snippet' => '{{ snippet | default: "none" }}']))
+        ->build();
+    $template = $environment->parseString('{% render "snippet" with '.$expression.' %}');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+
+        expect($compiled->render($environment->newRenderContext()))
+            ->toBe($template->render($environment->newRenderContext()));
+        expect(implode('', iterator_to_array($compiled->stream($environment->newRenderContext()))))
+            ->toBe(implode('', iterator_to_array($template->stream($environment->newRenderContext()))));
+    } finally {
+        @unlink($path);
+    }
+})->with(['0', 'false', '""', 'nil', '"value"']);
+
 test('compiled templates stream generated chunks without an output accumulator', function () {
     $environment = EnvironmentFactory::new()->build();
     $template = $environment->parseString('Hello {{ name }}!');
@@ -189,15 +312,22 @@ test('compiled templates stream generated chunks without an output accumulator',
         expect($compiledSource)
             ->toContain('protected function renderCompiled(RenderContext $context): iterable')
             ->toContain('yield ')
-            ->toContain('function () use ($context): iterable {')
-            ->not->toContain('$output')
+            ->not->toContain('function () use ($context): iterable {')
             ->not->toContain('yieldBody')
             ->not->toContain('yield from [];')
             ->not->toContain('private function body')
             ->not->toContain('private function node')
             ->not->toContain('resourceLimits->')
-            ->not->toContain('try {')
-            ->not->toContain('catch (');
+            ->toContain('try {')
+            ->toContain('catch (');
+
+        $streamSource = strstr(
+            strstr($compiledSource, 'protected function renderCompiled('),
+            'protected function renderCompiledString(',
+            before_needle: true,
+        );
+        expect($streamSource)->not->toContain('$output');
+        expect(substr_count($compiledSource, 'new \\Keepsuit\\Liquid\\Nodes\\Variable('))->toBe(1);
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
@@ -346,8 +476,8 @@ test('compiled static render tags stream partials without rebuilding the tag', f
 
         expect($compiledSource)
             ->toContain('yieldPartial')
+            ->toContain('renderPartial')
             ->not->toContain('deepclone_from_array')
-            ->not->toContain('private readonly mixed $value')
             ->not->toContain('yield from [];')
             // The partial is looked up when the compiled template runs, never
             // inlined into the artifact.
@@ -876,7 +1006,7 @@ test('storefront specs compile into readable direct output', function () {
             ->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
             ->toContain('// line 4')
             ->toContain("'size'")
-            ->not->toContain('private readonly mixed $value')
+            ->toContain('private readonly mixed $value')
             ->not->toContain('yield from [];')
             ->not->toContain('do {');
 
@@ -908,7 +1038,7 @@ test('complex compiled variables stream directly', function () {
 
         expect($compiledSource)
             ->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
-            ->not->toContain('private readonly mixed $value0');
+            ->toContain('private readonly mixed $value0');
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
@@ -930,7 +1060,7 @@ test('direct variable emission preserves common Liquid values', function (string
 
         expect(file_get_contents($compiledPath))
             ->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
-            ->not->toContain('private readonly mixed $value');
+            ->toContain('private readonly mixed $value');
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
@@ -969,7 +1099,7 @@ test('storefront header compiles static partial rendering with direct values', f
             ->toContain("new \\Keepsuit\\Liquid\\Nodes\\VariableLookup('shop', ['name'])")
             ->toContain('yieldPartial')
             ->not->toContain('yield from [];')
-            ->not->toContain('private readonly mixed $value');
+            ->toContain('private readonly mixed $value');
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
@@ -1035,7 +1165,7 @@ test('expression values remain exportable while variables compile directly', fun
 
     expect($variable)
         ->toBeInstanceOf(CanBeCompiled::class)
-        ->not->toBeInstanceOf(CanBeExported::class);
+        ->toBeInstanceOf(CanBeExported::class);
 
     $values = [
         new VariableLookup('name'),
@@ -1216,9 +1346,12 @@ test('failed node compilation rolls back before runtime fallback', function () {
     assert($template instanceof ParsedTemplate);
     $template->root->body->pushChild(new FailingCompilableCompilerTestNode);
     $compiledPath = temporaryCompiledTemplatePath();
+    FailingCompilableCompilerTestNode::$compilations = 0;
 
     try {
         $environment->compile($template, $compiledPath);
+
+        expect(FailingCompilableCompilerTestNode::$compilations)->toBe(1);
 
         $compiledSource = file_get_contents($compiledPath);
 

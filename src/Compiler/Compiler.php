@@ -13,6 +13,7 @@ class Compiler
         $bodyContext->subcompile($template->root);
 
         $body = $bodyContext->getSource();
+        $renderBody = $bodyContext->compileRender($template->root);
         $name = $bodyContext->writeValue($template->root->name);
         $fallbackValues = $bodyContext->getFallbackValues();
         $fallbackValueSource = [];
@@ -39,7 +40,7 @@ class Compiler
 
         $className = 'Template_'.substr(hash(
             'sha256',
-            $name.$body.implode('', $fallbackValueSource),
+            $name.$body.$renderBody.implode('', $fallbackValueSource),
         ), 0, 32);
 
         $builder = new CodeBuilder;
@@ -97,7 +98,17 @@ class Compiler
 
         $builder
             ->dedent()
-            ->writeLine('}');
+            ->writeLine('}')
+            ->writeLine()
+            ->writeLine('protected function renderCompiledString(RenderContext $context): string')
+            ->writeLine('{')
+            ->indent();
+
+        foreach (explode("\n", rtrim($renderBody, "\n")) as $line) {
+            $builder->writeLine($line);
+        }
+
+        $builder->dedent()->writeLine('}');
 
         $builder
             ->dedent()

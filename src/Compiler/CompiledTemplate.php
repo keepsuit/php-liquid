@@ -11,6 +11,7 @@ use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
 use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
+use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\TemplateSharedState;
 use Throwable;
 
@@ -23,9 +24,32 @@ abstract class CompiledTemplate extends AbstractTemplate
 
     final public function render(RenderContext $context): string
     {
+        try {
+            $this->prepareContext($context);
+            $output = $this->renderCompiledString($context);
+
+            if (! $context->isPartial()) {
+                $context->resourceLimits->incrementWriteScore($output);
+            }
+
+            return $output;
+        } catch (LiquidException $e) {
+            $this->attachTemplateName($e);
+            throw $e;
+        } finally {
+            $this->persistContext($context);
+        }
+    }
+
+    /**
+     * Older artifacts only provide the generator method. New artifacts override
+     * this with a string path that avoids per-node generator allocation.
+     */
+    protected function renderCompiledString(RenderContext $context): string
+    {
         $output = '';
 
-        foreach ($this->stream($context) as $chunk) {
+        foreach ($this->renderCompiled($context) as $chunk) {
             $output .= $chunk;
         }
 
@@ -104,19 +128,49 @@ abstract class CompiledTemplate extends AbstractTemplate
         array $attributes,
     ): \Generator {
         $partial = $context->loadPartial($templateName);
+
+        yield from $partial->stream($this->partialContext($context, $partial, $variable, $aliasName, $attributes));
+    }
+
+    /**
+     * @param  array<string,mixed>  $attributes
+     */
+    protected function renderPartial(
+        RenderContext $context,
+        string $templateName,
+        mixed $variable,
+        ?string $aliasName,
+        array $attributes,
+    ): string {
+        $partial = $context->loadPartial($templateName);
+
+        return $partial->render($this->partialContext($context, $partial, $variable, $aliasName, $attributes));
+    }
+
+    /**
+     * @param  array<string,mixed>  $attributes
+     */
+    private function partialContext(
+        RenderContext $context,
+        Template $partial,
+        mixed $variable,
+        ?string $aliasName,
+        array $attributes,
+    ): RenderContext {
         $partialName = $partial->name() ?? '';
 
         $contextVariableName = $aliasName ?? Arr::last(explode('/', $partialName));
         assert(is_string($contextVariableName));
 
+        $value = $variable ? $context->evaluate($variable) : null;
         $partialContext = $context->newIsolatedSubContext($partialName);
-        $partialContext->set($contextVariableName, $context->evaluate($variable));
+        $partialContext->set($contextVariableName, $value);
 
         foreach ($attributes as $key => $value) {
             $partialContext->set($key, $context->evaluate($value));
         }
 
-        yield from $partial->stream($partialContext);
+        return $partialContext;
     }
 
     abstract public function name(): ?string;

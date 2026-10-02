@@ -12,7 +12,13 @@ use Keepsuit\Liquid\Nodes\Node;
 use Keepsuit\Liquid\Nodes\Raw;
 use Keepsuit\Liquid\Nodes\Text;
 use Keepsuit\Liquid\Nodes\Variable;
+use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Tag;
+use Keepsuit\Liquid\Tags\CaseTag;
+use Keepsuit\Liquid\Tags\ForTag;
+use Keepsuit\Liquid\Tags\IfTag;
+use Keepsuit\Liquid\Tags\RenderTag;
+use Keepsuit\Liquid\Tags\UnlessTag;
 
 final class CompilerContext
 {
@@ -21,7 +27,39 @@ final class CompilerContext
      */
     private array $fallbackValues = [];
 
+    /** @var array<int, string> */
+    private array $fallbackObjectProperties = [];
+
+    /** @var array<int, array{node: Node, source: ?string}> */
+    private array $extensionSources = [];
+
+    private bool $rendering = false;
+
     public function __construct(private CodeBuilder $builder = new CodeBuilder) {}
+
+    public function isRendering(): bool
+    {
+        return $this->rendering;
+    }
+
+    /**
+     * Generate the string path while sharing reconstructed values with stream().
+     */
+    public function compileRender(Document $root): string
+    {
+        $outerBuilder = $this->builder;
+        $this->builder = new CodeBuilder;
+        $this->rendering = true;
+
+        try {
+            $this->subcompile($root);
+
+            return $this->getSource();
+        } finally {
+            $this->builder = $outerBuilder;
+            $this->rendering = false;
+        }
+    }
 
     /**
      * Compile a body inline while keeping render-score accounting in the base
@@ -46,14 +84,19 @@ final class CompilerContext
         $renderScore = $body instanceof BodyNode ? count($body->children()) : 1;
         $source = $this->compileBodySource($body);
 
-        $this->write('function (RenderContext $context): iterable {');
+        $this->write('function (RenderContext $context): '.($this->rendering ? 'string' : 'iterable').' {');
         $this->indent();
+        if ($this->rendering) {
+            $this->write('$output = "";');
+        }
         $this->write(sprintf(
             '$this->incrementCompiledRenderScore($context, %s);',
             $this->writeValue($renderScore),
         ));
         $this->writeSource($source['source']);
-        if (! $source['hasYield']) {
+        if ($this->rendering) {
+            $this->write('return $output;');
+        } elseif (! $source['hasYield']) {
             $this->write('return [];');
         }
         $this->outdent()->write('}'.$suffix);
@@ -95,13 +138,19 @@ final class CompilerContext
         $renderScore = count($body->children());
         $source = $this->compileBodySource($body);
 
+        if ($this->rendering) {
+            $this->write('$output = "";');
+        }
+
         $this->write(sprintf(
             '$this->incrementCompiledRenderScore($context, %s);',
             $this->writeValue($renderScore),
         ));
         $this->writeSource($source['source']);
 
-        if (! $source['hasYield']) {
+        if ($this->rendering) {
+            $this->write('return $output;');
+        } elseif (! $source['hasYield']) {
             $this->write('return [];');
         }
     }
@@ -141,9 +190,9 @@ final class CompilerContext
         return $this;
     }
 
-    public function writeOutput(string $expression): static
+    public function writeOutput(string $expression, string $suffix = ';'): static
     {
-        $this->write('yield '.$expression.';');
+        $this->write(($this->rendering ? '$output .= ' : 'yield ').$expression.$suffix);
 
         return $this;
     }
@@ -188,38 +237,113 @@ final class CompilerContext
     {
         $checkpoint = $this->builder->checkpoint();
         $fallbackValueCount = count($this->fallbackValues);
+        $extensionSourceCount = count($this->extensionSources);
+        $rendering = $this->rendering;
+        $id = spl_object_id($node);
+        $fallback = isset($this->extensionSources[$id]) && $this->extensionSources[$id]['source'] === null;
+
+        // Extension fragments may return from their node or yield before failing.
+        // Keep their lazy boundary; native nodes can use an inline try/catch.
+        $extension = $node instanceof CanBeCompiled && ! in_array($node::class, [
+            Variable::class, IfTag::class, UnlessTag::class, CaseTag::class,
+            ForTag::class, RenderTag::class,
+        ], true);
+        $lazy = $extension && ! $fallback;
 
         try {
-            $this->write(sprintf(
-                'yield from $this->yieldNode($context, %s, function () use ($context): iterable {',
-                $this->writeValue($node->lineNumber()),
-            ));
-            $this->indent();
-            $nodeBodyCheckpoint = $this->builder->checkpoint();
-            $this->writeLineComment($node->lineNumber());
-
-            if ($node instanceof CanBeCompiled) {
-                $node->compile($this);
+            $this->writeNodeStart($node, $lazy);
+            if ($lazy) {
+                $this->writeSource($this->compileExtensionSource($node));
             } else {
-                $this->compileFallback($node);
-            }
+                $this->writeLineComment($node->lineNumber());
 
-            if ($this->builder->yieldCount() === $nodeBodyCheckpoint['yieldCount']) {
-                $this->write('return [];');
+                if ($node instanceof CanBeCompiled && ! $fallback) {
+                    $node->compile($this);
+                } else {
+                    $this->compileFallback($node);
+                }
             }
-            $this->outdent()->write('});');
+            $this->rendering = $rendering;
+            $this->writeNodeEnd($node, $lazy);
         } catch (\Throwable) {
+            $this->rendering = $rendering;
             $this->rollbackCompilation($checkpoint, $fallbackValueCount);
-
-            $this->write(sprintf(
-                'yield from $this->yieldNode($context, %s, function () use ($context): iterable {',
-                $this->writeValue($node->lineNumber()),
-            ));
-            $this->indent();
+            $this->extensionSources = array_slice($this->extensionSources, 0, $extensionSourceCount, preserve_keys: true);
+            if ($extension) {
+                $this->extensionSources[$id] = ['node' => $node, 'source' => null];
+            }
+            $this->writeNodeStart($node, false);
             $this->writeLineComment($node->lineNumber());
             $this->compileFallback($node);
-            $this->outdent()->write('});');
+            $this->writeNodeEnd($node, false);
         }
+    }
+
+    private function compileExtensionSource(Node $node): string
+    {
+        $id = spl_object_id($node);
+        if (isset($this->extensionSources[$id]['source'])) {
+            return $this->extensionSources[$id]['source'];
+        }
+
+        $outerBuilder = $this->builder;
+        $rendering = $this->rendering;
+        $this->builder = new CodeBuilder;
+        $this->rendering = false;
+
+        try {
+            assert($node instanceof CanBeCompiled);
+            $this->writeLineComment($node->lineNumber());
+            $node->compile($this);
+
+            if ($this->builder->yieldCount() === 0) {
+                $this->write('return [];');
+            }
+
+            $source = $this->getSource();
+            $this->extensionSources[$id] = ['node' => $node, 'source' => $source];
+
+            return $source;
+        } finally {
+            $this->builder = $outerBuilder;
+            $this->rendering = $rendering;
+        }
+    }
+
+    private function writeNodeStart(Node $node, bool $lazy): void
+    {
+        if ($lazy) {
+            $this->write(sprintf(
+                ($this->rendering ? 'foreach (' : 'yield from ').'$this->yieldNode($context, %s, function () use ($context): iterable {',
+                $this->writeValue($node->lineNumber()),
+            ));
+        } else {
+            $this->write('try {');
+        }
+
+        $this->indent();
+    }
+
+    private function writeNodeEnd(Node $node, bool $lazy): void
+    {
+        if ($lazy) {
+            if ($this->rendering) {
+                $this->outdent()->write('}) as $chunk) {');
+                $this->indent()->write('$output .= $chunk;');
+                $this->outdent()->write('}');
+            } else {
+                $this->outdent()->write('});');
+            }
+
+            return;
+        }
+
+        $line = $this->writeValue($node->lineNumber());
+        $this->outdent()->write('} catch (\\Keepsuit\\Liquid\\Exceptions\\UndefinedVariableException|\\Keepsuit\\Liquid\\Exceptions\\UndefinedDropMethodException|\\Keepsuit\\Liquid\\Exceptions\\UndefinedFilterException $exception) {');
+        $this->indent()->write('$context->handleError($exception, '.$line.');');
+        $this->outdent()->write('} catch (\\Throwable $exception) {');
+        $this->indent()->writeOutput('$context->handleError($exception, '.$line.')');
+        $this->outdent()->write('}');
     }
 
     /**
@@ -234,7 +358,7 @@ final class CompilerContext
             $this->write($value.'->ensureTagIsEnabled($context);');
         }
 
-        if ($node instanceof CanBeStreamed) {
+        if (! $this->rendering && $node instanceof CanBeStreamed) {
             $this->write('yield from '.$value.'->stream($context);');
         } else {
             $this->writeOutput($value.'->render($context)');
@@ -271,6 +395,22 @@ final class CompilerContext
         }
 
         return var_export($value, true);
+    }
+
+    public function writeVariableExpression(mixed $value): string
+    {
+        // Variable::renderValue() completes evaluation if the lookup resolves
+        // to another CanBeEvaluated value rather than a scalar.
+        if ($value instanceof VariableLookup && $value::class === VariableLookup::class) {
+            return '\\'.VariableLookup::class.'::evaluateParts($context, '
+                .$this->writeValue($value->name).', '.$this->writeValue($value->lookups).')';
+        }
+
+        $source = $this->writeValue($value);
+
+        return is_scalar($value) || $value === null
+            ? $source
+            : '$context->evaluate('.$source.')';
     }
 
     private function writeSerializedObject(object $value): string
@@ -331,6 +471,29 @@ final class CompilerContext
     }
 
     /**
+     * Keep expression objects out of hot calls while leaving scalar arrays inline.
+     */
+    public function writeCachedValue(mixed $value): string
+    {
+        if (is_object($value)) {
+            return $this->writeRuntimeValue($value);
+        }
+
+        if (! is_array($value)) {
+            return $this->writeValue($value);
+        }
+
+        $entries = [];
+        $isList = array_is_list($value);
+
+        foreach ($value as $key => $item) {
+            $entries[] = ($isList ? '' : $this->writeValue($key).' => ').$this->writeCachedValue($item);
+        }
+
+        return '['.implode(', ', $entries).']';
+    }
+
+    /**
      * @return array<string,mixed>
      */
     public function getFallbackValues(): array
@@ -340,14 +503,28 @@ final class CompilerContext
 
     private function registerFallbackValue(mixed $value): string
     {
+        if (is_object($value) && isset($this->fallbackObjectProperties[spl_object_id($value)])) {
+            return '$this->'.$this->fallbackObjectProperties[spl_object_id($value)];
+        }
+
         $property = 'value'.count($this->fallbackValues);
         $this->fallbackValues[$property] = $value;
+
+        if (is_object($value)) {
+            $this->fallbackObjectProperties[spl_object_id($value)] = $property;
+        }
 
         return '$this->'.$property;
     }
 
     private function rollbackFallbackValues(int $count): void
     {
+        foreach (array_slice($this->fallbackValues, $count) as $value) {
+            if (is_object($value)) {
+                unset($this->fallbackObjectProperties[spl_object_id($value)]);
+            }
+        }
+
         $this->fallbackValues = array_slice($this->fallbackValues, 0, $count, preserve_keys: true);
     }
 

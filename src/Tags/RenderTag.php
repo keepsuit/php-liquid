@@ -154,13 +154,20 @@ class RenderTag extends Tag implements CanBeCompiled, CanBeStreamed, HasParseTre
             return;
         }
 
-        $context->write(sprintf(
-            'yield from $this->yieldPartial($context, %s, %s, %s, %s);',
+        $expression = sprintf(
+            '$this->%s($context, %s, %s, %s, %s)',
+            $context->isRendering() ? 'renderPartial' : 'yieldPartial',
             $context->writeValue($this->templateNameExpression),
-            $context->writeValue($this->variableNameExpression),
+            $context->writeCachedValue($this->variableNameExpression),
             $context->writeValue($this->aliasName),
-            $context->writeValue($this->attributes),
-        ));
+            $context->writeCachedValue($this->attributes),
+        );
+
+        if ($context->isRendering()) {
+            $context->writeOutput($expression);
+        } else {
+            $context->write('yield from '.$expression.';');
+        }
     }
 
     public function stream(RenderContext $context): \Generator

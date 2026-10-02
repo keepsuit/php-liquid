@@ -4,7 +4,7 @@
 composer benchmark             # default group: the storefront theme
 composer benchmark:cache       # cache group: template-cache backends
 composer benchmark:operations  # operations group: individual operations
-composer benchmark:compiler    # compiler group: compiled/interpreted pipeline
+composer benchmark:compiler    # compiler group: compiled/interpreted/serialized pipeline
 php performance/profile-theme.php --output=profile.json
 ```
 
@@ -36,12 +36,19 @@ be unrealistic: an artificial template that does one thing 64 times is a better
 instrument than a realistic page.
 
 **`compiler`** (`CompilerBench`) measures compile/write, fresh artifact
-require/load, compiled render, compiled stream, interpreted render and
-interpreted stream as separate subjects over the same storefront fixture. All
+require/load, compiled render/stream, interpreted render/stream, and warmed
+serialized render/stream as separate subjects over the same storefront fixture. All
 template source reads, parsing, artifact setup and render data construction are
 performed in setup; render and stream subjects only exercise their named runtime
 path. Setup also compares complete compiled and interpreted output before timing begins,
 including templates reached through partial lookup; stream chunk boundaries may differ.
+Serialized subjects use templates loaded from `SerializeTemplatesCache` during
+setup, including partials. They isolate rendering after the serialized cache is
+warm; the `cache` group separately measures filesystem loading on every lookup.
+Generated templates have a string-rendering method for `render()` and a lazy
+generator method for `stream()`. Native node error boundaries are emitted inline;
+custom compiler fragments retain isolated lazy boundaries so their returns and
+handled errors cannot terminate the surrounding template.
 The fresh artifact load subject invalidates filesystem metadata in a
 `BeforeMethods` hook; its timed body requires and validates all artifacts in an isolated
 PHP process, avoiding classes loaded during benchmark setup.
@@ -53,6 +60,23 @@ vendor/bin/phpbench run --group=compiler --warmup=1 --retry-threshold=5 \
   --report=aggregate --output=json > /tmp/php-liquid-compiler.json
 php tools/phpbench-compare.php build/base.json /tmp/php-liquid-compiler.json
 ```
+
+To compare compiled rendering directly with serialized templates:
+
+```bash
+vendor/bin/phpbench run performance/benchmarks/CompilerBench.php \
+  --filter='bench(Compiled|Serialized)(Render|Stream)$' \
+  --iterations=10 --revs=30 --warmup=3 --report=aggregate
+vendor/bin/phpbench run performance/benchmarks/TemplateCacheBench.php \
+  --filter='benchLoadAndRender(Compiled|Serialize)$' \
+  --php-config='{"opcache.enable":1,"opcache.enable_cli":1,"opcache.validate_timestamps":1,"opcache.revalidate_freq":0,"opcache.file_update_protection":0}' \
+  --iterations=10 --revs=30 --warmup=3 --report=aggregate
+```
+
+The cache comparison enables OPcache immediately for artifacts created in setup;
+otherwise its default file-age protection can repeatedly compile those new files
+inside the measured load path. Both render subjects use identical inputs and
+resource-limit policies. Compare render and stream results separately.
 
 The current `build/base.json` contains only the four `ThemeBench` default-group
 rows, so compiler rows appear as branch-only rows with their PR throughput and

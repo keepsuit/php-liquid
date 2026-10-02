@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid\Nodes;
 use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
+use Keepsuit\Liquid\Contracts\CanBeExported;
 use Keepsuit\Liquid\Contracts\CanBeRendered;
 use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
@@ -16,7 +17,7 @@ use Keepsuit\Liquid\Support\FilterCoercion;
 /**
  * @phpstan-import-type Expression from ExpressionParser
  */
-class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeStreamed, HasParseTreeVisitorChildren
+class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExported, CanBeStreamed, HasParseTreeVisitorChildren
 {
     public function __construct(
         /** @var Expression $name */
@@ -32,15 +33,30 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeStrea
 
     public function compile(CompilerContext $context): void
     {
+        $value = $context->writeRuntimeValue($this);
+
+        if ($context->isRendering()) {
+            $context->writeOutput('\\'.self::class.'::renderValue($context, '
+                .$context->writeVariableExpression($this->name)
+                .($this->filters === [] ? '' : ', '.$value.'->filters').')');
+        } else {
+            $context->write('yield from '.$value.'->stream($context);');
+        }
+    }
+
+    public function export(CompilerContext $context): ?string
+    {
+        if (static::class !== self::class) {
+            return null;
+        }
+
         $expression = 'new \\'.self::class.'('
             .$context->writeValue($this->name).', '
             .$context->writeValue($this->filters).')';
 
-        if ($this->lineNumber !== null) {
-            $expression = '('.$expression.')->setLineNumber('.$this->lineNumber.')';
-        }
-
-        $context->write('yield from ('.$expression.')->stream($context);');
+        return $this->lineNumber === null
+            ? $expression
+            : '('.$expression.')->setLineNumber('.$this->lineNumber.')';
     }
 
     public function stream(RenderContext $context): \Generator
@@ -84,6 +100,20 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeStrea
     public function evaluate(RenderContext $context): mixed
     {
         return self::applyFilters($context, $context->evaluate($this->name), $this->filters);
+    }
+
+    /**
+     * Render a resolved expression, including any remaining evaluators and filters.
+     *
+     * @param  array<array{0:string,1:array,2:array<string,mixed>}>  $filters
+     */
+    public static function renderValue(RenderContext $context, mixed $value, array $filters = []): string
+    {
+        if ($value instanceof CanBeEvaluated) {
+            $value = $context->evaluate($value);
+        }
+
+        return self::renderEvaluated($context, $filters === [] ? $value : self::applyFilters($context, $value, $filters));
     }
 
     /**

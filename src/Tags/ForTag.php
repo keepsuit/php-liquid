@@ -88,7 +88,11 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
     public function compile(CompilerContext $context): void
     {
         $tag = $context->writeRuntimeValue($this);
-        $context->write('yield from '.$tag.'->streamBlocks($context,');
+        if ($context->isRendering()) {
+            $context->writeOutput($tag.'->renderBlocks($context,', suffix: '');
+        } else {
+            $context->write('yield from '.$tag.'->streamBlocks($context,');
+        }
         $context->indent();
         $context->writeBodyCallback($this->forBlock, ',');
 
