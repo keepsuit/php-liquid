@@ -20,6 +20,10 @@ All notable changes to `liquid` will be documented in this file.
   previously accepted with these syntax errors must be corrected. Parsing remains strict
   independently of render options; existing strict2-aligned syntax restrictions are unchanged.
 
+### Performance
+
+- Filesystem template caches keep templates loaded from disk in memory when `keepInMemory` is enabled, instead of reading and unserializing them on every lookup.
+
 ## v0.12.1 - 2026-09-30
 
 ### What's Changed

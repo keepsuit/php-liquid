@@ -387,6 +387,20 @@ $environment = \Keepsuit\Liquid\EnvironmentFactory::new()
 $environment->addExtension(new CustomExtension());
 ```
 
+### Templates cache
+
+By default compiled templates are kept in a `MemoryTemplatesCache`, which lasts as long as the PHP process, so with PHP-FPM every request parses the templates again.
+`SerializeTemplatesCache` and `VarExportTemplatesCache` store compiled templates on disk.
+With `keepInMemory: true` (the default) each template is read from disk only once per cache instance.
+
+```php
+$environment = \Keepsuit\Liquid\EnvironmentFactory::new()
+    ->setTemplatesCache(new \Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache(__DIR__.'/cache/liquid'))
+    ->build();
+```
+
+`VarExportTemplatesCache` requires `symfony/var-exporter`.
+
 ## Resource limits
 
 `Keepsuit\Liquid\Render\ResourceLimits` supports both per-render limits and cumulative resource limits.
