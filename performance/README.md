@@ -18,7 +18,10 @@ tell you *what* got slower, because a regression in any one tag is averaged
 across everything else. Don't expect it to localize.
 
 **`cache`** (`TemplateCacheBench`) measures compilation and fresh-environment
-loading for every supported template-cache backend.
+loading for every supported template-cache backend. The `LoadAndRender*` subjects
+use `keepInMemory: false` and measure a disk read on every `get()`;
+`benchFreshRequestSerialize` measures a fresh request with the default
+`keepInMemory: true`.
 
 **`operations`** (`OperationBench`) measures single operations on tiny templates.
 This is where per-feature sensitivity lives, and where a benchmark is allowed to

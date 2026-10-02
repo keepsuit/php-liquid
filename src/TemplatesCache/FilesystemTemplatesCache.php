@@ -32,9 +32,13 @@ abstract class FilesystemTemplatesCache extends MemoryTemplatesCache
             return null;
         }
 
-        $compiledPath = $this->getCompiledPath($name);
+        $template = $this->loadCompiledTemplate($this->getCompiledPath($name));
 
-        return $this->loadCompiledTemplate($compiledPath);
+        if ($this->keepInMemory && $template !== null) {
+            parent::set($name, $template);
+        }
+
+        return $template;
     }
 
     public function has(string $name): bool
