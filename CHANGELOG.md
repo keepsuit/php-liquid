@@ -8,7 +8,9 @@ All notable changes to `liquid` will be documented in this file.
 
 - Align float output and string conversions with Shopify Liquid 5.13: integral floats
   retain `.0`, full float precision is preserved, and scientific notation follows Ruby.
-  Native PHP arithmetic rounding is now visible; prices and output snapshots may change.
+  Prices and output snapshots may change.
+- `plus`, `minus`, `times`, `divided_by`, `modulo` and `sum` compute with decimal arithmetic like
+  Shopify (`{{ 0.1 | plus: 0.2 }}` renders `0.3`). Adds the `brick/math` dependency.
 - Align `tablerow` HTML whitespace with Shopify: adjacent cells, newlines between rows,
   and a final newline after `</tr>`. Remove reliance on platform-specific line endings.
 - Preserve whitespace inside `raw` bodies when their delimiters use whitespace control;

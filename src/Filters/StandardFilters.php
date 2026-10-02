@@ -9,6 +9,7 @@ use Keepsuit\Liquid\Condition\ConditionOperator;
 use Keepsuit\Liquid\Contracts\AsLiquidValue;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Render\RenderContext;
+use Keepsuit\Liquid\Support\DecimalMath;
 use Keepsuit\Liquid\Support\FilterCoercion;
 use Keepsuit\Liquid\Support\FilterSupport;
 use Keepsuit\Liquid\Support\Str;
@@ -267,8 +268,8 @@ class StandardFilters extends FiltersProvider
      */
     public function dividedBy(mixed $input, mixed $operand): int|float
     {
-        $input = FilterCoercion::toNumber($input);
-        $operand = FilterCoercion::toNumber($operand);
+        $input = FilterCoercion::toDecimalNumber($input);
+        $operand = FilterCoercion::toDecimalNumber($operand);
 
         if (is_int($input) && is_int($operand)) {
             if ($input === PHP_INT_MIN && $operand === -1) {
@@ -282,7 +283,7 @@ class StandardFilters extends FiltersProvider
                 : $quotient;
         }
 
-        return fdiv($input, $operand);
+        return DecimalMath::dividedBy($input, $operand);
     }
 
     /**
@@ -432,7 +433,7 @@ class StandardFilters extends FiltersProvider
      */
     public function minus(mixed $input, mixed $operand): int|float
     {
-        return FilterCoercion::toNumber($input) - FilterCoercion::toNumber($operand);
+        return DecimalMath::minus(FilterCoercion::toDecimalNumber($input), FilterCoercion::toDecimalNumber($operand));
     }
 
     /**
@@ -440,20 +441,22 @@ class StandardFilters extends FiltersProvider
      */
     public function modulo(mixed $input, mixed $operand): int|float
     {
-        $input = FilterCoercion::toNumber($input);
-        $operand = FilterCoercion::toNumber($operand);
+        $input = FilterCoercion::toDecimalNumber($input);
+        $operand = FilterCoercion::toDecimalNumber($operand);
 
         if ($operand == 0) {
             throw new \DivisionByZeroError;
         }
 
-        $remainder = is_int($input) && is_int($operand)
-            ? $input % $operand
-            : fmod($input, $operand);
+        if (is_int($input) && is_int($operand)) {
+            $remainder = $input % $operand;
 
-        return $remainder != 0 && ($remainder < 0) !== ($operand < 0)
-            ? $remainder + $operand
-            : $remainder;
+            return $remainder !== 0 && ($remainder < 0) !== ($operand < 0)
+                ? $remainder + $operand
+                : $remainder;
+        }
+
+        return DecimalMath::modulo($input, $operand);
     }
 
     /**
@@ -471,7 +474,7 @@ class StandardFilters extends FiltersProvider
      */
     public function plus(mixed $input, mixed $operand): int|float
     {
-        return FilterCoercion::toNumber($input) + FilterCoercion::toNumber($operand);
+        return DecimalMath::plus(FilterCoercion::toDecimalNumber($input), FilterCoercion::toDecimalNumber($operand));
     }
 
     /**
@@ -744,14 +747,14 @@ class StandardFilters extends FiltersProvider
             $values[] = $property === null ? $item : $support->property($item, $property);
         }
 
-        $sum = 0;
+        $numbers = [];
 
         foreach ($support->iterate($values) as $value) {
             $value = $value instanceof AsLiquidValue ? $value->toLiquidValue() : $value;
-            $sum += FilterCoercion::toNumber($value);
+            $numbers[] = FilterCoercion::toDecimalNumber($value);
         }
 
-        return $sum;
+        return DecimalMath::sum($numbers);
     }
 
     /**
@@ -759,7 +762,7 @@ class StandardFilters extends FiltersProvider
      */
     public function times(mixed $input, mixed $operand): int|float
     {
-        return FilterCoercion::toNumber($input) * FilterCoercion::toNumber($operand);
+        return DecimalMath::times(FilterCoercion::toDecimalNumber($input), FilterCoercion::toDecimalNumber($operand));
     }
 
     /**

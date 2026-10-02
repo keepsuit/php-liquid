@@ -45,6 +45,25 @@ test('float values preserve Ruby notation and shortest round trip precision', fu
     [NAN, 'NaN'],
 ]);
 
+// Reference strings captured from Shopify Liquid 5.13.0, which computes on BigDecimal.
+test('arithmetic filters use decimal arithmetic like Shopify', function (string $source, string $expected) {
+    assertTemplateResult($expected, $source, data: ['nums' => [0.1, 0.2, 0.3]]);
+})->with([
+    ['{{ 0.1 | plus: 0.2 }}', '0.3'],
+    ['{{ 0.3 | minus: 0.1 }}', '0.2'],
+    ['{{ 1.1 | times: 3 }}', '3.3'],
+    ['{{ 0.0725 | times: 100 }}', '7.25'],
+    ['{{ 0.3 | divided_by: 0.1 }}', '3.0'],
+    ['{{ 1 | divided_by: 3.0 }}', '0.3333333333333333'],
+    ['{{ -7.3 | modulo: 2 }}', '0.7'],
+    ['{{ 100 | modulo: 0.1 }}', '0.0'],
+    ['{{ nums | sum }}', '0.6'],
+    ['{{ -33.95 | times: 0.0 }}', '-0.0'],
+    ['{{ "3.1514459742578431" | plus: 0.1 }}', '3.251445974257843'],
+    ['{{ "1.0000000000000001" | minus: 1 }}', '1.0e-16'],
+    ['{{ "1.23456789012345678" | divided_by: 3 }}', '0.41152263004115225'],
+]);
+
 test('float string conversions share output formatting', function () {
     assertTemplateResult('1.0|1.0!|!1.0|1.0,3.14159265358979|1.0 2.0',
         "{{ value }}|{{ value | append: '!' }}|{{ value | prepend: '!' }}|{{ values | join: ',' }}|{{ nested | join }}",

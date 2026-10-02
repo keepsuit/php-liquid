@@ -35,6 +35,18 @@ class FilterCoercion
         return $number;
     }
 
+    /**
+     * Like toNumber, but decimal strings are returned unchanged so no digits are lost to float precision.
+     */
+    public static function toDecimalNumber(mixed $value): int|float|string
+    {
+        if (is_string($value) && preg_match('/\A-?\d+\.\d+\z/', $trimmed = trim($value))) {
+            return $trimmed;
+        }
+
+        return self::toNumber($value);
+    }
+
     public static function toNumber(mixed $value): int|float
     {
         if ($value instanceof UndefinedVariable) {

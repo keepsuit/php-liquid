@@ -611,9 +611,9 @@ test('abs', function () {
 
 test('times', function () {
     assertTemplateResult('12', '{{ 3 | times:4 }}');
-    assertTemplateResult('7.249999999999999', '{{ 0.0725 | times:100 }}');
-    assertTemplateResult('-7.249999999999999', '{{ "-0.0725" | times:100 }}');
-    assertTemplateResult('7.249999999999999', '{{ "-0.0725" | times: -100 }}');
+    assertTemplateResult('7.25', '{{ 0.0725 | times:100 }}');
+    assertTemplateResult('-7.25', '{{ "-0.0725" | times:100 }}');
+    assertTemplateResult('7.25', '{{ "-0.0725" | times: -100 }}');
     assertTemplateResult('4', '{{ price | times:2 }}', ['price' => new NumberDrop(2)]);
 });
 

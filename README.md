@@ -130,8 +130,9 @@ $stream = $template->stream($context);
 Float output follows Shopify Liquid 5.13: integral floats keep `.0` (`{{ 2 | times: 1.5 }}` renders
 `3.0`), other floats use the shortest decimal representation that round-trips, with Ruby-style
 scientific notation, `-0.0`, `Infinity`, `-Infinity` and `NaN`. Formatting relies on PHP's default `serialize_precision` (`-1`) and
-does not depend on the numeric locale. Arithmetic uses PHP's native precision:
-`{{ 0.0725 | times: 100 }}` renders `7.249999999999999`.
+does not depend on the numeric locale. Like Shopify, `plus`, `minus`, `times`, `divided_by`,
+`modulo` and `sum` compute in decimal arithmetic on floats' shortest representation:
+`{{ 0.0725 | times: 100 }}` renders `7.25`.
 
 `tablerow` follows Shopify's HTML whitespace: a newline after the first `<tr>`, adjacent cells,
 `\n` between rows and after the final `</tr>`. Whitespace-control markers on `raw` delimiters trim
