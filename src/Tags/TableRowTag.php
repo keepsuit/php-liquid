@@ -89,7 +89,7 @@ class TableRowTag extends TagBlock
             throw new InvalidArgumentException('invalid integer');
         }
 
-        $output = '<tr class="row1">';
+        $output = "<tr class=\"row1\">\n";
 
         $context->stack(function () use ($collection, $context, $cols, $length, &$output) {
             $tableRowLoop = new TableRowLoopDrop($length, $cols);
@@ -98,7 +98,7 @@ class TableRowTag extends TagBlock
             foreach ($collection as $item) {
                 $context->set($this->variableName, $item);
 
-                $output .= sprintf('%s<td class="col%s">', PHP_EOL, $tableRowLoop->col);
+                $output .= sprintf('<td class="col%s">', $tableRowLoop->col);
                 $output .= $this->body->render($context);
                 $output .= '</td>';
 
@@ -108,14 +108,14 @@ class TableRowTag extends TagBlock
                 }
 
                 if ($tableRowLoop->col_last && ! $tableRowLoop->last) {
-                    $output .= sprintf('%s</tr>%s<tr class="row%s">', PHP_EOL, PHP_EOL, $tableRowLoop->row + 1);
+                    $output .= sprintf("</tr>\n<tr class=\"row%s\">", $tableRowLoop->row + 1);
                 }
 
                 $tableRowLoop->increment();
             }
         });
 
-        $output .= PHP_EOL.'</tr>';
+        $output .= "</tr>\n";
 
         return $output;
     }

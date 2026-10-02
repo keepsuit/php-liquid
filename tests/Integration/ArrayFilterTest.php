@@ -50,7 +50,7 @@ test('array filter behaviour is independent of render options', function (bool $
     $context = $environment->newRenderContext(data: ['values' => [[1, 1.0, '1', true]], 'items' => [['v' => ''], ['v' => []], ['v' => false]]]);
 
     expect($stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context))
-        ->toBe('|false|1,1.0,1,true|3|2')
+        ->toBe('|false|1,1.0,1,true|3.0|2')
         ->and($context->getErrors())->toBe([]);
 })->with([false, true], [false, true], [false, true], [false, true], [false, true]);
 

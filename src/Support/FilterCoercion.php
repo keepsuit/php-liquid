@@ -18,7 +18,7 @@ class FilterCoercion
             $value === null => '',
             $value === true => 'true',
             $value === false => 'false',
-            is_float($value) && ! is_finite($value) => is_nan($value) ? 'NaN' : ($value < 0 ? '-Infinity' : 'Infinity'),
+            is_float($value) => FloatFormatter::format($value),
             is_scalar($value), $value instanceof Stringable => (string) $value,
             default => '',
         };
@@ -33,6 +33,18 @@ class FilterCoercion
         }
 
         return $number;
+    }
+
+    /**
+     * Like toNumber, but decimal strings are returned unchanged so no digits are lost to float precision.
+     */
+    public static function toDecimalNumber(mixed $value): int|float|string
+    {
+        if (is_string($value) && preg_match('/\A-?\d+\.\d+\z/', $trimmed = trim($value))) {
+            return $trimmed;
+        }
+
+        return self::toNumber($value);
     }
 
     public static function toNumber(mixed $value): int|float

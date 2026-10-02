@@ -215,7 +215,9 @@ class Lexer
 
         $this->skip($terminator);
 
-        if ($this->terminatorTrim) {
+        $isRawBodyTag = $tag !== null && isset($this->rawBodyTags[$tag->data]);
+
+        if ($this->terminatorTrim && ! $isRawBodyTag) {
             $this->skipWhitespace();
         }
 
@@ -236,7 +238,7 @@ class Lexer
 
         $this->state = LexerState::Data;
 
-        if ($tag !== null && isset($this->rawBodyTags[$tag->data])) {
+        if ($isRawBodyTag) {
             $this->lexRawBodyTag($tag->data);
         }
     }
@@ -333,10 +335,6 @@ class Lexer
         // needs to emit its tokens for the parser.
         $rawBody = substr($this->source, $this->cursor, $endTag['start'] - $this->cursor);
         $this->skip($endTag['start'] - $this->cursor);
-
-        if ($endTag['innerTrim']) {
-            $rawBody = rtrim($rawBody);
-        }
 
         $this->pushToken(TokenType::RawData, $rawBody);
     }
