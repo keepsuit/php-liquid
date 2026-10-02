@@ -74,6 +74,22 @@ class TemplateCacheBench
         $this->renderCachedTheme();
     }
 
+    #[BeforeMethods('setUpSerializeFreshRequest')]
+    public function benchFreshRequestSerialize(): void
+    {
+        $this->environment = StorefrontTheme::environmentFactory()
+            ->setTemplatesCache(new SerializeTemplatesCache($this->cachePath('serialize')))
+            ->build();
+
+        $this->renderCachedTheme();
+    }
+
+    public function setUpSerializeFreshRequest(): void
+    {
+        $this->setUpBuild('serialize');
+        $this->compileStaticTheme($this->environment);
+    }
+
     public function setUpInMemoryBuild(): void
     {
         $this->setUpBuild('memory');
