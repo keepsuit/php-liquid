@@ -399,14 +399,14 @@ final class CompilerContext
 
     public function writeVariableExpression(mixed $value): string
     {
-        // Variable::renderValue() completes evaluation if the lookup resolves
+        // Variable's output helpers complete evaluation if the lookup resolves
         // to another CanBeEvaluated value rather than a scalar.
         if ($value instanceof VariableLookup && $value::class === VariableLookup::class) {
             return '\\'.VariableLookup::class.'::evaluateParts($context, '
-                .$this->writeValue($value->name).', '.$this->writeValue($value->lookups).')';
+                .$this->writeValue($value->name).', '.$this->writeCachedValue($value->lookups).')';
         }
 
-        $source = $this->writeValue($value);
+        $source = $this->writeCachedValue($value);
 
         return is_scalar($value) || $value === null
             ? $source

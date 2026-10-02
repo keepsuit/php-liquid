@@ -72,6 +72,25 @@ class CompilerTestFilters extends FiltersProvider
     {
         return 'filtered '.$value;
     }
+
+    public function compilerGenerator(mixed $value): Generator
+    {
+        yield $value;
+        yield '!';
+    }
+
+    public function compilerLookup(mixed $value): VariableLookup
+    {
+        return new VariableLookup('target');
+    }
+}
+
+class CustomCompilerTestVariable extends Variable
+{
+    public function evaluate(RenderContext $context): mixed
+    {
+        return 'custom';
+    }
 }
 
 class CompilerTestExtension extends Extension
@@ -247,10 +266,61 @@ test('compiled direct lookups fully evaluate values returned from a scope', func
         expect($compiled->render($environment->newRenderContext(data: $data)))
             ->toBe($template->render($environment->newRenderContext(data: $data)))
             ->toBe('resolved|RESOLVED');
+        expect(implode('', iterator_to_array($compiled->stream($environment->newRenderContext(data: $data)))))
+            ->toBe('resolved|RESOLVED');
     } finally {
         @unlink($path);
     }
 });
+
+test('compiled filter chains preserve generator and evaluator results', function (string $source, string $expected) {
+    $environment = EnvironmentFactory::new()->addExtension(new CompilerTestExtension)->build();
+    $template = $environment->parseString($source);
+    $path = temporaryCompiledTemplatePath();
+    $data = ['value' => 'a', 'target' => 'resolved', 'suffix' => '?', 'allow_false' => true];
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+
+        expect($compiled->render($environment->newRenderContext(data: $data)))
+            ->toBe($template->render($environment->newRenderContext(data: $data)))
+            ->toBe($expected);
+        expect(implode('', iterator_to_array($compiled->stream($environment->newRenderContext(data: $data)))))
+            ->toBe(implode('', iterator_to_array($template->stream($environment->newRenderContext(data: $data)))))
+            ->toBe($expected);
+    } finally {
+        @unlink($path);
+    }
+})->with([
+    'generator result' => ['{{ value | compiler_generator }}', 'a!'],
+    'generator between filters' => ['{{ value | compiler_generator | join: "," }}', 'a,!'],
+    'evaluator result' => ['{{ value | compiler_lookup }}', 'target'],
+    'evaluator between filters' => ['{{ value | compiler_lookup | append: suffix }}', 'target?'],
+    'named lookup argument' => ['{{ false | default: value, allow_false: allow_false }}', 'false'],
+]);
+
+test('compiled variables retain subclass evaluation', function (array $filters) {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('');
+    assert($template instanceof ParsedTemplate);
+    $template->root->body->setChildren([new CustomCompilerTestVariable(new VariableLookup('missing'), $filters)]);
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+
+        expect($compiled->render($environment->newRenderContext()))
+            ->toBe($template->render($environment->newRenderContext()))
+            ->toBe('custom');
+        expect(iterator_to_array($compiled->stream($environment->newRenderContext())))
+            ->toBe(iterator_to_array($template->stream($environment->newRenderContext())))
+            ->toBe(['custom']);
+    } finally {
+        @unlink($path);
+    }
+})->with(['unfiltered' => [[]], 'filtered' => [[['append', ['!'], []]]]]);
 
 test('custom compiler fragments can return without skipping sibling nodes', function () {
     $environment = EnvironmentFactory::new()->build();
@@ -327,7 +397,7 @@ test('compiled templates stream generated chunks without an output accumulator',
             before_needle: true,
         );
         expect($streamSource)->not->toContain('$output');
-        expect(substr_count($compiledSource, 'new \\Keepsuit\\Liquid\\Nodes\\Variable('))->toBe(1);
+        expect($compiledSource)->not->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(');
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
@@ -671,7 +741,7 @@ test('exportable nodes are rebuilt with constructors instead of serialization', 
         $environment->compile($template, $compiledPath);
 
         expect(file_get_contents($compiledPath))
-            ->toContain('new \Keepsuit\Liquid\Nodes\Variable(')
+            ->not->toContain('new \Keepsuit\Liquid\Nodes\Variable(')
             ->toContain('new \Keepsuit\Liquid\Nodes\VariableLookup(')
             ->toContain('new \Keepsuit\Liquid\Condition\Condition(')
             ->not->toContain('\unserialize(')
@@ -1003,10 +1073,10 @@ test('storefront specs compile into readable direct output', function () {
             ->toContain('use Keepsuit\\Liquid\\Compiler\\CompiledTemplate;')
             ->toContain('use Keepsuit\\Liquid\\Render\\RenderContext;')
             ->toContain('extends CompiledTemplate')
-            ->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
+            ->not->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
             ->toContain('// line 4')
             ->toContain("'size'")
-            ->toContain('private readonly mixed $value')
+            ->not->toContain('private readonly mixed $value')
             ->not->toContain('yield from [];')
             ->not->toContain('do {');
 
@@ -1037,7 +1107,7 @@ test('complex compiled variables stream directly', function () {
         $compiledSource = file_get_contents($compiledPath);
 
         expect($compiledSource)
-            ->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
+            ->toContain("new \\Keepsuit\\Liquid\\Nodes\\VariableLookup('key', [])")
             ->toContain('private readonly mixed $value0');
 
         /** @var CompiledTemplate $compiled */
@@ -1059,8 +1129,9 @@ test('direct variable emission preserves common Liquid values', function (string
         $environment->compile($template, $compiledPath);
 
         expect(file_get_contents($compiledPath))
-            ->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
-            ->toContain('private readonly mixed $value');
+            ->not->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
+            ->toContain('::evaluateParts($context,')
+            ->not->toContain('private readonly mixed $value');
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
@@ -1095,11 +1166,11 @@ test('storefront header compiles static partial rendering with direct values', f
         $compiledSource = file_get_contents($compiledPath);
 
         expect($compiledSource)
-            ->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
-            ->toContain("new \\Keepsuit\\Liquid\\Nodes\\VariableLookup('shop', ['name'])")
+            ->not->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
+            ->toContain("::evaluateParts(\$context, 'shop', ['name'])")
             ->toContain('yieldPartial')
             ->not->toContain('yield from [];')
-            ->toContain('private readonly mixed $value');
+            ->not->toContain('private readonly mixed $value');
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;

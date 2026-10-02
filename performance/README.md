@@ -49,6 +49,11 @@ Generated templates have a string-rendering method for `render()` and a lazy
 generator method for `stream()`. Native node error boundaries are emitted inline;
 custom compiler fragments retain isolated lazy boundaries so their returns and
 handled errors cannot terminate the surrounding template.
+Native variable lookups and filter chains are emitted directly. Scalar streamed
+values avoid per-variable generators; generator-valued variables remain lazy.
+Only expression objects needed at runtime are reconstructed when artifacts load.
+The default-group compiled subjects use their own setup so compiled artifacts
+cannot affect the interpreted subjects' baseline timing and memory measurements.
 The fresh artifact load subject invalidates filesystem metadata in a
 `BeforeMethods` hook; its timed body requires and validates all artifacts in an isolated
 PHP process, avoiding classes loaded during benchmark setup.

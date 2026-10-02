@@ -28,7 +28,6 @@ use PhpBench\Attributes\Revs;
 #[Revs(20)]
 #[OutputMode('throughput')]
 #[OutputTimeUnit('seconds', precision: 3)]
-#[BeforeMethods('setUp')]
 class ThemeBench
 {
     use CompilesThemeTemplates;
@@ -51,8 +50,6 @@ class ThemeBench
     public function setUp(): void
     {
         $this->environment = StorefrontTheme::environment();
-        $this->compiledEnvironment = $this->newCompiledEnvironment();
-        $this->compileThemeTemplates($this->compiledEnvironment, __DIR__.'/cache/compiled');
 
         $this->sources = [];
 
@@ -64,6 +61,14 @@ class ThemeBench
         $this->pageTemplateNames = StorefrontTheme::pageTemplateNames();
     }
 
+    public function setUpCompiled(): void
+    {
+        $this->compiledEnvironment = $this->newCompiledEnvironment();
+        $this->compileThemeTemplates($this->compiledEnvironment, __DIR__.'/cache/compiled');
+        $this->pageTemplateNames = StorefrontTheme::pageTemplateNames();
+    }
+
+    #[BeforeMethods('setUp')]
     public function benchTokenize(): void
     {
         foreach ($this->sources as $source) {
@@ -71,6 +76,7 @@ class ThemeBench
         }
     }
 
+    #[BeforeMethods('setUp')]
     public function benchParse(): void
     {
         foreach ($this->sources as $name => $source) {
@@ -78,6 +84,7 @@ class ThemeBench
         }
     }
 
+    #[BeforeMethods('setUp')]
     public function benchRender(): void
     {
         foreach ($this->pageTemplateNames as $pageTemplateName) {
@@ -85,6 +92,7 @@ class ThemeBench
         }
     }
 
+    #[BeforeMethods('setUpCompiled')]
     public function benchRenderCompiled(): void
     {
         foreach ($this->pageTemplateNames as $pageTemplateName) {
@@ -92,6 +100,7 @@ class ThemeBench
         }
     }
 
+    #[BeforeMethods('setUp')]
     public function benchStream(): void
     {
         foreach ($this->pageTemplateNames as $pageTemplateName) {
@@ -99,6 +108,7 @@ class ThemeBench
         }
     }
 
+    #[BeforeMethods('setUpCompiled')]
     public function benchStreamCompiled(): void
     {
         foreach ($this->pageTemplateNames as $pageTemplateName) {

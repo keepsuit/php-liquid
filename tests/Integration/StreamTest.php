@@ -370,6 +370,32 @@ test('compiled stream preserves filtered generator output as one chunk', functio
     expect($optimized)->toBe($interpreted)->toBe(['text1,text2']);
 });
 
+test('compiled generator variables consume and coerce one value at a time', function () {
+    $environment = Environment::default();
+    $compiled = compileStreamTestTemplate($environment, $environment->parseString('{{ value }}'));
+    $consumed = 0;
+    $value = (static function () use (&$consumed): Generator {
+        foreach ([true, null, ['a', 'b'], 2.5] as $chunk) {
+            $consumed++;
+            yield $chunk;
+        }
+    })();
+    $stream = $compiled->stream($environment->newRenderContext(data: ['value' => $value]));
+
+    expect($consumed)->toBe(0);
+    expect($stream->current())->toBe('true');
+    expect($consumed)->toBe(1);
+    $stream->next();
+    expect($stream->current())->toBe('');
+    expect($consumed)->toBe(2);
+    $stream->next();
+    expect($stream->current())->toBe('ab');
+    expect($consumed)->toBe(3);
+    $stream->next();
+    expect($stream->current())->toBe('2.5');
+    expect($consumed)->toBe(4);
+});
+
 test('compiled stream preserves unsupported tag output', function () {
     $environment = EnvironmentFactory::new()
         ->registerTag(UnsupportedCompilerStreamTestTag::class)
