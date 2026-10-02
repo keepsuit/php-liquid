@@ -215,7 +215,9 @@ class Lexer
 
         $this->skip($terminator);
 
-        if ($this->terminatorTrim && ! ($tag !== null && isset($this->rawBodyTags[$tag->data]))) {
+        $isRawBodyTag = $tag !== null && isset($this->rawBodyTags[$tag->data]);
+
+        if ($this->terminatorTrim && ! $isRawBodyTag) {
             $this->skipWhitespace();
         }
 
@@ -236,7 +238,7 @@ class Lexer
 
         $this->state = LexerState::Data;
 
-        if ($tag !== null && isset($this->rawBodyTags[$tag->data])) {
+        if ($isRawBodyTag) {
             $this->lexRawBodyTag($tag->data);
         }
     }

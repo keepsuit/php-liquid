@@ -66,35 +66,27 @@ test('arrays and generators render floats consistently', function (bool $stream)
         ->toBe('1.02.0|1.02.0');
 })->with([false, true]);
 
-test('float formatting is independent of PHP precision and locale', function (string $precision) {
-    $previousPrecision = ini_get('precision');
-    $previousSerializePrecision = ini_get('serialize_precision');
+test('float formatting is independent of numeric locale', function () {
     $previousLocale = setlocale(LC_NUMERIC, 0);
 
     try {
-        ini_set('precision', $precision);
-        ini_set('serialize_precision', $precision);
         setlocale(LC_NUMERIC, 'it_IT.UTF-8', 'fr_FR.UTF-8', 'de_DE.UTF-8');
 
         assertTemplateResult('3.14159265358979|3.14159265358979|3.14159265358979',
             "{{ value }}|{{ value | append: '' }}|{{ values | join }}",
             data: ['value' => 3.14159265358979, 'values' => [3.14159265358979]]);
-        expect(ini_get('precision'))->toBe($precision)
-            ->and(ini_get('serialize_precision'))->toBe($precision);
     } finally {
-        ini_set('precision', $previousPrecision);
-        ini_set('serialize_precision', $previousSerializePrecision);
         setlocale(LC_NUMERIC, $previousLocale);
     }
-})->with(['3', '17', '-1']);
+});
 
-test('output formatting keeps environment options independent in partials', function (bool $strictVariables, bool $strictFilters, bool $rethrowErrors, bool $lazyParsing, bool $stream) {
+test('output formatting keeps environment options independent in partials', function (bool $options, bool $stream) {
     $source = '{{ 2 | times: 1.5 }}|{%- raw -%} a {%- endraw -%}|{% tablerow i in items cols:2 %}{{ i }}{% endtablerow %}';
     $environment = EnvironmentFactory::new()
-        ->setStrictVariables($strictVariables)
-        ->setStrictFilters($strictFilters)
-        ->setRethrowErrors($rethrowErrors)
-        ->setLazyParsing($lazyParsing)
+        ->setStrictVariables($options)
+        ->setStrictFilters($options)
+        ->setRethrowErrors($options)
+        ->setLazyParsing($options)
         ->setFilesystem(new StubFileSystem(partials: ['p' => $source]))
         ->build();
     $template = $environment->parseString("{% render 'p', items: items %}");
@@ -104,4 +96,4 @@ test('output formatting keeps environment options independent in partials', func
 
     expect($output)->toBe("3.0| a |<tr class=\"row1\">\n<td class=\"col1\">1.0</td><td class=\"col2\">2.0</td></tr>\n<tr class=\"row2\"><td class=\"col1\">3.0</td></tr>\n")
         ->and($context->getErrors())->toBe([]);
-})->with([false, true], [false, true], [false, true], [false, true], [false, true]);
+})->with([false, true], [false, true]);

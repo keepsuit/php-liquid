@@ -13,23 +13,15 @@ class FloatFormatter
             return is_nan($value) ? 'NaN' : ($value < 0 ? '-Infinity' : 'Infinity');
         }
 
-        // H is locale independent. Find the shortest significant-digit count
-        // that round-trips, without relying on PHP's precision INI settings.
-        for ($precision = 1; $precision <= 17; $precision++) {
-            $formatted = sprintf('%.*H', $precision, $value);
-            if ((float) $formatted === $value) {
-                break;
-            }
-        }
-
-        $sign = str_starts_with($formatted, '-') ? '-' : '';
-        $formatted = ltrim($formatted, '-');
-        [$mantissa, $exponent] = array_pad(explode('E', $formatted), 2, '0');
-        $point = (strpos($mantissa, '.') === false ? strlen($mantissa) : strpos($mantissa, '.')) + (int) $exponent;
+        // var_export yields the shortest round-trip digits (serialize_precision = -1, the PHP default).
+        $formatted = var_export($value, true);
+        $sign = $formatted[0] === '-' ? '-' : '';
+        [$mantissa, $exponent] = array_pad(explode('E', ltrim($formatted, '-')), 2, '0');
         $digits = str_replace('.', '', $mantissa);
-        $leadingZeros = strlen($digits) - strlen(ltrim($digits, '0'));
-        $point -= $leadingZeros;
-        $digits = trim($digits, '0');
+        $point = (int) strpos($mantissa, '.') + (int) $exponent;
+        $trimmed = ltrim($digits, '0');
+        $point -= strlen($digits) - strlen($trimmed);
+        $digits = rtrim($trimmed, '0');
 
         if ($digits === '') {
             return $sign.'0.0';
@@ -37,20 +29,12 @@ class FloatFormatter
 
         // Ruby keeps a fractional part in fixed notation even above 1e15.
         if ($point <= -4 || ($point > 15 && $point >= strlen($digits))) {
-            $fraction = substr($digits, 1);
-
-            return $sign.$digits[0].'.'.($fraction === '' ? '0' : $fraction)
-                .'e'.sprintf('%+03d', $point - 1);
+            return $sign.$digits[0].'.'.(substr($digits, 1) ?: '0').'e'.sprintf('%+03d', $point - 1);
         }
 
-        if ($point <= 0) {
-            return $sign.'0.'.str_repeat('0', -$point).$digits;
-        }
+        $integer = $point > 0 ? str_pad(substr($digits, 0, $point), $point, '0') : '0';
+        $fraction = str_repeat('0', max(-$point, 0)).substr($digits, max($point, 0));
 
-        if ($point >= strlen($digits)) {
-            return $sign.$digits.str_repeat('0', $point - strlen($digits)).'.0';
-        }
-
-        return $sign.substr($digits, 0, $point).'.'.substr($digits, $point);
+        return $sign.$integer.'.'.($fraction ?: '0');
     }
 }

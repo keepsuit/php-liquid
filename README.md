@@ -128,22 +128,17 @@ $stream = $template->stream($context);
 ### Output formatting
 
 Float output follows Shopify Liquid 5.13: integral floats keep `.0` (`{{ 2 | times: 1.5 }}` renders
-`3.0`), and other floats retain the shortest decimal representation that preserves their full precision.
-Variables, string filters and `join` use the same float formatting, including Ruby-style scientific
-notation, `-0.0`, `Infinity`, `-Infinity` and `NaN`. Formatting is independent of PHP's `precision`,
-`serialize_precision` and numeric locale. Arithmetic still uses PHP's native numeric precision:
-for example, `{{ 0.0725 | times: 100 }}` renders `7.249999999999999`, rather than hiding that rounding.
+`3.0`), other floats use the shortest decimal representation that round-trips, with Ruby-style
+scientific notation, `-0.0`, `Infinity`, `-Infinity` and `NaN`. Formatting relies on PHP's default `serialize_precision` (`-1`) and
+does not depend on the numeric locale. Arithmetic uses PHP's native precision:
+`{{ 0.0725 | times: 100 }}` renders `7.249999999999999`.
 
-`tablerow` follows Shopify's HTML whitespace exactly: a newline follows the first opening `<tr>`,
-cells are adjacent, rows are separated by `\n`, and the final `</tr>` ends with `\n`.
-The whitespace-control markers on `raw` delimiters trim only the surrounding text, preserving
-whitespace inside the raw body: `{%- raw -%} a {%- endraw -%}` renders ` a `.
+`tablerow` follows Shopify's HTML whitespace: a newline after the first `<tr>`, adjacent cells,
+`\n` between rows and after the final `</tr>`. Whitespace-control markers on `raw` delimiters trim
+only the surrounding text: `{%- raw -%} a {%- endraw -%}` renders ` a `.
 
 **Compatibility change:** float strings and `tablerow` HTML differ from earlier releases. Prices,
-string conversions and exact-output snapshots may need updating. These formatting rules apply to
-both `render()` and `stream()`, independently of all environment options. `strictVariables` and
-`strictFilters` control missing names, `rethrowErrors` controls rendering error propagation,
-and `lazyParsing` controls loading uncached partials. Parsing remains strict.
+string conversions and exact-output snapshots may need updating.
 
 ### Date formatting
 
