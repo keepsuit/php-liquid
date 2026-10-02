@@ -120,6 +120,11 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
         yield from $this->streamBlocks($context);
     }
 
+    /**
+     * @param  (Closure(RenderContext): iterable<string>)|null  $forBody
+     * @param  (Closure(RenderContext): iterable<string>)|null  $elseBody
+     * @return \Generator<string>
+     */
     public function streamBlocks(RenderContext $context, ?Closure $forBody = null, ?Closure $elseBody = null): \Generator
     {
         $segment = $this->collectionSegment($context);
@@ -259,6 +264,10 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
         });
     }
 
+    /**
+     * @param  (Closure(RenderContext): iterable<string>)|null  $forBody
+     * @return \Generator<string>
+     */
     protected function streamSegment(RenderContext $context, array $segment, ?Closure $forBody = null): \Generator
     {
         /** @var ForLoopDrop[] $forStack */

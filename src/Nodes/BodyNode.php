@@ -172,7 +172,16 @@ class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
                     $node->ensureTagIsEnabled($context);
                 }
 
-                if ($node instanceof CanBeStreamed) {
+                if ($node instanceof CanBeStreamed && ! $node instanceof CanBeCompiled) {
+                    if ($buffer !== '') {
+                        yield $buffer;
+                        $buffer = '';
+                    }
+
+                    foreach ($node->stream($context) as $output) {
+                        yield $output;
+                    }
+                } elseif ($node instanceof CanBeStreamed) {
                     foreach ($node->stream($context) as $output) {
                         $buffer .= $output;
 

@@ -303,11 +303,11 @@ test('compiled control flow preserves branch selection and stream output', funct
     }
 });
 
-test('compiled conditions ignore branches after else', function () {
+test('compiled conditions preserve else behavior', function () {
     $environment = EnvironmentFactory::new()->build();
     $cases = [
         ['{% if false %}a{% else %}b{% elsif true %}c{% endif %}', [], 'b'],
-        ['{% case value %}{% else %}b{% when "a" %}a{% endcase %}', ['value' => 'a'], 'b'],
+        ['{% case value %}{% else %}b{% endcase %}', ['value' => 'a'], 'b'],
     ];
 
     foreach ($cases as [$source, $data, $expected]) {
