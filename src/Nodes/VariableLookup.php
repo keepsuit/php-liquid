@@ -88,6 +88,14 @@ class VariableLookup implements CanBeEvaluated, CanBeExported, HasParseTreeVisit
 
     public function evaluate(RenderContext $context): mixed
     {
+        if ($this->lookups === []) {
+            $variable = $context->findVariable($this->name);
+
+            return $variable instanceof MissingValue
+                ? self::undefinedValue($context, $this->name, [])
+                : $variable;
+        }
+
         return self::evaluateParts($context, $this->name, $this->lookups);
     }
 

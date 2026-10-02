@@ -28,7 +28,13 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
 
     public function render(RenderContext $context): string
     {
-        return self::renderEvaluated($context, $this->evaluate($context));
+        $output = $this->evaluate($context);
+
+        if ($output instanceof CanBeRendered) {
+            return $output->render($context);
+        }
+
+        return self::renderOutputValue($output);
     }
 
     public function compile(CompilerContext $context): void
@@ -187,7 +193,9 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
 
     public function evaluate(RenderContext $context): mixed
     {
-        return self::applyFilters($context, $context->evaluate($this->name), $this->filters);
+        $value = $context->evaluate($this->name);
+
+        return $this->filters === [] ? $value : self::applyFilters($context, $value, $this->filters);
     }
 
     /**
@@ -296,10 +304,12 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
 
     protected static function evaluateFilterExpressions(RenderContext $context, array $filterArgs): array
     {
-        return array_map(
-            fn (mixed $value) => $context->evaluate($value),
-            $filterArgs
-        );
+        $evaluated = [];
+        foreach ($filterArgs as $key => $value) {
+            $evaluated[$key] = $context->evaluate($value);
+        }
+
+        return $evaluated;
     }
 
     public function debugLabel(): ?string
