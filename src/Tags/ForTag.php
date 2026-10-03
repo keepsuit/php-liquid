@@ -13,6 +13,7 @@ use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Interrupts\BreakInterrupt;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Nodes\Literal;
+use Keepsuit\Liquid\Nodes\Range;
 use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\ExpressionParser;
 use Keepsuit\Liquid\Parse\TagParseContext;
@@ -247,7 +248,10 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
         $offsets = $context->getRegister('for') ?? [];
         assert(is_array($offsets));
 
-        $collection = Arr::fromCollection($context->evaluate($expression));
+        $collection = $context->evaluate($expression);
+        if (! $collection instanceof Range || $collection::class !== Range::class) {
+            $collection = Arr::fromCollection($collection);
+        }
 
         if ($from === 'continue') {
             $offset = $offsets[$name] ?? 0;
@@ -268,6 +272,7 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
             default => throw new InvalidArgumentException('Invalid integer'),
         };
         $segment = match (true) {
+            $collection instanceof Range => $collection->slice($offset, $length),
             $offset === 0 && $length === null => $collection,
             default => array_slice($collection, $offset, $length)
         };
@@ -281,43 +286,24 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
 
     protected function renderSegment(RenderContext $context, array $segment, ?Closure $forBody = null): string
     {
-        /** @var ForLoopDrop[] $forStack */
-        $forStack = $context->getRegister('for_stack') ?? [];
-        assert(is_array($forStack));
+        $loopVars = self::enterLoop($context, $this->name, count($segment));
 
-        return $context->stack(function () use ($context, $segment, $forStack, $forBody) {
-            $loopVars = new ForLoopDrop(
-                name: $this->name,
-                length: count($segment),
-                parentLoop: $forStack !== [] ? $forStack[count($forStack) - 1] : null,
-            );
+        try {
+            $output = '';
+            foreach ($segment as $value) {
+                $context->set($this->variableName, $value);
+                $output .= $forBody !== null ? $forBody($context) : $this->forBlock->render($context);
+                $loopVars->increment();
 
-            $forStack[] = $loopVars;
-            $context->setRegister('for_stack', $forStack);
-
-            try {
-                $context->set('forloop', $loopVars);
-                $output = '';
-                foreach ($segment as $value) {
-                    $context->set($this->variableName, $value);
-                    $output .= $forBody !== null ? $forBody($context) : $this->forBlock->render($context);
-                    $loopVars->increment();
-
-                    $interrupt = $context->popInterrupt();
-
-                    if ($interrupt instanceof BreakInterrupt) {
-                        break;
-                    }
+                if ($context->popInterrupt() instanceof BreakInterrupt) {
+                    break;
                 }
-            } finally {
-                $forStack = $context->getRegister('for_stack');
-                assert(is_array($forStack));
-                array_pop($forStack);
-                $context->setRegister('for_stack', $forStack);
             }
 
             return $output;
-        });
+        } finally {
+            self::leaveLoop($context);
+        }
     }
 
     /**
@@ -326,47 +312,27 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
      */
     protected function streamSegment(RenderContext $context, array $segment, ?Closure $forBody = null): \Generator
     {
-        /** @var ForLoopDrop[] $forStack */
-        $forStack = $context->getRegister('for_stack') ?? [];
-        assert(is_array($forStack));
+        $loopVars = self::enterLoop($context, $this->name, count($segment));
 
-        yield from $context->streamedStack(function () use ($context, $segment, $forStack, $forBody): \Generator {
-            $loopVars = new ForLoopDrop(
-                name: $this->name,
-                length: count($segment),
-                parentLoop: $forStack !== [] ? $forStack[count($forStack) - 1] : null,
-            );
+        try {
+            foreach ($segment as $value) {
+                $context->set($this->variableName, $value);
 
-            $forStack[] = $loopVars;
-            $context->setRegister('for_stack', $forStack);
-
-            try {
-                $context->set('forloop', $loopVars);
-
-                foreach ($segment as $value) {
-                    $context->set($this->variableName, $value);
-
-                    if ($forBody !== null) {
-                        yield from $forBody($context);
-                    } else {
-                        yield from $this->forBlock->stream($context);
-                    }
-
-                    $loopVars->increment();
-
-                    $interrupt = $context->popInterrupt();
-
-                    if ($interrupt instanceof BreakInterrupt) {
-                        break;
-                    }
+                if ($forBody !== null) {
+                    yield from $forBody($context);
+                } else {
+                    yield from $this->forBlock->stream($context);
                 }
-            } finally {
-                $forStack = $context->getRegister('for_stack');
-                assert(is_array($forStack));
-                array_pop($forStack);
-                $context->setRegister('for_stack', $forStack);
+
+                $loopVars->increment();
+
+                if ($context->popInterrupt() instanceof BreakInterrupt) {
+                    break;
+                }
             }
-        });
+        } finally {
+            self::leaveLoop($context);
+        }
     }
 
     protected function renderElse(RenderContext $context): string

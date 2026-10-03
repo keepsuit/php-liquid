@@ -7,6 +7,7 @@ use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Interrupts\BreakInterrupt;
 use Keepsuit\Liquid\Nodes\BodyNode;
+use Keepsuit\Liquid\Nodes\Range;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\RenderContext;
@@ -67,7 +68,9 @@ class TableRowTag extends TagBlock
             return '';
         }
 
-        $collection = Arr::fromCollection($collection);
+        if (! $collection instanceof Range || $collection::class !== Range::class) {
+            $collection = Arr::fromCollection($collection);
+        }
 
         $offset = Arr::has($this->attributes, 'offset') ? ($context->evaluate($this->attributes['offset']) ?? 0) : 0;
         if (! is_int($offset)) {
@@ -79,6 +82,7 @@ class TableRowTag extends TagBlock
         }
 
         $collection = match (true) {
+            $collection instanceof Range => $collection->slice($offset, $length),
             $offset === 0 && $length === null => $collection,
             default => array_slice($collection, $offset, $length)
         };

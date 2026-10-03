@@ -30,6 +30,10 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
     {
         $output = $this->evaluate($context);
 
+        if (is_string($output)) {
+            return $output;
+        }
+
         if ($output instanceof CanBeRendered) {
             return $output->render($context);
         }
@@ -163,10 +167,16 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
     }
 
     /**
-     * Resolve a compiled expression without allocating a generator for scalar values.
+     * Resolve a value without allocating a generator for scalar output.
+     *
+     * @return string|\Generator<string>
      */
     public static function streamValue(RenderContext $context, mixed $output): string|\Generator
     {
+        if (is_string($output)) {
+            return $output;
+        }
+
         if ($output instanceof CanBeEvaluated) {
             $output = $context->evaluate($output);
         }

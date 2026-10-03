@@ -29,11 +29,26 @@ class OperationBench
 
     private Template $nestedTemplate;
 
+    private Template $arrayOutputTemplate;
+
+    /** @var list<string> */
+    private array $arrayOutputData;
+
+    /** @var list<list<string>> */
+    private array $nestedArrayOutputData;
+
     private Template $filterWithoutArgumentsTemplate;
 
     private Template $filterWithArgumentsTemplate;
 
     private Template $arrayFiltersTemplate;
+
+    private Template $limitedRangeTemplate;
+
+    private Template $uniqNestedListsTemplate;
+
+    /** @var list<array{tags: list<int>}> */
+    private array $uniqNestedListsData;
 
     private Template $dropMethodTemplate;
 
@@ -71,9 +86,18 @@ class OperationBench
         $this->environment = EnvironmentFactory::new()->build();
         $this->scalarTemplate = $this->environment->parseString(str_repeat('{{ value }}', 64));
         $this->nestedTemplate = $this->environment->parseString(str_repeat('{{ product.title }}', 64));
+        $this->arrayOutputTemplate = $this->environment->parseString(str_repeat('{{ values }}', 16));
+        $this->arrayOutputData = array_fill(0, 256, 'value');
+        $this->nestedArrayOutputData = array_fill(0, 32, array_fill(0, 8, 'value'));
         $this->filterWithoutArgumentsTemplate = $this->environment->parseString(str_repeat('{{ value | upcase | escape }}', 32));
         $this->filterWithArgumentsTemplate = $this->environment->parseString(str_repeat('{{ value | append: suffix | replace: from, to }}', 32));
         $this->arrayFiltersTemplate = $this->environment->parseString(str_repeat("{{ products | map: 'vendor' | uniq | sort | join: ',' }}", 16));
+        $this->limitedRangeTemplate = $this->environment->parseString('{% for i in (1..1000000) limit:5 %}{{ i }}{% endfor %}');
+        $this->uniqNestedListsTemplate = $this->environment->parseString("{{ records | uniq: 'tags' | size }}");
+        $this->uniqNestedListsData = [];
+        for ($i = 0; $i < 64; $i++) {
+            $this->uniqNestedListsData[] = ['tags' => range($i % 4, $i % 4 + 255)];
+        }
         $this->dropMethodTemplate = $this->environment->parseString(str_repeat('{{ product.url }}', 64));
         $this->dropMethodMissingHitTemplate = $this->environment->parseString(str_repeat('{{ product.metafields.material }}', 64));
         $this->dropMethodMissingMissTemplate = $this->environment->parseString(str_repeat('{{ product.metafields.unknown }}', 64));
@@ -98,6 +122,18 @@ class OperationBench
         ));
     }
 
+    public function benchLimitedRangeRender(): void
+    {
+        $this->limitedRangeTemplate->render($this->environment->newRenderContext());
+    }
+
+    public function benchUniqNestedLists(): void
+    {
+        $this->uniqNestedListsTemplate->render($this->environment->newRenderContext(
+            data: ['records' => $this->uniqNestedListsData],
+        ));
+    }
+
     public function benchScalarStream(): void
     {
         $this->drain($this->scalarTemplate->stream($this->environment->newRenderContext(
@@ -117,6 +153,20 @@ class OperationBench
         $this->drain($this->nestedTemplate->stream($this->environment->newRenderContext(
             staticData: ['product' => ['title' => 'Product title']],
         )));
+    }
+
+    public function benchArrayOutputRender(): void
+    {
+        $this->arrayOutputTemplate->render($this->environment->newRenderContext(
+            staticData: ['values' => $this->arrayOutputData],
+        ));
+    }
+
+    public function benchNestedArrayOutputRender(): void
+    {
+        $this->arrayOutputTemplate->render($this->environment->newRenderContext(
+            staticData: ['values' => $this->nestedArrayOutputData],
+        ));
     }
 
     public function benchDropRender(): void

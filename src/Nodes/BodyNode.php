@@ -182,12 +182,28 @@ class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
                         yield $output;
                     }
                 } elseif ($node instanceof CanBeStreamed) {
-                    foreach ($node->stream($context) as $output) {
-                        $buffer .= $output;
+                    // Native scalar variables need no generator. Subclasses
+                    // retain their stream overrides and filtered values render
+                    // completely before their output reaches the buffer.
+                    $value = $node::class === Variable::class
+                        ? ($node->filters !== [] ? $node->render($context) : Variable::streamValue($context, $node->evaluate($context)))
+                        : $node->stream($context);
+
+                    if (is_string($value)) {
+                        $buffer .= $value;
 
                         if (strlen($buffer) >= self::MAX_BUFFERED_BYTES) {
                             yield $buffer;
                             $buffer = '';
+                        }
+                    } else {
+                        foreach ($value as $output) {
+                            $buffer .= $output;
+
+                            if (strlen($buffer) >= self::MAX_BUFFERED_BYTES) {
+                                yield $buffer;
+                                $buffer = '';
+                            }
                         }
                     }
                 } else {

@@ -171,7 +171,7 @@ class VariableLookup implements CanBeEvaluated, CanBeExported, HasParseTreeVisit
                 return new MissingValue;
             }
 
-            if (is_array($object) && array_is_list($object) && is_int($key) && $key < 0) {
+            if (is_int($key) && $key < 0 && is_array($object) && array_is_list($object)) {
                 $key += count($object);
             }
 

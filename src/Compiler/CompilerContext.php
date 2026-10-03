@@ -15,10 +15,17 @@ use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\Tags\AssignTag;
+use Keepsuit\Liquid\Tags\BreakTag;
 use Keepsuit\Liquid\Tags\CaptureTag;
 use Keepsuit\Liquid\Tags\CaseTag;
+use Keepsuit\Liquid\Tags\ContinueTag;
+use Keepsuit\Liquid\Tags\CycleTag;
+use Keepsuit\Liquid\Tags\DecrementTag;
+use Keepsuit\Liquid\Tags\EchoTag;
 use Keepsuit\Liquid\Tags\ForTag;
 use Keepsuit\Liquid\Tags\IfTag;
+use Keepsuit\Liquid\Tags\IncrementTag;
+use Keepsuit\Liquid\Tags\LiquidTag;
 use Keepsuit\Liquid\Tags\RenderTag;
 use Keepsuit\Liquid\Tags\UnlessTag;
 
@@ -31,6 +38,9 @@ final class CompilerContext
 
     /** @var array<int, string> */
     private array $fallbackObjectProperties = [];
+
+    /** @var array<string, string> */
+    private array $fallbackLookupProperties = [];
 
     /** @var array<int, array{node: Node, source: ?string}> */
     private array $extensionSources = [];
@@ -85,15 +95,16 @@ final class CompilerContext
             '$this->incrementCompiledRenderScore($context, %s);',
             $this->writeValue($renderScore),
         ));
-        $this->writeSource($source['source']);
+        $this->writeBodySource($source);
 
         return $this;
     }
 
     public function writeBodyCallback(Node $body, string $suffix = ''): static
     {
+        $bufferState = $this->builder->streamBufferState();
         $renderScore = $body instanceof BodyNode ? count($body->children()) : 1;
-        $source = $this->compileBodySource($body);
+        $source = $this->compileBodySource($body, emptyBuffer: true);
 
         $this->write('function (RenderContext $context): '.($this->rendering ? 'string' : 'iterable').' {');
         $this->indent();
@@ -106,7 +117,7 @@ final class CompilerContext
             '$this->incrementCompiledRenderScore($context, %s);',
             $this->writeValue($renderScore),
         ));
-        $this->writeSource($source['source']);
+        $this->writeBodySource($source);
         if ($this->rendering) {
             $this->write('return $output;');
         } elseif ($this->buffering && $source['hasYield']) {
@@ -115,12 +126,14 @@ final class CompilerContext
             $this->write('return [];');
         }
         $this->outdent()->write('}'.$suffix);
+        $this->builder->setStreamBufferState($bufferState);
 
         return $this;
     }
 
     public function writeCaptureBody(BodyNode $body, string $result): void
     {
+        $bufferState = $this->builder->streamBufferState();
         $rendering = $this->rendering;
         $this->rendering = true;
         try {
@@ -135,15 +148,32 @@ final class CompilerContext
         $this->writeSource($source['source']);
         $this->write('return $output;');
         $this->outdent()->write('});');
+        $this->builder->setStreamBufferState($bufferState);
+    }
+
+    public function writeRenderedBody(BodyNode $body, string $result): void
+    {
+        $rendering = $this->rendering;
+        $this->rendering = true;
+
+        try {
+            $this->write($result.' = (');
+            $this->writeBodyCallback($body, ')($context);');
+        } finally {
+            $this->rendering = $rendering;
+        }
     }
 
     /**
-     * @return array{source:string,hasYield:bool}
+     * @return array{source:string,hasYield:bool,bufferState:array{checked:bool,empty:bool}}
      */
-    private function compileBodySource(Node $body): array
+    private function compileBodySource(Node $body, bool $emptyBuffer = false): array
     {
         $outerBuilder = $this->builder;
         $this->builder = new CodeBuilder;
+        if ($emptyBuffer) {
+            $this->builder->setStreamBufferState(['checked' => true, 'empty' => true]);
+        }
 
         try {
             $this->subcompile($body);
@@ -151,10 +181,18 @@ final class CompilerContext
             return [
                 'source' => $this->builder->getSource(),
                 'hasYield' => $this->builder->yieldCount() > 0,
+                'bufferState' => $this->builder->streamBufferState(),
             ];
         } finally {
             $this->builder = $outerBuilder;
         }
+    }
+
+    /** @param array{source:string,hasYield:bool,bufferState:array{checked:bool,empty:bool}} $source */
+    private function writeBodySource(array $source): void
+    {
+        $this->writeSource($source['source']);
+        $this->builder->setStreamBufferState($source['bufferState']);
     }
 
     private function writeSource(string $source): void
@@ -169,7 +207,7 @@ final class CompilerContext
     public function compileRootBody(BodyNode $body): void
     {
         $renderScore = count($body->children());
-        $source = $this->compileBodySource($body);
+        $source = $this->compileBodySource($body, emptyBuffer: true);
 
         if ($this->rendering) {
             $this->write('$output = "";');
@@ -181,12 +219,12 @@ final class CompilerContext
             '$this->incrementCompiledRenderScore($context, %s);',
             $this->writeValue($renderScore),
         ));
-        $this->writeSource($source['source']);
+        $this->writeBodySource($source);
 
         if ($this->rendering) {
             $this->write('return $output;');
         } elseif ($this->buffering && $source['hasYield']) {
-            $this->flushStreamBuffer();
+            $this->flushStreamBuffer(reset: false);
         } elseif (! $source['hasYield']) {
             $this->write('return [];');
         }
@@ -239,19 +277,24 @@ final class CompilerContext
 
     public function flushStreamBufferIfFull(): void
     {
-        if (! $this->rendering && $this->buffering) {
+        if (! $this->rendering && $this->buffering && ! $this->builder->streamBufferState()['checked']) {
             $this->write('if (strlen($buffer) >= 4096) {')->indent();
             $this->write('yield $buffer;')->write('$buffer = "";');
             $this->outdent()->write('}');
+            $this->builder->setStreamBufferState(['checked' => true, 'empty' => false]);
         }
     }
 
-    public function flushStreamBuffer(): void
+    public function flushStreamBuffer(bool $reset = true): void
     {
-        if (! $this->rendering && $this->buffering) {
+        if (! $this->rendering && $this->buffering && ! $this->builder->streamBufferState()['empty']) {
             $this->write('if ($buffer !== "") {')->indent();
-            $this->write('yield $buffer;')->write('$buffer = "";');
+            $this->write('yield $buffer;');
+            if ($reset) {
+                $this->write('$buffer = "";');
+            }
             $this->outdent()->write('}');
+            $this->builder->setStreamBufferState(['checked' => $reset, 'empty' => $reset]);
         }
     }
 
@@ -281,7 +324,14 @@ final class CompilerContext
     public function subcompile(Node $node): static
     {
         if ($node instanceof Text || $node instanceof Raw || $node instanceof BodyNode || $node instanceof Document) {
+            $custom = ! in_array($node::class, [Text::class, Raw::class, BodyNode::class, Document::class], true);
+            if ($custom) {
+                $this->builder->setStreamBufferState(['checked' => false, 'empty' => false]);
+            }
             $node->compile($this);
+            if ($custom) {
+                $this->builder->setStreamBufferState(['checked' => false, 'empty' => false]);
+            }
 
             return $this;
         }
@@ -300,16 +350,16 @@ final class CompilerContext
         $rendering = $this->rendering;
         $id = spl_object_id($node);
         $fallback = isset($this->extensionSources[$id]) && $this->extensionSources[$id]['source'] === null;
-        if ($node instanceof AssignTag || $node instanceof CaptureTag || $node instanceof ForTag) {
+        if ($node instanceof AssignTag || $node instanceof CaptureTag || $node instanceof ForTag || $node instanceof LiquidTag) {
             $compilerClass = (new \ReflectionMethod($node, 'compile'))->getDeclaringClass()->getName();
-            $fallback = $fallback || ($node::class !== $compilerClass && in_array($compilerClass, [AssignTag::class, CaptureTag::class, ForTag::class], true));
+            $fallback = $fallback || ($node::class !== $compilerClass && in_array($compilerClass, [AssignTag::class, CaptureTag::class, ForTag::class, LiquidTag::class], true));
         }
 
         // Extension fragments may return from their node or yield before failing.
         // Keep their lazy boundary; native nodes can use an inline try/catch.
         $extension = $node instanceof CanBeCompiled && ! in_array($node::class, [
             Variable::class, IfTag::class, UnlessTag::class, CaseTag::class,
-            ForTag::class, RenderTag::class, AssignTag::class, CaptureTag::class,
+            ForTag::class, RenderTag::class, AssignTag::class, CaptureTag::class, LiquidTag::class,
         ], true);
         $lazy = $extension && ! $fallback;
 
@@ -320,10 +370,12 @@ final class CompilerContext
             } else {
                 $this->writeLineComment($node->lineNumber());
 
-                if ($node instanceof CanBeCompiled && ! $fallback) {
-                    $node->compile($this);
-                } else {
-                    $this->compileFallback($node);
+                if (! $this->compileNativeTag($node)) {
+                    if ($node instanceof CanBeCompiled && ! $fallback) {
+                        $node->compile($this);
+                    } else {
+                        $this->compileFallback($node);
+                    }
                 }
             }
             $this->rendering = $rendering;
@@ -340,6 +392,22 @@ final class CompilerContext
             $this->compileFallback($node);
             $this->writeNodeEnd($node, false);
         }
+    }
+
+    private function compileNativeTag(Node $node): bool
+    {
+        // Avoid adding CanBeCompiled to these tags: streamed subclasses must
+        // retain their existing unbuffered extension boundary in BodyNode.
+        if (($node instanceof EchoTag || $node instanceof IncrementTag || $node instanceof CycleTag
+            || $node instanceof BreakTag || $node instanceof ContinueTag)
+            && in_array($node::class, [EchoTag::class, IncrementTag::class, DecrementTag::class,
+                CycleTag::class, BreakTag::class, ContinueTag::class], true)) {
+            $node->compileNative($this);
+
+            return true;
+        }
+
+        return false;
     }
 
     private function compileExtensionSource(Node $node): string
@@ -406,15 +474,25 @@ final class CompilerContext
         }
 
         $line = $this->writeValue($node->lineNumber());
-        $this->outdent()->write('} catch (\\Keepsuit\\Liquid\\Exceptions\\UndefinedVariableException|\\Keepsuit\\Liquid\\Exceptions\\UndefinedDropMethodException|\\Keepsuit\\Liquid\\Exceptions\\UndefinedFilterException $exception) {');
-        $this->indent();
-        $this->flushStreamBuffer();
-        $this->write('$context->handleError($exception, '.$line.');');
+        $successBufferState = $this->builder->streamBufferState();
         $this->outdent()->write('} catch (\\Throwable $exception) {');
+        // A throw into yield can precede the buffer reset. Catch paths cannot
+        // reuse facts about the successful path through this node.
+        $this->builder->setStreamBufferState(['checked' => false, 'empty' => false]);
         $this->indent();
         $this->flushStreamBuffer();
-        $this->writeOutput('$context->handleError($exception, '.$line.')');
+        $error = '$this->compiledErrorOutput($exception, $context->handleError($exception, '.$line.'))';
+        if ($this->rendering || $this->buffering) {
+            $this->writeOutput('('.$error.' ?? "")');
+        } else {
+            $value = $this->temporaryVariable();
+            $this->write($value.' = '.$error.';');
+            $this->write('if ('.$value.' !== null) {')->indent();
+            $this->writeOutput($value);
+            $this->outdent()->write('}');
+        }
         $this->outdent()->write('}');
+        $this->builder->setStreamBufferState(['checked' => $successBufferState['checked'], 'empty' => false]);
     }
 
     /**
@@ -579,6 +657,11 @@ final class CompilerContext
             return '$this->'.$this->fallbackObjectProperties[spl_object_id($value)];
         }
 
+        $lookupKey = $this->staticLookupKey($value);
+        if ($lookupKey !== null && isset($this->fallbackLookupProperties[$lookupKey])) {
+            return '$this->'.$this->fallbackLookupProperties[$lookupKey];
+        }
+
         $property = 'value'.count($this->fallbackValues);
         $this->fallbackValues[$property] = $value;
 
@@ -586,7 +669,26 @@ final class CompilerContext
             $this->fallbackObjectProperties[spl_object_id($value)] = $property;
         }
 
+        if ($lookupKey !== null) {
+            $this->fallbackLookupProperties[$lookupKey] = $property;
+        }
+
         return '$this->'.$property;
+    }
+
+    private function staticLookupKey(mixed $value): ?string
+    {
+        if (! $value instanceof VariableLookup || $value::class !== VariableLookup::class) {
+            return null;
+        }
+
+        foreach ($value->lookups as $lookup) {
+            if (! is_string($lookup) && ! is_int($lookup)) {
+                return null;
+            }
+        }
+
+        return serialize([$value->name, $value->lookups]);
     }
 
     private function rollbackFallbackValues(int $count): void
@@ -594,6 +696,9 @@ final class CompilerContext
         foreach (array_slice($this->fallbackValues, $count) as $value) {
             if (is_object($value)) {
                 unset($this->fallbackObjectProperties[spl_object_id($value)]);
+            }
+            if (($lookupKey = $this->staticLookupKey($value)) !== null) {
+                unset($this->fallbackLookupProperties[$lookupKey]);
             }
         }
 
@@ -603,7 +708,7 @@ final class CompilerContext
     /**
      * Restore compiler state after a node's direct or native compiler path fails.
      *
-     * @param  array{sourceLength:int,indentLevel:int,yieldCount:int}  $checkpoint
+     * @param  array{sourceLength:int,indentLevel:int,yieldCount:int,bufferState:array{checked:bool,empty:bool},bufferScopes:list<array{checked:bool,empty:bool}>}  $checkpoint
      */
     private function rollbackCompilation(array $checkpoint, int $fallbackValueCount): void
     {

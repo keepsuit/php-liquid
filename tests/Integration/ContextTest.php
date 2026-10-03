@@ -137,6 +137,26 @@ test('lookup falls back to outer scope when the inner value has no such key', fu
     'strict' => true,
 ]);
 
+test('null values shadow outer values at every lookup level', function () {
+    $context = new RenderContext(
+        data: ['value' => 'data', 'product' => ['title' => 'data title']],
+        staticData: ['value' => 'static', 'onlyStatic' => null],
+        options: new RenderContextOptions(strictVariables: true),
+    );
+    $context->set('value', null);
+    $context->set('product', ['title' => null]);
+
+    expect($context->get('value'))->toBeNull();
+    expect($context->get('product.title'))->toBeNull();
+    expect($context->get('onlyStatic'))->toBeNull();
+    expect($context->get('missing'))->toBeInstanceOf(UndefinedVariable::class);
+
+    $context->stack(function (RenderContext $context) {
+        $context->set('product', ['other' => true]);
+        expect($context->get('product.title'))->toBeNull();
+    });
+});
+
 test('add item in inner scope', function (bool $strict) {
     $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->stack(function () use ($context) {

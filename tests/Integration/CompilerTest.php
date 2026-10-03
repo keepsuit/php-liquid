@@ -85,6 +85,152 @@ class CompilerTestFilters extends FiltersProvider
     }
 }
 
+trait CompilerSmallTagOverride
+{
+    public function render(RenderContext $context): string
+    {
+        return 'override';
+    }
+
+    public function stream(RenderContext $context): Generator
+    {
+        yield 'first';
+        yield 'second';
+    }
+}
+
+class CompilerCustomEchoTag extends \Keepsuit\Liquid\Tags\EchoTag implements CanBeStreamed, Disableable
+{
+    use CompilerSmallTagOverride;
+}
+
+class CompilerCustomIncrementTag extends \Keepsuit\Liquid\Tags\IncrementTag implements CanBeStreamed, Disableable
+{
+    use CompilerSmallTagOverride;
+}
+
+class CompilerCustomDecrementTag extends \Keepsuit\Liquid\Tags\DecrementTag implements CanBeStreamed, Disableable
+{
+    use CompilerSmallTagOverride;
+}
+
+class CompilerCustomCycleTag extends \Keepsuit\Liquid\Tags\CycleTag implements CanBeStreamed, Disableable
+{
+    use CompilerSmallTagOverride;
+}
+
+class CompilerCustomBreakTag extends \Keepsuit\Liquid\Tags\BreakTag implements CanBeStreamed, Disableable
+{
+    use CompilerSmallTagOverride;
+}
+
+class CompilerCustomContinueTag extends \Keepsuit\Liquid\Tags\ContinueTag implements CanBeStreamed, Disableable
+{
+    use CompilerSmallTagOverride;
+}
+
+test('small native tag compilers avoid serialized tag objects', function () {
+    $environment = EnvironmentFactory::new()->setStrictVariables(true)->setStrictFilters(true)->setRethrowErrors(true)->build();
+    $source = "{% echo value | upcase %}|{% increment counter %}|{% decrement counter %}|{% cycle 'a', 'b' %}|"
+        .'{% for i in (1..3) %}{% if i == 1 %}{% continue %}{% endif %}{% echo i %}{% break %}{% endfor %}';
+    $template = $environment->parseString($source);
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        expect(file_get_contents($path))->not->toContain('unserialize(');
+        foreach ([$template, $compiled] as $candidate) {
+            foreach ([false, true] as $stream) {
+                $context = $environment->newRenderContext(data: ['value' => 'value']);
+                expect($stream ? implode('', iterator_to_array($candidate->stream($context))) : $candidate->render($context))
+                    ->toBe('VALUE|0|0|a|2');
+                expect($context->getData('counter'))->toBe(0);
+            }
+        }
+    } finally {
+        @unlink($path);
+    }
+});
+
+test('small native tag subclasses retain overrides stream boundaries and disabled checks', function (string $class, string $tag) {
+    $environment = EnvironmentFactory::new()->registerTag($class)->build();
+    $template = $environment->parseString('before{% '.$tag.' %}after');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            expect($candidate->render($environment->newRenderContext()))->toBe('beforeoverrideafter');
+            expect(iterator_to_array($candidate->stream($environment->newRenderContext()), false))
+                ->toBe(['before', 'first', 'second', 'after']);
+            foreach ([false, true] as $stream) {
+                $context = $environment->newRenderContext();
+                $output = $context->withDisabledTags([$class::tagName()], fn () => $stream
+                    ? implode('', iterator_to_array($candidate->stream($context)))
+                    : $candidate->render($context));
+                expect($output)->toBe('beforeLiquid error (line 1): '.$class::tagName().' usage is not allowed in this contextafter');
+                expect($context->getErrors())->toHaveCount(1);
+            }
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([
+    [CompilerCustomEchoTag::class, "echo 'ignored'"],
+    [CompilerCustomIncrementTag::class, 'increment counter'],
+    [CompilerCustomDecrementTag::class, 'decrement counter'],
+    [CompilerCustomCycleTag::class, "cycle 'a', 'b'"],
+    [CompilerCustomBreakTag::class, 'break'],
+    [CompilerCustomContinueTag::class, 'continue'],
+]);
+
+test('compiled echo consumes generator values atomically before yielding', function (bool $fail) {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('prefix{% echo values %}{% echo tail %}');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        $outputs = [];
+        foreach ([$template, $compiled] as $candidate) {
+            $events = [];
+            $values = (function () use (&$events, $fail) {
+                $events[] = 'first';
+                yield str_repeat('x', 4096);
+                $events[] = 'second';
+                if ($fail) {
+                    throw new RuntimeException('echo failure');
+                }
+                yield 'y';
+            })();
+            $context = $environment->newRenderContext(data: [
+                'values' => $values,
+                'tail' => function () use (&$events) {
+                    $events[] = 'tail';
+
+                    return 'tail';
+                },
+            ]);
+            $stream = $candidate->stream($context);
+            $first = $stream->current();
+            expect($events)->toBe(['first', 'second']);
+            expect($first)->toBe($fail ? 'prefix' : 'prefix'.str_repeat('x', 4096).'y');
+            $outputs[] = implode('', iterator_to_array($stream));
+            expect($events)->toBe(['first', 'second', 'tail']);
+            expect($context->getErrors())->toHaveCount($fail ? 1 : 0);
+        }
+        expect($outputs[0])->toBe($outputs[1]);
+        if ($fail) {
+            expect($outputs[0])->not->toContain('xxx');
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([false, true]);
+
 class CustomCompilerTestVariable extends Variable
 {
     public function evaluate(RenderContext $context): mixed
@@ -138,6 +284,7 @@ class FailingCompilableCompilerTestNode extends Node implements CanBeCompiled
         self::$compilations++;
         $context->writeOutput($context->writeValue('partial output'));
         $context->writeRuntimeValue($this);
+        $context->writeCachedValue(new VariableLookup('marker', ['value']));
 
         throw new RuntimeException('compiler test failure');
     }
@@ -409,6 +556,183 @@ test('compiled templates buffer native chunks without using the render accumulat
             ->toBe('Hello World!');
     } finally {
         @unlink($compiledPath);
+    }
+});
+
+test('compiled stream avoids redundant buffer guards', function (string $source) {
+    $environment = EnvironmentFactory::new()
+        ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem(['p' => '{{ value }}']))
+        ->build();
+    $template = $environment->parseString($source);
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $generated = file_get_contents($path);
+        $guard = 'if \\(strlen\\(\\$buffer\\) >= 4096\\) \\{\\s*yield \\$buffer;\\s*\\$buffer = "";\\s*\\}';
+        expect(preg_match('/'.$guard.'\\s*'.$guard.'/', $generated))->toBe(0);
+
+        $compiled = require $path;
+        foreach ([false, true] as $enabled) {
+            foreach (['short', str_repeat('x', 4096)] as $value) {
+                $data = ['value' => $value, 'enabled' => $enabled, 'items' => $enabled ? [1, 2] : []];
+                expect(implode('', iterator_to_array($compiled->stream($environment->newRenderContext(data: $data)))))
+                    ->toBe($template->render($environment->newRenderContext(data: $data)));
+            }
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([
+    'adjacent native nodes' => 'a{{ value }}b{{ value }}c',
+    'branch and loop joins' => '{% if enabled %}{{ value }}{% endif %}{% for i in items %}a{{ value }}{% endfor %}tail',
+    'partial boundaries' => 'before{% render "p", value: value %}after',
+]);
+
+test('compiled body preserves buffered output when an exception interrupts a yield', function () {
+    $environment = EnvironmentFactory::new()->setRethrowErrors(false)->build();
+    $template = $environment->parseString('{{ value }}tail');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        $results = [];
+        foreach ([$template, $compiled] as $candidate) {
+            $context = $environment->newRenderContext(data: ['value' => str_repeat('x', 4096)]);
+            // Template::stream forwards chunks through its own generator. Inject
+            // into the body itself to exercise its buffer reset and catch path.
+            $stream = $candidate instanceof ParsedTemplate
+                ? $candidate->root->body->stream($context)
+                : (new ReflectionMethod($candidate, 'renderCompiled'))->invoke($candidate, $context);
+            $output = $stream->current();
+            $output .= $stream->throw(new RuntimeException('consumer error'));
+            $stream->next();
+            while ($stream->valid()) {
+                $output .= $stream->current();
+                $stream->next();
+            }
+            $results[] = [$output, array_map(fn ($error) => $error->toLiquidErrorMessage(), $context->getErrors())];
+        }
+        expect($results[1])->toBe($results[0]);
+    } finally {
+        @unlink($path);
+    }
+});
+
+test('compiled static lookup deduplication still reads updated context values', function () {
+    $environment = EnvironmentFactory::new()
+        ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem(['p' => '{{ value }}']))
+        ->build();
+    $template = $environment->parseString('{% render "p", value: product %}|{% assign product = "second" %}{% render "p", value: product %}');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        expect(substr_count(file_get_contents($path), "new \\Keepsuit\\Liquid\\Nodes\\VariableLookup('product', [])"))->toBe(1);
+        $compiled = require $path;
+        foreach (['render', 'stream'] as $method) {
+            $output = $compiled->$method($environment->newRenderContext(data: ['product' => 'first']));
+            expect($method === 'stream' ? implode('', iterator_to_array($output)) : $output)->toBe('first|second');
+        }
+    } finally {
+        @unlink($path);
+    }
+});
+
+test('compiled lookup deduplication preserves typed paths and dynamic evaluators', function () {
+    $context = new CompilerContext;
+    $first = $context->writeCachedValue(new VariableLookup('value', ['field', 0]));
+    expect($context->writeCachedValue(new VariableLookup('value', ['field', 0])))->toBe($first);
+    expect($context->writeCachedValue(new VariableLookup('value', ['field', '0'])))->not->toBe($first);
+    expect($context->writeCachedValue(new VariableLookup('other', ['field', 0])))->not->toBe($first);
+    $dynamic = $context->writeCachedValue(new VariableLookup('value', [new VariableLookup('key')]));
+    expect($context->writeCachedValue(new VariableLookup('value', [new VariableLookup('key')])))->not->toBe($dynamic);
+});
+
+test('failed compilation rolls back interned lookup properties', function () {
+    $environment = EnvironmentFactory::new()
+        ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem(['p' => '{{ value }}']))
+        ->build();
+    $template = $environment->parseString('prefix{% render "p", value: marker.value %}');
+    assert($template instanceof ParsedTemplate);
+    $children = $template->root->body->children();
+    array_splice($children, 1, 0, [new FailingCompilableCompilerTestNode]);
+    $template->root->body->setChildren($children);
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        expect($compiled->render($environment->newRenderContext(data: ['marker' => ['value' => 'tail']])))
+            ->toBe('prefixfallback outputtail');
+    } finally {
+        @unlink($path);
+    }
+});
+
+test('compiled liquid bodies match parsed output scopes errors and resource scores', function (string $body) {
+    $environment = EnvironmentFactory::new()->setRethrowErrors(false)->build();
+    $template = $environment->parseString("before{% liquid\n".$body."\n%}after{{ saved }}");
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        expect(file_get_contents($path))->not->toContain('Keepsuit\\\\Liquid\\\\Tags\\\\LiquidTag');
+        $compiled = require $path;
+        foreach (['render', 'stream'] as $method) {
+            $results = [];
+            foreach ([$template, $compiled] as $candidate) {
+                $context = $environment->newRenderContext(data: ['boom' => new \Keepsuit\Liquid\Tests\Stubs\ErrorDrop]);
+                $output = $candidate->$method($context);
+                $results[] = [
+                    $method === 'stream' ? implode('', iterator_to_array($output)) : $output,
+                    $context->get('saved'),
+                    $context->resourceLimits->getRenderScore(),
+                    $context->resourceLimits->getCumulativeRenderScore(),
+                    $context->resourceLimits->getAssignScore(),
+                    $context->resourceLimits->getCumulativeAssignScore(),
+                    array_map(fn ($error) => $error->toLiquidErrorMessage(), $context->getErrors()),
+                ];
+            }
+            expect($results[1])->toBe($results[0]);
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([
+    'assignments' => "assign saved = 'one'\necho saved\nassign saved = 'two'\necho saved",
+    'nested capture' => "capture saved\necho 'a'\ncapture inner\necho 'b'\nendcapture\necho inner\nendcapture\necho saved",
+    'loop interrupts' => "for i in (1..4)\nif i == 2\ncontinue\nendif\necho i\nif i == 3\nbreak\nendif\nendfor",
+    'handled errors' => "echo 'prefix'\necho boom.standard_error\necho 'tail'",
+]);
+
+test('compiled liquid streaming evaluates the complete body before yielding', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString("{% liquid\necho first\necho second\n%}");
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            $calls = 0;
+            $context = $environment->newRenderContext(data: [
+                'first' => str_repeat('x', 4096),
+                'second' => function () use (&$calls) {
+                    $calls++;
+
+                    return 'tail';
+                },
+            ]);
+            $stream = $candidate->stream($context);
+            expect($calls)->toBe(0);
+            expect($stream->current())->toBe(str_repeat('x', 4096).'tail');
+            expect($calls)->toBe(1);
+            unset($stream);
+        }
+    } finally {
+        @unlink($path);
     }
 });
 
@@ -832,6 +1156,7 @@ test('compiled assignments and captures enforce resource limits at the same poin
     'overflow range' => ['{% assign saved = (start..end) %}', ['start' => PHP_INT_MIN, 'end' => PHP_INT_MAX]],
     'capture' => ['{% capture saved %}abc{% endcapture %}', []],
     'nested capture' => ['{% capture saved %}a{% capture inner %}bc{% endcapture %}{{ inner }}{% endcapture %}', []],
+    'liquid capture' => ["{% liquid\ncapture saved\necho 'abc'\nendcapture\n%}", []],
 ])->with([1, 3, 4, 5]);
 
 test('compiled assignment preserves generator laziness', function () {
@@ -866,15 +1191,16 @@ test('native tag subclasses retain their runtime overrides when compiled', funct
         ->registerTag(CustomCompilerTestAssignTag::class)
         ->registerTag(CustomCompilerTestCaptureTag::class)
         ->registerTag(CustomCompilerTestForTag::class)
+        ->registerTag(CustomCompilerTestLiquidTag::class)
         ->build();
-    $template = $environment->parseString('{% assign a = 1 %}{% capture b %}ignored{% endcapture %}{% for i in (1..2) %}ignored{% endfor %}');
+    $template = $environment->parseString("{% assign a = 1 %}{% capture b %}ignored{% endcapture %}{% for i in (1..2) %}ignored{% endfor %}{% liquid\necho 'ignored'\n%}");
     $compiledPath = temporaryCompiledTemplatePath();
 
     try {
         $environment->compile($template, $compiledPath);
         $compiled = require $compiledPath;
-        expect($compiled->render($environment->newRenderContext()))->toBe('assigncapturefor');
-        expect(implode('', iterator_to_array($compiled->stream($environment->newRenderContext()))))->toBe('assigncapturestream');
+        expect($compiled->render($environment->newRenderContext()))->toBe('assigncaptureforliquid');
+        expect(implode('', iterator_to_array($compiled->stream($environment->newRenderContext()))))->toBe('assigncapturestreamliquid-stream');
     } finally {
         @unlink($compiledPath);
     }
@@ -885,6 +1211,19 @@ class CustomCompilerTestAssignTag extends \Keepsuit\Liquid\Tags\AssignTag
     public function render(RenderContext $context): string
     {
         return 'assign';
+    }
+}
+
+class CustomCompilerTestLiquidTag extends \Keepsuit\Liquid\Tags\LiquidTag implements CanBeStreamed
+{
+    public function render(RenderContext $context): string
+    {
+        return 'liquid';
+    }
+
+    public function stream(RenderContext $context): Generator
+    {
+        yield 'liquid-stream';
     }
 }
 
@@ -936,9 +1275,8 @@ test('exportable nodes are rebuilt with constructors instead of serialization', 
     }
 });
 
-test('a node that cannot describe itself falls back to native serialization', function () {
+test('chained conditions are reconstructed without serialized bodies', function () {
     $environment = EnvironmentFactory::new()->build();
-    // A chained condition needs statements, so Condition::export() declines it.
     $template = $environment->parseString('{% if a > 1 and b %}yes{% else %}no{% endif %}');
     $compiledPath = temporaryCompiledTemplatePath();
 
@@ -946,7 +1284,8 @@ test('a node that cannot describe itself falls back to native serialization', fu
         $environment->compile($template, $compiledPath);
 
         expect(file_get_contents($compiledPath))
-            ->toContain('\unserialize(')
+            ->not->toContain('\unserialize(')
+            ->toContain('\Keepsuit\Liquid\Condition\Condition::chain(')
             ->not->toContain('deepclone_from_array')
             ->not->toContain('Symfony\Component\VarExporter');
 
@@ -956,11 +1295,166 @@ test('a node that cannot describe itself falls back to native serialization', fu
         foreach ([['a' => 2, 'b' => true], ['a' => 2, 'b' => false], ['a' => 0, 'b' => true]] as $data) {
             expect($compiled->render($environment->newRenderContext(data: $data)))
                 ->toBe($template->render($environment->newRenderContext(data: $data)));
+            expect(implode('', iterator_to_array($compiled->stream($environment->newRenderContext(data: $data)))))
+                ->toBe(implode('', iterator_to_array($template->stream($environment->newRenderContext(data: $data)))));
         }
     } finally {
         @unlink($compiledPath);
     }
 });
+
+class CompilerBodyAwareCondition extends Condition
+{
+    public function __construct() {}
+
+    public function evaluate(RenderContext $context): bool
+    {
+        return $this->body?->render($context) === 'marker';
+    }
+}
+
+class CompilerNestedVariableNode extends Node implements CanBeCompiled
+{
+    public function render(RenderContext $context): string
+    {
+        return (new Variable(new VariableLookup('value')))->render($context);
+    }
+
+    public function compile(CompilerContext $context): void
+    {
+        $context->subcompile(new Variable(new VariableLookup('value')));
+    }
+}
+
+test('unbuffered compiled fragments distinguish suppressed errors from empty handler output', function (string $exceptionClass, array $expected) {
+    $handler = new class implements \Keepsuit\Liquid\Contracts\LiquidErrorHandler
+    {
+        public function handle(Throwable $error): string
+        {
+            return '';
+        }
+    };
+    $environment = EnvironmentFactory::new()->setErrorHandler($handler)->setRethrowErrors(false)->build();
+    $template = $environment->parseString('');
+    $template->root->body->pushChild(new CompilerNestedVariableNode);
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        $context = $environment->newRenderContext(data: ['value' => fn () => throw new $exceptionClass('test')]);
+        expect(iterator_to_array($compiled->stream($context), false))->toBe($expected);
+        expect($context->getErrors())->toHaveCount(1);
+    } finally {
+        @unlink($path);
+    }
+})->with([
+    [\Keepsuit\Liquid\Exceptions\UndefinedVariableException::class, []],
+    [RuntimeException::class, ['']],
+]);
+
+test('conditions with custom children or cycles retain their serialization fallback', function (bool $cyclic) {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('{% if enabled %}yes{% else %}no{% endif %}');
+    $condition = $template->root->body->children()[0]->parseTreeVisitorChildren()[0];
+    if ($cyclic) {
+        $condition->and($condition);
+    } else {
+        $condition->and((new CompilerBodyAwareCondition)->body(new BodyNode([new Text('marker')])));
+    }
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        expect(file_get_contents($path))->toContain('\unserialize(');
+        foreach ([$template, $compiled] as $candidate) {
+            $data = ['enabled' => ! $cyclic];
+            expect($candidate->render($environment->newRenderContext(data: $data)))->toBe($cyclic ? 'no' : 'yes');
+            expect(implode('', iterator_to_array($candidate->stream($environment->newRenderContext(data: $data)))))
+                ->toBe($cyclic ? 'no' : 'yes');
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([false, true]);
+
+test('exported condition chains retain short circuiting and runtime operator changes', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('{% if a == b and c or d %}yes{% else %}no{% endif %}');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([false, true, false] as $override) {
+            if ($override) {
+                Condition::registerOperator('==', fn () => false);
+            } else {
+                Condition::deleteOperator('==');
+            }
+            foreach ([$template, $compiled] as $candidate) {
+                foreach ([false, true] as $stream) {
+                    $events = [];
+                    $data = [];
+                    foreach (['a' => 1, 'b' => 1, 'c' => true, 'd' => true] as $key => $value) {
+                        $data[$key] = function () use (&$events, $key, $value) {
+                            $events[] = $key;
+
+                            return $value;
+                        };
+                    }
+                    $context = $environment->newRenderContext(data: $data);
+                    expect($stream ? implode('', iterator_to_array($candidate->stream($context))) : $candidate->render($context))
+                        ->toBe($override ? 'no' : 'yes');
+                    expect($events)->toBe($override ? ['a', 'b'] : ['a', 'b', 'c']);
+                }
+            }
+        }
+    } finally {
+        Condition::deleteOperator('==');
+        @unlink($path);
+    }
+});
+
+test('compiled node errors preserve handler output suppression and metadata', function (string $exceptionClass, bool $suppressed) {
+    $handler = new class implements \Keepsuit\Liquid\Contracts\LiquidErrorHandler
+    {
+        public array $seen = [];
+
+        public function handle(Throwable $error): string
+        {
+            $this->seen[] = [$error->lineNumber, $error->templateName];
+
+            return '[handled]';
+        }
+    };
+    $environment = EnvironmentFactory::new()->setErrorHandler($handler)->setRethrowErrors(false)->build();
+    $template = $environment->parseString("prefix\n{{ value }}tail", name: 'errors.liquid');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            foreach ([false, true] as $stream) {
+                $handler->seen = [];
+                $context = $environment->newRenderContext(data: ['value' => fn () => throw new $exceptionClass('test')]);
+                expect($stream ? implode('', iterator_to_array($candidate->stream($context))) : $candidate->render($context))
+                    ->toBe("prefix\n".($suppressed ? '' : '[handled]').'tail');
+                expect($handler->seen)->toBe([[2, null]]);
+                expect($context->getErrors())->toHaveCount(1);
+            }
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([
+    [\Keepsuit\Liquid\Exceptions\UndefinedVariableException::class, true],
+    [\Keepsuit\Liquid\Exceptions\UndefinedDropMethodException::class, true],
+    [\Keepsuit\Liquid\Exceptions\UndefinedFilterException::class, true],
+    [RuntimeException::class, false],
+]);
 
 test('exported nodes keep the state rendering depends on', function (string $source, array $data) {
     $environment = EnvironmentFactory::new()->build();
@@ -1176,9 +1670,9 @@ test('compiled rendering preserves resource-limit exceptions', function () {
     }
 });
 
-test('compiled bodies preserve root and nested render-score accounting', function () {
+test('compiled bodies preserve root and nested render-score accounting', function (string $source) {
     $environment = EnvironmentFactory::new()->build();
-    $template = $environment->parseString('{% if enabled %}a{{ name }}b{% endif %}');
+    $template = $environment->parseString($source);
     $compiledPath = temporaryCompiledTemplatePath();
 
     try {
@@ -1205,7 +1699,10 @@ test('compiled bodies preserve root and nested render-score accounting', functio
     } finally {
         @unlink($compiledPath);
     }
-});
+})->with([
+    'conditional body' => '{% if enabled %}a{{ name }}b{% endif %}',
+    'liquid body' => "{% liquid\necho 'a'\necho name\necho 'b'\n%}",
+]);
 
 test('compiled rendering emits safe core nodes directly', function () {
     $environment = EnvironmentFactory::new()->build();

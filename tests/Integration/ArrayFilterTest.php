@@ -15,6 +15,17 @@ use Keepsuit\Liquid\Support\FilterSupport;
 use Keepsuit\Liquid\Tests\Stubs\BooleanDrop;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
+test('uniq distinguishes nested list order and types while ignoring hash key order', function () {
+    $items = [
+        ['tags' => [1, 2], 'meta' => ['a' => [0.0, -0.0], 'b' => true]],
+        ['meta' => ['b' => true, 'a' => [-0.0, 0.0]], 'tags' => [1, 2]],
+        ['tags' => [2, 1], 'meta' => ['a' => [0.0, -0.0], 'b' => true]],
+        ['tags' => [1.0, 2], 'meta' => ['a' => [0.0, -0.0], 'b' => true]],
+    ];
+
+    assertTemplateResult('3|3', "{{ items | uniq | size }}|{{ items | uniq: 'tags' | size }}", data: ['items' => $items]);
+});
+
 test('array filters normalize nested lists and scalar inputs like Shopify', function (string $source, array $data, string $expected) {
     set_error_handler(function (int $severity, string $message): never {
         throw new ErrorException($message, 0, $severity);

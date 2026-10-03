@@ -119,6 +119,36 @@ test('generator variable with filters is not streamed', function () {
         ->{0}->toBe(str_repeat('a', 4096).','.str_repeat('b', 4096));
 });
 
+test('array output preserves order coercion and generator materialization', function (bool $useCompiler, string $method) {
+    $environment = Environment::default();
+    $template = $environment->parseString('before{{ values }}after');
+    $template = $useCompiler ? compileStreamTestTemplate($environment, $template) : $template;
+    $events = [];
+    $object = new class($events)
+    {
+        public function __construct(private array &$events) {}
+
+        public function __toString(): string
+        {
+            $this->events[] = 'stringify';
+
+            return 'object';
+        }
+    };
+    $generator = (static function () use (&$events, $object): Generator {
+        $events[] = 'first';
+        yield $object;
+        $events[] = 'second';
+        yield 'tail';
+    })();
+    $data = ['values' => ['text', [true, false, null, 2.5], ['key' => 'value'], $generator]];
+    $output = $template->$method($environment->newRenderContext(data: $data));
+
+    expect($method === 'stream' ? implode('', iterator_to_array($output)) : $output)
+        ->toBe('beforetexttruefalse2.5valueobjecttailafter');
+    expect($events)->toBe(['first', 'second', 'stringify']);
+})->with(['in-memory' => false, 'compiled' => true])->with(['render', 'stream']);
+
 test('for tags stream their body chunks', function () {
     $stream = streamTemplate(
         '{% for item in items %}<item>{{ item }}</item>{% endfor %}',
@@ -357,7 +387,7 @@ test('abandoning a buffered compiled stream restores nested loop scopes', functi
     expect($context->get('forloop'))->toBe('outer loop');
 });
 
-test('compiled stream flushes its prefix before an error handler throws and restores loop scopes', function () {
+test('stream flushes its prefix before an error handler throws and restores loop scopes', function (bool $useCompiler) {
     $handler = new class implements \Keepsuit\Liquid\Contracts\LiquidErrorHandler
     {
         public function handle(Throwable $error): string
@@ -367,7 +397,7 @@ test('compiled stream flushes its prefix before an error handler throws and rest
     };
     $environment = EnvironmentFactory::new()->setErrorHandler($handler)->setRethrowErrors(false)->build();
     $template = $environment->parseString('PREFIX {% for item in items %}{{ boom.standard_error }}{% endfor %} tail');
-    $compiled = compileStreamTestTemplate($environment, $template);
+    $template = $useCompiler ? compileStreamTestTemplate($environment, $template) : $template;
     $context = $environment->newRenderContext(data: [
         'items' => [1, 2],
         'item' => 'outer',
@@ -375,8 +405,8 @@ test('compiled stream flushes its prefix before an error handler throws and rest
     ]);
     $received = [];
 
-    expect(function () use ($compiled, $context, &$received) {
-        foreach ($compiled->stream($context) as $chunk) {
+    expect(function () use ($template, $context, &$received) {
+        foreach ($template->stream($context) as $chunk) {
             $received[] = $chunk;
         }
     })->toThrow(RuntimeException::class, 'from handler');
@@ -384,6 +414,46 @@ test('compiled stream flushes its prefix before an error handler throws and rest
     expect($received)->toBe(['PREFIX ']);
     expect($context->getRegister('for_stack'))->toBe([]);
     expect($context->get('item'))->toBe('outer');
+})->with(['in-memory' => false, 'compiled' => true]);
+
+test('streamed scalar variables leave later values lazy after a full buffer', function (bool $useCompiler, bool $filtered) {
+    $environment = Environment::default();
+    $template = $environment->parseString('prefix{{ first'.($filtered ? ' | upcase' : '').' }}{{ second }}');
+    $template = $useCompiler ? compileStreamTestTemplate($environment, $template) : $template;
+    $firstCalls = 0;
+    $secondCalls = 0;
+    $stream = $template->stream($environment->newRenderContext(data: [
+        'first' => function () use (&$firstCalls) {
+            $firstCalls++;
+
+            return str_repeat('x', 4090);
+        },
+        'second' => function () use (&$secondCalls) {
+            $secondCalls++;
+
+            return 'tail';
+        },
+    ]));
+
+    expect([$firstCalls, $secondCalls])->toBe([0, 0]);
+    expect($stream->current())->toBe('prefix'.str_repeat($filtered ? 'X' : 'x', 4090));
+    expect([$firstCalls, $secondCalls])->toBe([1, 0]);
+    $stream->next();
+    expect($stream->current())->toBe('tail');
+    expect([$firstCalls, $secondCalls])->toBe([1, 1]);
+})->with(['in-memory' => false, 'compiled' => true])->with(['unfiltered' => false, 'filtered' => true]);
+
+test('in-memory variable subclasses retain their stream overrides', function () {
+    $variable = new class('ignored') extends \Keepsuit\Liquid\Nodes\Variable
+    {
+        public function stream(RenderContext $context): Generator
+        {
+            yield 'custom';
+        }
+    };
+    $body = new \Keepsuit\Liquid\Nodes\BodyNode([$variable]);
+
+    expect(iterator_to_array($body->stream(Environment::default()->newRenderContext())))->toBe(['custom']);
 });
 
 test('compiled stream does not evaluate until the generator is consumed', function () {

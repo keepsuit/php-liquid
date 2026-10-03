@@ -33,18 +33,45 @@ class Condition implements CanBeExported, HasParseTreeVisitorChildren
 
     public function export(CompilerContext $context): ?string
     {
-        // A chained condition would need statements rather than an expression,
-        // and a subclass need not accept these constructor arguments.
-        if ($this->childCondition !== null || static::class !== self::class) {
-            return null;
+        $conditions = [];
+        $seen = [];
+        for ($condition = $this; $condition !== null; $condition = $condition->childCondition) {
+            // Preserve custom constructors/evaluators and cyclic object graphs
+            // through the existing serialization fallback.
+            $id = spl_object_id($condition);
+            if ($condition::class !== self::class || isset($seen[$id])) {
+                return null;
+            }
+            $seen[$id] = true;
+            $conditions[] = $condition;
         }
 
         // The body is deliberately left out: the compiler emits it as code and
         // only ever calls evaluate() on the rebuilt condition.
-        return 'new \\'.self::class.'('
-            .$context->writeValue($this->left).', '
-            .$context->writeValue($this->operator).', '
-            .$context->writeValue($this->right).')';
+        $source = null;
+        for ($index = count($conditions) - 1; $index >= 0; $index--) {
+            $condition = $conditions[$index];
+            $parent = 'new \\'.self::class.'('
+                .$context->writeValue($condition->left).', '
+                .$context->writeValue($condition->operator).', '
+                .$context->writeValue($condition->right).')';
+            $relation = $condition->childRelation === null
+                ? 'null'
+                : '\\'.ConditionsRelation::class.'::'.$condition->childRelation->name;
+            $source = $source === null ? $parent
+                : '\\'.self::class.'::chain('.$parent.', '.$relation.', '.$source.')';
+        }
+
+        return $source;
+    }
+
+    /** @internal */
+    public static function chain(self $condition, ?ConditionsRelation $relation, self $child): self
+    {
+        $condition->childRelation = $relation;
+        $condition->childCondition = $child;
+
+        return $condition;
     }
 
     public static function registerOperator(string $operator, \Closure $closure): void

@@ -108,6 +108,15 @@ abstract class CompiledTemplate extends AbstractTemplate
         }
     }
 
+    protected function compiledErrorOutput(Throwable $exception, string $output): ?string
+    {
+        // Missing values are recorded and sent to the handler, but its output
+        // is suppressed just as it is by the interpreted body's typed catches.
+        return $exception instanceof UndefinedVariableException
+            || $exception instanceof UndefinedDropMethodException
+            || $exception instanceof UndefinedFilterException ? null : $output;
+    }
+
     protected function incrementCompiledRenderScore(RenderContext $context, int $renderScore): void
     {
         $context->resourceLimits->incrementRenderScore($renderScore);
