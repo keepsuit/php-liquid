@@ -20,6 +20,7 @@ use Keepsuit\Liquid\Tags\BreakTag;
 use Keepsuit\Liquid\Tags\CaptureTag;
 use Keepsuit\Liquid\Tags\CaseTag;
 use Keepsuit\Liquid\Tags\ContinueTag;
+use Keepsuit\Liquid\Tags\Custom\DynamicRenderTag;
 use Keepsuit\Liquid\Tags\CycleTag;
 use Keepsuit\Liquid\Tags\DecrementTag;
 use Keepsuit\Liquid\Tags\DocTag;
@@ -452,16 +453,16 @@ final class CompilerContext
         $id = spl_object_id($node);
         $fallback = isset($this->extensionSources[$id]) && $this->extensionSources[$id]['source'] === null;
         if (($node instanceof AssignTag || $node instanceof CaptureTag || $node instanceof ForTag || $node instanceof LiquidTag || $node instanceof RenderTag)
-            && ! in_array($node::class, [AssignTag::class, CaptureTag::class, ForTag::class, LiquidTag::class, RenderTag::class], true)) {
+            && ! in_array($node::class, [AssignTag::class, CaptureTag::class, ForTag::class, LiquidTag::class, RenderTag::class, DynamicRenderTag::class], true)) {
             $compilerClass = (new \ReflectionMethod($node, 'compile'))->getDeclaringClass()->getName();
-            $fallback = $fallback || ($node::class !== $compilerClass && in_array($compilerClass, [AssignTag::class, CaptureTag::class, ForTag::class, LiquidTag::class, RenderTag::class], true));
+            $fallback = $fallback || ($node::class !== $compilerClass && in_array($compilerClass, [AssignTag::class, CaptureTag::class, ForTag::class, LiquidTag::class, RenderTag::class, DynamicRenderTag::class], true));
         }
 
         // Extension fragments may return from their node or yield before failing.
         // Keep their lazy boundary; native nodes can use an inline try/catch.
         $extension = $node instanceof CanBeCompiled && ! in_array($node::class, [
             Variable::class, IfTag::class, UnlessTag::class, CaseTag::class,
-            ForTag::class, RenderTag::class, AssignTag::class, CaptureTag::class, LiquidTag::class,
+            ForTag::class, RenderTag::class, DynamicRenderTag::class, AssignTag::class, CaptureTag::class, LiquidTag::class,
         ], true);
         $lazy = $extension && ! $fallback;
 

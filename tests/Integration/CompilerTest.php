@@ -138,6 +138,14 @@ class CompilerInheritedLookup extends VariableLookup
     }
 }
 
+class CompilerDynamicNameLookup extends VariableLookup
+{
+    public function evaluate(RenderContext $context): mixed
+    {
+        return 'snippet';
+    }
+}
+
 class CompilerLiquidEventValue implements \Keepsuit\Liquid\Contracts\AsLiquidValue
 {
     public function __construct(private ArrayObject $events, private string $name) {}
@@ -233,6 +241,11 @@ class CompilerCustomDocTag extends \Keepsuit\Liquid\Tags\DocTag implements CanBe
 }
 
 class CompilerCustomRenderTag extends \Keepsuit\Liquid\Tags\RenderTag implements Disableable
+{
+    use CompilerSmallTagOverride;
+}
+
+class CompilerCustomDynamicRenderTag extends \Keepsuit\Liquid\Tags\Custom\DynamicRenderTag implements Disableable
 {
     use CompilerSmallTagOverride;
 }
@@ -1066,6 +1079,91 @@ test('compiled conditions preserve else behavior', function () {
     }
 });
 
+test('compiled dynamic partials preserve lookups loops isolation and errors', function (string $source, array $data, bool $strict) {
+    $environment = EnvironmentFactory::new()
+        ->registerTag(\Keepsuit\Liquid\Tags\Custom\DynamicRenderTag::class)
+        ->setStrictVariables($strict)
+        ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem([
+            'snippet' => '{{ item }}:{{ suffix }}:{{ forloop.index }}:{{ outer }};',
+        ]))->build();
+    $template = $environment->parseString($source, name: 'dynamic.liquid');
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+        $compiled = require $compiledPath;
+        expect(file_get_contents($compiledPath))->not->toContain('unserialize(');
+        foreach (['render', 'stream'] as $mode) {
+            $outputs = [];
+            $errors = [];
+            $scores = [];
+            foreach ([$template, $compiled] as $candidate) {
+                $context = $environment->newRenderContext(data: $data);
+                $outputs[] = $mode === 'render' ? $candidate->render($context)
+                    : implode('', iterator_to_array($candidate->stream($context), false));
+                $errors[] = array_map(fn ($error) => [$error::class, $error->getMessage(), $error->lineNumber, $error->templateName], $candidate->getErrors());
+                $scores[] = $context->resourceLimits->getRenderScore();
+                expect(invade($context)->scopes)->toHaveCount(1);
+            }
+            expect($outputs[1])->toBe($outputs[0]);
+            expect($errors[1])->toBe($errors[0]);
+            expect($scores[1])->toBe($scores[0]);
+        }
+    } finally {
+        @unlink($compiledPath);
+    }
+})->with([
+    ['{% render name with value as item, suffix: suffix %}', ['name' => 'snippet', 'value' => 'a', 'suffix' => 's', 'outer' => 'isolated'], false],
+    ['{% render names[key] for items as item, suffix: suffix %}', ['names' => ['p' => 'snippet'], 'key' => 'p', 'items' => [1, 2, 3], 'suffix' => 's'], false],
+    ['{% render "snippet" with value as item %}', ['value' => 'a'], false],
+    ['{% render name %}tail', ['name' => false], false],
+    ['{% render name %}tail', [], false],
+    ['{% render name %}tail', [], true],
+]);
+
+test('dynamic partial names do not resolve evaluators returned by the lookup', function () {
+    $environment = EnvironmentFactory::new()->registerTag(\Keepsuit\Liquid\Tags\Custom\DynamicRenderTag::class)->build();
+    $template = $environment->parseString('{% render name %}tail');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            foreach (['render', 'stream'] as $mode) {
+                $value = new CompilerCountingPartialValue;
+                $context = $environment->newRenderContext(data: ['name' => $value]);
+                $output = $mode === 'render' ? $candidate->render($context)
+                    : implode('', iterator_to_array($candidate->stream($context), false));
+                expect($output)->toBe('Liquid syntax error (line 1): Template name must be a stringtail');
+                expect($value->calls)->toBe(0);
+            }
+        }
+    } finally {
+        @unlink($path);
+    }
+});
+
+test('dynamic partial names preserve lookup subclass evaluation', function () {
+    $environment = EnvironmentFactory::new()->registerTag(\Keepsuit\Liquid\Tags\Custom\DynamicRenderTag::class)
+        ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem(['snippet' => 'custom lookup']))->build();
+    $template = $environment->parseString('{% render ignored %}');
+    assert($template instanceof ParsedTemplate);
+    invade($template->root->body->children()[0])->templateNameExpression = new CompilerDynamicNameLookup('ignored');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            expect($candidate->render($environment->newRenderContext()))->toBe('custom lookup');
+            expect(implode('', iterator_to_array($candidate->stream($environment->newRenderContext()), false)))->toBe('custom lookup');
+        }
+    } finally {
+        @unlink($path);
+    }
+});
+
 test('compiled static render tags stream partials without rebuilding the tag', function () {
     $environment = EnvironmentFactory::new()
         ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem([
@@ -1257,8 +1355,8 @@ test('compiled render loops preserve alias and attribute override order', functi
     ['as item, item: "override", forloop: "overridden"', '{{ item }}{{ forloop }}'],
 ]);
 
-test('render tag subclasses retain render and stream overrides when compiled', function (string $modifier) {
-    $environment = EnvironmentFactory::new()->registerTag(CompilerCustomRenderTag::class)
+test('render tag subclasses retain render and stream overrides when compiled', function (string $modifier, string $class) {
+    $environment = EnvironmentFactory::new()->registerTag($class)
         ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem(['p' => 'ignored']))->build();
     $template = $environment->parseString('before{% render "p" '.$modifier.' items %}after');
     $path = temporaryCompiledTemplatePath();
@@ -1280,7 +1378,12 @@ test('render tag subclasses retain render and stream overrides when compiled', f
     } finally {
         @unlink($path);
     }
-})->with(['with', 'for']);
+})->with([
+    ['with', CompilerCustomRenderTag::class],
+    ['for', CompilerCustomRenderTag::class],
+    ['with', CompilerCustomDynamicRenderTag::class],
+    ['for', CompilerCustomDynamicRenderTag::class],
+]);
 
 test('compiled conditional bodies preserve interrupts from fallback nodes', function () {
     $environment = EnvironmentFactory::new()->build();
