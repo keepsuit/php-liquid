@@ -256,7 +256,7 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
         if ($from === 'continue') {
             $offset = $offsets[$name] ?? 0;
         } else {
-            $fromValue = $context->evaluate($from);
+            $fromValue = $from === null ? null : $context->evaluate($from);
             $offset = match (true) {
                 $fromValue === null => 0,
                 is_numeric($fromValue) => (int) $fromValue,
@@ -265,7 +265,7 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
         }
         assert(is_int($offset));
 
-        $limitValue = $context->evaluate($limit);
+        $limitValue = $limit === null ? null : $context->evaluate($limit);
         $length = match (true) {
             $limitValue === null => null,
             is_numeric($limitValue) => (int) $limitValue,

@@ -10,6 +10,9 @@ class CodeBuilder
 
     protected int $yieldCount = 0;
 
+    /** @var array<int, string> */
+    protected array $indentation = [0 => ''];
+
     /**
      * Facts about the emitted stream: checked means the buffer is below the
      * flush threshold; empty also permits skipping an unconditional flush.
@@ -54,7 +57,7 @@ class CodeBuilder
             $this->source .= "\n";
         }
 
-        $this->source .= str_repeat('    ', $this->indentLevel).$line."\n";
+        $this->source .= ($this->indentation[$this->indentLevel] ??= str_repeat('    ', $this->indentLevel)).$line."\n";
 
         return $this;
     }

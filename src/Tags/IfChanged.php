@@ -49,6 +49,12 @@ class IfChanged extends TagBlock
     /** @internal */
     public function compileNative(CompilerContext $context): void
     {
+        if ($this->body::class !== BodyNode::class) {
+            $context->compileFallback($this);
+
+            return;
+        }
+
         $output = $context->temporaryVariable();
         $context->writeRenderedBody($this->body, $output);
         $context->write('if ($context->getRegister("ifchanged") !== '.$output.') {')->indent();

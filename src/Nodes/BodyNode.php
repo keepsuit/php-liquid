@@ -12,6 +12,8 @@ use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
 use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tag;
+use Keepsuit\Liquid\Tags\BreakTag;
+use Keepsuit\Liquid\Tags\ContinueTag;
 
 class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
 {
@@ -58,6 +60,10 @@ class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
      */
     public function compile(CompilerContext $context): void
     {
+        if ($this->compileConstantBody($context)) {
+            return;
+        }
+
         $lastIndex = count($this->children) - 1;
         $interruptible = false;
         foreach ($this->children as $index => $child) {
@@ -75,7 +81,7 @@ class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
         $literal = '';
 
         foreach ($this->children as $index => $child) {
-            if ($child instanceof Text || $child instanceof Raw) {
+            if ($child instanceof Text) {
                 $literal .= $child->value;
 
                 continue;
@@ -89,6 +95,12 @@ class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
             $context->subcompile($child);
 
             if ($index !== $lastIndex && $context->canInterrupt($child)) {
+                if ($child::class === BreakTag::class || $child::class === ContinueTag::class) {
+                    $context->write('break;');
+
+                    continue;
+                }
+
                 $context->write('if ($context->hasInterrupt()) {')
                     ->indent()
                     ->write('break;')
@@ -104,6 +116,45 @@ class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
         if ($interruptible) {
             $context->outdent()->write('} while (false);');
         }
+    }
+
+    private function compileConstantBody(CompilerContext $context): bool
+    {
+        $output = '';
+        $interruptedOutput = null;
+        foreach ($this->children as $child) {
+            if ($child::class === Text::class || $child::class === Raw::class) {
+                $output .= $child->value;
+                if ($child::class === Raw::class) {
+                    $interruptedOutput ??= $output;
+                }
+            } elseif ($child::class === Variable::class && ($literal = $child->constantOutput()) !== null) {
+                $output .= $literal;
+                $interruptedOutput ??= $output;
+            } else {
+                return false;
+            }
+        }
+
+        // Folding streams is safe only when none of these nodes can yield:
+        // a caller could otherwise queue an interrupt between their chunks.
+        if (! $context->isRendering() && ! $context->canBufferConstantOutput(strlen($output))) {
+            return false;
+        }
+
+        // Fixed rendering cannot create an interrupt, but one may already be
+        // queued when the body starts. Text before the first variable still renders.
+        if ($interruptedOutput !== null && $interruptedOutput !== $output) {
+            $context->write('if ($context->hasInterrupt()) {')->indent();
+            $context->writeText($interruptedOutput);
+            $context->outdent()->write('} else {')->indent();
+            $context->writeText($output);
+            $context->outdent()->write('}');
+        } else {
+            $context->writeText($output);
+        }
+
+        return true;
     }
 
     /**

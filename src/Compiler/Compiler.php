@@ -16,6 +16,7 @@ class Compiler
         $renderBody = $bodyContext->compileRender($template->root);
         $name = $bodyContext->writeValue($template->root->name);
         $fallbackValues = $bodyContext->getFallbackValues();
+        $renderedBodies = $bodyContext->getRenderedBodySources();
         $fallbackValueSource = [];
 
         foreach ($fallbackValues as $property => $value) {
@@ -40,7 +41,7 @@ class Compiler
 
         $className = 'Template_'.substr(hash(
             'sha256',
-            $name.$body.$renderBody.implode('', $fallbackValueSource),
+            $name.$body.$renderBody.implode('', $fallbackValueSource).implode('', $renderedBodies),
         ), 0, 32);
 
         $builder = new CodeBuilder;
@@ -109,6 +110,13 @@ class Compiler
         }
 
         $builder->dedent()->writeLine('}');
+
+        foreach ($renderedBodies as $source) {
+            $builder->writeLine();
+            foreach (explode("\n", rtrim($source, "\n")) as $line) {
+                $builder->writeLine($line);
+            }
+        }
 
         $builder
             ->dedent()

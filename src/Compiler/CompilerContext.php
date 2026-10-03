@@ -31,6 +31,7 @@ use Keepsuit\Liquid\Tags\IncrementTag;
 use Keepsuit\Liquid\Tags\LiquidTag;
 use Keepsuit\Liquid\Tags\RawTag;
 use Keepsuit\Liquid\Tags\RenderTag;
+use Keepsuit\Liquid\Tags\TableRowTag;
 use Keepsuit\Liquid\Tags\UnlessTag;
 
 final class CompilerContext
@@ -48,6 +49,17 @@ final class CompilerContext
 
     /** @var array<int, array{node: Node, source: ?string}> */
     private array $extensionSources = [];
+
+    /** @var array<int, array{node: Node, method: string}> */
+    private array $renderedBodies = [];
+
+    /** @var array<string, ?string> */
+    private array $renderedBodySources = [];
+
+    /** @var array<string, string> */
+    private array $renderedBodyMethods = [];
+
+    private int $renderedBodyCount = 0;
 
     private bool $rendering = false;
 
@@ -87,8 +99,7 @@ final class CompilerContext
     }
 
     /**
-     * Compile a body inline while keeping render-score accounting in the base
-     * compiled template.
+     * Compile a body inline while preserving render-score accounting.
      */
     public function compileBody(Node $body): static
     {
@@ -96,7 +107,7 @@ final class CompilerContext
         $source = $this->compileBodySource($body);
 
         $this->write(sprintf(
-            '$this->incrementCompiledRenderScore($context, %s);',
+            '$context->resourceLimits->incrementRenderScore(%s);',
             $this->writeValue($renderScore),
         ));
         $this->writeBodySource($source);
@@ -118,7 +129,7 @@ final class CompilerContext
             $this->write('$buffer = "";');
         }
         $this->write(sprintf(
-            '$this->incrementCompiledRenderScore($context, %s);',
+            '$context->resourceLimits->incrementRenderScore(%s);',
             $this->writeValue($renderScore),
         ));
         $this->writeBodySource($source);
@@ -148,7 +159,7 @@ final class CompilerContext
 
         $this->write($result.' = $context->resourceLimits->withCapture(function () use ($context): string {')->indent();
         $this->write('$output = "";');
-        $this->write('$this->incrementCompiledRenderScore($context, '.count($body->children()).');');
+        $this->write('$context->resourceLimits->incrementRenderScore('.count($body->children()).');');
         $this->writeSource($source['source']);
         $this->write('return $output;');
         $this->outdent()->write('});');
@@ -157,15 +168,61 @@ final class CompilerContext
 
     public function writeRenderedBody(BodyNode $body, string $result): void
     {
+        $this->writeRenderedBlock($body, $result, function (CompilerContext $context) use ($body): void {
+            $context->compileBody($body);
+        });
+    }
+
+    /** @param \Closure(CompilerContext): void $compile */
+    public function writeRenderedBlock(Node $node, string $result, \Closure $compile): void
+    {
+        $id = spl_object_id($node);
+        if (isset($this->renderedBodies[$id])) {
+            $this->write($result.' = $this->'.$this->renderedBodies[$id]['method'].'($context);');
+
+            return;
+        }
+
+        $method = 'renderBody'.$this->renderedBodyCount++;
+        $this->renderedBodies[$id] = ['node' => $node, 'method' => $method];
+        $this->renderedBodySources[$method] = null;
+        $outerBuilder = $this->builder;
         $rendering = $this->rendering;
+        $temporaryCount = $this->temporaryCount;
+        $this->builder = new CodeBuilder;
         $this->rendering = true;
+        $this->temporaryCount = 0;
 
         try {
-            $this->write($result.' = (');
-            $this->writeBodyCallback($body, ')($context);');
+            $this->write('private function '.$method.'(RenderContext $context): string');
+            $this->write('{')->indent()->write('$output = "";');
+            $compile($this);
+            $this->write('return $output;')->outdent()->write('}');
+            $source = $this->getSource();
         } finally {
+            $this->builder = $outerBuilder;
             $this->rendering = $rendering;
+            $this->temporaryCount = $temporaryCount;
         }
+
+        // Method names differ, but equal bodies with the same error metadata
+        // and reconstructed values can share one implementation.
+        $hash = hash('sha256', substr($source, strlen('private function '.$method)));
+        if (isset($this->renderedBodyMethods[$hash])) {
+            unset($this->renderedBodySources[$method]);
+            $method = $this->renderedBodyMethods[$hash];
+            $this->renderedBodies[$id]['method'] = $method;
+        } else {
+            $this->renderedBodyMethods[$hash] = $method;
+            $this->renderedBodySources[$method] = $source;
+        }
+        $this->write($result.' = $this->'.$method.'($context);');
+    }
+
+    /** @return array<string, string> */
+    public function getRenderedBodySources(): array
+    {
+        return array_filter($this->renderedBodySources, static fn (?string $source): bool => $source !== null);
     }
 
     /**
@@ -220,7 +277,7 @@ final class CompilerContext
         }
 
         $this->write(sprintf(
-            '$this->incrementCompiledRenderScore($context, %s);',
+            '$context->resourceLimits->incrementRenderScore(%s);',
             $this->writeValue($renderScore),
         ));
         $this->writeBodySource($source);
@@ -267,6 +324,11 @@ final class CompilerContext
         $this->builder->dedent();
 
         return $this;
+    }
+
+    public function canBufferConstantOutput(int $length): bool
+    {
+        return $this->buffering && $this->builder->streamBufferState()['empty'] && $length < 4096;
     }
 
     public function writeOutput(string $expression, string $suffix = ';'): static
@@ -322,7 +384,7 @@ final class CompilerContext
 
     public function canInterrupt(Node $node): bool
     {
-        return ! ($node instanceof Text || $node instanceof Raw || $node instanceof Variable);
+        return ! $node instanceof Text;
     }
 
     public function subcompile(Node $node): static
@@ -354,14 +416,43 @@ final class CompilerContext
             return;
         }
 
+        // These exact tags only append an interrupt to the final render context.
+        // The preceding buffer flush keeps its original exception boundary.
+        if ($node::class === BreakTag::class || $node::class === ContinueTag::class) {
+            $this->writeLineComment($node->lineNumber());
+            $node->compileNative($this);
+
+            return;
+        }
+
+        // Fixed text cannot throw while appending to the string accumulator.
+        // Streams retain the boundary: callers can throw into a yielded chunk.
+        if ($this->rendering) {
+            if ($node::class === Variable::class && $node->constantOutput() !== null) {
+                $this->writeLineComment($node->lineNumber());
+                $node->compile($this);
+
+                return;
+            }
+            if ($node::class === RawTag::class && $node->getBody()::class === Raw::class) {
+                $this->writeLineComment($node->lineNumber());
+                $this->writeText($node->getBody()->value);
+
+                return;
+            }
+        }
+
         $checkpoint = $this->builder->checkpoint();
         $fallbackValueCount = count($this->fallbackValues);
         $extensionSourceCount = count($this->extensionSources);
+        $renderedBodyCount = count($this->renderedBodies);
+        $renderedBodySourceCount = count($this->renderedBodySources);
+        $renderedBodyMethodCount = count($this->renderedBodyMethods);
         $rendering = $this->rendering;
         $id = spl_object_id($node);
         $fallback = isset($this->extensionSources[$id]) && $this->extensionSources[$id]['source'] === null;
-        if ($node instanceof AssignTag || $node instanceof CaptureTag || $node instanceof ForTag || $node instanceof LiquidTag
-            || ($node instanceof RenderTag && $node::class !== RenderTag::class)) {
+        if (($node instanceof AssignTag || $node instanceof CaptureTag || $node instanceof ForTag || $node instanceof LiquidTag || $node instanceof RenderTag)
+            && ! in_array($node::class, [AssignTag::class, CaptureTag::class, ForTag::class, LiquidTag::class, RenderTag::class], true)) {
             $compilerClass = (new \ReflectionMethod($node, 'compile'))->getDeclaringClass()->getName();
             $fallback = $fallback || ($node::class !== $compilerClass && in_array($compilerClass, [AssignTag::class, CaptureTag::class, ForTag::class, LiquidTag::class, RenderTag::class], true));
         }
@@ -395,6 +486,9 @@ final class CompilerContext
             $this->rendering = $rendering;
             $this->rollbackCompilation($checkpoint, $fallbackValueCount);
             $this->extensionSources = array_slice($this->extensionSources, 0, $extensionSourceCount, preserve_keys: true);
+            $this->renderedBodies = array_slice($this->renderedBodies, 0, $renderedBodyCount, preserve_keys: true);
+            $this->renderedBodySources = array_slice($this->renderedBodySources, 0, $renderedBodySourceCount, preserve_keys: true);
+            $this->renderedBodyMethods = array_slice($this->renderedBodyMethods, 0, $renderedBodyMethodCount, preserve_keys: true);
             if ($extension) {
                 $this->extensionSources[$id] = ['node' => $node, 'source' => null];
             }
@@ -407,7 +501,7 @@ final class CompilerContext
 
     private function compileNativeTag(Node $node): bool
     {
-        if ($node::class === IfChanged::class) {
+        if ($node::class === IfChanged::class || $node::class === TableRowTag::class) {
             $node->compileNative($this);
 
             return true;

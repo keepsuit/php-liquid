@@ -58,8 +58,8 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
 
         // These literals have a context-independent output representation.
         // Floats retain runtime coercion, which can depend on PHP settings.
-        if (is_string($this->name) || is_int($this->name) || is_bool($this->name) || $this->name === null) {
-            $context->writeText(self::renderOutputValue($this->name));
+        if (($literal = $this->constantOutput()) !== null) {
+            $context->writeText($literal);
 
             return;
         }
@@ -76,6 +76,15 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
             $context->flushStreamBuffer();
             $context->write('yield from $value;')->outdent()->write('}');
         }
+    }
+
+    /** @internal */
+    public function constantOutput(): ?string
+    {
+        return static::class === self::class && $this->filters === []
+            && (is_string($this->name) || is_int($this->name) || is_bool($this->name) || $this->name === null)
+            ? self::renderOutputValue($this->name)
+            : null;
     }
 
     public function compileValue(CompilerContext $context): string
@@ -308,7 +317,7 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
             return FilterCoercion::toString($output);
         }
 
-        if (is_numeric($output)) {
+        if (is_int($output)) {
             return (string) $output;
         }
 

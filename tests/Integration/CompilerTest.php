@@ -169,6 +169,29 @@ class CompilerCustomIfChanged extends \Keepsuit\Liquid\Tags\IfChanged implements
     use CompilerSmallTagOverride;
 }
 
+class CompilerCustomTableRow extends \Keepsuit\Liquid\Tags\TableRowTag implements CanBeStreamed, Disableable
+{
+    use CompilerSmallTagOverride;
+}
+
+class CompilerCustomRenderedBody extends BodyNode
+{
+    public function render(RenderContext $context): string
+    {
+        return 'custom body';
+    }
+}
+
+class CompilerInterruptValue implements \Keepsuit\Liquid\Contracts\CanBeEvaluated
+{
+    public function evaluate(RenderContext $context): string
+    {
+        $context->pushInterrupt(new \Keepsuit\Liquid\Interrupts\BreakInterrupt);
+
+        return 'x';
+    }
+}
+
 class CompilerCustomEchoTag extends \Keepsuit\Liquid\Tags\EchoTag implements CanBeStreamed, Disableable
 {
     use CompilerSmallTagOverride;
@@ -469,6 +492,7 @@ class FailingCompilableCompilerTestNode extends Node implements CanBeCompiled
         $context->writeOutput($context->writeValue('partial output'));
         $context->writeRuntimeValue($this);
         $context->writeCachedValue(new VariableLookup('marker', ['value']));
+        $context->writeRenderedBody(new BodyNode([new Text('discarded body')]), $context->temporaryVariable());
 
         throw new RuntimeException('compiler test failure');
     }
@@ -718,7 +742,8 @@ test('compiled templates buffer native chunks without using the render accumulat
             ->not->toContain('yield from [];')
             ->not->toContain('private function body')
             ->not->toContain('private function node')
-            ->not->toContain('resourceLimits->')
+            ->not->toContain('resourceLimits->incrementWriteScore')
+            ->toContain('resourceLimits->incrementRenderScore')
             ->toContain('try {')
             ->toContain('catch (');
 
@@ -1877,6 +1902,200 @@ test('ifchanged subclasses retain stream overrides and disabled checks', functio
     }
 })->with([false, true]);
 
+test('compiled tablerow preserves markup scopes interrupts and resource scores', function (string $source) {
+    $environment = EnvironmentFactory::new()->setRethrowErrors(false)->build();
+    $template = $environment->parseString($source);
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        expect(file_get_contents($path))->not->toContain('unserialize(');
+        foreach (['render', 'stream'] as $mode) {
+            $contexts = [];
+            $outputs = [];
+            foreach ([$template, $compiled] as $candidate) {
+                $context = $environment->newRenderContext(data: ['items' => [1, 2, 3, 4], 'i' => 'outer', 'tablerowloop' => 'outer loop']);
+                $contexts[] = $context;
+                $outputs[] = $mode === 'render' ? $candidate->render($context) : implode('', iterator_to_array($candidate->stream($context)));
+                expect($context->get('i'))->toBe('outer');
+                expect($context->get('tablerowloop'))->toBe('outer loop');
+            }
+            expect($outputs[1])->toBe($outputs[0]);
+            expect($contexts[1]->resourceLimits->getRenderScore())->toBe($contexts[0]->resourceLimits->getRenderScore());
+            expect(count($contexts[1]->getErrors()))->toBe(count($contexts[0]->getErrors()));
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([
+    '{% tablerow i in items cols:2 %}{{ i | plus: 1 }}{% endtablerow %}',
+    '{% tablerow i in (1..1000000000) cols:1 offset:-2 limit:1 %}{{ i }}{% endtablerow %}',
+    '{% tablerow i in items cols:2 %}{{ tablerowloop.row }}:{{ tablerowloop.col }}{% endtablerow %}',
+    '{% tablerow i in items cols:2 %}{{ i }}{% break %}skip{% endtablerow %}',
+    '{% tablerow i in items cols:2 %}{% if i == 2 %}{% continue %}{% endif %}{{ i }}{% endtablerow %}',
+    '{% tablerow i in items cols:2 %}{{ i | unknown }}{% endtablerow %}',
+    '{% tablerow i in nil %}ignored{% endtablerow %}',
+    '{% tablerow i in items limit:0 %}ignored{% endtablerow %}',
+]);
+
+test('compiled variables preserve interrupts raised by evaluators or present on entry', function (string $source, bool $incoming) {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString($source);
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            foreach (['render', 'stream'] as $mode) {
+                $context = $environment->newRenderContext(data: ['value' => new CompilerInterruptValue]);
+                if ($incoming) {
+                    $context->pushInterrupt(new \Keepsuit\Liquid\Interrupts\BreakInterrupt);
+                }
+                $output = $mode === 'render' ? $candidate->render($context) : implode('', iterator_to_array($candidate->stream($context)));
+                expect($output)->toBe('x');
+            }
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([
+    ['{{ "x" }}tail', true],
+    ['{{ value }}tail', false],
+    ['{% for i in (1..2) %}{{ value }}tail{% endfor %}', false],
+]);
+
+test('tablerow subclasses retain stream overrides and disabled checks', function (bool $disabled) {
+    $environment = EnvironmentFactory::new()->registerTag(CompilerCustomTableRow::class)->setRethrowErrors(false)->build();
+    $template = $environment->parseString('{% tablerow i in (1..2) %}ignored{% endtablerow %}');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            foreach (['render', 'stream'] as $mode) {
+                $context = $environment->newRenderContext();
+                $output = $context->withDisabledTags($disabled ? ['tablerow'] : [], fn () => $mode === 'render'
+                    ? $candidate->render($context)
+                    : implode('', iterator_to_array($candidate->stream($context))));
+                if (! $disabled) {
+                    expect($output)->toBe($mode === 'render' ? 'override' : 'firstsecond');
+                }
+                expect($context->getErrors())->toHaveCount($disabled ? 1 : 0);
+            }
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([false, true]);
+
+test('empty tablerow still enforces the nesting limit', function () {
+    $environment = EnvironmentFactory::new()->setRethrowErrors(true)->build();
+    $template = $environment->parseString('{% tablerow i in items %}unused{% endtablerow %}');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            foreach (['render', 'stream'] as $mode) {
+                $context = $environment->newRenderContext(data: ['items' => []]);
+                for ($depth = 1; $depth < \Keepsuit\Liquid\Parse\ParseContext::MAX_DEPTH; $depth++) {
+                    $context->enterScope();
+                }
+                expect(fn () => $mode === 'render' ? $candidate->render($context) : iterator_to_array($candidate->stream($context)))
+                    ->toThrow(\Keepsuit\Liquid\Exceptions\StackLevelException::class);
+            }
+        }
+    } finally {
+        @unlink($path);
+    }
+});
+
+test('constant raw nodes retain interrupts present on entry', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('');
+    $template->root->body->setChildren([new Raw('x'), new Text('tail')]);
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            foreach (['render', 'stream'] as $mode) {
+                $context = $environment->newRenderContext();
+                $context->pushInterrupt(new \Keepsuit\Liquid\Interrupts\BreakInterrupt);
+                $output = $mode === 'render' ? $candidate->render($context) : implode('', iterator_to_array($candidate->stream($context)));
+                expect($output)->toBe('x');
+            }
+        }
+    } finally {
+        @unlink($path);
+    }
+});
+
+test('native rendered tags retain custom body rendering', function (string $source, string $expected) {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString($source);
+    $tag = $template->root->body->children()[0];
+    (new ReflectionProperty($tag, 'body'))->setValue($tag, new CompilerCustomRenderedBody);
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            expect($candidate->render($environment->newRenderContext()))->toBe($expected);
+            expect(implode('', iterator_to_array($candidate->stream($environment->newRenderContext()))))->toBe($expected);
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([
+    ['{% ifchanged %}ignored{% endifchanged %}', 'custom body'],
+    ['{% tablerow i in (1..1) %}ignored{% endtablerow %}', "<tr class=\"row1\">\n<td class=\"col1\">custom body</td></tr>\n"],
+]);
+
+test('compiled rendered bodies keep distinct class identities and error locations', function () {
+    $environment = EnvironmentFactory::new()->setStrictFilters(true)->setRethrowErrors(false)->build();
+    $paths = [];
+
+    try {
+        $templates = [];
+        foreach (['first', 'second'] as $value) {
+            $template = $environment->parseString('{% ifchanged %}'.$value.'{% endifchanged %}');
+            $path = temporaryCompiledTemplatePath();
+            $paths[] = $path;
+            $environment->compile($template, $path);
+            $templates[] = require $path;
+        }
+        expect($templates[0]::class)->not->toBe($templates[1]::class);
+        foreach ($templates as $index => $candidate) {
+            expect($candidate->render($environment->newRenderContext()))->toBe($index === 0 ? 'first' : 'second');
+        }
+
+        $source = "{% ifchanged %}\n{{ 1 | unknown }}\n{% endifchanged %}\n{% ifchanged %}\n{{ 1 | unknown }}\n{% endifchanged %}";
+        $template = $environment->parseString($source);
+        $path = temporaryCompiledTemplatePath();
+        $paths[] = $path;
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            foreach (['render', 'stream'] as $mode) {
+                $context = $environment->newRenderContext();
+                $mode === 'render' ? $candidate->render($context) : iterator_to_array($candidate->stream($context));
+                expect(array_map(fn ($error) => $error->lineNumber, $context->getErrors()))->toBe([2, 5]);
+            }
+        }
+    } finally {
+        foreach ($paths as $path) {
+            @unlink($path);
+        }
+    }
+});
+
 test('compiled node errors preserve handler output suppression and metadata', function (string $exceptionClass, bool $suppressed) {
     $handler = new class implements \Keepsuit\Liquid\Contracts\LiquidErrorHandler
     {
@@ -2212,7 +2431,7 @@ test('storefront specs compile into readable direct output', function () {
             ->toContain("'size'")
             ->not->toContain('private readonly mixed $value')
             ->not->toContain('yield from [];')
-            ->not->toContain('do {');
+            ->toContain('if ($context->hasInterrupt()) {');
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
@@ -2749,6 +2968,7 @@ test('failed node compilation rolls back before runtime fallback', function () {
         $compiledSource = file_get_contents($compiledPath);
 
         expect(str_contains($compiledSource ?: '', 'partial output'))->toBeFalse();
+        expect(str_contains($compiledSource ?: '', 'discarded body'))->toBeFalse();
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
@@ -2793,6 +3013,27 @@ test('yieldless compiled nodes still use the node error boundary', function () {
         expect($compiled->getErrors()[0]->lineNumber)
             ->toBe($template->getErrors()[0]->lineNumber)
             ->toBe(7);
+    } finally {
+        @unlink($compiledPath);
+    }
+});
+
+test('small literal bodies fold buffered streaming without losing incoming interrupts', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString(str_repeat('{{ "text" }}', 128));
+    $compiledPath = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $compiledPath);
+        $compiled = require $compiledPath;
+        expect(file_get_contents($compiledPath))->not->toContain('catch (');
+        foreach ([$template, $compiled] as $candidate) {
+            $context = $environment->newRenderContext();
+            expect(implode('', iterator_to_array($candidate->stream($context), false)))->toBe(str_repeat('text', 128));
+            $context = $environment->newRenderContext();
+            $context->pushInterrupt(new \Keepsuit\Liquid\Interrupts\BreakInterrupt);
+            expect(implode('', iterator_to_array($candidate->stream($context), false)))->toBe('text');
+        }
     } finally {
         @unlink($compiledPath);
     }
