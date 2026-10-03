@@ -87,7 +87,7 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
             return $value;
         }
         if ($this->filters === []) {
-            $context->write($value.' = $context->evaluate('.$context->writeVariableExpression($this->name).');');
+            $context->write($value.' = '.$context->writeEvaluatedExpression($this->name).';');
 
             return $value;
         }
@@ -117,10 +117,7 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
         $values = [];
         foreach ($arguments as $key => $argument) {
             $key = $context->writeValue($key);
-            $source = $context->writeCachedValue($argument);
-            $values[] = $key.' => '.(is_scalar($argument) || $argument === null
-                ? $source
-                : '$context->evaluate('.$source.')');
+            $values[] = $key.' => '.$context->writeEvaluatedExpression($argument);
         }
 
         return '['.implode(', ', $values).']';

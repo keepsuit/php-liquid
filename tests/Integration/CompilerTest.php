@@ -88,6 +88,11 @@ class CompilerTestFilters extends FiltersProvider
     {
         return $value instanceof UnitEnum ? $value::class.'::'.$value->name : 'not an enum';
     }
+
+    public function compilerArguments(mixed $value, mixed $first, mixed $second = null, mixed $named = null): string
+    {
+        return json_encode([$value, $first, $second, $named], JSON_THROW_ON_ERROR);
+    }
 }
 
 enum CompilerUnitEnum
@@ -2283,6 +2288,127 @@ test('compiled name lookups retain scope changes null values and strict missing 
         @unlink($path);
     }
 })->with([false, true]);
+
+test('compiled filter arguments fully evaluate lookups in positional and named order', function () {
+    $environment = EnvironmentFactory::new()->addExtension(new CompilerTestExtension)->build();
+    $template = $environment->parseString('{{ "x" | compiler_arguments: first, product[key], named: last }}');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        expect(file_get_contents($path))
+            ->not->toContain("new \\Keepsuit\\Liquid\\Nodes\\VariableLookup('first'")
+            ->not->toContain("new \\Keepsuit\\Liquid\\Nodes\\VariableLookup('product'")
+            ->not->toContain("new \\Keepsuit\\Liquid\\Nodes\\VariableLookup('last'");
+        foreach ([$template, $compiled] as $candidate) {
+            foreach (['render', 'stream'] as $mode) {
+                $counter = new CompilerCountingPartialValue;
+                $context = $environment->newRenderContext(data: [
+                    'first' => new VariableLookup('counter'),
+                    'product' => ['part' => new VariableLookup('counter')],
+                    'key' => 'part',
+                    'last' => new VariableLookup('counter'),
+                    'counter' => $counter,
+                ]);
+                $output = $mode === 'render' ? $candidate->render($context) : implode('', iterator_to_array($candidate->stream($context)));
+                expect($output)->toBe('["x",1,2,3]');
+                expect($counter->calls)->toBe(3);
+            }
+        }
+    } finally {
+        @unlink($path);
+    }
+});
+
+test('compiled filter arguments preserve strict missing values and evaluation order', function (bool $strict, bool $named) {
+    $environment = EnvironmentFactory::new()->addExtension(new CompilerTestExtension)->setStrictVariables($strict)->setRethrowErrors(false)->build();
+    $source = $named
+        ? '{{ "x" | compiler_arguments: first, second, named: missing }}'
+        : '{{ "x" | compiler_arguments: first, missing, named: last }}';
+    $template = $environment->parseString($source);
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            foreach (['render', 'stream'] as $mode) {
+                $counter = new CompilerCountingPartialValue;
+                $context = $environment->newRenderContext(data: ['first' => $counter, 'second' => $counter, 'last' => $counter]);
+                $output = $mode === 'render' ? $candidate->render($context) : implode('', iterator_to_array($candidate->stream($context)));
+                $missing = $strict ? '{"variableName":"missing"}' : 'null';
+                expect($output)->toBe($named ? '["x",1,2,'.$missing.']' : '["x",1,'.$missing.',2]');
+                expect($counter->calls)->toBe(2);
+                expect($context->getErrors())->toHaveCount(0);
+            }
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([[false, false], [false, true], [true, false], [true, true]]);
+
+test('compiled filter argument coercion preserves strict errors', function (bool $strict) {
+    $environment = EnvironmentFactory::new()->setStrictVariables($strict)->setRethrowErrors(false)->build();
+    $template = $environment->parseString('before{{ "x" | append: missing }}after');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            foreach (['render', 'stream'] as $mode) {
+                $context = $environment->newRenderContext();
+                $output = $mode === 'render' ? $candidate->render($context) : implode('', iterator_to_array($candidate->stream($context)));
+                expect($output)->toBe($strict ? 'beforeafter' : 'beforexafter');
+                expect($context->getErrors())->toHaveCount($strict ? 1 : 0);
+            }
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([false, true]);
+
+test('compiled filter arguments retain custom lookup evaluation', function () {
+    $environment = EnvironmentFactory::new()->addExtension(new CompilerTestExtension)->build();
+    $template = $environment->parseString('');
+    $template->root->body->pushChild(new Variable('x', [['compiler_arguments', [new CompilerInheritedLookup('ignored')], ['named' => 'tail']]]));
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            expect($candidate->render($environment->newRenderContext()))->toBe('["x",[7,8],null,"tail"]');
+            expect(implode('', iterator_to_array($candidate->stream($environment->newRenderContext()))))->toBe('["x",[7,8],null,"tail"]');
+        }
+    } finally {
+        @unlink($path);
+    }
+});
+
+test('compiled assignments resolve nested evaluators once', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('{% assign result = value %}{{ result }}');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            foreach (['render', 'stream'] as $mode) {
+                $counter = new CompilerCountingPartialValue;
+                $context = $environment->newRenderContext(data: ['value' => new VariableLookup('counter'), 'counter' => $counter]);
+                $output = $mode === 'render' ? $candidate->render($context) : implode('', iterator_to_array($candidate->stream($context)));
+                expect($output)->toBe('1');
+                expect($counter->calls)->toBe(1);
+                expect($context->get('result'))->toBe(1);
+            }
+        }
+    } finally {
+        @unlink($path);
+    }
+});
 
 test('expression values remain exportable while variables compile directly', function () {
     $variable = new Variable('name');

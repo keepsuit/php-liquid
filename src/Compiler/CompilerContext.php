@@ -586,6 +586,18 @@ final class CompilerContext
             : '$context->evaluate('.$source.')';
     }
 
+    /**
+     * Resolve an expression fully, including evaluators returned by a lookup.
+     */
+    public function writeEvaluatedExpression(mixed $value): string
+    {
+        $source = $this->writeVariableExpression($value);
+
+        return $value instanceof VariableLookup && $value::class === VariableLookup::class
+            ? '$context->evaluate('.$source.')'
+            : $source;
+    }
+
     private function writeSerializedObject(object $value): string
     {
         // Keep generated artifacts independent from Symfony's object exporter.
