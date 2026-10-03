@@ -5,12 +5,13 @@ namespace Keepsuit\Liquid\Compiler;
 use Closure;
 use Generator;
 use Keepsuit\Liquid\AbstractTemplate;
+use Keepsuit\Liquid\Drops\ForLoopDrop;
 use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
 use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
 use Keepsuit\Liquid\Render\RenderContext;
-use Keepsuit\Liquid\Support\Arr;
+use Keepsuit\Liquid\Tags\RenderTag;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\TemplateSharedState;
 use Throwable;
@@ -158,6 +159,86 @@ abstract class CompiledTemplate extends AbstractTemplate
 
     /**
      * @param  array<string,mixed>  $attributes
+     * @return \Generator<string>
+     */
+    protected function yieldPartialLoop(
+        RenderContext $context,
+        string $templateName,
+        mixed $variable,
+        ?string $aliasName,
+        array $attributes,
+    ): \Generator {
+        $partial = $context->loadPartial($templateName);
+        $name = $partial->name() ?? '';
+        $alias = $aliasName ?? RenderTag::defaultVariableName($name);
+        $variable = $variable ? $context->evaluate($variable) : null;
+        $values = RenderTag::loopValues($variable, true);
+
+        if ($values === null) {
+            yield from $partial->stream($this->partialLoopContext($context, $name, $alias, $variable, $attributes));
+
+            return;
+        }
+
+        $loop = new ForLoopDrop($name, count($values));
+        foreach ($values as $value) {
+            yield from $partial->stream($this->partialLoopContext($context, $name, $alias, $value, $attributes, $loop));
+            $loop->increment();
+        }
+    }
+
+    /** @param array<string,mixed> $attributes */
+    protected function renderPartialLoop(
+        RenderContext $context,
+        string $templateName,
+        mixed $variable,
+        ?string $aliasName,
+        array $attributes,
+    ): string {
+        $partial = $context->loadPartial($templateName);
+        $name = $partial->name() ?? '';
+        $alias = $aliasName ?? RenderTag::defaultVariableName($name);
+        $variable = $variable ? $context->evaluate($variable) : null;
+        $values = RenderTag::loopValues($variable, true);
+
+        if ($values === null) {
+            return $partial->render($this->partialLoopContext($context, $name, $alias, $variable, $attributes));
+        }
+
+        $loop = new ForLoopDrop($name, count($values));
+        $output = '';
+        foreach ($values as $value) {
+            $output .= $partial->render($this->partialLoopContext($context, $name, $alias, $value, $attributes, $loop));
+            $loop->increment();
+        }
+
+        return $output;
+    }
+
+    /** @param array<string,mixed> $attributes */
+    private function partialLoopContext(
+        RenderContext $context,
+        string $name,
+        string $alias,
+        mixed $value,
+        array $attributes,
+        ?ForLoopDrop $loop = null,
+    ): RenderContext {
+        $partialContext = $context->newIsolatedSubContext($name);
+        if ($loop !== null && $alias !== 'forloop') {
+            $partialContext->set('forloop', $loop);
+        }
+        $partialContext->set($alias, $value);
+
+        foreach ($attributes as $key => $expression) {
+            $partialContext->set($key, $context->evaluate($expression));
+        }
+
+        return $partialContext;
+    }
+
+    /**
+     * @param  array<string,mixed>  $attributes
      */
     private function partialContext(
         RenderContext $context,
@@ -168,8 +249,7 @@ abstract class CompiledTemplate extends AbstractTemplate
     ): RenderContext {
         $partialName = $partial->name() ?? '';
 
-        $contextVariableName = $aliasName ?? Arr::last(explode('/', $partialName));
-        assert(is_string($contextVariableName));
+        $contextVariableName = $aliasName ?? RenderTag::defaultVariableName($partialName);
 
         $value = $variable ? $context->evaluate($variable) : null;
         $partialContext = $context->newIsolatedSubContext($partialName);

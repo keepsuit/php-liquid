@@ -62,6 +62,10 @@ class VariableLookup implements CanBeEvaluated, CanBeExported, HasParseTreeVisit
 
     public function export(CompilerContext $context): ?string
     {
+        if (static::class !== self::class) {
+            return null;
+        }
+
         return 'new \\'.self::class.'('
             .$context->writeValue($this->name).', '
             .$context->writeValue($this->lookups).')';
@@ -97,6 +101,20 @@ class VariableLookup implements CanBeEvaluated, CanBeExported, HasParseTreeVisit
         }
 
         return self::evaluateParts($context, $this->name, $this->lookups);
+    }
+
+    /**
+     * Compiler entry point for a name with no lookup path.
+     *
+     * @internal
+     */
+    public static function evaluateName(RenderContext $context, string $name): mixed
+    {
+        $variable = $context->findVariable($name);
+
+        return $variable instanceof MissingValue
+            ? self::undefinedValue($context, $name, [])
+            : $variable;
     }
 
     /**

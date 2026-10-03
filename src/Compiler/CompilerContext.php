@@ -358,9 +358,10 @@ final class CompilerContext
         $rendering = $this->rendering;
         $id = spl_object_id($node);
         $fallback = isset($this->extensionSources[$id]) && $this->extensionSources[$id]['source'] === null;
-        if ($node instanceof AssignTag || $node instanceof CaptureTag || $node instanceof ForTag || $node instanceof LiquidTag) {
+        if ($node instanceof AssignTag || $node instanceof CaptureTag || $node instanceof ForTag || $node instanceof LiquidTag
+            || ($node instanceof RenderTag && $node::class !== RenderTag::class)) {
             $compilerClass = (new \ReflectionMethod($node, 'compile'))->getDeclaringClass()->getName();
-            $fallback = $fallback || ($node::class !== $compilerClass && in_array($compilerClass, [AssignTag::class, CaptureTag::class, ForTag::class, LiquidTag::class], true));
+            $fallback = $fallback || ($node::class !== $compilerClass && in_array($compilerClass, [AssignTag::class, CaptureTag::class, ForTag::class, LiquidTag::class, RenderTag::class], true));
         }
 
         // Extension fragments may return from their node or yield before failing.
@@ -535,6 +536,10 @@ final class CompilerContext
             return $exported;
         }
 
+        if ($value instanceof \UnitEnum) {
+            return var_export($value, true);
+        }
+
         if (is_string($value)) {
             return $this->writeExpressionString($value);
         }
@@ -566,6 +571,10 @@ final class CompilerContext
         // Variable's output helpers complete evaluation if the lookup resolves
         // to another CanBeEvaluated value rather than a scalar.
         if ($value instanceof VariableLookup && $value::class === VariableLookup::class) {
+            if ($value->lookups === []) {
+                return '\\'.VariableLookup::class.'::evaluateName($context, '.$this->writeValue($value->name).')';
+            }
+
             return '\\'.VariableLookup::class.'::evaluateParts($context, '
                 .$this->writeValue($value->name).', '.$this->writeCachedValue($value->lookups).')';
         }

@@ -83,6 +83,54 @@ class CompilerTestFilters extends FiltersProvider
     {
         return new VariableLookup('target');
     }
+
+    public function compilerEnumIdentity(mixed $value): string
+    {
+        return $value instanceof UnitEnum ? $value::class.'::'.$value->name : 'not an enum';
+    }
+}
+
+enum CompilerUnitEnum
+{
+    case Ready;
+}
+
+enum CompilerBackedEnum: string
+{
+    case Ready = 'ready';
+}
+
+enum CompilerExportedEnum implements \Keepsuit\Liquid\Contracts\CanBeEvaluated, CanBeExported
+{
+    case Ready;
+
+    public function evaluate(RenderContext $context): mixed
+    {
+        return 'custom enum';
+    }
+
+    public function export(CompilerContext $context): ?string
+    {
+        return $context->writeValue('custom enum');
+    }
+}
+
+class CompilerCountingPartialValue implements \Keepsuit\Liquid\Contracts\CanBeEvaluated
+{
+    public int $calls = 0;
+
+    public function evaluate(RenderContext $context): mixed
+    {
+        return ++$this->calls;
+    }
+}
+
+class CompilerInheritedLookup extends VariableLookup
+{
+    public function evaluate(RenderContext $context): mixed
+    {
+        return [7, 8];
+    }
 }
 
 trait CompilerSmallTagOverride
@@ -135,6 +183,11 @@ class CompilerCustomRawTag extends \Keepsuit\Liquid\Tags\RawTag implements CanBe
 }
 
 class CompilerCustomDocTag extends \Keepsuit\Liquid\Tags\DocTag implements CanBeStreamed, Disableable
+{
+    use CompilerSmallTagOverride;
+}
+
+class CompilerCustomRenderTag extends \Keepsuit\Liquid\Tags\RenderTag implements Disableable
 {
     use CompilerSmallTagOverride;
 }
@@ -1004,7 +1057,7 @@ test('compiled static render tags stream partials without rebuilding the tag', f
     }
 });
 
-test('compiled render tag fallback preserves loop behavior', function () {
+test('compiled static render loops avoid serialized tags and preserve loop behavior', function () {
     $environment = EnvironmentFactory::new()
         ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem([
             'product' => '{{ product.title }} ',
@@ -1019,9 +1072,8 @@ test('compiled render tag fallback preserves loop behavior', function () {
         $compiledSource = file_get_contents($compiledPath);
 
         expect($compiledSource)
-            ->toContain('->stream($context)')
-            ->not->toContain('yieldPartial')
-            ->toContain('private readonly mixed $value');
+            ->toContain('yieldPartialLoop', 'renderPartialLoop')
+            ->not->toContain('unserialize(');
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
@@ -1030,10 +1082,158 @@ test('compiled render tag fallback preserves loop behavior', function () {
         expect($compiled->render($environment->newRenderContext(data: $data)))
             ->toBe($template->render($environment->newRenderContext(data: $data)))
             ->toBe('one two ');
+        expect(implode('', iterator_to_array($compiled->stream($environment->newRenderContext(data: $data)))))
+            ->toBe('one two ');
     } finally {
         @unlink($compiledPath);
     }
 });
+
+test('compiled render loops preserve collections per-iteration attributes and isolation', function (string $kind) {
+    $environment = EnvironmentFactory::new()
+        ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem([
+            'partials/item' => '{{ item }}:{{ note }}:{{ forloop.index | default: "once" }}:{{ outer | default: "isolated" }};{% assign outer = "changed" %}',
+        ]))->build();
+    $template = $environment->parseString('{% assign outer = "root" %}{% render "partials/item" for items, note: note %}{{ outer }}');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach (['render', 'stream'] as $mode) {
+            $results = [];
+            foreach ([$template, $compiled] as $candidate) {
+                $items = match ($kind) {
+                    'empty' => [],
+                    'array' => [1, 2, 3],
+                    'hash' => ['a' => 1, 'b' => 2, 'c' => 3],
+                    'range' => new \Keepsuit\Liquid\Nodes\Range(1, 3),
+                    'iterator' => new ArrayIterator([1, 2, 3]),
+                    'generator' => (function () {
+                        yield 1;
+                        yield 2;
+                        yield 3;
+                    })(),
+                    'scalar' => 'value',
+                    'nil' => null,
+                };
+                $note = new CompilerCountingPartialValue;
+                $context = $environment->newRenderContext(data: ['items' => $items, 'note' => $note]);
+                $output = $mode === 'render' ? $candidate->render($context) : implode('', iterator_to_array($candidate->stream($context)));
+                $results[] = [$output, $note->calls, $context->get('outer'), $context->resourceLimits->getRenderScore()];
+            }
+            expect($results[1])->toBe($results[0]);
+            expect($results[1][1])->toBe($kind === 'empty' ? 0 : (in_array($kind, ['scalar', 'nil'], true) ? 1 : 3));
+            expect($results[1][2])->toBe('root');
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with(['empty', 'array', 'hash', 'range', 'iterator', 'generator', 'scalar', 'nil']);
+
+test('compiled render loops preserve lookup subclasses with inherited exporters', function (string $field, string $expected) {
+    $environment = EnvironmentFactory::new()
+        ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem(['p' => '{{ i }}:{{ note }};']))->build();
+    $template = $environment->parseString('{% render "p" for items as i, note: note %}');
+    $tag = $template->root->body->children()[0];
+    $value = $field === 'attributes' ? ['note' => new CompilerInheritedLookup('note')] : new CompilerInheritedLookup('items');
+    (new ReflectionProperty($tag, $field))->setValue($tag, $value);
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            $data = ['items' => [1, 2], 'note' => 'default'];
+            expect($candidate->render($environment->newRenderContext(data: $data)))->toBe($expected);
+            expect(implode('', iterator_to_array($candidate->stream($environment->newRenderContext(data: $data)))))->toBe($expected);
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([
+    ['variableNameExpression', '7:default;8:default;'],
+    ['attributes', '1:78;2:78;'],
+]);
+
+test('compiled render loops materialize generators before streaming partials', function () {
+    $environment = EnvironmentFactory::new()
+        ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem(['p' => '{{ item }}{{ forloop.index }}']))
+        ->build();
+    $template = $environment->parseString('{% render "p" for items as item %}');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            $events = [];
+            $items = (function () use (&$events) {
+                $events[] = 1;
+                yield 1;
+                $events[] = 2;
+                yield 2;
+            })();
+            $context = $environment->newRenderContext(data: ['items' => $items]);
+            $stream = $candidate->stream($context);
+            expect($stream->current())->toStartWith('11');
+            expect($events)->toBe([1, 2]);
+            expect(implode('', iterator_to_array($stream)))->toBe('1122');
+        }
+    } finally {
+        @unlink($path);
+    }
+});
+
+test('compiled render loops preserve alias and attribute override order', function (string $arguments, string $body) {
+    $environment = EnvironmentFactory::new()
+        ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem(['p' => $body]))->build();
+    $template = $environment->parseString('{% render "p" for items '.$arguments.' %}');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach (['render', 'stream'] as $mode) {
+            $results = [];
+            foreach ([$template, $compiled] as $candidate) {
+                $context = $environment->newRenderContext(data: ['items' => [1, 2]]);
+                $results[] = $mode === 'render' ? $candidate->render($context) : implode('', iterator_to_array($candidate->stream($context)));
+            }
+            expect($results[1])->toBe($results[0]);
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([
+    ['as forloop', '{{ forloop }}'],
+    ['as item, item: "override", forloop: "overridden"', '{{ item }}{{ forloop }}'],
+]);
+
+test('render tag subclasses retain render and stream overrides when compiled', function (string $modifier) {
+    $environment = EnvironmentFactory::new()->registerTag(CompilerCustomRenderTag::class)
+        ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem(['p' => 'ignored']))->build();
+    $template = $environment->parseString('before{% render "p" '.$modifier.' items %}after');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            expect($candidate->render($environment->newRenderContext()))->toBe('beforeoverrideafter');
+            expect(implode('', iterator_to_array($candidate->stream($environment->newRenderContext()), false)))->toBe('beforefirstsecondafter');
+            foreach (['render', 'stream'] as $mode) {
+                $context = $environment->newRenderContext();
+                $output = $context->withDisabledTags(['render'], fn () => $mode === 'render'
+                    ? $candidate->render($context) : implode('', iterator_to_array($candidate->stream($context))));
+                expect($output)->toBe('beforeLiquid error (line 1): render usage is not allowed in this contextafter');
+                expect($context->getErrors())->toHaveCount(1);
+            }
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with(['with', 'for']);
 
 test('compiled conditional bodies preserve interrupts from fallback nodes', function () {
     $environment = EnvironmentFactory::new()->build();
@@ -1916,7 +2116,7 @@ test('direct variable emission preserves common Liquid values', function (string
 
         expect(file_get_contents($compiledPath))
             ->not->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
-            ->toContain('::evaluateParts($context,')
+            ->toContain('::evaluate')
             ->not->toContain('private readonly mixed $value');
 
         /** @var CompiledTemplate $compiled */
@@ -2016,6 +2216,73 @@ test('built-in compilable nodes implement the compiler contract directly', funct
         expect($node)->toBeInstanceOf(CanBeCompiled::class);
     }
 });
+
+test('compiled enums retain identity without serialization', function (UnitEnum $value) {
+    $environment = EnvironmentFactory::new()->addExtension(new CompilerTestExtension)->build();
+    $template = $environment->parseString('');
+    $template->root->body->pushChild(new Variable($value, [['compiler_enum_identity', [], []]]));
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        expect(file_get_contents($path))->not->toContain('unserialize(');
+        foreach ([$template, $compiled] as $candidate) {
+            expect($candidate->render($environment->newRenderContext()))->toBe($value::class.'::'.$value->name);
+            expect(implode('', iterator_to_array($candidate->stream($environment->newRenderContext()))))->toBe($value::class.'::'.$value->name);
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([CompilerUnitEnum::Ready, CompilerBackedEnum::Ready, \Keepsuit\Liquid\Nodes\Literal::Empty, \Keepsuit\Liquid\Nodes\Literal::Blank]);
+
+test('enum exporters retain precedence over native enum reconstruction', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('');
+    $template->root->body->pushChild(new Variable(CompilerExportedEnum::Ready));
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            expect($candidate->render($environment->newRenderContext()))->toBe('custom enum');
+            expect(implode('', iterator_to_array($candidate->stream($environment->newRenderContext()))))->toBe('custom enum');
+        }
+    } finally {
+        @unlink($path);
+    }
+});
+
+test('compiled name lookups retain scope changes null values and strict missing errors', function (bool $strict) {
+    $environment = EnvironmentFactory::new()->setStrictVariables($strict)->setRethrowErrors(false)->build();
+    $template = $environment->parseString('{{ root }}|{{ missing }}|{% assign root = "changed" %}{{ root }}|{{ value | default: "none" }}');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        expect(file_get_contents($path))->toContain('::evaluateName($context,')->not->toContain('::evaluateParts(');
+        foreach ([$template, $compiled] as $candidate) {
+            foreach (['render', 'stream'] as $mode) {
+                $context = $environment->newRenderContext(data: ['root' => 'outer', 'value' => null]);
+                $context->enterScope();
+                $context->set('root', 'inner');
+                try {
+                    $output = $mode === 'render' ? $candidate->render($context) : implode('', iterator_to_array($candidate->stream($context)));
+                    expect($output)->toBe('inner||inner|none');
+                    expect($context->getErrors())->toHaveCount($strict ? 1 : 0);
+                    expect($context->get('root'))->toBe('inner');
+                } finally {
+                    $context->leaveScope();
+                }
+                expect($context->get('root'))->toBe('changed');
+            }
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([false, true]);
 
 test('expression values remain exportable while variables compile directly', function () {
     $variable = new Variable('name');
