@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid\Compiler;
 use Closure;
 use Generator;
 use Keepsuit\Liquid\AbstractTemplate;
+use Keepsuit\Liquid\Contracts\AsLiquidValue;
 use Keepsuit\Liquid\Drops\ForLoopDrop;
 use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
@@ -121,6 +122,18 @@ abstract class CompiledTemplate extends AbstractTemplate
     protected function incrementCompiledRenderScore(RenderContext $context, int $renderScore): void
     {
         $context->resourceLimits->incrementRenderScore($renderScore);
+    }
+
+    protected function conditionValue(mixed $value): mixed
+    {
+        return $value instanceof AsLiquidValue ? $value->toLiquidValue() : $value;
+    }
+
+    protected function conditionTruthy(mixed $value): bool
+    {
+        $value = $value instanceof AsLiquidValue ? $value->toLiquidValue() : $value;
+
+        return $value !== false && $value !== null;
     }
 
     /**

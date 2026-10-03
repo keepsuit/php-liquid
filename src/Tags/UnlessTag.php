@@ -59,8 +59,7 @@ class UnlessTag extends IfTag
     public function compile(CompilerContext $context): void
     {
         if ($this->unlessCondition !== null) {
-            $conditionValue = $context->writeRuntimeValue($this->unlessCondition);
-            $context->write('if (! '.$conditionValue.'->evaluate($context)) {');
+            $context->write('if (! ('.$context->writeConditionExpression($this->unlessCondition).')) {');
             $context->indent();
 
             if ($this->unlessCondition->body !== null) {

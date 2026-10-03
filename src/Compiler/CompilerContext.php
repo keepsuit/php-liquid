@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Compiler;
 
+use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeExported;
 use Keepsuit\Liquid\Contracts\CanBeStreamed;
@@ -24,6 +25,7 @@ use Keepsuit\Liquid\Tags\DecrementTag;
 use Keepsuit\Liquid\Tags\DocTag;
 use Keepsuit\Liquid\Tags\EchoTag;
 use Keepsuit\Liquid\Tags\ForTag;
+use Keepsuit\Liquid\Tags\IfChanged;
 use Keepsuit\Liquid\Tags\IfTag;
 use Keepsuit\Liquid\Tags\IncrementTag;
 use Keepsuit\Liquid\Tags\LiquidTag;
@@ -405,6 +407,12 @@ final class CompilerContext
 
     private function compileNativeTag(Node $node): bool
     {
+        if ($node::class === IfChanged::class) {
+            $node->compileNative($this);
+
+            return true;
+        }
+
         if ($node::class === RawTag::class && $node->getBody()::class === Raw::class) {
             $this->writeText($node->getBody()->value);
 
@@ -596,6 +604,13 @@ final class CompilerContext
         return $value instanceof VariableLookup && $value::class === VariableLookup::class
             ? '$context->evaluate('.$source.')'
             : $source;
+    }
+
+    public function writeConditionExpression(Condition $condition): string
+    {
+        return $condition::class === Condition::class
+            ? $condition->compileExpression($this)
+            : $this->writeRuntimeValue($condition).'->evaluate($context)';
     }
 
     private function writeSerializedObject(object $value): string

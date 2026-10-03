@@ -138,6 +138,18 @@ class CompilerInheritedLookup extends VariableLookup
     }
 }
 
+class CompilerLiquidEventValue implements \Keepsuit\Liquid\Contracts\AsLiquidValue
+{
+    public function __construct(private ArrayObject $events, private string $name) {}
+
+    public function toLiquidValue(): int
+    {
+        $this->events[] = $this->name.' value';
+
+        return 1;
+    }
+}
+
 trait CompilerSmallTagOverride
 {
     public function render(RenderContext $context): string
@@ -150,6 +162,11 @@ trait CompilerSmallTagOverride
         yield 'first';
         yield 'second';
     }
+}
+
+class CompilerCustomIfChanged extends \Keepsuit\Liquid\Tags\IfChanged implements CanBeStreamed, Disableable
+{
+    use CompilerSmallTagOverride;
 }
 
 class CompilerCustomEchoTag extends \Keepsuit\Liquid\Tags\EchoTag implements CanBeStreamed, Disableable
@@ -977,7 +994,7 @@ test('compiled control flow preserves branch selection and stream output', funct
 
         $compiledSource = file_get_contents($compiledPath);
 
-        expect($compiledSource)->toContain('->evaluate($context)');
+        expect($compiledSource)->toContain('->conditionTruthy(')->toContain('::compare(');
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
@@ -1575,8 +1592,9 @@ test('exportable nodes are rebuilt with constructors instead of serialization', 
 
         expect(file_get_contents($compiledPath))
             ->not->toContain('new \Keepsuit\Liquid\Nodes\Variable(')
-            ->toContain('new \Keepsuit\Liquid\Nodes\VariableLookup(')
-            ->toContain('new \Keepsuit\Liquid\Condition\Condition(')
+            ->not->toContain('new \Keepsuit\Liquid\Nodes\VariableLookup(')
+            ->not->toContain('new \Keepsuit\Liquid\Condition\Condition(')
+            ->toContain('::compare(')
             ->not->toContain('\unserialize(')
             ->not->toContain('deepclone_from_array');
 
@@ -1592,7 +1610,7 @@ test('exportable nodes are rebuilt with constructors instead of serialization', 
     }
 });
 
-test('chained conditions are reconstructed without serialized bodies', function () {
+test('native condition chains compile without reconstructed objects', function () {
     $environment = EnvironmentFactory::new()->build();
     $template = $environment->parseString('{% if a > 1 and b %}yes{% else %}no{% endif %}');
     $compiledPath = temporaryCompiledTemplatePath();
@@ -1602,7 +1620,9 @@ test('chained conditions are reconstructed without serialized bodies', function 
 
         expect(file_get_contents($compiledPath))
             ->not->toContain('\unserialize(')
-            ->toContain('\Keepsuit\Liquid\Condition\Condition::chain(')
+            ->not->toContain('\Keepsuit\Liquid\Condition\Condition::chain(')
+            ->not->toContain('private readonly mixed $value')
+            ->toContain(' && ')
             ->not->toContain('deepclone_from_array')
             ->not->toContain('Symfony\Component\VarExporter');
 
@@ -1733,6 +1753,129 @@ test('exported condition chains retain short circuiting and runtime operator cha
         @unlink($path);
     }
 });
+
+test('compiled comparisons normalize values before evaluating the next operand', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('{% if left == right %}yes{% endif %}');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            foreach (['render', 'stream'] as $mode) {
+                $events = new ArrayObject;
+                $data = [];
+                foreach (['left', 'right'] as $name) {
+                    $data[$name] = function () use ($events, $name) {
+                        $events[] = $name.' lookup';
+
+                        return new CompilerLiquidEventValue($events, $name);
+                    };
+                }
+                $context = $environment->newRenderContext(data: $data);
+                $output = $mode === 'render' ? $candidate->render($context) : implode('', iterator_to_array($candidate->stream($context)));
+                expect($output)->toBe('yes');
+                expect($events->getArrayCopy())->toBe(['left lookup', 'left value', 'right lookup', 'right value']);
+            }
+        }
+    } finally {
+        @unlink($path);
+    }
+});
+
+test('compiled unknown operators retain runtime registration and errors', function () {
+    $environment = EnvironmentFactory::new()->setRethrowErrors(false)->build();
+    $template = $environment->parseString('{% if value %}yes{% else %}no{% endif %}');
+    $tag = $template->root->body->children()[0];
+    $original = $tag->parseTreeVisitorChildren()[0];
+    $condition = (new Condition(new VariableLookup('value'), 'compiler_custom', 1))->body($original->body);
+    (new ReflectionProperty($tag, 'conditions'))->setValue($tag, [$condition, $tag->parseTreeVisitorChildren()[1]]);
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([true, false] as $registered) {
+            if ($registered) {
+                Condition::registerOperator('compiler_custom', fn ($left, $right) => $left === $right);
+            } else {
+                Condition::deleteOperator('compiler_custom');
+            }
+            foreach ([$template, $compiled] as $candidate) {
+                foreach (['render', 'stream'] as $mode) {
+                    $context = $environment->newRenderContext(data: ['value' => 1]);
+                    $output = $mode === 'render' ? $candidate->render($context) : implode('', iterator_to_array($candidate->stream($context)));
+                    if ($registered) {
+                        expect($output)->toBe('yes');
+                    }
+                    expect($context->getErrors())->toHaveCount($registered ? 0 : 1);
+                }
+            }
+        }
+    } finally {
+        Condition::deleteOperator('compiler_custom');
+        @unlink($path);
+    }
+});
+
+test('native compiled ifchanged preserves output registers and resource scores', function (string $source) {
+    $environment = EnvironmentFactory::new()->addExtension(new CompilerTestExtension)->setRethrowErrors(false)->build();
+    $template = $environment->parseString($source);
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        expect(file_get_contents($path))->not->toContain('unserialize(');
+        foreach (['render', 'stream'] as $mode) {
+            $contexts = [];
+            $outputs = [];
+            foreach ([$template, $compiled] as $candidate) {
+                $context = $environment->newRenderContext(data: ['items' => [1, 1, 2, 2, 1]]);
+                $contexts[] = $context;
+                $outputs[] = $mode === 'render' ? $candidate->render($context) : implode('', iterator_to_array($candidate->stream($context)));
+            }
+            expect($outputs[1])->toBe($outputs[0]);
+            expect($contexts[1]->getRegister('ifchanged'))->toBe($contexts[0]->getRegister('ifchanged'));
+            expect($contexts[1]->resourceLimits->getRenderScore())->toBe($contexts[0]->resourceLimits->getRenderScore());
+            expect(count($contexts[1]->getErrors()))->toBe(count($contexts[0]->getErrors()));
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([
+    '{% for i in items %}{% ifchanged %}{{ i }}{% endifchanged %}{% endfor %}',
+    '{% ifchanged %}x{% endifchanged %}{% ifchanged %}x{% endifchanged %}{% ifchanged %}y{% endifchanged %}',
+    '{% ifchanged %}{{ "x" | compiler_generator }}{% endifchanged %}',
+    '{% ifchanged %}before{{ "x" | unknown }}after{% endifchanged %}',
+    '{% for i in items %}{% ifchanged %}{{ i }}{% break %}skip{% endifchanged %}skip{% endfor %}',
+]);
+
+test('ifchanged subclasses retain stream overrides and disabled checks', function (bool $disabled) {
+    $environment = EnvironmentFactory::new()->registerTag(CompilerCustomIfChanged::class)->setRethrowErrors(false)->build();
+    $template = $environment->parseString('{% ifchanged %}ignored{% endifchanged %}');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            foreach (['render', 'stream'] as $mode) {
+                $context = $environment->newRenderContext();
+                $output = $context->withDisabledTags($disabled ? ['ifchanged'] : [], fn () => $mode === 'render'
+                    ? $candidate->render($context)
+                    : implode('', iterator_to_array($candidate->stream($context))));
+                if (! $disabled) {
+                    expect($output)->toBe($mode === 'render' ? 'override' : 'firstsecond');
+                }
+                expect($context->getErrors())->toHaveCount($disabled ? 1 : 0);
+            }
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([false, true]);
 
 test('compiled node errors preserve handler output suppression and metadata', function (string $exceptionClass, bool $suppressed) {
     $handler = new class implements \Keepsuit\Liquid\Contracts\LiquidErrorHandler

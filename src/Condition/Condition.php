@@ -74,6 +74,63 @@ class Condition implements CanBeExported, HasParseTreeVisitorChildren
         return $condition;
     }
 
+    /** @internal */
+    public function compileExpression(CompilerContext $context): string
+    {
+        $conditions = [];
+        $seen = [];
+        for ($condition = $this; $condition !== null; $condition = $condition->childCondition) {
+            $id = spl_object_id($condition);
+            if ($condition::class !== self::class || isset($seen[$id])) {
+                return $context->writeRuntimeValue($this).'->evaluate($context)';
+            }
+            $seen[$id] = true;
+            $conditions[] = $condition;
+        }
+
+        $source = '';
+        for ($index = count($conditions) - 1; $index >= 0; $index--) {
+            $condition = $conditions[$index];
+            $left = $context->writeEvaluatedExpression($condition->left);
+            if ($condition->operator === null) {
+                $parent = is_scalar($condition->left) || $condition->left === null
+                    ? $context->writeValue($condition->left !== false && $condition->left !== null)
+                    : '$this->conditionTruthy('.$left.')';
+            } else {
+                try {
+                    $operator = ConditionOperator::parse($condition->operator);
+                } catch (\Keepsuit\Liquid\Exceptions\SyntaxException) {
+                    $operator = null;
+                }
+                // Normalize the left value before evaluating the right value:
+                // AsLiquidValue implementations may have observable effects.
+                $parent = '\\'.self::class.'::compare('
+                    .'$this->conditionValue('.$left.'), '
+                    .'$this->conditionValue('.$context->writeEvaluatedExpression($condition->right).'), '
+                    .$context->writeValue($condition->operator).', '.$context->writeValue($operator).')';
+            }
+
+            $source = match (true) {
+                $source === '' => $parent,
+                $condition->childRelation === ConditionsRelation::And => '('.$parent.' && '.$source.')',
+                $condition->childRelation === ConditionsRelation::Or => '('.$parent.' || '.$source.')',
+                default => $parent,
+            };
+        }
+
+        return $source;
+    }
+
+    /** @internal */
+    public static function compare(mixed $left, mixed $right, string $operator, ?ConditionOperator $parsedOperator): bool
+    {
+        if (array_key_exists($operator, self::$customOperators)) {
+            return (bool) self::$customOperators[$operator]($left, $right);
+        }
+
+        return ($parsedOperator ?? ConditionOperator::parse($operator))->evaluate($left, $right);
+    }
+
     public static function registerOperator(string $operator, \Closure $closure): void
     {
         static::$customOperators[$operator] = $closure;

@@ -108,8 +108,7 @@ class CaseTag extends TagBlock implements CanBeCompiled, CanBeStreamed
                 $context->write('else {');
             } else {
                 $keyword = $first ? 'if' : 'elseif';
-                $conditionValue = $context->writeRuntimeValue($condition);
-                $context->write($keyword.' ('.$conditionValue.'->evaluate($context)) {');
+                $context->write($keyword.' ('.$context->writeConditionExpression($condition).') {');
             }
 
             $context->indent();
