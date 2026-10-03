@@ -129,6 +129,115 @@ class CompilerCustomContinueTag extends \Keepsuit\Liquid\Tags\ContinueTag implem
     use CompilerSmallTagOverride;
 }
 
+class CompilerCustomRawTag extends \Keepsuit\Liquid\Tags\RawTag implements CanBeStreamed, Disableable
+{
+    use CompilerSmallTagOverride;
+}
+
+class CompilerCustomDocTag extends \Keepsuit\Liquid\Tags\DocTag implements CanBeStreamed, Disableable
+{
+    use CompilerSmallTagOverride;
+}
+
+class CompilerCustomRawBody extends Raw
+{
+    public function render(RenderContext $context): string
+    {
+        return 'body override';
+    }
+}
+
+test('native raw and doc blocks avoid serialized bodies and preserve render scores', function (int $prefixLength) {
+    $environment = EnvironmentFactory::new()->build();
+    $prefix = str_repeat('p', $prefixLength);
+    $raw = "\n{{ opaque | invalid }} \\\x00 \" \$";
+    $template = $environment->parseString($prefix.'{% doc %}hidden documentation{% enddoc %}{% raw %}'.$raw.'{% endraw %}tail');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        expect(file_get_contents($path))->not->toContain('unserialize(', 'hidden documentation');
+        foreach ([$template, $compiled] as $candidate) {
+            foreach (['render', 'stream'] as $mode) {
+                $context = $environment->newRenderContext();
+                $output = $mode === 'render' ? $candidate->render($context) : implode('', iterator_to_array($candidate->stream($context)));
+                expect($output)->toBe($prefix.$raw.'tail');
+                expect($context->resourceLimits->getRenderScore())->toBe(count($template->root->body->children()));
+                $limited = $environment->newRenderContext(resourceLimits: new ResourceLimits(renderScoreLimit: 0));
+                expect(fn () => $mode === 'render' ? $candidate->render($limited) : iterator_to_array($candidate->stream($limited)))
+                    ->toThrow(ResourceLimitException::class);
+            }
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([0, 4096]);
+
+test('raw and doc subclasses retain streamed overrides and disabled checks', function (string $class) {
+    $environment = EnvironmentFactory::new()->registerTag($class)->build();
+    $tag = $class::tagName();
+    $template = $environment->parseString('before{% '.$tag.' %}ignored{% end'.$tag.' %}after');
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            expect($candidate->render($environment->newRenderContext()))->toBe('beforeoverrideafter');
+            expect(iterator_to_array($candidate->stream($environment->newRenderContext()), false))
+                ->toBe(['before', 'first', 'second', 'after']);
+            $context = $environment->newRenderContext();
+            expect($context->withDisabledTags([$tag], fn () => $candidate->render($context)))
+                ->toBe('beforeLiquid error (line 1): '.$tag.' usage is not allowed in this contextafter');
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([CompilerCustomRawTag::class, CompilerCustomDocTag::class]);
+
+test('native raw tags retain custom body rendering', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('before{% raw %}ignored{% endraw %}after');
+    $tag = $template->root->body->children()[1];
+    (new ReflectionProperty($tag, 'body'))->setValue($tag, new CompilerCustomRawBody('ignored'));
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            expect($candidate->render($environment->newRenderContext()))->toBe('beforebody overrideafter');
+            expect(implode('', iterator_to_array($candidate->stream($environment->newRenderContext()))))->toBe('beforebody overrideafter');
+        }
+    } finally {
+        @unlink($path);
+    }
+});
+
+test('compiled unfiltered scalar literals preserve their output without runtime helpers', function (mixed $value, string $expected) {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('');
+    $template->root->body->pushChild(new Variable($value));
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        expect(file_get_contents($path))->not->toContain('::streamValue', '::renderValue');
+        foreach ([$template, $compiled] as $candidate) {
+            expect($candidate->render($environment->newRenderContext()))->toBe($expected);
+            expect(implode('', iterator_to_array($candidate->stream($environment->newRenderContext()))))->toBe($expected);
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([
+    [null, ''], [true, 'true'], [false, 'false'], [0, '0'], [-1, '-1'],
+    [PHP_INT_MIN, (string) PHP_INT_MIN], [PHP_INT_MAX, (string) PHP_INT_MAX],
+    ['', ''], ["\0\n\t\r\"\$\\", "\0\n\t\r\"\$\\"],
+]);
+
 test('small native tag compilers avoid serialized tag objects', function () {
     $environment = EnvironmentFactory::new()->setStrictVariables(true)->setStrictFilters(true)->setRethrowErrors(true)->build();
     $source = "{% echo value | upcase %}|{% increment counter %}|{% decrement counter %}|{% cycle 'a', 'b' %}|"
@@ -589,9 +698,9 @@ test('compiled stream avoids redundant buffer guards', function (string $source)
     'partial boundaries' => 'before{% render "p", value: value %}after',
 ]);
 
-test('compiled body preserves buffered output when an exception interrupts a yield', function () {
+test('compiled body preserves buffered output when an exception interrupts a yield', function (string $source) {
     $environment = EnvironmentFactory::new()->setRethrowErrors(false)->build();
-    $template = $environment->parseString('{{ value }}tail');
+    $template = $environment->parseString($source);
     $path = temporaryCompiledTemplatePath();
 
     try {
@@ -618,7 +727,10 @@ test('compiled body preserves buffered output when an exception interrupts a yie
     } finally {
         @unlink($path);
     }
-});
+})->with([
+    '{{ value }}tail',
+    '{{ "'.str_repeat('x', 4096).'" }}tail',
+]);
 
 test('compiled static lookup deduplication still reads updated context values', function () {
     $environment = EnvironmentFactory::new()

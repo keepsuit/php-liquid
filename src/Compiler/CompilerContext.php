@@ -21,11 +21,13 @@ use Keepsuit\Liquid\Tags\CaseTag;
 use Keepsuit\Liquid\Tags\ContinueTag;
 use Keepsuit\Liquid\Tags\CycleTag;
 use Keepsuit\Liquid\Tags\DecrementTag;
+use Keepsuit\Liquid\Tags\DocTag;
 use Keepsuit\Liquid\Tags\EchoTag;
 use Keepsuit\Liquid\Tags\ForTag;
 use Keepsuit\Liquid\Tags\IfTag;
 use Keepsuit\Liquid\Tags\IncrementTag;
 use Keepsuit\Liquid\Tags\LiquidTag;
+use Keepsuit\Liquid\Tags\RawTag;
 use Keepsuit\Liquid\Tags\RenderTag;
 use Keepsuit\Liquid\Tags\UnlessTag;
 
@@ -344,6 +346,12 @@ final class CompilerContext
     private function compileNode(Node $node): void
     {
         $this->flushStreamBufferIfFull();
+        // Native documentation never renders or throws. Keep the preceding
+        // stream flush and the body's render score/interrupt checks.
+        if ($node::class === DocTag::class) {
+            return;
+        }
+
         $checkpoint = $this->builder->checkpoint();
         $fallbackValueCount = count($this->fallbackValues);
         $extensionSourceCount = count($this->extensionSources);
@@ -396,6 +404,12 @@ final class CompilerContext
 
     private function compileNativeTag(Node $node): bool
     {
+        if ($node::class === RawTag::class && $node->getBody()::class === Raw::class) {
+            $this->writeText($node->getBody()->value);
+
+            return true;
+        }
+
         // Avoid adding CanBeCompiled to these tags: streamed subclasses must
         // retain their existing unbuffered extension boundary in BodyNode.
         if (($node instanceof EchoTag || $node instanceof IncrementTag || $node instanceof CycleTag

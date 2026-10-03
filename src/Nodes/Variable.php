@@ -56,6 +56,14 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
             return;
         }
 
+        // These literals have a context-independent output representation.
+        // Floats retain runtime coercion, which can depend on PHP settings.
+        if (is_string($this->name) || is_int($this->name) || is_bool($this->name) || $this->name === null) {
+            $context->writeText(self::renderOutputValue($this->name));
+
+            return;
+        }
+
         if ($context->isRendering()) {
             $context->writeOutput('\\'.self::class.'::renderValue($context, '
                 .$context->writeVariableExpression($this->name).')');
