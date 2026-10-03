@@ -4,8 +4,8 @@ use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
 test('parse template from string', function () {
-    $environment = EnvironmentFactory::new()
-        ->build();
+    $environment = testEnvironment(EnvironmentFactory::new()
+        ->build());
 
     $template = $environment->parseString('Hello World', 'foo');
 
@@ -14,11 +14,11 @@ test('parse template from string', function () {
 });
 
 test('parse template from file', function () {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setFilesystem(new StubFileSystem([
             'foo' => 'Hello World',
         ]))
-        ->build();
+        ->build());
 
     $template = $environment->parseTemplate('foo');
 

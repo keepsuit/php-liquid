@@ -9,12 +9,12 @@ use Keepsuit\Liquid\Render\RenderContextOptions;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
 test('invalid syntax fails during parsing regardless of render options', function (string $source, bool $strictVariables, bool $strictFilters, bool $rethrowErrors, bool $lazyParsing) {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setStrictVariables($strictVariables)
         ->setStrictFilters($strictFilters)
         ->setRethrowErrors($rethrowErrors)
         ->setLazyParsing($lazyParsing)
-        ->build();
+        ->build());
 
     expect(fn () => $environment->parseString($source))->toThrow(SyntaxException::class);
 })->with([
@@ -43,12 +43,12 @@ test('invalid syntax fails during parsing regardless of render options', functio
 ])->with([false, true])->with([false, true])->with([false, true])->with([false, true]);
 
 test('complete syntax and explicit nil expressions remain valid', function (bool $strictVariables, bool $strictFilters, bool $rethrowErrors, bool $lazyParsing, bool $stream) {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setStrictVariables($strictVariables)
         ->setStrictFilters($strictFilters)
         ->setRethrowErrors($rethrowErrors)
         ->setLazyParsing($lazyParsing)
-        ->build();
+        ->build());
     $template = $environment->parseString(<<<'LIQUID'
         {% if nil %}N{% elsif n == nil or n == 5 and true %}Y{% endif %}|{% unless null %}U{% endunless %}|{{ n | plus: nil }}|{{ n | plus: null }}|{{ n | abs }}|{% for i in arr %}{% for j in nil %}N{% else %}{{ i }}{% endfor %}{% else %}E{% endfor %}|{% raw %}{% %}{% endraw %}{% comment %}{%- -%}{% endcomment %}{% # inline comment %}
         LIQUID);
@@ -72,12 +72,12 @@ test('invalid literal partials fail during parsing even when render errors are h
             throw new LogicException('Parse errors must not reach the render error handler.');
         }
     };
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setErrorHandler($handler)
         ->setRethrowErrors(false)
         ->setLazyParsing($lazyParsing)
         ->setFilesystem(new StubFileSystem(['p' => '{% if %}Y{% endif %}']))
-        ->build();
+        ->build());
 
     expect(fn () => $environment->parseString("{% render 'p' %}"))->toThrow(SyntaxException::class);
     expect($environment->templatesCache->has('p'))->toBeFalse();
@@ -98,7 +98,7 @@ test('partial parsing during rendering respects context overrides and error hand
     if ($customHandler) {
         $factory->setErrorHandler($handler);
     }
-    $environment = $factory->build();
+    $environment = testEnvironment($factory->build());
     $environment->templatesCache->set('p', $environment->parseString('valid'));
     $template = $environment->parseString("A{% render 'p' %}B");
     $environment->templatesCache->remove('p');

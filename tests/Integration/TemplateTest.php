@@ -14,7 +14,7 @@ use Keepsuit\Liquid\TemplateSharedState;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
 test('parsed templates implement the template contract', function () {
-    $template = Environment::default()->parseString('hello', name: 'hello');
+    $template = testEnvironment(Environment::default())->parseString('hello', name: 'hello');
 
     expect($template)
         ->toBeInstanceOf(Template::class)
@@ -117,9 +117,9 @@ test('resource limits render length', function () {
 });
 
 test('render length limit covers output from partials and custom nodes', function () {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setFilesystem(new StubFileSystem(partials: ['snippet' => '{% streaming %}']))
-        ->build();
+        ->build());
     $environment->tagRegistry->register(\Keepsuit\Liquid\Tests\Stubs\StreamingTag::class);
 
     // Checked once on the root output, so a node outside the library nested in
@@ -199,9 +199,9 @@ test('resource limits get updated even if no limits are set', function () {
 });
 
 test('cumulative render score accumulates across repeated partial renders', function () {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setFilesystem(new StubFileSystem(['snippet' => 'x']))
-        ->build();
+        ->build());
 
     $template = $environment->parseString('{% render "snippet" %}');
     $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(cumulativeRenderScoreLimit: 3));
@@ -216,9 +216,9 @@ test('cumulative render score accumulates across repeated partial renders', func
 });
 
 test('cumulative assign score accumulates across repeated partial renders', function () {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setFilesystem(new StubFileSystem(['snippet' => '{% capture foo %}ab{% endcapture %}']))
-        ->build();
+        ->build());
 
     $template = $environment->parseString('{% render "snippet" %}');
     $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(cumulativeAssignScoreLimit: 3));
@@ -261,10 +261,10 @@ test('render length uses number of bytes not characters', function () {
 });
 
 test('undefined variables', function (bool $strict) {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setRethrowErrors(false)
         ->setStrictVariables($strict)
-        ->build();
+        ->build());
 
     $template = parseTemplate('{{x}} {{y}} {{z.a}} {{z.b}} {{z.c.d}}');
     $context = $environment->newRenderContext(
@@ -315,10 +315,10 @@ test('null value does not throw exception', function (bool $strict) {
 ]);
 
 test('undefined drop method', function (bool $strict) {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setRethrowErrors(false)
         ->setStrictVariables($strict)
-        ->build();
+        ->build());
 
     $template = parseTemplate('{{ d.text }} {{ d.undefined }}');
     $context = $environment->newRenderContext(
@@ -342,10 +342,10 @@ test('undefined drop method', function (bool $strict) {
 ]);
 
 test('undefined drop method throw exception', function (bool $strict) {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setRethrowErrors(true)
         ->setStrictVariables($strict)
-        ->build();
+        ->build());
 
     $template = parseTemplate('{{ d.text }} {{ d.undefined }}');
     $context = $environment->newRenderContext(
@@ -365,10 +365,10 @@ test('undefined drop method throw exception', function (bool $strict) {
 ]);
 
 test('undefined filter', function (bool $strict) {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setRethrowErrors(false)
         ->setStrictFilters($strict)
-        ->build();
+        ->build());
 
     $template = parseTemplate('{{a}} {{x | upcase | somefilter1 | somefilter2 | capitalize}}', $environment);
     $context = $environment->newRenderContext(
@@ -395,10 +395,10 @@ test('undefined filter', function (bool $strict) {
 ]);
 
 test('undefined filter throw exception', function (bool $strict) {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setRethrowErrors(true)
         ->setStrictFilters($strict)
-        ->build();
+        ->build());
 
     $template = parseTemplate('{{a}} {{x | upcase | somefilter1 | somefilter2 | capitalize}}');
     $context = $environment->newRenderContext(

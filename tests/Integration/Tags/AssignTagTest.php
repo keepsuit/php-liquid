@@ -75,7 +75,7 @@ test('assign score exceeding resource limit', function () {
 });
 
 test('assigned ranges have the same resource score as arrays', function () {
-    $environment = EnvironmentFactory::new()->setRethrowErrors(true)->build();
+    $environment = testEnvironment(EnvironmentFactory::new()->setRethrowErrors(true)->build());
     $template = $environment->parseString('{% assign values = (1..3) %}{{ values | join }}');
     $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(assignScoreLimit: 3));
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
@@ -86,7 +86,7 @@ test('assigned ranges have the same resource score as arrays', function () {
 });
 
 test('range assignment limits are checked without materializing the range', function (int $start, int $end, string $prefix) {
-    $environment = EnvironmentFactory::new()->build();
+    $environment = testEnvironment(EnvironmentFactory::new()->build());
     $template = $environment->parseString($prefix.'{% assign values = (start..end) %}');
     $context = $environment->newRenderContext(
         data: ['start' => $start, 'end' => $end],
@@ -101,7 +101,7 @@ test('range assignment limits are checked without materializing the range', func
 ])->with(['', '{% assign small = 0 %}']);
 
 test('nested range assignment scores cannot overflow', function (bool $rethrowErrors, bool $associative) {
-    $environment = EnvironmentFactory::new()->setRethrowErrors($rethrowErrors)->build();
+    $environment = testEnvironment(EnvironmentFactory::new()->setRethrowErrors($rethrowErrors)->build());
     $template = $environment->parseString('{% assign values = items %}');
     $range = new \Keepsuit\Liquid\Nodes\Range(PHP_INT_MIN, PHP_INT_MAX);
     $context = $environment->newRenderContext(
@@ -114,9 +114,9 @@ test('nested range assignment scores cannot overflow', function (bool $rethrowEr
 })->with([false, true])->with([false, true]);
 
 test('assign score exceeding resource limit from composite object', function () {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setRethrowErrors(true)
-        ->build();
+        ->build());
 
     $template = $environment->parseString("{% assign foo = 'aaaa' | split: '' %}");
 

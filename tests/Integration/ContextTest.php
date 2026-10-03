@@ -673,10 +673,10 @@ test('new isolated subcontext inherit resource limits', function (bool $strict) 
 ]);
 
 test('new isolated subcontext inherit environment', function (bool $strict) {
-    $environment = \Keepsuit\Liquid\EnvironmentFactory::new()
+    $environment = testEnvironment(\Keepsuit\Liquid\EnvironmentFactory::new()
         ->setFilesystem($fileSystem = new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem)
         ->setStrictVariables($strict)
-        ->build();
+        ->build());
 
     $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict), environment: $environment);
     $subContext = $context->newIsolatedSubContext('sub');

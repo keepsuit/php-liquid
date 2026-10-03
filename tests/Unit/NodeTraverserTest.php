@@ -4,7 +4,7 @@ use Keepsuit\Liquid\Contracts\NodeVisitor;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
 test('traverse node tree', function () {
-    $template = parseTemplate('{% for x in xs offset: test %}{{ other }}{% endfor %}');
+    $template = parseSource('{% for x in xs offset: test %}{{ other }}{% endfor %}');
 
     $traverser = (new \Keepsuit\Liquid\Parse\NodeTraverser)
         ->addVisitor($visitor = new \Keepsuit\Liquid\Tests\Stubs\StubNodeVisitor);
@@ -21,7 +21,7 @@ test('traverse node tree', function () {
 });
 
 test('node visitor can replace body node children', function () {
-    $template = parseTemplate('{{ var1 }} {{ var2 }}');
+    $template = parseSource('{{ var1 }} {{ var2 }}');
 
     $traverser = (new \Keepsuit\Liquid\Parse\NodeTraverser)
         ->addVisitor(new class implements NodeVisitor

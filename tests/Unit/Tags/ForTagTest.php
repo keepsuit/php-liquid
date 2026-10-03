@@ -3,7 +3,7 @@
 use Keepsuit\Liquid\Tags\ForTag;
 
 test('for children', function () {
-    $template = parseTemplate('{% for item in items %}FOR{% endfor %}');
+    $template = parseSource('{% for item in items %}FOR{% endfor %}');
 
     expect($template->root->body->children())
         ->toHaveCount(1)
@@ -13,7 +13,7 @@ test('for children', function () {
 });
 
 test('for else children', function () {
-    $template = parseTemplate('{% for item in items %}FOR{% else %}ELSE{% endfor %}');
+    $template = parseSource('{% for item in items %}FOR{% else %}ELSE{% endfor %}');
 
     expect($template->root->body->children())
         ->toHaveCount(1)

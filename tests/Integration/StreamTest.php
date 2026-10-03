@@ -155,7 +155,7 @@ test('if, unless, and case tags stream their selected body chunks', function () 
 });
 
 test('streaming enforces the render length limit across chunks', function () {
-    $environment = \Keepsuit\Liquid\Environment::default();
+    $environment = testEnvironment(\Keepsuit\Liquid\Environment::default());
     $template = $environment->parseString('{% for i in (1..6) %}{{ i }}{% endfor %}');
 
     $stream = $template->stream($environment->newRenderContext(
@@ -173,9 +173,9 @@ test('streaming enforces the render length limit across chunks', function () {
 });
 
 test('the render length limit covers chunks from partials and custom nodes', function () {
-    $environment = \Keepsuit\Liquid\EnvironmentFactory::new()
+    $environment = testEnvironment(\Keepsuit\Liquid\EnvironmentFactory::new()
         ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem(partials: ['snippet' => '{% streaming %}']))
-        ->build();
+        ->build());
     $environment->tagRegistry->register(\Keepsuit\Liquid\Tests\Stubs\StreamingTag::class);
 
     // The tag lives outside the library and yields its own chunks, nested one
@@ -197,7 +197,7 @@ test('the render length limit covers chunks from partials and custom nodes', fun
 });
 
 test('the render length limit caps one stream, not the context lifetime', function () {
-    $environment = \Keepsuit\Liquid\Environment::default();
+    $environment = testEnvironment(\Keepsuit\Liquid\Environment::default());
     $template = $environment->parseString('abcdefgh');
     $context = $environment->newRenderContext(
         resourceLimits: new \Keepsuit\Liquid\Render\ResourceLimits(renderLengthLimit: 10),
@@ -211,7 +211,7 @@ test('the render length limit caps one stream, not the context lifetime', functi
 });
 
 test('grouped output reaches the consumer before a rethrown error', function () {
-    $environment = \Keepsuit\Liquid\EnvironmentFactory::new()->setRethrowErrors(true)->build();
+    $environment = testEnvironment(\Keepsuit\Liquid\EnvironmentFactory::new()->setRethrowErrors(true)->build());
     $template = $environment->parseString('HELLO WORLD {{ boom.standard_error }} tail');
 
     $context = $environment->newRenderContext(staticData: [
@@ -242,10 +242,10 @@ test('grouped output survives an error handler throwing a non liquid exception',
         }
     };
 
-    $environment = \Keepsuit\Liquid\EnvironmentFactory::new()
+    $environment = testEnvironment(\Keepsuit\Liquid\EnvironmentFactory::new()
         ->setErrorHandler($handler)
         ->setRethrowErrors(false)
-        ->build();
+        ->build());
     $template = $environment->parseString('PREFIX {{ boom.standard_error }} tail');
 
     $context = $environment->newRenderContext(staticData: [
@@ -263,7 +263,7 @@ test('grouped output survives an error handler throwing a non liquid exception',
 });
 
 test('a consumer can stop reading a stream part way through', function () {
-    $environment = \Keepsuit\Liquid\Environment::default();
+    $environment = testEnvironment(\Keepsuit\Liquid\Environment::default());
     $template = $environment->parseString('{% for i in items %}{{ i }}{% endfor %}');
 
     $context = $environment->newRenderContext(staticData: [
@@ -282,7 +282,7 @@ test('a consumer can stop reading a stream part way through', function () {
 });
 
 test('streamed for tags preserve break and continue behavior', function () {
-    $environment = \Keepsuit\Liquid\Environment::default();
+    $environment = testEnvironment(\Keepsuit\Liquid\Environment::default());
     $template = $environment->parseString(<<<'LIQUID'
     {% for item in items %}{{ item }}{% if item == 'b' %}{% continue %}{% endif %}x{% if item == 'c' %}{% break %}{% endif %}{% endfor %}
     LIQUID
