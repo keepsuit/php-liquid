@@ -7,7 +7,23 @@ use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\TokenStream;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
+use Keepsuit\Liquid\Tests\Support\CompiledTestEnvironment;
 use PHPUnit\Framework\ExpectationFailedException;
+
+function testEnvironment(Environment $environment): Environment
+{
+    return match (getenv('LIQUID_TEST_BACKEND') ?: 'in-memory') {
+        'in-memory' => $environment,
+        'compiled' => CompiledTestEnvironment::wrap($environment),
+        default => throw new InvalidArgumentException('Unknown LIQUID_TEST_BACKEND.'),
+    };
+}
+
+/** Parse a source for assertions on the parser, AST or parsed cache format. */
+function parseSource(string $source, ?Environment $environment = null): Template
+{
+    return ($environment ?? Environment::default())->parseString($source);
+}
 
 /**
  * @throws SyntaxException
@@ -16,7 +32,7 @@ function parseTemplate(
     string $source,
     ?Environment $environment = null,
 ): Template {
-    return ($environment ?? Environment::default())->parseString($source);
+    return testEnvironment($environment ?? Environment::default())->parseString($source);
 }
 
 function buildRenderContext(
@@ -50,11 +66,11 @@ function renderTemplate(
     bool $strictVariables = false,
     EnvironmentFactory $factory = new EnvironmentFactory
 ): string {
-    $environment = $factory
+    $environment = testEnvironment($factory
         ->setFilesystem(new StubFileSystem(partials: $partials))
         ->setStrictVariables($strictVariables)
         ->setRethrowErrors(! $renderErrors)
-        ->build();
+        ->build());
 
     $template = $environment->parseString($template);
 
@@ -83,11 +99,11 @@ function streamTemplate(
     bool $strictVariables = false,
     EnvironmentFactory $factory = new EnvironmentFactory
 ): Generator {
-    $environment = $factory
+    $environment = testEnvironment($factory
         ->setFilesystem(new StubFileSystem(partials: $partials))
         ->setStrictVariables($strictVariables)
         ->setRethrowErrors(! $renderErrors)
-        ->build();
+        ->build());
 
     $template = $environment->parseString($template);
 

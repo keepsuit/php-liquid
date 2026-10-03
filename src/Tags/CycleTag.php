@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
@@ -74,9 +75,33 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
 
     public function render(RenderContext $context): string
     {
+        return self::renderValues($context, $this->name ?? sprintf('cycle:%d', spl_object_id($this)), $this->variables);
+    }
+
+    /** @internal */
+    public function compileNative(CompilerContext $context): void
+    {
+        // Unnamed dynamic cycles are keyed by the node's runtime identity.
+        if ($this->name === null) {
+            $context->compileFallback($this);
+
+            return;
+        }
+
+        $context->writeOutput('\\'.self::class.'::renderValues($context, '
+            .$context->writeCachedValue($this->name).', '.$context->writeCachedValue($this->variables).')');
+    }
+
+    /**
+     * @internal
+     *
+     * @param  list<Expression>  $variables
+     */
+    public static function renderValues(RenderContext $context, mixed $name, array $variables): string
+    {
         $register = $context->getRegister('cycle') ?? [];
         assert(is_array($register));
-        $key = $this->name === null ? sprintf('cycle:%d', spl_object_id($this)) : $context->evaluate($this->name);
+        $key = $context->evaluate($name);
         $key = match (true) {
             $key instanceof UndefinedVariable => throw $key->toException(),
             is_string($key), is_int($key) => $key,
@@ -90,10 +115,10 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
             default => 0,
         };
 
-        $output = (new Variable($this->variables[$iteration]))->render($context);
+        $output = Variable::renderValue($context, $variables[$iteration]);
 
         $iteration += 1;
-        $iteration = $iteration >= count($this->variables) ? 0 : $iteration;
+        $iteration = $iteration >= count($variables) ? 0 : $iteration;
 
         $register[$key] = $iteration;
         $context->setRegister('cycle', $register);

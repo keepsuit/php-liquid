@@ -97,12 +97,12 @@ test('Base64 decoders reject malformed encodings with a Liquid argument error', 
 ]);
 
 test('string coercion keeps environment options independent', function (bool $strictVariables, bool $strictFilters, bool $rethrowErrors, bool $stream) {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setStrictVariables($strictVariables)
         ->setStrictFilters($strictFilters)
         ->setRethrowErrors($rethrowErrors)
         ->setLazyParsing(false)
-        ->build();
+        ->build());
     $context = $environment->newRenderContext(data: ['value' => null]);
     $template = $environment->parseString("{{ true | upcase }}|{{ false | append: value }}|{{ 'aaa' | replace: 'a' }}|{{ true | h }}|{{ '???' | base64_url_safe_encode }}|{{ 'YQ' | base64_url_safe_decode }}");
 
@@ -112,10 +112,10 @@ test('string coercion keeps environment options independent', function (bool $st
 })->with([false, true], [false, true], [false, true], [false, true]);
 
 test('string filters report missing inputs and arguments under strict variables', function (string $source, bool $strictVariables, bool $rethrowErrors, bool $stream) {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setStrictVariables($strictVariables)
         ->setRethrowErrors($rethrowErrors)
-        ->build();
+        ->build());
     $context = $environment->newRenderContext();
     $template = $environment->parseString($source);
     $render = fn () => $stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context);
@@ -149,10 +149,10 @@ test('strict variables checks unused string suffix arguments', function (string 
 })->with(['truncate', 'truncatewords']);
 
 test('unknown filters still follow strict filters after string coercion', function (bool $strictFilters, bool $rethrowErrors) {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setStrictFilters($strictFilters)
         ->setRethrowErrors($rethrowErrors)
-        ->build();
+        ->build());
     $context = $environment->newRenderContext();
     $template = $environment->parseString('{{ true | upcase | unknown }}');
 
@@ -166,7 +166,7 @@ test('unknown filters still follow strict filters after string coercion', functi
 })->with([false, true], [false, true]);
 
 test('invalid string arguments follow error propagation options', function (string $source, bool $rethrowErrors, bool $stream) {
-    $environment = EnvironmentFactory::new()->setRethrowErrors($rethrowErrors)->build();
+    $environment = testEnvironment(EnvironmentFactory::new()->setRethrowErrors($rethrowErrors)->build());
     $context = $environment->newRenderContext();
     $template = $environment->parseString($source);
     $render = fn () => $stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context);
@@ -188,13 +188,13 @@ test('invalid string arguments follow error propagation options', function (stri
 ])->with([false, true], [false, true]);
 
 test('string coercion works in partials with either lazy parsing setting', function (bool $lazyParsing, bool $stream) {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setStrictVariables(true)
         ->setStrictFilters(true)
         ->setRethrowErrors(true)
         ->setLazyParsing($lazyParsing)
         ->setFilesystem(new StubFileSystem(['string' => '{{ value | append: nil | h }}']))
-        ->build();
+        ->build());
     $template = $environment->parseString("{% render 'string', value: false %}");
     $context = $environment->newRenderContext();
 

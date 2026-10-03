@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
+use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Drops\ForLoopDrop;
@@ -19,7 +21,7 @@ use Keepsuit\Liquid\Template;
 /**
  * @phpstan-import-type Expression from ExpressionParser
  */
-class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildren
+class RenderTag extends Tag implements CanBeCompiled, CanBeStreamed, HasParseTreeVisitorChildren
 {
     protected string|VariableLookup $templateNameExpression;
 
@@ -102,6 +104,11 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
         return $this;
     }
 
+    /**
+     * Rendering does not go through stream(): a partial reached through the
+     * generator chain pays for a Generator per nesting level, and render tags
+     * are the most common node in a real theme.
+     */
     public function render(RenderContext $context): string
     {
         $partial = $this->loadPartial($context);
@@ -133,6 +140,35 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
         }
 
         return $output;
+    }
+
+    /**
+     * Compile the common static partial form without rebuilding the tag object
+     * in the generated template.
+     */
+    public function compile(CompilerContext $context): void
+    {
+        if ($this->isForLoop || ! is_string($this->templateNameExpression)) {
+            $context->compileFallback($this);
+
+            return;
+        }
+
+        $expression = sprintf(
+            '$this->%s($context, %s, %s, %s, %s)',
+            $context->isRendering() ? 'renderPartial' : 'yieldPartial',
+            $context->writeValue($this->templateNameExpression),
+            $context->writeCachedValue($this->variableNameExpression),
+            $context->writeValue($this->aliasName),
+            $context->writeCachedValue($this->attributes),
+        );
+
+        if ($context->isRendering()) {
+            $context->writeOutput($expression);
+        } else {
+            $context->flushStreamBuffer();
+            $context->write('yield from '.$expression.';');
+        }
     }
 
     public function stream(RenderContext $context): \Generator

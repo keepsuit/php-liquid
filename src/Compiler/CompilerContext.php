@@ -1,0 +1,775 @@
+<?php
+
+namespace Keepsuit\Liquid\Compiler;
+
+use Keepsuit\Liquid\Contracts\CanBeCompiled;
+use Keepsuit\Liquid\Contracts\CanBeExported;
+use Keepsuit\Liquid\Contracts\CanBeStreamed;
+use Keepsuit\Liquid\Contracts\Disableable;
+use Keepsuit\Liquid\Nodes\BodyNode;
+use Keepsuit\Liquid\Nodes\Document;
+use Keepsuit\Liquid\Nodes\Node;
+use Keepsuit\Liquid\Nodes\Raw;
+use Keepsuit\Liquid\Nodes\Text;
+use Keepsuit\Liquid\Nodes\Variable;
+use Keepsuit\Liquid\Nodes\VariableLookup;
+use Keepsuit\Liquid\Tag;
+use Keepsuit\Liquid\Tags\AssignTag;
+use Keepsuit\Liquid\Tags\BreakTag;
+use Keepsuit\Liquid\Tags\CaptureTag;
+use Keepsuit\Liquid\Tags\CaseTag;
+use Keepsuit\Liquid\Tags\ContinueTag;
+use Keepsuit\Liquid\Tags\CycleTag;
+use Keepsuit\Liquid\Tags\DecrementTag;
+use Keepsuit\Liquid\Tags\DocTag;
+use Keepsuit\Liquid\Tags\EchoTag;
+use Keepsuit\Liquid\Tags\ForTag;
+use Keepsuit\Liquid\Tags\IfTag;
+use Keepsuit\Liquid\Tags\IncrementTag;
+use Keepsuit\Liquid\Tags\LiquidTag;
+use Keepsuit\Liquid\Tags\RawTag;
+use Keepsuit\Liquid\Tags\RenderTag;
+use Keepsuit\Liquid\Tags\UnlessTag;
+
+final class CompilerContext
+{
+    /**
+     * @var array<string,mixed>
+     */
+    private array $fallbackValues = [];
+
+    /** @var array<int, string> */
+    private array $fallbackObjectProperties = [];
+
+    /** @var array<string, string> */
+    private array $fallbackLookupProperties = [];
+
+    /** @var array<int, array{node: Node, source: ?string}> */
+    private array $extensionSources = [];
+
+    private bool $rendering = false;
+
+    private bool $buffering = true;
+
+    private int $temporaryCount = 0;
+
+    public function temporaryVariable(): string
+    {
+        return '$temp'.$this->temporaryCount++;
+    }
+
+    public function __construct(private CodeBuilder $builder = new CodeBuilder) {}
+
+    public function isRendering(): bool
+    {
+        return $this->rendering;
+    }
+
+    /**
+     * Generate the string path while sharing reconstructed values with stream().
+     */
+    public function compileRender(Document $root): string
+    {
+        $outerBuilder = $this->builder;
+        $this->builder = new CodeBuilder;
+        $this->rendering = true;
+
+        try {
+            $this->subcompile($root);
+
+            return $this->getSource();
+        } finally {
+            $this->builder = $outerBuilder;
+            $this->rendering = false;
+        }
+    }
+
+    /**
+     * Compile a body inline while keeping render-score accounting in the base
+     * compiled template.
+     */
+    public function compileBody(Node $body): static
+    {
+        $renderScore = $body instanceof BodyNode ? count($body->children()) : 1;
+        $source = $this->compileBodySource($body);
+
+        $this->write(sprintf(
+            '$this->incrementCompiledRenderScore($context, %s);',
+            $this->writeValue($renderScore),
+        ));
+        $this->writeBodySource($source);
+
+        return $this;
+    }
+
+    public function writeBodyCallback(Node $body, string $suffix = ''): static
+    {
+        $bufferState = $this->builder->streamBufferState();
+        $renderScore = $body instanceof BodyNode ? count($body->children()) : 1;
+        $source = $this->compileBodySource($body, emptyBuffer: true);
+
+        $this->write('function (RenderContext $context): '.($this->rendering ? 'string' : 'iterable').' {');
+        $this->indent();
+        if ($this->rendering) {
+            $this->write('$output = "";');
+        } elseif ($this->buffering && $source['hasYield']) {
+            $this->write('$buffer = "";');
+        }
+        $this->write(sprintf(
+            '$this->incrementCompiledRenderScore($context, %s);',
+            $this->writeValue($renderScore),
+        ));
+        $this->writeBodySource($source);
+        if ($this->rendering) {
+            $this->write('return $output;');
+        } elseif ($this->buffering && $source['hasYield']) {
+            $this->flushStreamBuffer();
+        } elseif (! $source['hasYield']) {
+            $this->write('return [];');
+        }
+        $this->outdent()->write('}'.$suffix);
+        $this->builder->setStreamBufferState($bufferState);
+
+        return $this;
+    }
+
+    public function writeCaptureBody(BodyNode $body, string $result): void
+    {
+        $bufferState = $this->builder->streamBufferState();
+        $rendering = $this->rendering;
+        $this->rendering = true;
+        try {
+            $source = $this->compileBodySource($body);
+        } finally {
+            $this->rendering = $rendering;
+        }
+
+        $this->write($result.' = $context->resourceLimits->withCapture(function () use ($context): string {')->indent();
+        $this->write('$output = "";');
+        $this->write('$this->incrementCompiledRenderScore($context, '.count($body->children()).');');
+        $this->writeSource($source['source']);
+        $this->write('return $output;');
+        $this->outdent()->write('});');
+        $this->builder->setStreamBufferState($bufferState);
+    }
+
+    public function writeRenderedBody(BodyNode $body, string $result): void
+    {
+        $rendering = $this->rendering;
+        $this->rendering = true;
+
+        try {
+            $this->write($result.' = (');
+            $this->writeBodyCallback($body, ')($context);');
+        } finally {
+            $this->rendering = $rendering;
+        }
+    }
+
+    /**
+     * @return array{source:string,hasYield:bool,bufferState:array{checked:bool,empty:bool}}
+     */
+    private function compileBodySource(Node $body, bool $emptyBuffer = false): array
+    {
+        $outerBuilder = $this->builder;
+        $this->builder = new CodeBuilder;
+        if ($emptyBuffer) {
+            $this->builder->setStreamBufferState(['checked' => true, 'empty' => true]);
+        }
+
+        try {
+            $this->subcompile($body);
+
+            return [
+                'source' => $this->builder->getSource(),
+                'hasYield' => $this->builder->yieldCount() > 0,
+                'bufferState' => $this->builder->streamBufferState(),
+            ];
+        } finally {
+            $this->builder = $outerBuilder;
+        }
+    }
+
+    /** @param array{source:string,hasYield:bool,bufferState:array{checked:bool,empty:bool}} $source */
+    private function writeBodySource(array $source): void
+    {
+        $this->writeSource($source['source']);
+        $this->builder->setStreamBufferState($source['bufferState']);
+    }
+
+    private function writeSource(string $source): void
+    {
+        foreach (explode("\n", rtrim($source, "\n")) as $line) {
+            if ($line !== '') {
+                $this->write($line);
+            }
+        }
+    }
+
+    public function compileRootBody(BodyNode $body): void
+    {
+        $renderScore = count($body->children());
+        $source = $this->compileBodySource($body, emptyBuffer: true);
+
+        if ($this->rendering) {
+            $this->write('$output = "";');
+        } elseif ($this->buffering && $source['hasYield']) {
+            $this->write('$buffer = "";');
+        }
+
+        $this->write(sprintf(
+            '$this->incrementCompiledRenderScore($context, %s);',
+            $this->writeValue($renderScore),
+        ));
+        $this->writeBodySource($source);
+
+        if ($this->rendering) {
+            $this->write('return $output;');
+        } elseif ($this->buffering && $source['hasYield']) {
+            $this->flushStreamBuffer(reset: false);
+        } elseif (! $source['hasYield']) {
+            $this->write('return [];');
+        }
+    }
+
+    public function write(string $line = ''): static
+    {
+        $this->builder->writeLine($line);
+
+        if (str_starts_with(ltrim($line), 'yield ')) {
+            $this->builder->markYield();
+        }
+
+        return $this;
+    }
+
+    /**
+     * Write a trusted compiler or plugin fragment without data encoding.
+     */
+    public function raw(string $fragment): static
+    {
+        $this->builder->writeRaw($fragment);
+
+        return $this;
+    }
+
+    public function indent(): static
+    {
+        $this->builder->indent();
+
+        return $this;
+    }
+
+    public function outdent(): static
+    {
+        $this->builder->dedent();
+
+        return $this;
+    }
+
+    public function writeOutput(string $expression, string $suffix = ';'): static
+    {
+        $this->write(($this->rendering ? '$output .= ' : ($this->buffering ? '$buffer .= ' : 'yield ')).$expression.$suffix);
+        if ($suffix === ';') {
+            $this->flushStreamBufferIfFull();
+        }
+
+        return $this;
+    }
+
+    public function flushStreamBufferIfFull(): void
+    {
+        if (! $this->rendering && $this->buffering && ! $this->builder->streamBufferState()['checked']) {
+            $this->write('if (strlen($buffer) >= 4096) {')->indent();
+            $this->write('yield $buffer;')->write('$buffer = "";');
+            $this->outdent()->write('}');
+            $this->builder->setStreamBufferState(['checked' => true, 'empty' => false]);
+        }
+    }
+
+    public function flushStreamBuffer(bool $reset = true): void
+    {
+        if (! $this->rendering && $this->buffering && ! $this->builder->streamBufferState()['empty']) {
+            $this->write('if ($buffer !== "") {')->indent();
+            $this->write('yield $buffer;');
+            if ($reset) {
+                $this->write('$buffer = "";');
+            }
+            $this->outdent()->write('}');
+            $this->builder->setStreamBufferState(['checked' => $reset, 'empty' => $reset]);
+        }
+    }
+
+    public function writeText(string $value): static
+    {
+        if ($value !== '') {
+            $this->writeOutput($this->writeLiteral($value));
+        }
+
+        return $this;
+    }
+
+    public function writeLineComment(?int $lineNumber): static
+    {
+        if ($lineNumber !== null) {
+            $this->write('// line '.$lineNumber);
+        }
+
+        return $this;
+    }
+
+    public function canInterrupt(Node $node): bool
+    {
+        return ! ($node instanceof Text || $node instanceof Raw || $node instanceof Variable);
+    }
+
+    public function subcompile(Node $node): static
+    {
+        if ($node instanceof Text || $node instanceof Raw || $node instanceof BodyNode || $node instanceof Document) {
+            $custom = ! in_array($node::class, [Text::class, Raw::class, BodyNode::class, Document::class], true);
+            if ($custom) {
+                $this->builder->setStreamBufferState(['checked' => false, 'empty' => false]);
+            }
+            $node->compile($this);
+            if ($custom) {
+                $this->builder->setStreamBufferState(['checked' => false, 'empty' => false]);
+            }
+
+            return $this;
+        }
+
+        $this->compileNode($node);
+
+        return $this;
+    }
+
+    private function compileNode(Node $node): void
+    {
+        $this->flushStreamBufferIfFull();
+        // Native documentation never renders or throws. Keep the preceding
+        // stream flush and the body's render score/interrupt checks.
+        if ($node::class === DocTag::class) {
+            return;
+        }
+
+        $checkpoint = $this->builder->checkpoint();
+        $fallbackValueCount = count($this->fallbackValues);
+        $extensionSourceCount = count($this->extensionSources);
+        $rendering = $this->rendering;
+        $id = spl_object_id($node);
+        $fallback = isset($this->extensionSources[$id]) && $this->extensionSources[$id]['source'] === null;
+        if ($node instanceof AssignTag || $node instanceof CaptureTag || $node instanceof ForTag || $node instanceof LiquidTag) {
+            $compilerClass = (new \ReflectionMethod($node, 'compile'))->getDeclaringClass()->getName();
+            $fallback = $fallback || ($node::class !== $compilerClass && in_array($compilerClass, [AssignTag::class, CaptureTag::class, ForTag::class, LiquidTag::class], true));
+        }
+
+        // Extension fragments may return from their node or yield before failing.
+        // Keep their lazy boundary; native nodes can use an inline try/catch.
+        $extension = $node instanceof CanBeCompiled && ! in_array($node::class, [
+            Variable::class, IfTag::class, UnlessTag::class, CaseTag::class,
+            ForTag::class, RenderTag::class, AssignTag::class, CaptureTag::class, LiquidTag::class,
+        ], true);
+        $lazy = $extension && ! $fallback;
+
+        try {
+            $this->writeNodeStart($node, $lazy);
+            if ($lazy) {
+                $this->writeSource($this->compileExtensionSource($node));
+            } else {
+                $this->writeLineComment($node->lineNumber());
+
+                if (! $this->compileNativeTag($node)) {
+                    if ($node instanceof CanBeCompiled && ! $fallback) {
+                        $node->compile($this);
+                    } else {
+                        $this->compileFallback($node);
+                    }
+                }
+            }
+            $this->rendering = $rendering;
+            $this->writeNodeEnd($node, $lazy);
+        } catch (\Throwable) {
+            $this->rendering = $rendering;
+            $this->rollbackCompilation($checkpoint, $fallbackValueCount);
+            $this->extensionSources = array_slice($this->extensionSources, 0, $extensionSourceCount, preserve_keys: true);
+            if ($extension) {
+                $this->extensionSources[$id] = ['node' => $node, 'source' => null];
+            }
+            $this->writeNodeStart($node, false);
+            $this->writeLineComment($node->lineNumber());
+            $this->compileFallback($node);
+            $this->writeNodeEnd($node, false);
+        }
+    }
+
+    private function compileNativeTag(Node $node): bool
+    {
+        if ($node::class === RawTag::class && $node->getBody()::class === Raw::class) {
+            $this->writeText($node->getBody()->value);
+
+            return true;
+        }
+
+        // Avoid adding CanBeCompiled to these tags: streamed subclasses must
+        // retain their existing unbuffered extension boundary in BodyNode.
+        if (($node instanceof EchoTag || $node instanceof IncrementTag || $node instanceof CycleTag
+            || $node instanceof BreakTag || $node instanceof ContinueTag)
+            && in_array($node::class, [EchoTag::class, IncrementTag::class, DecrementTag::class,
+                CycleTag::class, BreakTag::class, ContinueTag::class], true)) {
+            $node->compileNative($this);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private function compileExtensionSource(Node $node): string
+    {
+        $id = spl_object_id($node);
+        if (isset($this->extensionSources[$id]['source'])) {
+            return $this->extensionSources[$id]['source'];
+        }
+
+        $outerBuilder = $this->builder;
+        $rendering = $this->rendering;
+        $buffering = $this->buffering;
+        $this->builder = new CodeBuilder;
+        $this->rendering = false;
+        $this->buffering = false;
+
+        try {
+            assert($node instanceof CanBeCompiled);
+            $this->writeLineComment($node->lineNumber());
+            $node->compile($this);
+
+            if ($this->builder->yieldCount() === 0) {
+                $this->write('return [];');
+            }
+
+            $source = $this->getSource();
+            $this->extensionSources[$id] = ['node' => $node, 'source' => $source];
+
+            return $source;
+        } finally {
+            $this->builder = $outerBuilder;
+            $this->rendering = $rendering;
+            $this->buffering = $buffering;
+        }
+    }
+
+    private function writeNodeStart(Node $node, bool $lazy): void
+    {
+        if ($lazy) {
+            $this->flushStreamBuffer();
+            $this->write(sprintf(
+                ($this->rendering ? 'foreach (' : 'yield from ').'$this->yieldNode($context, %s, function () use ($context): iterable {',
+                $this->writeValue($node->lineNumber()),
+            ));
+        } else {
+            $this->write('try {');
+        }
+
+        $this->indent();
+    }
+
+    private function writeNodeEnd(Node $node, bool $lazy): void
+    {
+        if ($lazy) {
+            if ($this->rendering) {
+                $this->outdent()->write('}) as $chunk) {');
+                $this->indent()->write('$output .= $chunk;');
+                $this->outdent()->write('}');
+            } else {
+                $this->outdent()->write('});');
+            }
+
+            return;
+        }
+
+        $line = $this->writeValue($node->lineNumber());
+        $successBufferState = $this->builder->streamBufferState();
+        $this->outdent()->write('} catch (\\Throwable $exception) {');
+        // A throw into yield can precede the buffer reset. Catch paths cannot
+        // reuse facts about the successful path through this node.
+        $this->builder->setStreamBufferState(['checked' => false, 'empty' => false]);
+        $this->indent();
+        $this->flushStreamBuffer();
+        $error = '$this->compiledErrorOutput($exception, $context->handleError($exception, '.$line.'))';
+        if ($this->rendering || $this->buffering) {
+            $this->writeOutput('('.$error.' ?? "")');
+        } else {
+            $value = $this->temporaryVariable();
+            $this->write($value.' = '.$error.';');
+            $this->write('if ('.$value.' !== null) {')->indent();
+            $this->writeOutput($value);
+            $this->outdent()->write('}');
+        }
+        $this->outdent()->write('}');
+        $this->builder->setStreamBufferState(['checked' => $successBufferState['checked'], 'empty' => false]);
+    }
+
+    /**
+     * Compile the node into a lazy generator so the base template can own the
+     * runtime error boundary while the surrounding body remains resumable.
+     */
+    public function compileFallback(Node $node): void
+    {
+        $value = $this->writeRuntimeValue($node);
+
+        if ($node instanceof Disableable && $node instanceof Tag) {
+            $this->write($value.'->ensureTagIsEnabled($context);');
+        }
+
+        if (! $this->rendering && $node instanceof CanBeStreamed) {
+            $this->flushStreamBuffer();
+            $this->write('yield from '.$value.'->stream($context);');
+        } else {
+            $this->writeOutput($value.'->render($context)');
+        }
+    }
+
+    public function writeValue(mixed $value): string
+    {
+        if ($value instanceof CanBeExported && ($exported = $value->export($this)) !== null) {
+            return $exported;
+        }
+
+        if (is_string($value)) {
+            return $this->writeExpressionString($value);
+        }
+
+        if (is_array($value)) {
+            $entries = [];
+            $isList = array_is_list($value);
+
+            foreach ($value as $key => $item) {
+                $entries[] = ($isList ? '' : $this->writeValue($key).' => ').$this->writeValue($item);
+            }
+
+            return '['.implode(', ', $entries).']';
+        }
+
+        if (is_object($value)) {
+            return $this->writeSerializedObject($value);
+        }
+
+        if (is_resource($value)) {
+            throw new \RuntimeException('Unable to safely encode a compiler value containing a resource.');
+        }
+
+        return var_export($value, true);
+    }
+
+    public function writeVariableExpression(mixed $value): string
+    {
+        // Variable's output helpers complete evaluation if the lookup resolves
+        // to another CanBeEvaluated value rather than a scalar.
+        if ($value instanceof VariableLookup && $value::class === VariableLookup::class) {
+            return '\\'.VariableLookup::class.'::evaluateParts($context, '
+                .$this->writeValue($value->name).', '.$this->writeCachedValue($value->lookups).')';
+        }
+
+        $source = $this->writeCachedValue($value);
+
+        return is_scalar($value) || $value === null
+            ? $source
+            : '$context->evaluate('.$source.')';
+    }
+
+    private function writeSerializedObject(object $value): string
+    {
+        // Keep generated artifacts independent from Symfony's object exporter.
+        $this->assertNoResources($value);
+
+        try {
+            $serialized = serialize($value);
+        } catch (\Throwable $exception) {
+            throw new \RuntimeException('Unable to safely encode a compiler value.', previous: $exception);
+        }
+
+        return '\\unserialize('.$this->writeValue($serialized).')';
+    }
+
+    /**
+     * @param  array<int,true>  $seenObjects
+     */
+    private function assertNoResources(mixed $value, array &$seenObjects = []): void
+    {
+        if (is_resource($value)) {
+            throw new \RuntimeException('Unable to safely encode a compiler value containing a resource.');
+        }
+
+        if (is_array($value)) {
+            foreach ($value as $item) {
+                $this->assertNoResources($item, $seenObjects);
+            }
+
+            return;
+        }
+
+        if (! is_object($value)) {
+            return;
+        }
+
+        $objectId = spl_object_id($value);
+        if (isset($seenObjects[$objectId])) {
+            return;
+        }
+
+        $seenObjects[$objectId] = true;
+        $reflection = new \ReflectionObject($value);
+
+        foreach ($reflection->getProperties() as $property) {
+            if ($property->isStatic() || ! $property->isInitialized($value)) {
+                continue;
+            }
+
+            $this->assertNoResources($property->getValue($value), $seenObjects);
+        }
+    }
+
+    public function writeRuntimeValue(mixed $value): string
+    {
+        return $this->registerFallbackValue($value);
+    }
+
+    /**
+     * Keep expression objects out of hot calls while leaving scalar arrays inline.
+     */
+    public function writeCachedValue(mixed $value): string
+    {
+        if (is_object($value)) {
+            return $this->writeRuntimeValue($value);
+        }
+
+        if (! is_array($value)) {
+            return $this->writeValue($value);
+        }
+
+        $entries = [];
+        $isList = array_is_list($value);
+
+        foreach ($value as $key => $item) {
+            $entries[] = ($isList ? '' : $this->writeValue($key).' => ').$this->writeCachedValue($item);
+        }
+
+        return '['.implode(', ', $entries).']';
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function getFallbackValues(): array
+    {
+        return $this->fallbackValues;
+    }
+
+    private function registerFallbackValue(mixed $value): string
+    {
+        if (is_object($value) && isset($this->fallbackObjectProperties[spl_object_id($value)])) {
+            return '$this->'.$this->fallbackObjectProperties[spl_object_id($value)];
+        }
+
+        $lookupKey = $this->staticLookupKey($value);
+        if ($lookupKey !== null && isset($this->fallbackLookupProperties[$lookupKey])) {
+            return '$this->'.$this->fallbackLookupProperties[$lookupKey];
+        }
+
+        $property = 'value'.count($this->fallbackValues);
+        $this->fallbackValues[$property] = $value;
+
+        if (is_object($value)) {
+            $this->fallbackObjectProperties[spl_object_id($value)] = $property;
+        }
+
+        if ($lookupKey !== null) {
+            $this->fallbackLookupProperties[$lookupKey] = $property;
+        }
+
+        return '$this->'.$property;
+    }
+
+    private function staticLookupKey(mixed $value): ?string
+    {
+        if (! $value instanceof VariableLookup || $value::class !== VariableLookup::class) {
+            return null;
+        }
+
+        foreach ($value->lookups as $lookup) {
+            if (! is_string($lookup) && ! is_int($lookup)) {
+                return null;
+            }
+        }
+
+        return serialize([$value->name, $value->lookups]);
+    }
+
+    private function rollbackFallbackValues(int $count): void
+    {
+        foreach (array_slice($this->fallbackValues, $count) as $value) {
+            if (is_object($value)) {
+                unset($this->fallbackObjectProperties[spl_object_id($value)]);
+            }
+            if (($lookupKey = $this->staticLookupKey($value)) !== null) {
+                unset($this->fallbackLookupProperties[$lookupKey]);
+            }
+        }
+
+        $this->fallbackValues = array_slice($this->fallbackValues, 0, $count, preserve_keys: true);
+    }
+
+    /**
+     * Restore compiler state after a node's direct or native compiler path fails.
+     *
+     * @param  array{sourceLength:int,indentLevel:int,yieldCount:int,bufferState:array{checked:bool,empty:bool},bufferScopes:list<array{checked:bool,empty:bool}>}  $checkpoint
+     */
+    private function rollbackCompilation(array $checkpoint, int $fallbackValueCount): void
+    {
+        $this->builder->rollback($checkpoint);
+        $this->rollbackFallbackValues($fallbackValueCount);
+    }
+
+    public function getSource(): string
+    {
+        return $this->builder->getSource();
+    }
+
+    private function writeLiteral(string $value): string
+    {
+        $value = strtr($value, [
+            '\\' => '\\\\',
+            '"' => '\\"',
+            '$' => '\\$',
+            "\n" => '\\n',
+            "\r" => '\\r',
+            "\t" => '\\t',
+            "\v" => '\\v',
+            "\e" => '\\e',
+            "\f" => '\\f',
+        ]);
+
+        $value = preg_replace_callback(
+            '/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]/',
+            static fn (array $match): string => sprintf('\\x%02X', ord($match[0])),
+            $value,
+        );
+
+        assert($value !== null);
+
+        return '"'.$value.'"';
+    }
+
+    private function writeExpressionString(string $value): string
+    {
+        if (preg_match('/[\\x00-\\x1F\\x7F]/', $value) === 1) {
+            return $this->writeLiteral($value);
+        }
+
+        return "'".str_replace(
+            ['\\', "'"],
+            ['\\\\', "\\'"],
+            $value,
+        )."'";
+    }
+}

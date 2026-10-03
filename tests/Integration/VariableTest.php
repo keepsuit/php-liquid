@@ -76,10 +76,10 @@ test('nested variable lookup', function () {
 });
 
 test('bracket lookup with a literal key throw syntax exception', function () {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setRethrowErrors(false)
         ->setStrictVariables(true)
-        ->build();
+        ->build());
 
     expect(fn () => parseTemplate('{{ a[empty] }}', $environment))
         ->toThrow(\Keepsuit\Liquid\Exceptions\SyntaxException::class, 'Invalid variable lookup: a[empty]');

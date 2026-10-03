@@ -2,7 +2,10 @@
 
 namespace Keepsuit\Liquid\Nodes;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
+use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
+use Keepsuit\Liquid\Contracts\CanBeExported;
 use Keepsuit\Liquid\Contracts\CanBeRendered;
 use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
@@ -14,7 +17,7 @@ use Keepsuit\Liquid\Support\FilterCoercion;
 /**
  * @phpstan-import-type Expression from ExpressionParser
  */
-class Variable extends Node implements CanBeEvaluated, CanBeStreamed, HasParseTreeVisitorChildren
+class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExported, CanBeStreamed, HasParseTreeVisitorChildren
 {
     public function __construct(
         /** @var Expression $name */
@@ -27,11 +30,115 @@ class Variable extends Node implements CanBeEvaluated, CanBeStreamed, HasParseTr
     {
         $output = $this->evaluate($context);
 
+        if (is_string($output)) {
+            return $output;
+        }
+
         if ($output instanceof CanBeRendered) {
             return $output->render($context);
         }
 
-        return $this->renderOutput($output);
+        return self::renderOutputValue($output);
+    }
+
+    public function compile(CompilerContext $context): void
+    {
+        if (static::class !== self::class) {
+            $context->write('yield from '.$context->writeRuntimeValue($this).'->stream($context);');
+
+            return;
+        }
+
+        if ($this->filters !== []) {
+            $value = $this->compileValue($context);
+            $context->writeOutput('\\'.self::class.'::renderEvaluated($context, '.$value.')');
+
+            return;
+        }
+
+        // These literals have a context-independent output representation.
+        // Floats retain runtime coercion, which can depend on PHP settings.
+        if (is_string($this->name) || is_int($this->name) || is_bool($this->name) || $this->name === null) {
+            $context->writeText(self::renderOutputValue($this->name));
+
+            return;
+        }
+
+        if ($context->isRendering()) {
+            $context->writeOutput('\\'.self::class.'::renderValue($context, '
+                .$context->writeVariableExpression($this->name).')');
+        } else {
+            $context->write('if (is_string($value = \\'.self::class.'::streamValue($context, '
+                .$context->writeVariableExpression($this->name).'))) {')
+                ->indent();
+            $context->writeOutput('$value');
+            $context->outdent()->write('} else {')->indent();
+            $context->flushStreamBuffer();
+            $context->write('yield from $value;')->outdent()->write('}');
+        }
+    }
+
+    public function compileValue(CompilerContext $context): string
+    {
+        $value = $context->temporaryVariable();
+        if (static::class !== self::class) {
+            $context->write($value.' = '.$context->writeRuntimeValue($this).'->evaluate($context);');
+
+            return $value;
+        }
+        if ($this->filters === []) {
+            $context->write($value.' = $context->evaluate('.$context->writeVariableExpression($this->name).');');
+
+            return $value;
+        }
+
+        $context->write($value.' = \\'.self::class.'::filterInput($context, '
+            .$context->writeVariableExpression($this->name).');');
+
+        foreach ($this->filters as [$filterName, $filterArgs, $filterNamedArgs]) {
+            $args = '';
+            if ($filterArgs !== [] || $filterNamedArgs !== []) {
+                $args = $this->compileFilterArguments($context, $filterArgs);
+                if ($filterNamedArgs !== []) {
+                    $namedArgs = $this->compileFilterArguments($context, $filterNamedArgs);
+                    $args = '[...'.$args.', ...'.$namedArgs.']';
+                }
+                $args = ', '.$args;
+            }
+
+            $context->write($value.' = $context->applyFilter('.$context->writeValue($filterName).', '.$value.$args.');');
+        }
+
+        return $value;
+    }
+
+    private function compileFilterArguments(CompilerContext $context, array $arguments): string
+    {
+        $values = [];
+        foreach ($arguments as $key => $argument) {
+            $key = $context->writeValue($key);
+            $source = $context->writeCachedValue($argument);
+            $values[] = $key.' => '.(is_scalar($argument) || $argument === null
+                ? $source
+                : '$context->evaluate('.$source.')');
+        }
+
+        return '['.implode(', ', $values).']';
+    }
+
+    public function export(CompilerContext $context): ?string
+    {
+        if (static::class !== self::class) {
+            return null;
+        }
+
+        $expression = 'new \\'.self::class.'('
+            .$context->writeValue($this->name).', '
+            .$context->writeValue($this->filters).')';
+
+        return $this->lineNumber === null
+            ? $expression
+            : '('.$expression.')->setLineNumber('.$this->lineNumber.')';
     }
 
     public function stream(RenderContext $context): \Generator
@@ -58,13 +165,53 @@ class Variable extends Node implements CanBeEvaluated, CanBeStreamed, HasParseTr
 
         if ($output instanceof \Generator) {
             foreach ($output as $chunk) {
-                yield $this->renderOutput($chunk);
+                yield self::renderOutputValue($chunk);
             }
 
             return;
         }
 
-        yield $this->renderOutput($output);
+        yield self::renderOutputValue($output);
+    }
+
+    /**
+     * Resolve a value without allocating a generator for scalar output.
+     *
+     * @return string|\Generator<string>
+     */
+    public static function streamValue(RenderContext $context, mixed $output): string|\Generator
+    {
+        if (is_string($output)) {
+            return $output;
+        }
+
+        if ($output instanceof CanBeEvaluated) {
+            $output = $context->evaluate($output);
+        }
+
+        if ($output instanceof CanBeStreamed) {
+            return $output->stream($context);
+        }
+
+        if ($output instanceof CanBeRendered) {
+            return $output->render($context);
+        }
+
+        if ($output instanceof \Generator) {
+            return self::streamOutput($output);
+        }
+
+        return self::renderOutputValue($output);
+    }
+
+    /**
+     * @return \Generator<string>
+     */
+    private static function streamOutput(\Generator $output): \Generator
+    {
+        foreach ($output as $chunk) {
+            yield self::renderOutputValue($chunk);
+        }
     }
 
     public function parseTreeVisitorChildren(): array
@@ -74,9 +221,43 @@ class Variable extends Node implements CanBeEvaluated, CanBeStreamed, HasParseTr
 
     public function evaluate(RenderContext $context): mixed
     {
-        $output = $context->evaluate($this->name);
+        $value = $context->evaluate($this->name);
 
-        if ($this->filters === []) {
+        return $this->filters === [] ? $value : self::applyFilters($context, $value, $this->filters);
+    }
+
+    /**
+     * Render a resolved expression, including any remaining evaluators and filters.
+     *
+     * @param  array<array{0:string,1:array,2:array<string,mixed>}>  $filters
+     */
+    public static function renderValue(RenderContext $context, mixed $value, array $filters = []): string
+    {
+        if ($value instanceof CanBeEvaluated) {
+            $value = $context->evaluate($value);
+        }
+
+        return self::renderEvaluated($context, $filters === [] ? $value : self::applyFilters($context, $value, $filters));
+    }
+
+    /**
+     * Materialize the input once, before running the compiled filter chain.
+     */
+    public static function filterInput(RenderContext $context, mixed $value): mixed
+    {
+        if ($value instanceof CanBeEvaluated) {
+            $value = $context->evaluate($value);
+        }
+
+        return $value instanceof \Generator ? iterator_to_array($value, preserve_keys: false) : $value;
+    }
+
+    /**
+     * @param  array<array{0:string,1:array,2:array<string,mixed>}>  $filters
+     */
+    private static function applyFilters(RenderContext $context, mixed $output, array $filters): mixed
+    {
+        if ($filters === []) {
             return $output;
         }
 
@@ -84,17 +265,17 @@ class Variable extends Node implements CanBeEvaluated, CanBeStreamed, HasParseTr
             $output = iterator_to_array($output, preserve_keys: false);
         }
 
-        foreach ($this->filters as [$filterName, $filterArgs, $filterNamedArgs]) {
+        foreach ($filters as [$filterName, $filterArgs, $filterNamedArgs]) {
             if ($filterArgs === [] && $filterNamedArgs === []) {
                 $output = $context->applyFilter($filterName, $output);
 
                 continue;
             }
 
-            $filterArgs = $this->evaluateFilterExpressions($context, $filterArgs);
+            $filterArgs = self::evaluateFilterExpressions($context, $filterArgs);
 
             if ($filterNamedArgs !== []) {
-                $filterArgs = [...$filterArgs, ...$this->evaluateFilterExpressions($context, $filterNamedArgs)];
+                $filterArgs = [...$filterArgs, ...self::evaluateFilterExpressions($context, $filterNamedArgs)];
             }
 
             $output = $context->applyFilter($filterName, $output, $filterArgs);
@@ -103,7 +284,16 @@ class Variable extends Node implements CanBeEvaluated, CanBeStreamed, HasParseTr
         return $output;
     }
 
-    protected function renderOutput(mixed $output): string
+    public static function renderEvaluated(RenderContext $context, mixed $output): string
+    {
+        if ($output instanceof CanBeRendered) {
+            return $output->render($context);
+        }
+
+        return self::renderOutputValue($output);
+    }
+
+    private static function renderOutputValue(mixed $output): string
     {
         if (is_string($output)) {
             return $output;
@@ -130,7 +320,7 @@ class Variable extends Node implements CanBeEvaluated, CanBeStreamed, HasParseTr
         }
 
         if (is_array($output)) {
-            return implode('', array_map($this->renderOutput(...), $output));
+            return implode('', array_map(self::renderOutputValue(...), $output));
         }
 
         if (is_object($output) && method_exists($output, '__toString')) {
@@ -142,10 +332,12 @@ class Variable extends Node implements CanBeEvaluated, CanBeStreamed, HasParseTr
 
     protected static function evaluateFilterExpressions(RenderContext $context, array $filterArgs): array
     {
-        return array_map(
-            fn (mixed $value) => $context->evaluate($value),
-            $filterArgs
-        );
+        $evaluated = [];
+        foreach ($filterArgs as $key => $value) {
+            $evaluated[$key] = $context->evaluate($value);
+        }
+
+        return $evaluated;
     }
 
     public function debugLabel(): ?string

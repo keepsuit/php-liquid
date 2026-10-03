@@ -440,6 +440,19 @@ But this package provides some custom tags and filters that you can use.
 composer test
 ```
 
+This runs the full suite twice, using in-memory and compiled templates with the same
+expected outputs. Rendering helpers compile roots and partials, including partials
+loaded lazily. Parser, AST and serialized-cache tests retain their parsed fixtures;
+compiler-specific tests continue to exercise their explicit backends. Streaming
+output comparisons concatenate chunks when their boundaries are not part of the test.
+
+To run a single backend:
+
+```bash
+composer test:in-memory
+composer test:compiled
+```
+
 ## Changelog
 
 Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.

@@ -3,7 +3,7 @@
 use Keepsuit\Liquid\Tags\IfTag;
 
 test('if children', function () {
-    $template = parseTemplate('{% if true %}IF{% else %}ELSE{% endif %}');
+    $template = parseSource('{% if true %}IF{% else %}ELSE{% endif %}');
 
     expect($template->root->body->children())
         ->toHaveCount(1)

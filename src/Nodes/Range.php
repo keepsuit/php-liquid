@@ -28,6 +28,47 @@ class Range extends Node implements \IteratorAggregate
     }
 
     /**
+     * Apply array_slice semantics before allocating the selected values.
+     *
+     * @return list<int>
+     */
+    public function slice(int $offset, ?int $length = null): array
+    {
+        if ($this->start > $this->end || $length === 0) {
+            return [];
+        }
+
+        if ($offset >= 0) {
+            if ($this->start > PHP_INT_MAX - $offset) {
+                return [];
+            }
+            $first = $this->start + $offset;
+        } else {
+            // -(PHP_INT_MIN + 1) is representable, unlike -PHP_INT_MIN.
+            $distance = -($offset + 1);
+            $first = $this->end < PHP_INT_MIN + $distance
+                ? $this->start
+                : max($this->start, $this->end - $distance);
+        }
+
+        $last = $this->end;
+        if ($length !== null && $length > 0) {
+            $distance = $length - 1;
+            if ($first <= PHP_INT_MAX - $distance) {
+                $last = min($last, $first + $distance);
+            }
+        } elseif ($length !== null) {
+            $distance = -($length + 1);
+            if ($last <= PHP_INT_MIN + $distance) {
+                return [];
+            }
+            $last = $last - $distance - 1;
+        }
+
+        return $first > $last ? [] : range($first, $last);
+    }
+
+    /**
      * Saturates at PHP_INT_MAX so huge ranges can be measured without allocating them.
      */
     public function length(): int

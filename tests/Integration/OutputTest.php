@@ -32,9 +32,9 @@ test('variable traversing', function () {
 });
 
 test('variable piping', function () {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->registerFilters(FunnyFilter::class)
-        ->build();
+        ->build());
     $context = $environment->newRenderContext(
         staticData: $this->assigns,
     );
@@ -44,9 +44,9 @@ test('variable piping', function () {
 });
 
 test('variable piping with input', function () {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->registerFilters(FunnyFilter::class)
-        ->build();
+        ->build());
     $context = $environment->newRenderContext(
         staticData: $this->assigns,
     );
@@ -56,9 +56,9 @@ test('variable piping with input', function () {
 });
 
 test('variable piping with args', function () {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->registerFilters(FunnyFilter::class)
-        ->build();
+        ->build());
     $context = $environment->newRenderContext(
         staticData: $this->assigns,
     );
@@ -68,9 +68,9 @@ test('variable piping with args', function () {
 });
 
 test('variable piping with no args', function () {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->registerFilters(FunnyFilter::class)
-        ->build();
+        ->build());
     $context = $environment->newRenderContext(
         staticData: $this->assigns,
     );
@@ -80,9 +80,9 @@ test('variable piping with no args', function () {
 });
 
 test('multiple variable piping with args', function () {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->registerFilters(FunnyFilter::class)
-        ->build();
+        ->build());
     $context = $environment->newRenderContext(
         staticData: $this->assigns,
     );
@@ -92,9 +92,9 @@ test('multiple variable piping with args', function () {
 });
 
 test('variable piping with multiple args', function () {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->registerFilters(FunnyFilter::class)
-        ->build();
+        ->build());
     $context = $environment->newRenderContext(
         staticData: $this->assigns,
     );
@@ -104,9 +104,9 @@ test('variable piping with multiple args', function () {
 });
 
 test('variable piping with variable args', function () {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->registerFilters(FunnyFilter::class)
-        ->build();
+        ->build());
     $context = $environment->newRenderContext(
         staticData: $this->assigns,
     );
@@ -116,9 +116,9 @@ test('variable piping with variable args', function () {
 });
 
 test('multiple pipings', function () {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->registerFilters(FunnyFilter::class)
-        ->build();
+        ->build());
     $context = $environment->newRenderContext(
         staticData: ['best_cars' => 'bmw']
     );
@@ -128,9 +128,9 @@ test('multiple pipings', function () {
 });
 
 test('link to', function () {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->registerFilters(FunnyFilter::class)
-        ->build();
+        ->build());
 
     $context = $environment->newRenderContext(
         staticData: $this->assigns,

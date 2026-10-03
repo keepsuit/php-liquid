@@ -171,11 +171,11 @@ test('default exception renderer with internal error', function () {
 });
 
 test('render template name with line numbers', function () {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setFilesystem(new StubFileSystem([
             'product' => '{{ errors.argument_error }}',
         ]))
-        ->build();
+        ->build());
 
     $template = $environment->parseString("Argument error:\n{% render 'product' with errors %}");
 
@@ -207,11 +207,11 @@ test('error is thrown during parse with template name', function () {
 });
 
 test('internal error is thrown with template name', function () {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setFilesystem(new StubFileSystem([
             'product' => '{{ errors.argument_error }}',
         ]))
-        ->build();
+        ->build());
 
     expect(fn () => $environment->parseString("{% render 'snippet' with errors %}"))
         ->toThrow(InternalException::class);

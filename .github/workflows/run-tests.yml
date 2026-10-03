@@ -45,5 +45,12 @@ jobs:
       - name: Install dependencies
         run: composer update --${{ matrix.stability }} --prefer-dist --no-interaction
 
-      - name: Execute tests
+      - name: Execute tests with in-memory templates
         run: vendor/bin/pest
+        env:
+          LIQUID_TEST_BACKEND: in-memory
+
+      - name: Execute tests with compiled templates
+        run: vendor/bin/pest
+        env:
+          LIQUID_TEST_BACKEND: compiled

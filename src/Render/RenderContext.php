@@ -130,6 +130,23 @@ final class RenderContext
         return array_shift($this->scopes) ?? [];
     }
 
+    /** @internal Paired by generated loops using try/finally. */
+    public function enterScope(): void
+    {
+        try {
+            $this->push();
+        } catch (\Throwable $exception) {
+            $this->pop();
+            throw $exception;
+        }
+    }
+
+    /** @internal */
+    public function leaveScope(): void
+    {
+        $this->pop();
+    }
+
     /**
      * @template TResult
      *
@@ -209,7 +226,7 @@ final class RenderContext
         // Deliberately not written as a loop over [...$this->scopes, $this->data, ...]:
         // building that list would allocate an array on every variable reference.
         foreach ($this->scopes as $scope) {
-            if (array_key_exists($key, $scope)) {
+            if ($scope !== [] && array_key_exists($key, $scope)) {
                 return $this->resolveVariable($scope[$key]);
             }
         }
@@ -278,12 +295,14 @@ final class RenderContext
 
     public function internalContextLookup(mixed $scope, int|string $key): mixed
     {
+        if (is_array($scope)) {
+            $value = $scope[$key] ?? (array_key_exists($key, $scope) ? null : $this->missingValue);
+
+            return is_object($value) ? $this->normalizeValue($value) : $value;
+        }
+
         try {
             $value = match (true) {
-                is_array($scope) => match (true) {
-                    array_key_exists($key, $scope) => $scope[$key],
-                    default => $this->missingValue,
-                },
                 $scope instanceof Drop => $scope->{$key},
                 is_object($scope) => match (true) {
                     $this->objectHasProperty($scope, (string) $key) => $scope->{$key},
@@ -452,7 +471,7 @@ final class RenderContext
 
         $template = $parseContext->loadPartial($templateName);
 
-        $this->sharedState->outputs->merge($template->state->outputs);
+        $this->sharedState->outputs->merge($template->getState()->outputs);
 
         return $template;
     }

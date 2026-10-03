@@ -95,3 +95,35 @@ test('the PHPBench comparator rejects malformed aggregate JSON', function () {
     expect($result['exit_code'])->toBe(2)
         ->and($result['stderr'])->toContain('Unexpected PHPBench aggregate JSON');
 });
+
+test('the PHPBench comparator reports branch-only subjects without comparing them', function () {
+    $branchOnlyRow = phpBenchAggregateRow();
+    $branchOnlyRow['benchmark'] = 'CompilerBench';
+    $branchOnlyRow['subject'] = 'benchCompiledRender';
+
+    $result = runPhpBenchCompare(
+        base: [phpBenchAggregateRow()],
+        pr: [$branchOnlyRow],
+    );
+
+    expect($result['exit_code'])->toBe(0)
+        ->and($result['stdout'])->toContain('No comparable benchmark rows')
+        ->toContain('| CompilerBench::benchCompiledRender | - | 1,000.00 ops/s | - | - | - | - |')
+        ->toContain('Branch-only subjects (missing in base result): `CompilerBench::benchCompiledRender`');
+});
+
+test('the PHPBench comparator includes branch-only subjects with comparable rows', function () {
+    $branchOnlyRow = phpBenchAggregateRow(mode: 500.0);
+    $branchOnlyRow['benchmark'] = 'CompilerBench';
+    $branchOnlyRow['subject'] = 'benchCompiledStream';
+
+    $result = runPhpBenchCompare(
+        base: [phpBenchAggregateRow()],
+        pr: [phpBenchAggregateRow(), $branchOnlyRow],
+    );
+
+    expect($result['exit_code'])->toBe(0)
+        ->and($result['stdout'])
+        ->toContain('| CompilerBench::benchCompiledStream | - | 2,000.00 ops/s | - | - | - | - |')
+        ->toContain('Missing in base result: `CompilerBench::benchCompiledStream`');
+});

@@ -1074,7 +1074,9 @@ class StandardFilters extends FiltersProvider
         }
 
         if (is_array($value)) {
-            ksort($value);
+            if (! array_is_list($value)) {
+                ksort($value);
+            }
 
             return 'array:'.serialize(array_map($this->uniqueKey(...), $value));
         }

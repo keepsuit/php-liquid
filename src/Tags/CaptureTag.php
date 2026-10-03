@@ -2,13 +2,15 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
+use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\TagBlock;
 
-class CaptureTag extends TagBlock
+class CaptureTag extends TagBlock implements CanBeCompiled
 {
     protected string $to;
 
@@ -48,6 +50,19 @@ class CaptureTag extends TagBlock
         $context->setToActiveScope($this->to, $captureValue);
 
         return '';
+    }
+
+    public function compile(CompilerContext $context): void
+    {
+        if (static::class !== self::class) {
+            $context->compileFallback($this);
+
+            return;
+        }
+
+        $value = $context->temporaryVariable();
+        $context->writeCaptureBody($this->body, $value);
+        $context->write('$context->setToActiveScope('.$context->writeValue($this->to).', '.$value.');');
     }
 
     public function parseTreeVisitorChildren(): array

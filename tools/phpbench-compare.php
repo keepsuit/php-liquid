@@ -15,9 +15,21 @@ $prBenchmarks = loadBenchmarks($prPath);
 
 $sharedNames = array_values(array_intersect(array_keys($baseBenchmarks), array_keys($prBenchmarks)));
 sort($sharedNames);
+$missingInPr = array_values(array_diff(array_keys($baseBenchmarks), array_keys($prBenchmarks)));
+$missingInBase = array_values(array_diff(array_keys($prBenchmarks), array_keys($baseBenchmarks)));
 
-if ($sharedNames === []) {
-    echo "> No comparable benchmark rows: the PR benchmark suite has changed. Establish a matching baseline on `main` before drawing performance conclusions.\n";
+if ($sharedNames === [] && $missingInBase === []) {
+    echo "> No comparable benchmark rows: establish a matching baseline on `main` before drawing performance conclusions.\n\n";
+
+    if ($missingInPr !== []) {
+        sort($missingInPr);
+        echo '- Missing in PR result: `'.implode('`, `', $missingInPr).'`'."\n";
+    }
+    if ($missingInBase !== []) {
+        sort($missingInBase);
+        echo '- Branch-only subjects (missing in base result): `'.implode('`, `', $missingInBase).'`'."\n";
+    }
+
     exit(0);
 }
 
@@ -104,6 +116,28 @@ foreach ($sharedNames as $name) {
         'prMemory' => $pr['memory'],
         'memoryDelta' => $pr['memory'] - $base['memory'],
         'memoryDeltaPercent' => $memoryDeltaPercent,
+        'prOnly' => false,
+    ];
+}
+
+foreach ($missingInBase as $name) {
+    $pr = $prBenchmarks[$name];
+    $prOpsPerSecond = abs($pr['time']) > PHP_FLOAT_EPSILON
+        ? 1_000_000 / $pr['time']
+        : null;
+
+    $rows[] = [
+        'name' => $name,
+        'baseOpsPerSecond' => null,
+        'prOpsPerSecond' => $prOpsPerSecond,
+        'deltaPercent' => null,
+        'baseRstdev' => null,
+        'prRstdev' => null,
+        'baseMemory' => null,
+        'prMemory' => null,
+        'memoryDelta' => null,
+        'memoryDeltaPercent' => null,
+        'prOnly' => true,
     ];
 }
 
@@ -114,16 +148,44 @@ $totalMemoryChange = abs($totalBaseMemory) > PHP_FLOAT_EPSILON
     : null;
 
 $lines = [];
-$context = benchmarkContext($baseBenchmarks[$sharedNames[0]]);
+$contextBenchmark = $sharedNames !== []
+    ? $baseBenchmarks[$sharedNames[0]]
+    : $prBenchmarks[$missingInBase[0]];
+$context = benchmarkContext($contextBenchmark);
 if ($context !== null) {
     $lines[] = $context;
     $lines[] = '';
+}
+if ($sharedNames === []) {
+    $lines[] = '> No comparable benchmark rows: establish a matching baseline on `main` before drawing performance conclusions.';
+    $lines[] = '';
+    if ($missingInPr !== []) {
+        sort($missingInPr);
+        $lines[] = '- Missing in PR result: `'.implode('`, `', $missingInPr).'`';
+    }
+    if ($missingInBase !== []) {
+        sort($missingInBase);
+        $lines[] = '- Branch-only subjects (missing in base result): `'.implode('`, `', $missingInBase).'`';
+    }
+    if ($missingInPr !== [] || $missingInBase !== []) {
+        $lines[] = '';
+    }
 }
 $lines[] = '> Positive ops/s is faster. RSD above 5% is marked high.';
 $lines[] = '';
 $lines[] = '| Benchmark | Base ops/s | PR ops/s | Delta ops/s | RSD (base / PR) | Delta memory | Memory % |';
 $lines[] = '|-----------|-----------:|---------:|------------:|----------------:|-------------:|---------:|';
 foreach ($rows as $row) {
+    if ($row['prOnly']) {
+        $lines[] = sprintf(
+            '| %s | - | %s | - | - | - | - |',
+            escapePipe($row['name']),
+            formatOperationsPerSecond($row['prOpsPerSecond']),
+        );
+
+        continue;
+    }
+
     $lines[] = sprintf(
         '| %s | %s | %s | %s | %s | %s | %s |',
         escapePipe($row['name']),
@@ -162,9 +224,7 @@ $lines[] = sprintf(
 );
 $lines[] = sprintf('- Total memory change: **%s**', formatPercent($totalMemoryChange));
 
-$missingInPr = array_values(array_diff(array_keys($baseBenchmarks), array_keys($prBenchmarks)));
-$missingInBase = array_values(array_diff(array_keys($prBenchmarks), array_keys($baseBenchmarks)));
-if ($missingInPr !== [] || $missingInBase !== []) {
+if ($sharedNames !== [] && ($missingInPr !== [] || $missingInBase !== [])) {
     $lines[] = '';
     if ($missingInPr !== []) {
         sort($missingInPr);

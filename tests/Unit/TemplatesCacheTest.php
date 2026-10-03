@@ -9,12 +9,12 @@ test('templates cache', function (LiquidTemplatesCache $cache) {
         ->has('test')->toBe(false)
         ->get('test')->toBeNull();
 
-    $template = parseTemplate('Hello {{ name }}');
+    $template = parseSource('Hello {{ name }}');
 
     $cache->set('test', $template);
     expect($cache)
         ->has('test')->toBe(true)
-        ->get('test')->toBeInstanceOf(\Keepsuit\Liquid\Template::class);
+        ->get('test')->toBeInstanceOf(\Keepsuit\Liquid\ParsedTemplate::class);
 
     $renderContext = new \Keepsuit\Liquid\Render\RenderContext(['name' => 'John']);
     $cachedTemplate = $cache->get('test');
@@ -56,7 +56,7 @@ test('filesystem cache keeps templates loaded from disk in memory', function () 
     $path = __DIR__.'/../cache/serialize-memo';
     $writer = countingSerializeCache($path, true);
     $writer->clear();
-    $writer->set('test', parseTemplate('Hello {{ name }}'));
+    $writer->set('test', parseSource('Hello {{ name }}'));
 
     $reader = countingSerializeCache($path, true);
     $first = $reader->get('test');
@@ -74,7 +74,7 @@ test('filesystem cache without keepInMemory loads from disk on every get', funct
     $path = __DIR__.'/../cache/serialize-memo';
     $writer = countingSerializeCache($path, true);
     $writer->clear();
-    $writer->set('test', parseTemplate('Hello {{ name }}'));
+    $writer->set('test', parseSource('Hello {{ name }}'));
 
     $reader = countingSerializeCache($path, false);
     $reader->get('test');
@@ -91,6 +91,6 @@ test('filesystem cache does not memoize missing templates', function () {
     $reader = countingSerializeCache($path, true);
     expect($reader->get('missing'))->toBeNull();
 
-    $writer->set('missing', parseTemplate('Hello'));
+    $writer->set('missing', parseSource('Hello'));
     expect($reader->get('missing'))->toBeInstanceOf(\Keepsuit\Liquid\Template::class);
 });

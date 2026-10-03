@@ -12,11 +12,11 @@ use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
  */
 function storefrontStrictEnvironment(): Keepsuit\Liquid\Environment
 {
-    return StorefrontTheme::environmentFactory()
+    return testEnvironment(StorefrontTheme::environmentFactory()
         ->setStrictVariables(true)
         ->setStrictFilters(true)
         ->setRethrowErrors(true)
-        ->build();
+        ->build());
 }
 
 test('every discovered template exists and every template on disk is discovered', function () {

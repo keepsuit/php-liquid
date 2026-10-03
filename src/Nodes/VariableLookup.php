@@ -2,7 +2,9 @@
 
 namespace Keepsuit\Liquid\Nodes;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
+use Keepsuit\Liquid\Contracts\CanBeExported;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
@@ -10,7 +12,7 @@ use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\MissingValue;
 use Keepsuit\Liquid\Support\UndefinedVariable;
 
-class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
+class VariableLookup implements CanBeEvaluated, CanBeExported, HasParseTreeVisitorChildren
 {
     const FILTER_METHODS = ['size', 'first', 'last'];
 
@@ -58,6 +60,13 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
         return new VariableLookup(substr($markup, 0, $nameLength), $lookups);
     }
 
+    public function export(CompilerContext $context): ?string
+    {
+        return 'new \\'.self::class.'('
+            .$context->writeValue($this->name).', '
+            .$context->writeValue($this->lookups).')';
+    }
+
     public function toString(): string
     {
         if ($this->lookups === []) {
@@ -79,17 +88,35 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 
     public function evaluate(RenderContext $context): mixed
     {
-        $variable = $context->findVariable($this->name);
+        if ($this->lookups === []) {
+            $variable = $context->findVariable($this->name);
 
-        if ($variable instanceof MissingValue) {
-            return $this->undefined($context);
+            return $variable instanceof MissingValue
+                ? self::undefinedValue($context, $this->name, [])
+                : $variable;
         }
 
-        if ($this->lookups === []) {
+        return self::evaluateParts($context, $this->name, $this->lookups);
+    }
+
+    /**
+     * Evaluate a parsed lookup without requiring a VariableLookup instance.
+     *
+     * @param  array<string|int|VariableLookup>  $lookups
+     */
+    public static function evaluateParts(RenderContext $context, string $name, array $lookups): mixed
+    {
+        $variable = $context->findVariable($name);
+
+        if ($variable instanceof MissingValue) {
+            return self::undefinedValue($context, $name, $lookups);
+        }
+
+        if ($lookups === []) {
             return $variable;
         }
 
-        $result = $this->walkLookups($context, $variable);
+        $result = self::walkLookupParts($context, $variable, $lookups);
 
         if (! $result instanceof MissingValue) {
             return $result;
@@ -97,32 +124,37 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
 
         // The name resolved but the lookup chain broke on the innermost value: an
         // outer scope may still hold one the chain resolves against.
-        foreach ($context->findVariables($this->name) as $candidate) {
+        foreach ($context->findVariables($name) as $candidate) {
             // Skip the value already walked above: re-walking it would repeat any
             // side effects the broken chain triggered on the way.
             if ($candidate === $variable) {
                 continue;
             }
 
-            $result = $this->walkLookups($context, $candidate);
+            $result = self::walkLookupParts($context, $candidate, $lookups);
 
             if (! $result instanceof MissingValue) {
                 return $result;
             }
         }
 
-        return $this->undefined($context);
-    }
-
-    protected function undefined(RenderContext $context): ?UndefinedVariable
-    {
-        return $context->options->strictVariables ? new UndefinedVariable($this->toString()) : null;
+        return self::undefinedValue($context, $name, $lookups);
     }
 
     /**
-     * Walks the lookup chain against $object, returning MissingValue if it breaks.
+     * @param  array<string|int|VariableLookup>  $lookups
      */
-    protected function walkLookups(RenderContext $context, mixed $object): mixed
+    private static function undefinedValue(RenderContext $context, string $name, array $lookups): ?UndefinedVariable
+    {
+        return $context->options->strictVariables
+            ? new UndefinedVariable(implode('.', [$name, ...$lookups]))
+            : null;
+    }
+
+    /**
+     * @param  array<string|int|VariableLookup>  $lookups
+     */
+    private static function walkLookupParts(RenderContext $context, mixed $object, array $lookups): mixed
     {
         if ($object instanceof CanBeEvaluated) {
             $object = $context->evaluate($object);
@@ -132,14 +164,14 @@ class VariableLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
             $object = iterator_to_array($object, preserve_keys: false);
         }
 
-        foreach ($this->lookups as $lookup) {
+        foreach ($lookups as $lookup) {
             $key = $lookup instanceof VariableLookup ? $context->evaluate($lookup) : $lookup;
 
             if (! (is_string($key) || is_int($key))) {
                 return new MissingValue;
             }
 
-            if (is_array($object) && array_is_list($object) && is_int($key) && $key < 0) {
+            if (is_int($key) && $key < 0 && is_array($object) && array_is_list($object)) {
                 $key += count($object);
             }
 

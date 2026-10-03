@@ -4,10 +4,10 @@ use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
 test('dynamically template name', function () {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setFilesystem(new StubFileSystem(partials: ['snippet' => 'echo']))
         ->setRethrowErrors(true)
-        ->build();
+        ->build());
 
     $environment->tagRegistry->register(\Keepsuit\Liquid\Tags\Custom\DynamicRenderTag::class);
 
