@@ -12,6 +12,7 @@ use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\MissingValue;
 use Keepsuit\Liquid\Support\UndefinedVariable;
 
+/** @phpstan-type CompiledLookup scalar|array{string, list<string|int>}|null */
 class VariableLookup implements CanBeEvaluated, CanBeExported, HasParseTreeVisitorChildren
 {
     const FILTER_METHODS = ['size', 'first', 'last'];
@@ -66,7 +67,7 @@ class VariableLookup implements CanBeEvaluated, CanBeExported, HasParseTreeVisit
             return null;
         }
 
-        return 'new \\'.self::class.'('
+        return 'new '.$context->writeClassName(self::class).'('
             .$context->writeValue($this->name).', '
             .$context->writeValue($this->lookups).')';
     }
@@ -115,6 +116,29 @@ class VariableLookup implements CanBeEvaluated, CanBeExported, HasParseTreeVisit
         return $variable instanceof MissingValue
             ? self::undefinedValue($context, $name, [])
             : $variable;
+    }
+
+    /**
+     * Resolve an immutable compiler lookup descriptor or an already known literal.
+     *
+     * @param  CompiledLookup  $value
+     *
+     * @internal
+     */
+    public static function evaluateDescriptor(RenderContext $context, mixed $value): mixed
+    {
+        if (is_array($value)) {
+            if ($value[1] === []) {
+                $variable = $context->findVariable($value[0]);
+                $value = $variable instanceof MissingValue
+                    ? self::undefinedValue($context, $value[0], [])
+                    : $variable;
+            } else {
+                $value = self::evaluateParts($context, $value[0], $value[1]);
+            }
+        }
+
+        return $value instanceof CanBeEvaluated ? $context->evaluate($value) : $value;
     }
 
     /**

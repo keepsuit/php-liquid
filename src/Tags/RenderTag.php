@@ -157,14 +157,27 @@ class RenderTag extends Tag implements CanBeCompiled, CanBeStreamed, HasParseTre
 
     protected function compilePartial(CompilerContext $context, string $templateName): void
     {
+        $variable = $context->writeLookupValue($this->variableNameExpression);
+        $attributes = [];
+        $compiledLookups = $variable !== null;
+        foreach ($this->attributes as $key => $value) {
+            $source = $context->writeLookupValue($value);
+            if ($source === null) {
+                $compiledLookups = false;
+
+                break;
+            }
+            $attributes[] = $context->writeValue($key).' => '.$source;
+        }
+
         $method = $context->isRendering() ? 'renderPartial' : 'yieldPartial';
         $expression = sprintf(
             '$this->%s($context, %s, %s, %s, %s)',
-            $method.($this->isForLoop ? 'Loop' : ''),
+            $method.($this->isForLoop ? 'Loop' : '').($compiledLookups ? 'WithLookups' : ''),
             $templateName,
-            $context->writeCachedValue($this->variableNameExpression),
+            $compiledLookups ? $variable : $context->writeCachedValue($this->variableNameExpression),
             $context->writeValue($this->aliasName),
-            $context->writeCachedValue($this->attributes),
+            $compiledLookups ? '['.implode(', ', $attributes).']' : $context->writeCachedValue($this->attributes),
         );
 
         if ($context->isRendering()) {

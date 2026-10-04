@@ -11,12 +11,14 @@ use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
 use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
+use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tags\RenderTag;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\TemplateSharedState;
 use Throwable;
 
+/** @phpstan-import-type CompiledLookup from VariableLookup */
 abstract class CompiledTemplate extends AbstractTemplate
 {
     public function __construct(TemplateSharedState $state = new TemplateSharedState)
@@ -228,6 +230,99 @@ abstract class CompiledTemplate extends AbstractTemplate
         return $output;
     }
 
+    /**
+     * @param  CompiledLookup  $variable
+     * @param  array<string,CompiledLookup>  $attributes
+     */
+    protected function yieldPartialWithLookups(
+        RenderContext $context,
+        string $templateName,
+        mixed $variable,
+        ?string $aliasName,
+        array $attributes,
+    ): \Generator {
+        $partial = $context->loadPartial($templateName);
+
+        yield from $partial->stream($this->partialContextWithLookups($context, $partial, $variable, $aliasName, $attributes));
+    }
+
+    /**
+     * @param  CompiledLookup  $variable
+     * @param  array<string,CompiledLookup>  $attributes
+     */
+    protected function renderPartialWithLookups(
+        RenderContext $context,
+        string $templateName,
+        mixed $variable,
+        ?string $aliasName,
+        array $attributes,
+    ): string {
+        $partial = $context->loadPartial($templateName);
+
+        return $partial->render($this->partialContextWithLookups($context, $partial, $variable, $aliasName, $attributes));
+    }
+
+    /**
+     * @param  CompiledLookup  $variable
+     * @param  array<string,CompiledLookup>  $attributes
+     */
+    protected function yieldPartialLoopWithLookups(
+        RenderContext $context,
+        string $templateName,
+        mixed $variable,
+        ?string $aliasName,
+        array $attributes,
+    ): \Generator {
+        $partial = $context->loadPartial($templateName);
+        $name = $partial->name() ?? '';
+        $alias = $aliasName ?? RenderTag::defaultVariableName($name);
+        $variable = $variable ? VariableLookup::evaluateDescriptor($context, $variable) : null;
+        $values = RenderTag::loopValues($variable, true);
+
+        if ($values === null) {
+            yield from $partial->stream($this->partialLoopContextWithLookups($context, $name, $alias, $variable, $attributes));
+
+            return;
+        }
+
+        $loop = new ForLoopDrop($name, count($values));
+        foreach ($values as $value) {
+            yield from $partial->stream($this->partialLoopContextWithLookups($context, $name, $alias, $value, $attributes, $loop));
+            $loop->increment();
+        }
+    }
+
+    /**
+     * @param  CompiledLookup  $variable
+     * @param  array<string,CompiledLookup>  $attributes
+     */
+    protected function renderPartialLoopWithLookups(
+        RenderContext $context,
+        string $templateName,
+        mixed $variable,
+        ?string $aliasName,
+        array $attributes,
+    ): string {
+        $partial = $context->loadPartial($templateName);
+        $name = $partial->name() ?? '';
+        $alias = $aliasName ?? RenderTag::defaultVariableName($name);
+        $variable = $variable ? VariableLookup::evaluateDescriptor($context, $variable) : null;
+        $values = RenderTag::loopValues($variable, true);
+
+        if ($values === null) {
+            return $partial->render($this->partialLoopContextWithLookups($context, $name, $alias, $variable, $attributes));
+        }
+
+        $loop = new ForLoopDrop($name, count($values));
+        $output = '';
+        foreach ($values as $value) {
+            $output .= $partial->render($this->partialLoopContextWithLookups($context, $name, $alias, $value, $attributes, $loop));
+            $loop->increment();
+        }
+
+        return $output;
+    }
+
     /** @param array<string,mixed> $attributes */
     private function partialLoopContext(
         RenderContext $context,
@@ -270,6 +365,56 @@ abstract class CompiledTemplate extends AbstractTemplate
 
         foreach ($attributes as $key => $value) {
             $partialContext->set($key, $context->evaluate($value));
+        }
+
+        return $partialContext;
+    }
+
+    /**
+     * @param  array<string,CompiledLookup>  $attributes
+     */
+    private function partialLoopContextWithLookups(
+        RenderContext $context,
+        string $name,
+        string $alias,
+        mixed $value,
+        array $attributes,
+        ?ForLoopDrop $loop = null,
+    ): RenderContext {
+        $partialContext = $context->newIsolatedSubContext($name);
+        if ($loop !== null && $alias !== 'forloop') {
+            $partialContext->set('forloop', $loop);
+        }
+        $partialContext->set($alias, $value);
+
+        foreach ($attributes as $key => $expression) {
+            $partialContext->set($key, VariableLookup::evaluateDescriptor($context, $expression));
+        }
+
+        return $partialContext;
+    }
+
+    /**
+     * @param  CompiledLookup  $variable
+     * @param  array<string,CompiledLookup>  $attributes
+     */
+    private function partialContextWithLookups(
+        RenderContext $context,
+        Template $partial,
+        mixed $variable,
+        ?string $aliasName,
+        array $attributes,
+    ): RenderContext {
+        $partialName = $partial->name() ?? '';
+
+        $contextVariableName = $aliasName ?? RenderTag::defaultVariableName($partialName);
+
+        $value = $variable ? VariableLookup::evaluateDescriptor($context, $variable) : null;
+        $partialContext = $context->newIsolatedSubContext($partialName);
+        $partialContext->set($contextVariableName, $value);
+
+        foreach ($attributes as $key => $value) {
+            $partialContext->set($key, VariableLookup::evaluateDescriptor($context, $value));
         }
 
         return $partialContext;

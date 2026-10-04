@@ -3,6 +3,7 @@
 namespace Keepsuit\Liquid\Compiler;
 
 use Keepsuit\Liquid\Nodes\Node;
+use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\ParsedTemplate;
 
 class Compiler
@@ -41,19 +42,24 @@ class Compiler
 
         $className = 'Template_'.substr(hash(
             'sha256',
-            $name.$body.$renderBody.implode('', $fallbackValueSource).implode('', $renderedBodies),
+            $name.$body.$renderBody.implode('', $fallbackValueSource).implode('', $renderedBodies)
+                .implode('', $bodyContext->getImportedClasses()),
         ), 0, 32);
 
         $builder = new CodeBuilder;
         $builder
             ->writeLine('<?php')
             ->writeLine()
+            ->writeLine('// Template: '.str_replace('?>', '? >', $template->root->name === null ? '<unnamed>' : $name))
+            ->writeLine()
             ->writeLine('namespace Keepsuit\\Liquid\\Compiler\\Generated;')
-            ->writeLine()
-            ->writeLine('use Keepsuit\\Liquid\\Compiler\\CompiledTemplate;')
-            ->writeLine('use Keepsuit\\Liquid\\Render\\RenderContext;')
-            ->writeLine('use Keepsuit\\Liquid\\TemplateSharedState;')
-            ->writeLine()
+            ->writeLine();
+
+        foreach ($bodyContext->getImportedClasses() as $class) {
+            $builder->writeLine('use '.$class.';');
+        }
+
+        $builder->writeLine()
             ->writeLine('if (! class_exists('.$className.'::class, false)) {')
             ->indent()
             ->writeLine('final class '.$className.' extends CompiledTemplate')
@@ -61,6 +67,10 @@ class Compiler
             ->indent();
 
         foreach ($fallbackValues as $property => $value) {
+            $description = $value instanceof VariableLookup && $value::class === VariableLookup::class
+                ? 'Lookup: '.$bodyContext->writeValue($value->name)
+                : 'Runtime value: '.$bodyContext->writeValue(get_debug_type($value));
+            $builder->writeLine('// '.str_replace('?>', '? >', $description));
             $builder->writeLine('private readonly mixed $'.$property.';');
         }
 

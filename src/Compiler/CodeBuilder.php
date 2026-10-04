@@ -17,11 +17,11 @@ class CodeBuilder
      * Facts about the emitted stream: checked means the buffer is below the
      * flush threshold; empty also permits skipping an unconditional flush.
      *
-     * @var array{checked: bool, empty: bool}
+     * @var array{checked: bool, empty: bool, maxLength: ?int}
      */
-    protected array $streamBufferState = ['checked' => false, 'empty' => false];
+    protected array $streamBufferState = ['checked' => false, 'empty' => false, 'maxLength' => null];
 
-    /** @var list<array{checked: bool, empty: bool}> */
+    /** @var list<array{checked: bool, empty: bool, maxLength: ?int}> */
     protected array $streamBufferScopes = [];
 
     public function indent(): static
@@ -39,6 +39,9 @@ class CodeBuilder
             $this->streamBufferState = [
                 'checked' => $entry['checked'] && $this->streamBufferState['checked'],
                 'empty' => $entry['empty'] && $this->streamBufferState['empty'],
+                'maxLength' => $entry['maxLength'] !== null && $this->streamBufferState['maxLength'] !== null
+                    ? max($entry['maxLength'], $this->streamBufferState['maxLength'])
+                    : null,
             ];
         }
         $this->indentLevel = max(0, $this->indentLevel - 1);
@@ -49,29 +52,29 @@ class CodeBuilder
     public function writeLine(string $line = ''): static
     {
         if (trim($line) === '$buffer = "";') {
-            $this->streamBufferState = ['checked' => true, 'empty' => true];
+            $this->streamBufferState = ['checked' => true, 'empty' => true, 'maxLength' => 0];
         } elseif (str_contains($line, '$buffer')) {
-            $this->streamBufferState = ['checked' => false, 'empty' => false];
+            $this->streamBufferState = ['checked' => false, 'empty' => false, 'maxLength' => null];
         }
         if ($this->source !== '' && ! str_ends_with($this->source, "\n")) {
             $this->source .= "\n";
         }
 
-        $this->source .= ($this->indentation[$this->indentLevel] ??= str_repeat('    ', $this->indentLevel)).$line."\n";
+        $this->source .= ($line === '' ? '' : ($this->indentation[$this->indentLevel] ??= str_repeat('    ', $this->indentLevel))).$line."\n";
 
         return $this;
     }
 
     public function writeRaw(string $fragment): static
     {
-        $this->streamBufferState = ['checked' => false, 'empty' => false];
+        $this->streamBufferState = ['checked' => false, 'empty' => false, 'maxLength' => null];
         $this->source .= $fragment;
 
         return $this;
     }
 
     /**
-     * @return array{sourceLength:int,indentLevel:int,yieldCount:int,bufferState:array{checked:bool,empty:bool},bufferScopes:list<array{checked:bool,empty:bool}>}
+     * @return array{sourceLength:int,indentLevel:int,yieldCount:int,bufferState:array{checked:bool,empty:bool,maxLength:?int},bufferScopes:list<array{checked:bool,empty:bool,maxLength:?int}>}
      */
     public function checkpoint(): array
     {
@@ -85,7 +88,7 @@ class CodeBuilder
     }
 
     /**
-     * @param  array{sourceLength:int,indentLevel:int,yieldCount:int,bufferState:array{checked:bool,empty:bool},bufferScopes:list<array{checked:bool,empty:bool}>}  $checkpoint
+     * @param  array{sourceLength:int,indentLevel:int,yieldCount:int,bufferState:array{checked:bool,empty:bool,maxLength:?int},bufferScopes:list<array{checked:bool,empty:bool,maxLength:?int}>}  $checkpoint
      */
     public function rollback(array $checkpoint): static
     {
@@ -110,13 +113,13 @@ class CodeBuilder
         return $this->yieldCount;
     }
 
-    /** @return array{checked: bool, empty: bool} */
+    /** @return array{checked: bool, empty: bool, maxLength: ?int} */
     public function streamBufferState(): array
     {
         return $this->streamBufferState;
     }
 
-    /** @param array{checked: bool, empty: bool} $state */
+    /** @param array{checked: bool, empty: bool, maxLength: ?int} $state */
     public function setStreamBufferState(array $state): void
     {
         $this->streamBufferState = $state;

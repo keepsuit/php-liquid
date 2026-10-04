@@ -37,6 +37,6 @@ class BreakTag extends Tag
     /** @internal */
     public function compileNative(CompilerContext $context): void
     {
-        $context->write('$context->pushInterrupt(new \\'.BreakInterrupt::class.');');
+        $context->write('$context->pushInterrupt(new '.$context->writeClassName(BreakInterrupt::class).');');
     }
 }

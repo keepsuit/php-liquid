@@ -766,7 +766,7 @@ test('compiled templates buffer native chunks without using the render accumulat
             before_needle: true,
         );
         expect($streamSource)->not->toContain('$output');
-        expect($compiledSource)->not->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(');
+        expect($compiledSource)->not->toContain('new Variable(');
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
@@ -845,7 +845,7 @@ test('compiled body preserves buffered output when an exception interrupts a yie
     '{{ "'.str_repeat('x', 4096).'" }}tail',
 ]);
 
-test('compiled static lookup deduplication still reads updated context values', function () {
+test('compiled direct partial lookups still read updated context values', function () {
     $environment = EnvironmentFactory::new()
         ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem(['p' => '{{ value }}']))
         ->build();
@@ -854,7 +854,9 @@ test('compiled static lookup deduplication still reads updated context values', 
 
     try {
         $environment->compile($template, $path);
-        expect(substr_count(file_get_contents($path), "new \\Keepsuit\\Liquid\\Nodes\\VariableLookup('product', [])"))->toBe(1);
+        expect(file_get_contents($path))
+            ->not->toContain("new VariableLookup('product', [])")
+            ->toContain("'value' => ['product', []]");
         $compiled = require $path;
         foreach (['render', 'stream'] as $method) {
             $output = $compiled->$method($environment->newRenderContext(data: ['product' => 'first']));
@@ -1179,8 +1181,8 @@ test('compiled static render tags stream partials without rebuilding the tag', f
         $compiledSource = file_get_contents($compiledPath);
 
         expect($compiledSource)
-            ->toContain('yieldPartial')
-            ->toContain('renderPartial')
+            ->toContain('yieldPartial', 'renderPartial')
+            ->not->toContain('new VariableLookup(')
             ->not->toContain('deepclone_from_array')
             ->not->toContain('yield from [];')
             // The partial is looked up when the compiled template runs, never
@@ -1218,6 +1220,7 @@ test('compiled static render loops avoid serialized tags and preserve loop behav
 
         expect($compiledSource)
             ->toContain('yieldPartialLoop', 'renderPartialLoop')
+            ->not->toContain('new VariableLookup(')
             ->not->toContain('unserialize(');
 
         /** @var CompiledTemplate $compiled */
@@ -1444,7 +1447,7 @@ test('compiled for bodies run in the caller frame without callback generators', 
         expect(file_get_contents($compiledPath))
             ->not->toContain('function (RenderContext $context): iterable {')
             ->not->toContain('->streamBlocks($context')
-            ->toContain('::collectionSegmentFor($context,')
+            ->toContain('::collectionSegmentForLookups($context,')
             ->toContain('foreach (')
             ->toContain('::leaveLoop($context);')
             ->not->toContain('collectCompiled')
@@ -1545,9 +1548,9 @@ test('native compiled assignments and captures preserve values scopes and resour
         $compiled = require $compiledPath;
 
         expect(file_get_contents($compiledPath))
-            ->not->toContain('new \\Keepsuit\\Liquid\\Tags\\AssignTag(')
-            ->not->toContain('new \\Keepsuit\\Liquid\\Tags\\CaptureTag(')
-            ->not->toContain('new \\Keepsuit\\Liquid\\Tags\\ForTag(');
+            ->not->toContain('new AssignTag(')
+            ->not->toContain('new CaptureTag(')
+            ->not->toContain('new ForTag(');
 
         foreach (['render', 'stream'] as $method) {
             $contexts = [];
@@ -1719,9 +1722,9 @@ test('exportable nodes are rebuilt with constructors instead of serialization', 
         $environment->compile($template, $compiledPath);
 
         expect(file_get_contents($compiledPath))
-            ->not->toContain('new \Keepsuit\Liquid\Nodes\Variable(')
-            ->not->toContain('new \Keepsuit\Liquid\Nodes\VariableLookup(')
-            ->not->toContain('new \Keepsuit\Liquid\Condition\Condition(')
+            ->not->toContain('new Variable(')
+            ->not->toContain('new VariableLookup(')
+            ->not->toContain('new Condition(')
             ->toContain('::compare(')
             ->not->toContain('\unserialize(')
             ->not->toContain('deepclone_from_array');
@@ -1748,7 +1751,7 @@ test('native condition chains compile without reconstructed objects', function (
 
         expect(file_get_contents($compiledPath))
             ->not->toContain('\unserialize(')
-            ->not->toContain('\Keepsuit\Liquid\Condition\Condition::chain(')
+            ->not->toContain('Condition::chain(')
             ->not->toContain('private readonly mixed $value')
             ->toContain(' && ')
             ->not->toContain('deepclone_from_array')
@@ -2502,7 +2505,7 @@ test('compiled rendering emits safe core nodes directly', function () {
             ->toContain('extends CompiledTemplate')
             ->toContain('protected function renderCompiled')
             ->not->toContain('unserialize')
-            ->not->toContain('return new \\Keepsuit\\Liquid\\Compiler\\CompiledTemplate(');
+            ->not->toContain('return new CompiledTemplate(');
 
         /** @var CompiledTemplate $compiled */
         $compiled = require $compiledPath;
@@ -2529,7 +2532,7 @@ test('storefront specs compile into readable direct output', function () {
             ->toContain('use Keepsuit\\Liquid\\Compiler\\CompiledTemplate;')
             ->toContain('use Keepsuit\\Liquid\\Render\\RenderContext;')
             ->toContain('extends CompiledTemplate')
-            ->not->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
+            ->not->toContain('new Variable(')
             ->toContain('// line 4')
             ->toContain("'size'")
             ->not->toContain('private readonly mixed $value')
@@ -2563,7 +2566,7 @@ test('complex compiled variables stream directly', function () {
         $compiledSource = file_get_contents($compiledPath);
 
         expect($compiledSource)
-            ->toContain("new \\Keepsuit\\Liquid\\Nodes\\VariableLookup('key', [])")
+            ->toContain("new VariableLookup('key', [])")
             ->toContain('private readonly mixed $value0');
 
         /** @var CompiledTemplate $compiled */
@@ -2585,7 +2588,7 @@ test('direct variable emission preserves common Liquid values', function (string
         $environment->compile($template, $compiledPath);
 
         expect(file_get_contents($compiledPath))
-            ->not->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
+            ->not->toContain('new Variable(')
             ->toContain('::evaluate')
             ->not->toContain('private readonly mixed $value');
 
@@ -2622,7 +2625,7 @@ test('storefront header compiles static partial rendering with direct values', f
         $compiledSource = file_get_contents($compiledPath);
 
         expect($compiledSource)
-            ->not->toContain('new \\Keepsuit\\Liquid\\Nodes\\Variable(')
+            ->not->toContain('new Variable(')
             ->toContain("::evaluateParts(\$context, 'shop', ['name'])")
             ->toContain('yieldPartial')
             ->not->toContain('yield from [];')
@@ -2763,9 +2766,9 @@ test('compiled filter arguments fully evaluate lookups in positional and named o
         $environment->compile($template, $path);
         $compiled = require $path;
         expect(file_get_contents($path))
-            ->not->toContain("new \\Keepsuit\\Liquid\\Nodes\\VariableLookup('first'")
-            ->not->toContain("new \\Keepsuit\\Liquid\\Nodes\\VariableLookup('product'")
-            ->not->toContain("new \\Keepsuit\\Liquid\\Nodes\\VariableLookup('last'");
+            ->not->toContain("new VariableLookup('first'")
+            ->not->toContain("new VariableLookup('product'")
+            ->not->toContain("new VariableLookup('last'");
         foreach ([$template, $compiled] as $candidate) {
             foreach (['render', 'stream'] as $mode) {
                 $counter = new CompilerCountingPartialValue;

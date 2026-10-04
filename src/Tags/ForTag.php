@@ -25,6 +25,7 @@ use Keepsuit\Liquid\TagBlock;
 
 /**
  * @phpstan-import-type Expression from ExpressionParser
+ * @phpstan-import-type CompiledLookup from VariableLookup
  */
 class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseTreeVisitorChildren
 {
@@ -97,23 +98,28 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
         $segment = $context->temporaryVariable();
         $loop = $context->temporaryVariable();
         $value = $context->temporaryVariable();
-        $context->write($segment.' = \\'.self::class.'::collectionSegmentFor($context, '
-            .$context->writeCachedValue($this->collection).', '
-            .$context->writeCachedValue($this->from).', '
-            .$context->writeCachedValue($this->limit).', '
-            .$context->writeValue($this->reversed).', '.$context->writeValue($this->name).');');
+        $collection = $context->writeLookupValue($this->collection);
+        $from = $context->writeLookupValue($this->from);
+        $limit = $context->writeLookupValue($this->limit);
+        $compiledLookups = $collection !== null && $from !== null && $limit !== null;
+        $context->write($segment.' = '.$context->writeClassName(self::class).'::'.($compiledLookups ? 'collectionSegmentForLookups' : 'collectionSegmentFor').'($context, '
+            .($compiledLookups ? $collection : $context->writeCachedValue($this->collection)).', '
+            .($compiledLookups ? $from : $context->writeCachedValue($this->from)).', '
+            .($compiledLookups ? $limit : $context->writeCachedValue($this->limit)).', '
+            .$context->writeValue($this->reversed).', '.$context->writeValue($this->name)
+            .');');
         $context->write('if ('.$segment.' !== []) {')->indent();
-        $context->write($loop.' = \\'.self::class.'::enterLoop($context, '.$context->writeValue($this->name).', count('.$segment.'));');
+        $context->write($loop.' = '.$context->writeClassName(self::class).'::enterLoop($context, '.$context->writeValue($this->name).', count('.$segment.'));');
         $context->write('try {')->indent();
         $context->write('foreach ('.$segment.' as '.$value.') {')->indent();
         $context->write('$context->set('.$context->writeValue($this->variableName).', '.$value.');');
         $context->compileBody($this->forBlock);
         $context->write($loop.'->increment();');
-        $context->write('if ($context->popInterrupt() instanceof \\Keepsuit\\Liquid\\Interrupts\\BreakInterrupt) {')->indent();
+        $context->write('if ($context->popInterrupt() instanceof '.$context->writeClassName(BreakInterrupt::class).') {')->indent();
         $context->write('break;')->outdent()->write('}');
         $context->outdent()->write('}');
         $context->outdent()->write('} finally {')->indent();
-        $context->write('\\'.self::class.'::leaveLoop($context);');
+        $context->write($context->writeClassName(self::class).'::leaveLoop($context);');
         $context->outdent()->write('}');
         $context->outdent();
         if ($this->elseBlock !== null) {
@@ -266,6 +272,54 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
         assert(is_int($offset));
 
         $limitValue = $limit === null ? null : $context->evaluate($limit);
+        $length = match (true) {
+            $limitValue === null => null,
+            is_numeric($limitValue) => (int) $limitValue,
+            default => throw new InvalidArgumentException('Invalid integer'),
+        };
+        $segment = match (true) {
+            $collection instanceof Range => $collection->slice($offset, $length),
+            $offset === 0 && $length === null => $collection,
+            default => array_slice($collection, $offset, $length)
+        };
+        $segment = $reversed ? array_reverse($segment) : $segment;
+
+        $offsets[$name] = $offset + count($segment);
+        $context->setRegister('for', $offsets);
+
+        return $segment;
+    }
+
+    /**
+     * @param  CompiledLookup  $expression
+     * @param  CompiledLookup  $from
+     * @param  CompiledLookup  $limit
+     *
+     * @internal
+     */
+    public static function collectionSegmentForLookups(RenderContext $context, mixed $expression, mixed $from, mixed $limit, bool $reversed, string $name): array
+    {
+        $offsets = $context->getRegister('for') ?? [];
+        assert(is_array($offsets));
+
+        $collection = VariableLookup::evaluateDescriptor($context, $expression);
+        if (! $collection instanceof Range || $collection::class !== Range::class) {
+            $collection = Arr::fromCollection($collection);
+        }
+
+        if ($from === 'continue') {
+            $offset = $offsets[$name] ?? 0;
+        } else {
+            $fromValue = $from === null ? null : (VariableLookup::evaluateDescriptor($context, $from));
+            $offset = match (true) {
+                $fromValue === null => 0,
+                is_numeric($fromValue) => (int) $fromValue,
+                default => throw new InvalidArgumentException('Invalid integer'),
+            };
+        }
+        assert(is_int($offset));
+
+        $limitValue = $limit === null ? null : (VariableLookup::evaluateDescriptor($context, $limit));
         $length = match (true) {
             $limitValue === null => null,
             is_numeric($limitValue) => (int) $limitValue,

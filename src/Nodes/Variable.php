@@ -51,7 +51,7 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
 
         if ($this->filters !== []) {
             $value = $this->compileValue($context);
-            $context->writeOutput('\\'.self::class.'::renderEvaluated($context, '.$value.')');
+            $context->writeOutput($context->writeClassName(self::class).'::renderEvaluated($context, '.$value.')');
 
             return;
         }
@@ -65,10 +65,10 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
         }
 
         if ($context->isRendering()) {
-            $context->writeOutput('\\'.self::class.'::renderValue($context, '
+            $context->writeOutput($context->writeClassName(self::class).'::renderValue($context, '
                 .$context->writeVariableExpression($this->name).')');
         } else {
-            $context->write('if (is_string($value = \\'.self::class.'::streamValue($context, '
+            $context->write('if (is_string($value = '.$context->writeClassName(self::class).'::streamValue($context, '
                 .$context->writeVariableExpression($this->name).'))) {')
                 ->indent();
             $context->writeOutput('$value');
@@ -101,7 +101,7 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
             return $value;
         }
 
-        $context->write($value.' = \\'.self::class.'::filterInput($context, '
+        $context->write($value.' = '.$context->writeClassName(self::class).'::filterInput($context, '
             .$context->writeVariableExpression($this->name).');');
 
         foreach ($this->filters as [$filterName, $filterArgs, $filterNamedArgs]) {
@@ -138,7 +138,7 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
             return null;
         }
 
-        $expression = 'new \\'.self::class.'('
+        $expression = 'new '.$context->writeClassName(self::class).'('
             .$context->writeValue($this->name).', '
             .$context->writeValue($this->filters).')';
 

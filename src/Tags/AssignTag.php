@@ -64,7 +64,7 @@ class AssignTag extends Tag implements CanBeCompiled, HasParseTreeVisitorChildre
         }
 
         $value = $this->from->compileValue($context);
-        $context->write('\\'.self::class.'::assignValue($context, '.$context->writeValue($this->to).', '.$value.');');
+        $context->write($context->writeClassName(self::class).'::assignValue($context, '.$context->writeValue($this->to).', '.$value.');');
     }
 
     public static function assignValue(RenderContext $context, string $name, mixed $value): void

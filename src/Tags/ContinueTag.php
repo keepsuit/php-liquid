@@ -37,6 +37,6 @@ class ContinueTag extends Tag
     /** @internal */
     public function compileNative(CompilerContext $context): void
     {
-        $context->write('$context->pushInterrupt(new \\'.ContinueInterrupt::class.');');
+        $context->write('$context->pushInterrupt(new '.$context->writeClassName(ContinueInterrupt::class).');');
     }
 }

@@ -168,7 +168,7 @@ class TableRowTag extends TagBlock
         $loop = $context->temporaryVariable();
         $item = $context->temporaryVariable();
         $cell = $context->temporaryVariable();
-        $context->write($prepared.' = \\'.self::class.'::prepareRows($context, '
+        $context->write($prepared.' = '.$context->writeClassName(self::class).'::prepareRows($context, '
             .$context->writeCachedValue($this->collectionName).', '.$context->writeCachedValue($this->attributes).');');
         $context->write('if ('.$prepared.' !== null) {')->indent();
         $context->write('if ('.$prepared.'[0] === []) {')->indent();
@@ -177,14 +177,14 @@ class TableRowTag extends TagBlock
         $context->outdent()->write('} else {')->indent();
         $context->write($output.' = '.$context->writeValue("<tr class=\"row1\">\n").';');
         $context->write('$context->stack(function (RenderContext $context) use ('.$prepared.', &'.$output.'): void {')->indent();
-        $context->write($loop.' = new \\'.TableRowLoopDrop::class.'(count('.$prepared.'[0]), '.$prepared.'[1]);');
+        $context->write($loop.' = new '.$context->writeClassName(TableRowLoopDrop::class).'(count('.$prepared.'[0]), '.$prepared.'[1]);');
         $context->write('$context->set("tablerowloop", '.$loop.');');
         $context->write('foreach ('.$prepared.'[0] as '.$item.') {')->indent();
         $context->write('$context->set('.$context->writeValue($this->variableName).', '.$item.');');
         $context->write($output.' .= sprintf('.$context->writeValue('<td class="col%s">').', '.$loop.'->col);');
         $context->writeRenderedBody($this->body, $cell);
         $context->write($output.' .= '.$cell.' . '.$context->writeValue('</td>').';');
-        $context->write('if ($context->popInterrupt() instanceof \\'.BreakInterrupt::class.') {')->indent();
+        $context->write('if ($context->popInterrupt() instanceof '.$context->writeClassName(BreakInterrupt::class).') {')->indent();
         $context->write('break;')->outdent()->write('}');
         $context->write('if ('.$loop.'->col_last && ! '.$loop.'->last) {')->indent();
         $context->write($output.' .= sprintf('.$context->writeValue("</tr>\n<tr class=\"row%s\">").', '.$loop.'->row + 1);');

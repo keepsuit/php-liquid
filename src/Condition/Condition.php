@@ -51,15 +51,15 @@ class Condition implements CanBeExported, HasParseTreeVisitorChildren
         $source = null;
         for ($index = count($conditions) - 1; $index >= 0; $index--) {
             $condition = $conditions[$index];
-            $parent = 'new \\'.self::class.'('
+            $parent = 'new '.$context->writeClassName(self::class).'('
                 .$context->writeValue($condition->left).', '
                 .$context->writeValue($condition->operator).', '
                 .$context->writeValue($condition->right).')';
             $relation = $condition->childRelation === null
                 ? 'null'
-                : '\\'.ConditionsRelation::class.'::'.$condition->childRelation->name;
+                : $context->writeClassName(ConditionsRelation::class).'::'.$condition->childRelation->name;
             $source = $source === null ? $parent
-                : '\\'.self::class.'::chain('.$parent.', '.$relation.', '.$source.')';
+                : $context->writeClassName(self::class).'::chain('.$parent.', '.$relation.', '.$source.')';
         }
 
         return $source;
@@ -104,7 +104,7 @@ class Condition implements CanBeExported, HasParseTreeVisitorChildren
                 }
                 // Normalize the left value before evaluating the right value:
                 // AsLiquidValue implementations may have observable effects.
-                $parent = '\\'.self::class.'::compare('
+                $parent = $context->writeClassName(self::class).'::compare('
                     .'$this->conditionValue('.$left.'), '
                     .'$this->conditionValue('.$context->writeEvaluatedExpression($condition->right).'), '
                     .$context->writeValue($condition->operator).', '.$context->writeValue($operator).')';

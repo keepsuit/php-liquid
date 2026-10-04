@@ -14,6 +14,7 @@ use Keepsuit\Liquid\Nodes\Raw;
 use Keepsuit\Liquid\Nodes\Text;
 use Keepsuit\Liquid\Nodes\Variable;
 use Keepsuit\Liquid\Nodes\VariableLookup;
+use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\Tags\AssignTag;
 use Keepsuit\Liquid\Tags\BreakTag;
@@ -34,9 +35,17 @@ use Keepsuit\Liquid\Tags\RawTag;
 use Keepsuit\Liquid\Tags\RenderTag;
 use Keepsuit\Liquid\Tags\TableRowTag;
 use Keepsuit\Liquid\Tags\UnlessTag;
+use Keepsuit\Liquid\TemplateSharedState;
 
 final class CompilerContext
 {
+    /** @var array<string, string> */
+    private array $classNames = [
+        CompiledTemplate::class => 'CompiledTemplate',
+        RenderContext::class => 'RenderContext',
+        TemplateSharedState::class => 'TemplateSharedState',
+    ];
+
     /**
      * @var array<string,mixed>
      */
@@ -150,18 +159,8 @@ final class CompilerContext
     public function writeCaptureBody(BodyNode $body, string $result): void
     {
         $bufferState = $this->builder->streamBufferState();
-        $rendering = $this->rendering;
-        $this->rendering = true;
-        try {
-            $source = $this->compileBodySource($body);
-        } finally {
-            $this->rendering = $rendering;
-        }
-
         $this->write($result.' = $context->resourceLimits->withCapture(function () use ($context): string {')->indent();
-        $this->write('$output = "";');
-        $this->write('$context->resourceLimits->incrementRenderScore('.count($body->children()).');');
-        $this->writeSource($source['source']);
+        $this->writeRenderedBody($body, '$output');
         $this->write('return $output;');
         $this->outdent()->write('});');
         $this->builder->setStreamBufferState($bufferState);
@@ -197,6 +196,7 @@ final class CompilerContext
         try {
             $this->write('private function '.$method.'(RenderContext $context): string');
             $this->write('{')->indent()->write('$output = "";');
+            $this->write('// Shared rendered body.');
             $compile($this);
             $this->write('return $output;')->outdent()->write('}');
             $source = $this->getSource();
@@ -227,14 +227,14 @@ final class CompilerContext
     }
 
     /**
-     * @return array{source:string,hasYield:bool,bufferState:array{checked:bool,empty:bool}}
+     * @return array{source:string,hasYield:bool,bufferState:array{checked:bool,empty:bool,maxLength:?int}}
      */
     private function compileBodySource(Node $body, bool $emptyBuffer = false): array
     {
         $outerBuilder = $this->builder;
         $this->builder = new CodeBuilder;
         if ($emptyBuffer) {
-            $this->builder->setStreamBufferState(['checked' => true, 'empty' => true]);
+            $this->builder->setStreamBufferState(['checked' => true, 'empty' => true, 'maxLength' => 0]);
         }
 
         try {
@@ -242,7 +242,8 @@ final class CompilerContext
 
             return [
                 'source' => $this->builder->getSource(),
-                'hasYield' => $this->builder->yieldCount() > 0,
+                'hasYield' => $this->builder->yieldCount() > 0
+                    || (! $this->rendering && $this->buffering && ! $this->builder->streamBufferState()['empty']),
                 'bufferState' => $this->builder->streamBufferState(),
             ];
         } finally {
@@ -250,7 +251,7 @@ final class CompilerContext
         }
     }
 
-    /** @param array{source:string,hasYield:bool,bufferState:array{checked:bool,empty:bool}} $source */
+    /** @param array{source:string,hasYield:bool,bufferState:array{checked:bool,empty:bool,maxLength:?int}} $source */
     private function writeBodySource(array $source): void
     {
         $this->writeSource($source['source']);
@@ -332,10 +333,21 @@ final class CompilerContext
         return $this->buffering && $this->builder->streamBufferState()['empty'] && $length < 4096;
     }
 
-    public function writeOutput(string $expression, string $suffix = ';'): static
+    public function writeOutput(string $expression, string $suffix = ';', ?int $length = null): static
     {
+        $maxLength = $length !== null && ! $this->rendering && $this->buffering
+            ? $this->builder->streamBufferState()['maxLength']
+            : null;
         $this->write(($this->rendering ? '$output .= ' : ($this->buffering ? '$buffer .= ' : 'yield ')).$expression.$suffix);
         if ($suffix === ';') {
+            if (! $this->rendering && $this->buffering && $length !== null && $maxLength !== null) {
+                $maxLength += $length;
+                $this->builder->setStreamBufferState([
+                    'checked' => $maxLength < 4096,
+                    'empty' => $maxLength === 0,
+                    'maxLength' => $maxLength,
+                ]);
+            }
             $this->flushStreamBufferIfFull();
         }
 
@@ -348,7 +360,7 @@ final class CompilerContext
             $this->write('if (strlen($buffer) >= 4096) {')->indent();
             $this->write('yield $buffer;')->write('$buffer = "";');
             $this->outdent()->write('}');
-            $this->builder->setStreamBufferState(['checked' => true, 'empty' => false]);
+            $this->builder->setStreamBufferState(['checked' => true, 'empty' => false, 'maxLength' => 4095]);
         }
     }
 
@@ -361,14 +373,14 @@ final class CompilerContext
                 $this->write('$buffer = "";');
             }
             $this->outdent()->write('}');
-            $this->builder->setStreamBufferState(['checked' => $reset, 'empty' => $reset]);
+            $this->builder->setStreamBufferState(['checked' => $reset, 'empty' => $reset, 'maxLength' => $reset ? 0 : null]);
         }
     }
 
     public function writeText(string $value): static
     {
         if ($value !== '') {
-            $this->writeOutput($this->writeLiteral($value));
+            $this->writeOutput($this->writeLiteral($value), length: strlen($value));
         }
 
         return $this;
@@ -393,11 +405,11 @@ final class CompilerContext
         if ($node instanceof Text || $node instanceof Raw || $node instanceof BodyNode || $node instanceof Document) {
             $custom = ! in_array($node::class, [Text::class, Raw::class, BodyNode::class, Document::class], true);
             if ($custom) {
-                $this->builder->setStreamBufferState(['checked' => false, 'empty' => false]);
+                $this->builder->setStreamBufferState(['checked' => false, 'empty' => false, 'maxLength' => null]);
             }
             $node->compile($this);
             if ($custom) {
-                $this->builder->setStreamBufferState(['checked' => false, 'empty' => false]);
+                $this->builder->setStreamBufferState(['checked' => false, 'empty' => false, 'maxLength' => null]);
             }
 
             return $this;
@@ -449,6 +461,7 @@ final class CompilerContext
         $renderedBodyCount = count($this->renderedBodies);
         $renderedBodySourceCount = count($this->renderedBodySources);
         $renderedBodyMethodCount = count($this->renderedBodyMethods);
+        $classNameCount = count($this->classNames);
         $rendering = $this->rendering;
         $id = spl_object_id($node);
         $fallback = isset($this->extensionSources[$id]) && $this->extensionSources[$id]['source'] === null;
@@ -490,6 +503,7 @@ final class CompilerContext
             $this->renderedBodies = array_slice($this->renderedBodies, 0, $renderedBodyCount, preserve_keys: true);
             $this->renderedBodySources = array_slice($this->renderedBodySources, 0, $renderedBodySourceCount, preserve_keys: true);
             $this->renderedBodyMethods = array_slice($this->renderedBodyMethods, 0, $renderedBodyMethodCount, preserve_keys: true);
+            $this->classNames = array_slice($this->classNames, 0, $classNameCount, preserve_keys: true);
             if ($extension) {
                 $this->extensionSources[$id] = ['node' => $node, 'source' => null];
             }
@@ -596,7 +610,7 @@ final class CompilerContext
         $this->outdent()->write('} catch (\\Throwable $exception) {');
         // A throw into yield can precede the buffer reset. Catch paths cannot
         // reuse facts about the successful path through this node.
-        $this->builder->setStreamBufferState(['checked' => false, 'empty' => false]);
+        $this->builder->setStreamBufferState(['checked' => false, 'empty' => false, 'maxLength' => null]);
         $this->indent();
         $this->flushStreamBuffer();
         $error = '$this->compiledErrorOutput($exception, $context->handleError($exception, '.$line.'))';
@@ -610,7 +624,11 @@ final class CompilerContext
             $this->outdent()->write('}');
         }
         $this->outdent()->write('}');
-        $this->builder->setStreamBufferState(['checked' => $successBufferState['checked'], 'empty' => false]);
+        $this->builder->setStreamBufferState([
+            'checked' => $successBufferState['checked'],
+            'empty' => false,
+            'maxLength' => $successBufferState['checked'] ? 4095 : null,
+        ]);
     }
 
     /**
@@ -669,16 +687,60 @@ final class CompilerContext
         return var_export($value, true);
     }
 
+    public function writeClassName(string $class): string
+    {
+        if (isset($this->classNames[$class])) {
+            return $this->classNames[$class];
+        }
+
+        $namespace = strrpos($class, '\\');
+        $name = $namespace === false ? $class : substr($class, $namespace + 1);
+        foreach ($this->classNames as $importedName) {
+            if (strcasecmp($name, $importedName) === 0) {
+                return '\\'.$class;
+            }
+        }
+
+        return $this->classNames[$class] = $name;
+    }
+
+    /** @return list<string> */
+    public function getImportedClasses(): array
+    {
+        return array_keys($this->classNames);
+    }
+
+    /**
+     * Describe native lookups as immutable arrays instead of reconstructed objects.
+     * Complex and custom expressions retain the existing evaluator path.
+     */
+    public function writeLookupValue(mixed $value): ?string
+    {
+        if (is_scalar($value) || $value === null) {
+            return $this->writeValue($value);
+        }
+        if (! $value instanceof VariableLookup || $value::class !== VariableLookup::class) {
+            return null;
+        }
+        foreach ($value->lookups as $lookup) {
+            if (! is_string($lookup) && ! is_int($lookup)) {
+                return null;
+            }
+        }
+
+        return $this->writeValue([$value->name, $value->lookups]);
+    }
+
     public function writeVariableExpression(mixed $value): string
     {
         // Variable's output helpers complete evaluation if the lookup resolves
         // to another CanBeEvaluated value rather than a scalar.
         if ($value instanceof VariableLookup && $value::class === VariableLookup::class) {
             if ($value->lookups === []) {
-                return '\\'.VariableLookup::class.'::evaluateName($context, '.$this->writeValue($value->name).')';
+                return $this->writeClassName(VariableLookup::class).'::evaluateName($context, '.$this->writeValue($value->name).')';
             }
 
-            return '\\'.VariableLookup::class.'::evaluateParts($context, '
+            return $this->writeClassName(VariableLookup::class).'::evaluateParts($context, '
                 .$this->writeValue($value->name).', '.$this->writeCachedValue($value->lookups).')';
         }
 
@@ -853,7 +915,7 @@ final class CompilerContext
     /**
      * Restore compiler state after a node's direct or native compiler path fails.
      *
-     * @param  array{sourceLength:int,indentLevel:int,yieldCount:int,bufferState:array{checked:bool,empty:bool},bufferScopes:list<array{checked:bool,empty:bool}>}  $checkpoint
+     * @param  array{sourceLength:int,indentLevel:int,yieldCount:int,bufferState:array{checked:bool,empty:bool,maxLength:?int},bufferScopes:list<array{checked:bool,empty:bool,maxLength:?int}>}  $checkpoint
      */
     private function rollbackCompilation(array $checkpoint, int $fallbackValueCount): void
     {

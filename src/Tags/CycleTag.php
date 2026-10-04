@@ -88,7 +88,7 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
             return;
         }
 
-        $context->writeOutput('\\'.self::class.'::renderValues($context, '
+        $context->writeOutput($context->writeClassName(self::class).'::renderValues($context, '
             .$context->writeCachedValue($this->name).', '.$context->writeCachedValue($this->variables).')');
     }
 
