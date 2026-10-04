@@ -41,8 +41,9 @@ final class CompilerContext
 {
     private const INLINE_NODE_CLASSES = [Text::class, Raw::class, BodyNode::class, Document::class];
 
-    private const RUNTIME_OVERRIDE_TAG_CLASSES = [
+    private const RUNTIME_OVERRIDE_NODE_CLASSES = [
         AssignTag::class, CaptureTag::class, ForTag::class, LiquidTag::class, RenderTag::class, DynamicRenderTag::class,
+        Variable::class, BodyNode::class, Document::class,
     ];
 
     private const NATIVE_COMPILABLE_NODE_CLASSES = [
@@ -71,6 +72,9 @@ final class CompilerContext
 
     /** @var array<string, string> */
     private array $fallbackLookupProperties = [];
+
+    /** @var array<string, true> */
+    private array $arrayReferences = [];
 
     /** @var array<int, array{node: Node, source: ?string}> */
     private array $extensionSources = [];
@@ -131,10 +135,12 @@ final class CompilerContext
         $renderScore = $body instanceof BodyNode ? count($body->children()) : 1;
         $source = $this->compileBodySource($body);
 
-        $this->write(sprintf(
-            '$context->resourceLimits->incrementRenderScore(%s);',
-            $this->writeValue($renderScore),
-        ));
+        if (! $this->inheritsNativeCompileMethod($body)) {
+            $this->write(sprintf(
+                '$context->resourceLimits->incrementRenderScore(%s);',
+                $this->writeValue($renderScore),
+            ));
+        }
         $this->writeBodySource($source);
 
         return $this;
@@ -265,10 +271,12 @@ final class CompilerContext
             $this->resetStreamBuffer();
         }
 
-        $this->write(sprintf(
-            '$context->resourceLimits->incrementRenderScore(%s);',
-            $this->writeValue($renderScore),
-        ));
+        if (! $this->inheritsNativeCompileMethod($body)) {
+            $this->write(sprintf(
+                '$context->resourceLimits->incrementRenderScore(%s);',
+                $this->writeValue($renderScore),
+            ));
+        }
         $this->writeBodySource($source);
 
         if ($this->rendering) {
@@ -409,6 +417,20 @@ final class CompilerContext
     {
         if ($node instanceof Text || $node instanceof Raw || $node instanceof BodyNode || $node instanceof Document) {
             $custom = ! in_array($node::class, self::INLINE_NODE_CLASSES, true);
+            if ($custom && $this->inheritsNativeCompileMethod($node)) {
+                if ($node instanceof Document) {
+                    $value = $this->writeRuntimeValue($node);
+                    if ($this->rendering) {
+                        $this->write('return '.$value.'->render($context);');
+                    } else {
+                        $this->writeYield('from '.$value.'->stream($context)');
+                    }
+                } else {
+                    $this->compileFallback($node);
+                }
+
+                return $this;
+            }
             if ($custom) {
                 $this->builder->setStreamBufferState(['checked' => false, 'empty' => false, 'maxLength' => null]);
             }
@@ -514,14 +536,15 @@ final class CompilerContext
 
     private function inheritsNativeCompileMethod(Node $node): bool
     {
-        if (! ($node instanceof AssignTag || $node instanceof CaptureTag || $node instanceof ForTag || $node instanceof LiquidTag || $node instanceof RenderTag)
-            || in_array($node::class, self::RUNTIME_OVERRIDE_TAG_CLASSES, true)) {
+        if (! ($node instanceof AssignTag || $node instanceof CaptureTag || $node instanceof ForTag || $node instanceof LiquidTag || $node instanceof RenderTag
+            || $node instanceof Variable || $node instanceof BodyNode || $node instanceof Document)
+            || in_array($node::class, self::RUNTIME_OVERRIDE_NODE_CLASSES, true)) {
             return false;
         }
 
         $compilerClass = (new \ReflectionMethod($node, 'compile'))->getDeclaringClass()->getName();
 
-        return $node::class !== $compilerClass && in_array($compilerClass, self::RUNTIME_OVERRIDE_TAG_CLASSES, true);
+        return $node::class !== $compilerClass && in_array($compilerClass, self::RUNTIME_OVERRIDE_NODE_CLASSES, true);
     }
 
     private function compileNativeTag(Node $node): bool
@@ -677,14 +700,7 @@ final class CompilerContext
         }
 
         if (is_array($value)) {
-            $entries = [];
-            $isList = array_is_list($value);
-
-            foreach ($value as $key => $item) {
-                $entries[] = ($isList ? '' : $this->writeValue($key).' => ').$this->writeValue($item);
-            }
-
-            return '['.implode(', ', $entries).']';
+            return $this->writeArrayValue($value, cached: false);
         }
 
         if (is_object($value)) {
@@ -802,16 +818,25 @@ final class CompilerContext
 
     /**
      * @param  array<int,true>  $seenObjects
+     * @param  array<string,true>  $seenReferences
      */
-    private function assertNoResources(mixed $value, array &$seenObjects = []): void
+    private function assertNoResources(mixed $value, array &$seenObjects = [], array &$seenReferences = []): void
     {
         if (is_resource($value)) {
             throw new \RuntimeException('Unable to safely encode a compiler value containing a resource.');
         }
 
         if (is_array($value)) {
-            foreach ($value as $item) {
-                $this->assertNoResources($item, $seenObjects);
+            foreach ($value as $key => $item) {
+                $reference = \ReflectionReference::fromArrayElement($value, $key);
+                if ($reference !== null) {
+                    $referenceId = $reference->getId();
+                    if (isset($seenReferences[$referenceId])) {
+                        continue;
+                    }
+                    $seenReferences[$referenceId] = true;
+                }
+                $this->assertNoResources($item, $seenObjects, $seenReferences);
             }
 
             return;
@@ -827,15 +852,9 @@ final class CompilerContext
         }
 
         $seenObjects[$objectId] = true;
-        $reflection = new \ReflectionObject($value);
-
-        foreach ($reflection->getProperties() as $property) {
-            if ($property->isStatic() || ! $property->isInitialized($value)) {
-                continue;
-            }
-
-            $this->assertNoResources($property->getValue($value), $seenObjects);
-        }
+        // Casting includes inherited private state once, omits static and
+        // uninitialized properties, and preserves array reference identities.
+        $this->assertNoResources((array) $value, $seenObjects, $seenReferences);
     }
 
     public function writeRuntimeValue(mixed $value): string
@@ -856,11 +875,33 @@ final class CompilerContext
             return $this->writeValue($value);
         }
 
+        return $this->writeArrayValue($value, cached: true);
+    }
+
+    private function writeArrayValue(array $value, bool $cached): string
+    {
         $entries = [];
         $isList = array_is_list($value);
 
         foreach ($value as $key => $item) {
-            $entries[] = ($isList ? '' : $this->writeValue($key).' => ').$this->writeCachedValue($item);
+            $reference = \ReflectionReference::fromArrayElement($value, $key);
+            $referenceId = $reference?->getId();
+            if ($referenceId !== null) {
+                if (isset($this->arrayReferences[$referenceId])) {
+                    throw new \RuntimeException('Unable to safely encode a recursive compiler array.');
+                }
+                $this->arrayReferences[$referenceId] = true;
+            }
+
+            try {
+                $entries[] = ($isList ? '' : $this->writeValue($key).' => ').($cached
+                    ? $this->writeCachedValue($item)
+                    : $this->writeValue($item));
+            } finally {
+                if ($referenceId !== null) {
+                    unset($this->arrayReferences[$referenceId]);
+                }
+            }
         }
 
         return '['.implode(', ', $entries).']';

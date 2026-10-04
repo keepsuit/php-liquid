@@ -3,6 +3,23 @@
 use Keepsuit\Liquid\Compiler\CompiledTemplate;
 use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\EnvironmentFactory;
+use Keepsuit\Liquid\Nodes\Node;
+use Keepsuit\Liquid\Render\RenderContext;
+
+class CompilerSafetyResourceParent extends Node
+{
+    public function __construct(private mixed $state) {}
+
+    public function render(RenderContext $context): string
+    {
+        return 'resource node';
+    }
+}
+
+class CompilerSafetyResourceChild extends CompilerSafetyResourceParent
+{
+    private string $state = 'child state';
+}
 
 function compilerArtifactSafetyDirectory(): string
 {
@@ -43,6 +60,15 @@ function removeCompilerArtifactSafetyDirectory(string $directory): void
     }
 
     rmdir($directory);
+}
+
+/** @return array{exitCode:int,output:string} */
+function compilerArtifactSafetySubprocess(string $source): array
+{
+    $source = 'require '.var_export(dirname(__DIR__, 2).'/vendor/autoload.php', true).';'.$source;
+    exec(escapeshellarg(PHP_BINARY).' -d max_execution_time=10 -r '.escapeshellarg($source).' 2>&1', $output, $exitCode);
+
+    return ['exitCode' => $exitCode, 'output' => implode("\n", $output)];
 }
 
 test('environment publishes compiled artifacts atomically', function () {
@@ -95,6 +121,95 @@ test('compiler value export rejects resources', function () {
             ->toThrow(RuntimeException::class);
     } finally {
         fclose($resource);
+    }
+});
+
+test('compiler object validation safely traverses recursive array references', function () {
+    $cycle = [];
+    $cycle['self'] = &$cycle;
+    $object = (object) ['data' => $cycle];
+    $object->self = $object;
+
+    $result = compilerArtifactSafetySubprocess(<<<'PHP'
+        $cycle = [];
+        $cycle['self'] = &$cycle;
+        $object = (object) ['data' => $cycle];
+        $object->self = $object;
+        $source = (new \Keepsuit\Liquid\Compiler\CompilerContext)->writeValue($object);
+        $decoded = eval('return '.$source.';');
+        if ($decoded->self !== $decoded) {
+            throw new RuntimeException('Object cycle was not preserved.');
+        }
+        echo base64_encode(serialize($decoded));
+        PHP);
+
+    expect($result['exitCode'])->toBe(0);
+    expect($result['output'])->toBe(base64_encode(serialize($object)));
+});
+
+test('compiler object validation checks resources after a recursive array edge', function () {
+    $result = compilerArtifactSafetySubprocess(<<<'PHP'
+        $resource = fopen('php://memory', 'r');
+        $cycle = [];
+        $cycle['self'] = &$cycle;
+        $cycle['resource'] = $resource;
+        $object = (object) ['data' => $cycle];
+        try {
+            (new \Keepsuit\Liquid\Compiler\CompilerContext)->writeValue($object);
+            echo 'not rejected';
+        } catch (RuntimeException $exception) {
+            echo $exception->getMessage();
+        } finally {
+            fclose($resource);
+        }
+        PHP);
+
+    expect($result['exitCode'])->toBe(0);
+    expect($result['output'])->toBe('Unable to safely encode a compiler value containing a resource.');
+});
+
+test('inline compiler arrays reject cycles and retain acyclic shared references', function (string $method) {
+    $result = compilerArtifactSafetySubprocess('$method = '.var_export($method, true).';'.<<<'PHP'
+        $cycle = [];
+        $cycle['self'] = &$cycle;
+        $context = new \Keepsuit\Liquid\Compiler\CompilerContext;
+        try {
+            $context->$method($cycle);
+            echo 'not rejected';
+        } catch (RuntimeException $exception) {
+            echo $exception->getMessage();
+        }
+        $shared = ['value'];
+        $array = [&$shared, &$shared];
+        if (eval('return '.$context->$method($array).';') !== [['value'], ['value']]) {
+            throw new RuntimeException('Shared acyclic array did not round trip.');
+        }
+        PHP);
+
+    expect($result['exitCode'])->toBe(0);
+    expect($result['output'])->toBe('Unable to safely encode a recursive compiler array.');
+})->with(['writeValue', 'writeCachedValue']);
+
+test('inherited private resources cannot replace a published compiled artifact', function () {
+    $directory = compilerArtifactSafetyDirectory();
+    $path = compilerArtifactSafetyPath($directory);
+    $environment = EnvironmentFactory::new()->build();
+    $resource = fopen('php://memory', 'r');
+
+    try {
+        $environment->compile($environment->parseString('safe artifact'), $path);
+        $original = file_get_contents($path);
+        $unsafe = $environment->parseString('');
+        $unsafe->root->body->pushChild(new CompilerSafetyResourceChild($resource));
+
+        expect(fn () => $environment->compile($unsafe, $path))
+            ->toThrow(RuntimeException::class, 'Unable to safely reconstruct fallback node');
+        expect(file_get_contents($path))->toBe($original);
+        expect(glob($directory.'/.compiled.php.tmp-*'))->toBe([]);
+        expect((require $path)->render($environment->newRenderContext()))->toBe('safe artifact');
+    } finally {
+        fclose($resource);
+        removeCompilerArtifactSafetyDirectory($directory);
     }
 });
 

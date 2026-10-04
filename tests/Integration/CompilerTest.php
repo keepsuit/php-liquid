@@ -191,6 +191,44 @@ class CompilerCustomRenderedBody extends BodyNode
     }
 }
 
+class CompilerOverriddenBody extends BodyNode
+{
+    public function render(RenderContext $context): string
+    {
+        return '['.parent::render($context).']';
+    }
+
+    public function stream(RenderContext $context): Generator
+    {
+        yield '{';
+        yield from parent::stream($context);
+        yield '}';
+    }
+}
+
+class CompilerExplicitBody extends CompilerOverriddenBody
+{
+    public function compile(CompilerContext $context): void
+    {
+        $context->writeText('compiled body');
+    }
+}
+
+class CompilerOverriddenDocument extends Document
+{
+    public function render(RenderContext $context): string
+    {
+        return '['.parent::render($context).']';
+    }
+
+    public function stream(RenderContext $context): Generator
+    {
+        yield '{';
+        yield from parent::stream($context);
+        yield '}';
+    }
+}
+
 class CompilerInterruptValue implements \Keepsuit\Liquid\Contracts\CanBeEvaluated
 {
     public function evaluate(RenderContext $context): string
@@ -460,6 +498,27 @@ class CustomCompilerTestVariable extends Variable
     }
 }
 
+class CompilerOverriddenVariable extends Variable
+{
+    public function render(RenderContext $context): string
+    {
+        return 'render override';
+    }
+
+    public function stream(RenderContext $context): Generator
+    {
+        yield 'stream override';
+    }
+}
+
+class CompilerExplicitVariable extends CompilerOverriddenVariable
+{
+    public function compile(CompilerContext $context): void
+    {
+        $context->writeText('compiled variable');
+    }
+}
+
 class CompilerTestExtension extends Extension
 {
     public function getTags(): array
@@ -699,6 +758,30 @@ test('compiled variables retain subclass evaluation', function (array $filters) 
         @unlink($path);
     }
 })->with(['unfiltered' => [[]], 'filtered' => [[['append', ['!'], []]]]]);
+
+test('compiled variable subclasses preserve runtime overrides and explicit compilers', function (string $class, string $rendered, string $streamed) {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('');
+    $template->root->body->setChildren([new Text('before'), new $class('ignored'), new Text('after')]);
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+
+        expect($compiled->render($environment->newRenderContext()))->toBe('before'.$rendered.'after');
+        expect(implode('', iterator_to_array($compiled->stream($environment->newRenderContext()))))
+            ->toBe('before'.$streamed.'after');
+        expect($template->render($environment->newRenderContext()))->toBe('beforerender overrideafter');
+        expect(implode('', iterator_to_array($template->stream($environment->newRenderContext()))))
+            ->toBe('beforestream overrideafter');
+    } finally {
+        @unlink($path);
+    }
+})->with([
+    [CompilerOverriddenVariable::class, 'render override', 'stream override'],
+    [CompilerExplicitVariable::class, 'compiled variable', 'compiled variable'],
+]);
 
 test('custom compiler fragments can return without skipping sibling nodes', function () {
     $environment = EnvironmentFactory::new()->build();
@@ -2173,6 +2256,78 @@ test('native rendered tags retain custom body rendering', function (string $sour
     ['{% ifchanged %}ignored{% endifchanged %}', 'custom body'],
     ['{% tablerow i in (1..1) %}ignored{% endtablerow %}', "<tr class=\"row1\">\n<td class=\"col1\">custom body</td></tr>\n"],
 ]);
+
+test('compiled custom bodies preserve runtime output and render accounting', function (string $source, ?string $field, string $rendered, string $streamed) {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString($source);
+    $body = new CompilerOverriddenBody([new Text('body')]);
+    if ($field === null) {
+        $template = new ParsedTemplate(new Document($body));
+    } else {
+        (new ReflectionProperty($template->root->body->children()[0], $field))->setValue($template->root->body->children()[0], $body);
+    }
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach (['render', 'stream'] as $mode) {
+            $scores = [];
+            foreach ([$template, $compiled] as $candidate) {
+                $context = $environment->newRenderContext();
+                $output = $mode === 'render' ? $candidate->render($context) : implode('', iterator_to_array($candidate->stream($context)));
+                expect($output)->toBe($mode === 'render' ? $rendered : $streamed);
+                $scores[] = [$context->resourceLimits->getRenderScore(), $context->resourceLimits->getCumulativeRenderScore()];
+            }
+            expect($scores[1])->toBe($scores[0]);
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([
+    'capture renders its body in both modes' => ['{% capture saved %}ignored{% endcapture %}{{ saved }}', 'body', '[body]', '[body]'],
+    'for body' => ['{% for item in (1..2) %}ignored{% endfor %}', 'forBlock', '[body][body]', '{body}{body}'],
+    'for else body' => ['{% for item in empty %}ignored{% else %}ignored{% endfor %}', 'elseBlock', '[body]', '{body}'],
+    'root body' => ['', null, '[body]', '{body}'],
+]);
+
+test('compiled custom root documents preserve runtime overrides', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = new ParsedTemplate(new CompilerOverriddenDocument(new BodyNode([new Text('body')])));
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            $renderContext = $environment->newRenderContext();
+            $streamContext = $environment->newRenderContext();
+            expect($candidate->render($renderContext))->toBe('[body]');
+            expect(implode('', iterator_to_array($candidate->stream($streamContext))))->toBe('{body}');
+            expect($renderContext->resourceLimits->getRenderScore())->toBe(1);
+            expect($streamContext->resourceLimits->getRenderScore())->toBe(1);
+        }
+    } finally {
+        @unlink($path);
+    }
+});
+
+test('compiled custom bodies retain explicit compiler overrides', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('{% capture saved %}ignored{% endcapture %}{{ saved }}');
+    $capture = $template->root->body->children()[0];
+    (new ReflectionProperty($capture, 'body'))->setValue($capture, new CompilerExplicitBody([new Text('body')]));
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        expect($compiled->render($environment->newRenderContext()))->toBe('compiled body');
+        expect(implode('', iterator_to_array($compiled->stream($environment->newRenderContext()))))->toBe('compiled body');
+    } finally {
+        @unlink($path);
+    }
+});
 
 test('compiled rendered bodies keep distinct class identities and error locations', function () {
     $environment = EnvironmentFactory::new()->setStrictFilters(true)->setRethrowErrors(false)->build();
