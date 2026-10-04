@@ -50,8 +50,7 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
         }
 
         if ($this->filters !== []) {
-            $value = $this->compileValue($context);
-            $context->writeOutput($context->writeClassName(self::class).'::renderEvaluated($context, '.$value.')');
+            $context->writeOutput(self::compileRenderEvaluated($context, $this->compileValue($context)));
 
             return;
         }
@@ -65,17 +64,28 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
         }
 
         if ($context->isRendering()) {
-            $context->writeOutput($context->writeClassName(self::class).'::renderValue($context, '
-                .$context->writeVariableExpression($this->name).')');
+            $value = $context->temporaryVariable();
+            $context->writeOutput('(is_string('.$value.' = '.$context->writeVariableExpression($this->name).') ? '.$value
+                .' : '.$context->writeClassName(self::class).'::renderValue($context, '.$value.'))');
         } else {
-            $context->write('if (is_string($value = '.$context->writeClassName(self::class).'::streamValue($context, '
-                .$context->writeVariableExpression($this->name).'))) {')
+            $context->write('if (is_string($value = '.$context->writeVariableExpression($this->name).')'
+                .' || is_string($value = '.$context->writeClassName(self::class).'::streamValue($context, $value))) {')
                 ->indent();
             $context->writeOutput('$value');
             $context->outdent()->write('} else {')->indent();
             $context->flushStreamBuffer();
             $context->writeYield('from $value')->outdent()->write('}');
         }
+    }
+
+    /**
+     * Strings are the common output and need no runtime call.
+     *
+     * @internal
+     */
+    public static function compileRenderEvaluated(CompilerContext $context, string $value): string
+    {
+        return '(is_string('.$value.') ? '.$value.' : '.$context->writeClassName(self::class).'::renderEvaluated($context, '.$value.'))';
     }
 
     /** @internal */

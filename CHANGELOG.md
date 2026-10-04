@@ -41,6 +41,8 @@ All notable changes to `liquid` will be documented in this file.
 ### Performance
 
 - Filesystem template caches keep templates loaded from disk in memory when `keepInMemory` is enabled, instead of reading and unserializing them on every lookup.
+- Faster partial rendering and variable resolution: isolated sub-contexts are cloned instead of
+  constructed, and compiled templates output string values without runtime calls.
 
 ## v0.12.1 - 2026-09-30
 

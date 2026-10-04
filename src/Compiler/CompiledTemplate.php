@@ -52,10 +52,9 @@ abstract class CompiledTemplate extends AbstractTemplate
         try {
             $this->prepareContext($context);
 
+            // The root template's loop below casts and renumbers every chunk.
             if ($context->isPartial()) {
-                foreach ($this->renderCompiled($context) as $chunk) {
-                    yield (string) $chunk;
-                }
+                yield from $this->renderCompiled($context);
 
                 return;
             }

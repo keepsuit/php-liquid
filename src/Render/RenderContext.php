@@ -203,7 +203,13 @@ final class RenderContext
 
     public function set(string $key, mixed $value): void
     {
-        Arr::set($this->scopes[0], $key, $value);
+        if (str_contains($key, '.')) {
+            Arr::set($this->scopes[0], $key, $value);
+
+            return;
+        }
+
+        $this->scopes[0][$key] = $value;
     }
 
     public function get(string $key): mixed
@@ -227,16 +233,16 @@ final class RenderContext
         // building that list would allocate an array on every variable reference.
         foreach ($this->scopes as $scope) {
             if ($scope !== [] && array_key_exists($key, $scope)) {
-                return $this->resolveVariable($scope[$key]);
+                return is_object($value = $scope[$key]) ? $this->resolveVariable($value) : $value;
             }
         }
 
         if (array_key_exists($key, $this->data)) {
-            return $this->resolveVariable($this->data[$key]);
+            return is_object($value = $this->data[$key]) ? $this->resolveVariable($value) : $value;
         }
 
         if (array_key_exists($key, $this->sharedState->staticVariables)) {
-            return $this->resolveVariable($this->sharedState->staticVariables[$key]);
+            return is_object($value = $this->sharedState->staticVariables[$key]) ? $this->resolveVariable($value) : $value;
         }
 
         // Fall back to the implicit self drop only when no value was found anywhere.
@@ -347,12 +353,8 @@ final class RenderContext
 
     public function normalizeValue(mixed $value): mixed
     {
-        // Only objects can need normalization, and scalars dominate the hot path.
-        if (! is_object($value)) {
-            return $value;
-        }
-
-        if ($value instanceof MissingValue) {
+        // Only closures and MapsToLiquid values are normalized or cached.
+        if (! $value instanceof Closure && ! $value instanceof MapsToLiquid) {
             return $value;
         }
 
@@ -364,17 +366,13 @@ final class RenderContext
             return $this->sharedState->computedObjectsCache[$value] ??= $this->normalizeValue($value($this));
         }
 
-        if ($value instanceof MapsToLiquid) {
-            $liquidValue = $value->toLiquid();
+        $liquidValue = $value->toLiquid();
 
-            // Check if toLiquid() returns itself
-            return $this->sharedState->computedObjectsCache[$value] ??= match (true) {
-                $value === $liquidValue => $value,
-                default => $this->normalizeValue($liquidValue)
-            };
-        }
-
-        return $value;
+        // Check if toLiquid() returns itself
+        return $this->sharedState->computedObjectsCache[$value] ??= match (true) {
+            $value === $liquidValue => $value,
+            default => $this->normalizeValue($liquidValue)
+        };
     }
 
     public function applyFilter(string $filter, mixed $value, array $args = []): mixed
@@ -495,12 +493,23 @@ final class RenderContext
     {
         $this->checkOverflow();
 
-        $subContext = new RenderContext(
-            options: $options ?? $this->options,
-            resourceLimits: $this->resourceLimits,
-            environment: $this->environment,
-            sharedState: $this->sharedState,
-        );
+        if ($options === null || $options === $this->options) {
+            // Cloning is much cheaper than construction on the partial hot path.
+            // Every per-context property must be reset here.
+            $subContext = clone $this;
+            $subContext->data = [];
+            $subContext->scopes = [[]];
+            $subContext->dynamicRegisters = [];
+            $subContext->interrupts = [];
+            $subContext->selfDrop = null;
+        } else {
+            $subContext = new RenderContext(
+                options: $options,
+                resourceLimits: $this->resourceLimits,
+                environment: $this->environment,
+                sharedState: $this->sharedState,
+            );
+        }
         $subContext->baseScopeDepth = $this->baseScopeDepth + 1;
         $subContext->templateName = $templateName;
         $subContext->partial = true;

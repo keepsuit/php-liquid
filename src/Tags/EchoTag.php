@@ -50,7 +50,6 @@ class EchoTag extends Tag implements HasParseTreeVisitorChildren
     /** @internal */
     public function compileNative(CompilerContext $context): void
     {
-        $value = $this->variable->compileValue($context);
-        $context->writeOutput($context->writeClassName(Variable::class).'::renderEvaluated($context, '.$value.')');
+        $context->writeOutput(Variable::compileRenderEvaluated($context, $this->variable->compileValue($context)));
     }
 }
