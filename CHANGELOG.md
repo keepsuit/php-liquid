@@ -17,6 +17,11 @@ All notable changes to `liquid` will be documented in this file.
   containing the old `Template` class become cache misses.
 - Remove the protected `renderOutput` method from `Nodes\Variable` and the protected
   `undefined` and `walkLookups` methods from `Nodes\VariableLookup`.
+- Native nodes, conditions and tags now implement `CanBeCompiled` or `CanBeExported`, adding
+  public `compile()` and `export()` methods. Subclasses that already declare these methods with
+  a different signature must be updated.
+- Interpreted `BodyNode::stream()` now yields chunks of custom `CanBeStreamed` nodes without
+  buffering, so stream chunk boundaries may change. The concatenated output is unchanged.
 - Align float output and string conversions with Shopify Liquid 5.13: integral floats
   retain `.0`, full float precision is preserved, and scientific notation follows Ruby.
   Prices and output snapshots may change.
