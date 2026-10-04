@@ -14,7 +14,7 @@ test('templates cache', function (LiquidTemplatesCache $cache) {
     $cache->set('test', $template);
     expect($cache)
         ->has('test')->toBe(true)
-        ->get('test')->toBeInstanceOf(\Keepsuit\Liquid\ParsedTemplate::class);
+        ->get('test')->toBeInstanceOf(\Keepsuit\Liquid\Template::class);
 
     $renderContext = new \Keepsuit\Liquid\Render\RenderContext(['name' => 'John']);
     $cachedTemplate = $cache->get('test');
@@ -35,6 +35,8 @@ test('templates cache', function (LiquidTemplatesCache $cache) {
     'serialize & memory' => fn () => new \Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache(__DIR__.'/../cache/serialize', keepInMemory: true),
     'var export' => fn () => new \Keepsuit\Liquid\TemplatesCache\VarExportTemplatesCache(__DIR__.'/../cache/var_export', keepInMemory: false),
     'var export & memory' => fn () => new \Keepsuit\Liquid\TemplatesCache\VarExportTemplatesCache(__DIR__.'/../cache/var_export', keepInMemory: true),
+    'compiled' => fn () => new \Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache(__DIR__.'/../cache/compiled', keepInMemory: false),
+    'compiled & memory' => fn () => new \Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache(__DIR__.'/../cache/compiled', keepInMemory: true),
 ]);
 
 function countingSerializeCache(string $path, bool $keepInMemory): \Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache

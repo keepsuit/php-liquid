@@ -39,6 +39,21 @@ use Keepsuit\Liquid\TemplateSharedState;
 
 final class CompilerContext
 {
+    private const INLINE_NODE_CLASSES = [Text::class, Raw::class, BodyNode::class, Document::class];
+
+    private const RUNTIME_OVERRIDE_TAG_CLASSES = [
+        AssignTag::class, CaptureTag::class, ForTag::class, LiquidTag::class, RenderTag::class, DynamicRenderTag::class,
+    ];
+
+    private const NATIVE_COMPILABLE_NODE_CLASSES = [
+        Variable::class, IfTag::class, UnlessTag::class, CaseTag::class,
+        ForTag::class, RenderTag::class, DynamicRenderTag::class, AssignTag::class, CaptureTag::class, LiquidTag::class,
+    ];
+
+    private const NATIVE_TAG_CLASSES = [
+        EchoTag::class, IncrementTag::class, DecrementTag::class, CycleTag::class, BreakTag::class, ContinueTag::class,
+    ];
+
     /** @var array<string, string> */
     private array $classNames = [
         CompiledTemplate::class => 'CompiledTemplate',
@@ -121,37 +136,6 @@ final class CompilerContext
             $this->writeValue($renderScore),
         ));
         $this->writeBodySource($source);
-
-        return $this;
-    }
-
-    public function writeBodyCallback(Node $body, string $suffix = ''): static
-    {
-        $bufferState = $this->builder->streamBufferState();
-        $renderScore = $body instanceof BodyNode ? count($body->children()) : 1;
-        $source = $this->compileBodySource($body, emptyBuffer: true);
-
-        $this->write('function (RenderContext $context): '.($this->rendering ? 'string' : 'iterable').' {');
-        $this->indent();
-        if ($this->rendering) {
-            $this->write('$output = "";');
-        } elseif ($this->buffering && $source['hasYield']) {
-            $this->write('$buffer = "";');
-        }
-        $this->write(sprintf(
-            '$context->resourceLimits->incrementRenderScore(%s);',
-            $this->writeValue($renderScore),
-        ));
-        $this->writeBodySource($source);
-        if ($this->rendering) {
-            $this->write('return $output;');
-        } elseif ($this->buffering && $source['hasYield']) {
-            $this->flushStreamBuffer();
-        } elseif (! $source['hasYield']) {
-            $this->write('return [];');
-        }
-        $this->outdent()->write('}'.$suffix);
-        $this->builder->setStreamBufferState($bufferState);
 
         return $this;
     }
@@ -255,6 +239,9 @@ final class CompilerContext
     private function writeBodySource(array $source): void
     {
         $this->writeSource($source['source']);
+        if ($source['hasYield']) {
+            $this->builder->markYield();
+        }
         $this->builder->setStreamBufferState($source['bufferState']);
     }
 
@@ -275,7 +262,7 @@ final class CompilerContext
         if ($this->rendering) {
             $this->write('$output = "";');
         } elseif ($this->buffering && $source['hasYield']) {
-            $this->write('$buffer = "";');
+            $this->resetStreamBuffer();
         }
 
         $this->write(sprintf(
@@ -297,9 +284,20 @@ final class CompilerContext
     {
         $this->builder->writeLine($line);
 
-        if (str_starts_with(ltrim($line), 'yield ')) {
-            $this->builder->markYield();
-        }
+        return $this;
+    }
+
+    public function writeYield(string $expression, string $suffix = ';'): static
+    {
+        $this->builder->markYield();
+
+        return $this->write('yield '.$expression.$suffix);
+    }
+
+    private function resetStreamBuffer(): static
+    {
+        $this->write('$buffer = "";');
+        $this->builder->setStreamBufferState(['checked' => true, 'empty' => true, 'maxLength' => 0]);
 
         return $this;
     }
@@ -338,7 +336,14 @@ final class CompilerContext
         $maxLength = $length !== null && ! $this->rendering && $this->buffering
             ? $this->builder->streamBufferState()['maxLength']
             : null;
-        $this->write(($this->rendering ? '$output .= ' : ($this->buffering ? '$buffer .= ' : 'yield ')).$expression.$suffix);
+        if ($this->rendering) {
+            $this->write('$output .= '.$expression.$suffix);
+        } elseif ($this->buffering) {
+            $this->write('$buffer .= '.$expression.$suffix);
+            $this->builder->setStreamBufferState(['checked' => false, 'empty' => false, 'maxLength' => null]);
+        } else {
+            $this->writeYield($expression, $suffix);
+        }
         if ($suffix === ';') {
             if (! $this->rendering && $this->buffering && $length !== null && $maxLength !== null) {
                 $maxLength += $length;
@@ -358,7 +363,7 @@ final class CompilerContext
     {
         if (! $this->rendering && $this->buffering && ! $this->builder->streamBufferState()['checked']) {
             $this->write('if (strlen($buffer) >= 4096) {')->indent();
-            $this->write('yield $buffer;')->write('$buffer = "";');
+            $this->writeYield('$buffer')->resetStreamBuffer();
             $this->outdent()->write('}');
             $this->builder->setStreamBufferState(['checked' => true, 'empty' => false, 'maxLength' => 4095]);
         }
@@ -368,9 +373,9 @@ final class CompilerContext
     {
         if (! $this->rendering && $this->buffering && ! $this->builder->streamBufferState()['empty']) {
             $this->write('if ($buffer !== "") {')->indent();
-            $this->write('yield $buffer;');
+            $this->writeYield('$buffer');
             if ($reset) {
-                $this->write('$buffer = "";');
+                $this->resetStreamBuffer();
             }
             $this->outdent()->write('}');
             $this->builder->setStreamBufferState(['checked' => $reset, 'empty' => $reset, 'maxLength' => $reset ? 0 : null]);
@@ -403,7 +408,7 @@ final class CompilerContext
     public function subcompile(Node $node): static
     {
         if ($node instanceof Text || $node instanceof Raw || $node instanceof BodyNode || $node instanceof Document) {
-            $custom = ! in_array($node::class, [Text::class, Raw::class, BodyNode::class, Document::class], true);
+            $custom = ! in_array($node::class, self::INLINE_NODE_CLASSES, true);
             if ($custom) {
                 $this->builder->setStreamBufferState(['checked' => false, 'empty' => false, 'maxLength' => null]);
             }
@@ -465,18 +470,11 @@ final class CompilerContext
         $rendering = $this->rendering;
         $id = spl_object_id($node);
         $fallback = isset($this->extensionSources[$id]) && $this->extensionSources[$id]['source'] === null;
-        if (($node instanceof AssignTag || $node instanceof CaptureTag || $node instanceof ForTag || $node instanceof LiquidTag || $node instanceof RenderTag)
-            && ! in_array($node::class, [AssignTag::class, CaptureTag::class, ForTag::class, LiquidTag::class, RenderTag::class, DynamicRenderTag::class], true)) {
-            $compilerClass = (new \ReflectionMethod($node, 'compile'))->getDeclaringClass()->getName();
-            $fallback = $fallback || ($node::class !== $compilerClass && in_array($compilerClass, [AssignTag::class, CaptureTag::class, ForTag::class, LiquidTag::class, RenderTag::class, DynamicRenderTag::class], true));
-        }
+        $fallback = $this->inheritsNativeCompileMethod($node) || $fallback;
 
         // Extension fragments may return from their node or yield before failing.
         // Keep their lazy boundary; native nodes can use an inline try/catch.
-        $extension = $node instanceof CanBeCompiled && ! in_array($node::class, [
-            Variable::class, IfTag::class, UnlessTag::class, CaseTag::class,
-            ForTag::class, RenderTag::class, DynamicRenderTag::class, AssignTag::class, CaptureTag::class, LiquidTag::class,
-        ], true);
+        $extension = $node instanceof CanBeCompiled && ! in_array($node::class, self::NATIVE_COMPILABLE_NODE_CLASSES, true);
         $lazy = $extension && ! $fallback;
 
         try {
@@ -496,7 +494,7 @@ final class CompilerContext
             }
             $this->rendering = $rendering;
             $this->writeNodeEnd($node, $lazy);
-        } catch (\Throwable) {
+        } catch (UnsupportedNodeException) {
             $this->rendering = $rendering;
             $this->rollbackCompilation($checkpoint, $fallbackValueCount);
             $this->extensionSources = array_slice($this->extensionSources, 0, $extensionSourceCount, preserve_keys: true);
@@ -512,6 +510,18 @@ final class CompilerContext
             $this->compileFallback($node);
             $this->writeNodeEnd($node, false);
         }
+    }
+
+    private function inheritsNativeCompileMethod(Node $node): bool
+    {
+        if (! ($node instanceof AssignTag || $node instanceof CaptureTag || $node instanceof ForTag || $node instanceof LiquidTag || $node instanceof RenderTag)
+            || in_array($node::class, self::RUNTIME_OVERRIDE_TAG_CLASSES, true)) {
+            return false;
+        }
+
+        $compilerClass = (new \ReflectionMethod($node, 'compile'))->getDeclaringClass()->getName();
+
+        return $node::class !== $compilerClass && in_array($compilerClass, self::RUNTIME_OVERRIDE_TAG_CLASSES, true);
     }
 
     private function compileNativeTag(Node $node): bool
@@ -530,10 +540,8 @@ final class CompilerContext
 
         // Avoid adding CanBeCompiled to these tags: streamed subclasses must
         // retain their existing unbuffered extension boundary in BodyNode.
-        if (($node instanceof EchoTag || $node instanceof IncrementTag || $node instanceof CycleTag
-            || $node instanceof BreakTag || $node instanceof ContinueTag)
-            && in_array($node::class, [EchoTag::class, IncrementTag::class, DecrementTag::class,
-                CycleTag::class, BreakTag::class, ContinueTag::class], true)) {
+        if (in_array($node::class, self::NATIVE_TAG_CLASSES, true)) {
+            /** @var EchoTag|IncrementTag|DecrementTag|CycleTag|BreakTag|ContinueTag $node */
             $node->compileNative($this);
 
             return true;
@@ -580,6 +588,9 @@ final class CompilerContext
     {
         if ($lazy) {
             $this->flushStreamBuffer();
+            if (! $this->rendering) {
+                $this->builder->markYield();
+            }
             $this->write(sprintf(
                 ($this->rendering ? 'foreach (' : 'yield from ').'$this->yieldNode($context, %s, function () use ($context): iterable {',
                 $this->writeValue($node->lineNumber()),
@@ -645,7 +656,7 @@ final class CompilerContext
 
         if (! $this->rendering && $node instanceof CanBeStreamed) {
             $this->flushStreamBuffer();
-            $this->write('yield from '.$value.'->stream($context);');
+            $this->writeYield('from '.$value.'->stream($context)');
         } else {
             $this->writeOutput($value.'->render($context)');
         }

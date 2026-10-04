@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid\Tests\Support;
 use Keepsuit\Liquid\Compiler\CompiledTemplate;
 use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\Parse\ParseContext;
+use Keepsuit\Liquid\ParsedTemplate;
 use Keepsuit\Liquid\Template;
 use ReflectionClass;
 
@@ -55,6 +56,7 @@ class CompiledTestEnvironment extends Environment
         }
 
         try {
+            assert($template instanceof ParsedTemplate);
             $environment->compile($template, $path);
             $compiled = require $path;
             assert($compiled instanceof CompiledTemplate);

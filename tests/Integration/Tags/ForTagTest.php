@@ -449,19 +449,14 @@ test('for cleans up registers', function () {
     expect($context->getRegister('for_stack'))->toBe([]);
 });
 
-test('in-memory for callbacks retain loop scope and restore outer variables', function (string $method) {
+test('in-memory for bodies retain loop scope and restore outer variables', function (string $method) {
     $environment = \Keepsuit\Liquid\Environment::default();
-    $template = $environment->parseString('{% for item in items %}ignored{% endfor %}');
+    $template = $environment->parseString('{% for item in items %}{{ item }}:{{ forloop.index }};{% endfor %}');
     assert($template instanceof \Keepsuit\Liquid\ParsedTemplate);
     $tag = $template->root->body->children()[0];
     assert($tag instanceof \Keepsuit\Liquid\Tags\ForTag);
     $context = $environment->newRenderContext(data: ['items' => ['a', 'b'], 'item' => 'outer', 'forloop' => 'outer loop']);
-    $render = static fn (RenderContext $context): string => $context->get('item').':'.$context->get('forloop.index').';';
-    $callback = $method === 'renderBlocks' ? $render : static function (RenderContext $context) use ($render): Generator {
-        yield $render($context);
-    };
-
-    $output = $tag->$method($context, $callback);
+    $output = $tag->$method($context);
     expect($method === 'streamBlocks' ? implode('', iterator_to_array($output, preserve_keys: false)) : $output)->toBe('a:1;b:2;');
     expect($context->getRegister('for_stack'))->toBe([]);
     expect($context->get('item'))->toBe('outer');

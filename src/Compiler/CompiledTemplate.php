@@ -3,7 +3,6 @@
 namespace Keepsuit\Liquid\Compiler;
 
 use Closure;
-use Generator;
 use Keepsuit\Liquid\AbstractTemplate;
 use Keepsuit\Liquid\Contracts\AsLiquidValue;
 use Keepsuit\Liquid\Drops\ForLoopDrop;
@@ -46,21 +45,6 @@ abstract class CompiledTemplate extends AbstractTemplate
     }
 
     /**
-     * Older artifacts only provide the generator method. New artifacts override
-     * this with a string path that avoids per-node generator allocation.
-     */
-    protected function renderCompiledString(RenderContext $context): string
-    {
-        $output = '';
-
-        foreach ($this->renderCompiled($context) as $chunk) {
-            $output .= $chunk;
-        }
-
-        return $output;
-    }
-
-    /**
      * @return \Generator<string>
      */
     final public function stream(RenderContext $context): \Generator
@@ -96,13 +80,13 @@ abstract class CompiledTemplate extends AbstractTemplate
      * handling policy. The generated closure is only invoked while this method
      * owns the node-level error boundary.
      *
-     * @param  (Closure(): iterable<string>)|Generator<string>  $node
+     * @param  Closure(): iterable<string>  $node
      * @return \Generator<string>
      */
-    protected function yieldNode(RenderContext $context, ?int $lineNumber, Closure|Generator $node): \Generator
+    protected function yieldNode(RenderContext $context, ?int $lineNumber, Closure $node): \Generator
     {
         try {
-            foreach ($node instanceof Closure ? $node() : $node as $chunk) {
+            foreach ($node() as $chunk) {
                 yield (string) $chunk;
             }
         } catch (UndefinedVariableException|UndefinedDropMethodException|UndefinedFilterException $exception) {
@@ -119,11 +103,6 @@ abstract class CompiledTemplate extends AbstractTemplate
         return $exception instanceof UndefinedVariableException
             || $exception instanceof UndefinedDropMethodException
             || $exception instanceof UndefinedFilterException ? null : $output;
-    }
-
-    protected function incrementCompiledRenderScore(RenderContext $context, int $renderScore): void
-    {
-        $context->resourceLimits->incrementRenderScore($renderScore);
     }
 
     protected function conditionValue(mixed $value): mixed
@@ -423,4 +402,6 @@ abstract class CompiledTemplate extends AbstractTemplate
     abstract public function name(): ?string;
 
     abstract protected function renderCompiled(RenderContext $context): iterable;
+
+    abstract protected function renderCompiledString(RenderContext $context): string;
 }

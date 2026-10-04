@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Performance\Support;
 
 use Keepsuit\Liquid\Compiler\CompiledTemplate;
 use Keepsuit\Liquid\Environment;
+use Keepsuit\Liquid\ParsedTemplate;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
 
@@ -52,6 +53,7 @@ trait CompilesThemeTemplates
         Template $template,
         string $artifactPath,
     ): CompiledTemplate {
+        assert($template instanceof ParsedTemplate);
         $environment->compile($template, $artifactPath);
         $compiledTemplate = require $artifactPath;
 

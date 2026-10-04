@@ -2,7 +2,6 @@
 
 namespace Keepsuit\Liquid;
 
-use Keepsuit\Liquid\Compiler\CompiledTemplate;
 use Keepsuit\Liquid\Compiler\Compiler;
 use Keepsuit\Liquid\Contracts\LiquidErrorHandler;
 use Keepsuit\Liquid\Contracts\LiquidExtension;
@@ -137,63 +136,9 @@ class Environment
     /**
      * Write a requireable compiled artifact for the given template.
      */
-    public function compile(Template $template, string $compiledPath): void
+    public function compile(ParsedTemplate $template, string $compiledPath): void
     {
-        if (! $template instanceof ParsedTemplate) {
-            throw new \InvalidArgumentException('Only parsed templates can be compiled.');
-        }
-
-        $directory = dirname($compiledPath);
-
-        if (! is_dir($directory) && ! mkdir($directory, 0755, true) && ! is_dir($directory)) {
-            throw new \RuntimeException(sprintf('Unable to create compiled template directory: %s', $directory));
-        }
-
-        $source = (new Compiler)->compile($template);
-        $temporaryPath = tempnam($directory, '.'.basename($compiledPath).'.tmp-');
-
-        if ($temporaryPath === false) {
-            throw new \RuntimeException(sprintf('Unable to create temporary compiled template artifact: %s', $compiledPath));
-        }
-
-        try {
-            $bytesWritten = file_put_contents($temporaryPath, $source);
-
-            if ($bytesWritten !== strlen($source)) {
-                throw new \RuntimeException(sprintf('Unable to write compiled template artifact: %s', $compiledPath));
-            }
-
-            $compiled = require $temporaryPath;
-
-            if (! $compiled instanceof CompiledTemplate) {
-                throw new \RuntimeException(sprintf('Invalid compiled template artifact: %s', $compiledPath));
-            }
-
-            $this->publishCompiledArtifact($temporaryPath, $compiledPath);
-
-            if (function_exists('opcache_invalidate')) {
-                opcache_invalidate($compiledPath, true);
-            }
-        } finally {
-            if (is_file($temporaryPath)) {
-                unlink($temporaryPath);
-            }
-        }
-    }
-
-    protected function publishCompiledArtifact(string $temporaryPath, string $compiledPath): void
-    {
-        set_error_handler(static fn (): bool => true);
-
-        try {
-            $published = rename($temporaryPath, $compiledPath);
-        } finally {
-            restore_error_handler();
-        }
-
-        if (! $published) {
-            throw new \RuntimeException(sprintf('Unable to publish compiled template artifact: %s', $compiledPath));
-        }
+        (new Compiler)->compileToFile($template, $compiledPath);
     }
 
     public function addExtension(LiquidExtension $extension): static

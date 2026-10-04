@@ -4,8 +4,19 @@ All notable changes to `liquid` will be documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Opt-in compiled template artifacts via `Environment::compile()`, loadable with `require`
+  and supporting both rendering and streaming.
+- `TemplatesCache\CompiledTemplatesCache` compiles parsed templates into reusable PHP artifacts on disk.
+
 ### Breaking changes
 
+- `Keepsuit\Liquid\Template` is now an interface. Use `ParsedTemplate` for the concrete
+  parsed template class; `AbstractTemplate` is the shared base class. Serialized caches
+  containing the old `Template` class become cache misses.
+- Remove the protected `renderOutput` method from `Nodes\Variable` and the protected
+  `undefined` and `walkLookups` methods from `Nodes\VariableLookup`.
 - Align float output and string conversions with Shopify Liquid 5.13: integral floats
   retain `.0`, full float precision is preserved, and scientific notation follows Ruby.
   Prices and output snapshots may change.
@@ -19,6 +30,13 @@ All notable changes to `liquid` will be documented in this file.
   sections, and missing filter arguments with `SyntaxException` during parsing. Templates
   previously accepted with these syntax errors must be corrected. Parsing remains strict
   independently of render options; existing strict2-aligned syntax restrictions are unchanged.
+
+### Notes
+
+- Custom `CanBeCompiled` nodes must throw `Keepsuit\Liquid\Compiler\UnsupportedNodeException`
+  to request runtime fallback; any other exception aborts compilation. Emit generated
+  yields through `CompilerContext::writeYield()`, not `write('yield ...')`.
+- Compiled artifact classes are never unloaded in long-running workers.
 
 ### Performance
 

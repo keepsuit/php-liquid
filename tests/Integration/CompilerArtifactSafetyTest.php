@@ -97,3 +97,45 @@ test('compiler value export rejects resources', function () {
         fclose($resource);
     }
 });
+
+test('compiled artifacts use permissions derived from the umask', function (int $mask) {
+    $directory = compilerArtifactSafetyDirectory();
+    $path = compilerArtifactSafetyPath($directory);
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('permissions');
+    $previousMask = umask($mask);
+
+    try {
+        $environment->compile($template, $path);
+        clearstatcache(true, $path);
+
+        expect(fileperms($path) & 0777)->toBe(0666 & ~$mask);
+    } finally {
+        umask($previousMask);
+        removeCompilerArtifactSafetyDirectory($directory);
+    }
+})->with([0022, 0002]);
+
+test('recompiling an artifact at the same path updates its output and opcache timestamp', function () {
+    $directory = compilerArtifactSafetyDirectory();
+    $path = compilerArtifactSafetyPath($directory);
+    $environment = EnvironmentFactory::new()->build();
+    $requestTime = $_SERVER['REQUEST_TIME'];
+    $_SERVER['REQUEST_TIME'] = time();
+
+    try {
+        $environment->compile($environment->parseString('first'), $path);
+        $first = require $path;
+        expect($first->render($environment->newRenderContext()))->toBe('first');
+
+        $environment->compile($environment->parseString('second'), $path);
+        clearstatcache(true, $path);
+        $second = require $path;
+
+        expect(filemtime($path))->toBe($_SERVER['REQUEST_TIME'] - 5);
+        expect($second->render($environment->newRenderContext()))->toBe('second');
+    } finally {
+        $_SERVER['REQUEST_TIME'] = $requestTime;
+        removeCompilerArtifactSafetyDirectory($directory);
+    }
+});

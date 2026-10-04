@@ -2,7 +2,6 @@
 
 namespace Keepsuit\Liquid\Tags;
 
-use Closure;
 use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeStreamed;
@@ -158,15 +157,15 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
         }
     }
 
-    public function renderBlocks(RenderContext $context, ?Closure $forBody = null, ?Closure $elseBody = null): string
+    public function renderBlocks(RenderContext $context): string
     {
         $segment = $this->collectionSegment($context);
 
         if ($segment === []) {
-            return $elseBody !== null ? $elseBody($context) : $this->renderElse($context);
+            return $this->renderElse($context);
         }
 
-        return $this->renderSegment($context, $segment, $forBody);
+        return $this->renderSegment($context, $segment);
     }
 
     /**
@@ -178,25 +177,21 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
     }
 
     /**
-     * @param  (Closure(RenderContext): iterable<string>)|null  $forBody
-     * @param  (Closure(RenderContext): iterable<string>)|null  $elseBody
      * @return \Generator<string>
      */
-    public function streamBlocks(RenderContext $context, ?Closure $forBody = null, ?Closure $elseBody = null): \Generator
+    public function streamBlocks(RenderContext $context): \Generator
     {
         $segment = $this->collectionSegment($context);
 
         if ($segment === []) {
-            if ($elseBody !== null) {
-                yield from $elseBody($context);
-            } elseif ($this->elseBlock !== null) {
+            if ($this->elseBlock !== null) {
                 yield from $this->elseBlock->stream($context);
             }
 
             return;
         }
 
-        yield from $this->streamSegment($context, $segment, $forBody);
+        yield from $this->streamSegment($context, $segment);
     }
 
     public function children(): array
@@ -338,7 +333,7 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
         return $segment;
     }
 
-    protected function renderSegment(RenderContext $context, array $segment, ?Closure $forBody = null): string
+    protected function renderSegment(RenderContext $context, array $segment): string
     {
         $loopVars = self::enterLoop($context, $this->name, count($segment));
 
@@ -346,7 +341,7 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
             $output = '';
             foreach ($segment as $value) {
                 $context->set($this->variableName, $value);
-                $output .= $forBody !== null ? $forBody($context) : $this->forBlock->render($context);
+                $output .= $this->forBlock->render($context);
                 $loopVars->increment();
 
                 if ($context->popInterrupt() instanceof BreakInterrupt) {
@@ -361,10 +356,9 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
     }
 
     /**
-     * @param  (Closure(RenderContext): iterable<string>)|null  $forBody
      * @return \Generator<string>
      */
-    protected function streamSegment(RenderContext $context, array $segment, ?Closure $forBody = null): \Generator
+    protected function streamSegment(RenderContext $context, array $segment): \Generator
     {
         $loopVars = self::enterLoop($context, $this->name, count($segment));
 
@@ -372,11 +366,7 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
             foreach ($segment as $value) {
                 $context->set($this->variableName, $value);
 
-                if ($forBody !== null) {
-                    yield from $forBody($context);
-                } else {
-                    yield from $this->forBlock->stream($context);
-                }
+                yield from $this->forBlock->stream($context);
 
                 $loopVars->increment();
 

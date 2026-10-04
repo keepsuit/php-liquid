@@ -51,11 +51,6 @@ class CodeBuilder
 
     public function writeLine(string $line = ''): static
     {
-        if (trim($line) === '$buffer = "";') {
-            $this->streamBufferState = ['checked' => true, 'empty' => true, 'maxLength' => 0];
-        } elseif (str_contains($line, '$buffer')) {
-            $this->streamBufferState = ['checked' => false, 'empty' => false, 'maxLength' => null];
-        }
         if ($this->source !== '' && ! str_ends_with($this->source, "\n")) {
             $this->source .= "\n";
         }
@@ -123,18 +118,6 @@ class CodeBuilder
     public function setStreamBufferState(array $state): void
     {
         $this->streamBufferState = $state;
-    }
-
-    /**
-     * @return string[]
-     */
-    public function getLines(): array
-    {
-        if ($this->source === '') {
-            return [];
-        }
-
-        return explode("\n", rtrim($this->source, "\n"));
     }
 
     public function getSource(): string

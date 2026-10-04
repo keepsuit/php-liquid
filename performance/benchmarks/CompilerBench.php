@@ -4,6 +4,7 @@ namespace Keepsuit\Liquid\Performance\benchmarks;
 
 use Keepsuit\Liquid\Compiler\CompiledTemplate;
 use Keepsuit\Liquid\Environment;
+use Keepsuit\Liquid\ParsedTemplate;
 use Keepsuit\Liquid\Performance\Support\CompilesThemeTemplates;
 use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
 use Keepsuit\Liquid\Template;
@@ -164,6 +165,7 @@ class CompilerBench
     public function benchCompileWrite(): void
     {
         foreach ($this->interpretedTemplates as $templateName => $template) {
+            assert($template instanceof ParsedTemplate);
             $this->compiledEnvironment->compile($template, $this->artifactPaths[$templateName]);
         }
     }

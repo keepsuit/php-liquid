@@ -44,7 +44,7 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
     public function compile(CompilerContext $context): void
     {
         if (static::class !== self::class) {
-            $context->write('yield from '.$context->writeRuntimeValue($this).'->stream($context);');
+            $context->writeYield('from '.$context->writeRuntimeValue($this).'->stream($context)');
 
             return;
         }
@@ -74,7 +74,7 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
             $context->writeOutput('$value');
             $context->outdent()->write('} else {')->indent();
             $context->flushStreamBuffer();
-            $context->write('yield from $value;')->outdent()->write('}');
+            $context->writeYield('from $value')->outdent()->write('}');
         }
     }
 

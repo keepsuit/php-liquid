@@ -3,6 +3,7 @@
 use Keepsuit\Liquid\Compiler\CodeBuilder;
 use Keepsuit\Liquid\Compiler\CompiledTemplate;
 use Keepsuit\Liquid\Compiler\CompilerContext;
+use Keepsuit\Liquid\Compiler\UnsupportedNodeException;
 use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeExported;
@@ -494,6 +495,8 @@ class FailingCompilableCompilerTestNode extends Node implements CanBeCompiled
 {
     public static int $compilations = 0;
 
+    public function __construct(private readonly bool $unsupported = true) {}
+
     public function render(RenderContext $context): string
     {
         return 'fallback output';
@@ -507,7 +510,9 @@ class FailingCompilableCompilerTestNode extends Node implements CanBeCompiled
         $context->writeCachedValue(new VariableLookup('marker', ['value']));
         $context->writeRenderedBody(new BodyNode([new Text('discarded body')]), $context->temporaryVariable());
 
-        throw new RuntimeException('compiler test failure');
+        throw $this->unsupported
+            ? new UnsupportedNodeException('compiler test failure')
+            : new RuntimeException('compiler test failure');
     }
 }
 
@@ -592,6 +597,11 @@ test('compiled render and stream both surface the compiled body', function () {
         {
             yield 'compiled ';
             yield 'body';
+        }
+
+        protected function renderCompiledString(RenderContext $context): string
+        {
+            return 'compiled body';
         }
     };
 
@@ -3175,34 +3185,43 @@ test('small literal bodies fold buffered streaming without losing incoming inter
     }
 });
 
-test('legacy compiled node generators remain supported', function () {
-    $environment = EnvironmentFactory::new()
-        ->setRethrowErrors(false)
-        ->build();
-    $compiled = new class extends CompiledTemplate
-    {
-        public function name(): ?string
-        {
-            return 'legacy-artifact.liquid';
+test('compiled node closures retain their error boundary', function () {
+    $environment = EnvironmentFactory::new()->setRethrowErrors(false)->build();
+    $template = $environment->parseString('beforeafter', name: 'node-error.liquid');
+    $template->root->body->setChildren([
+        new Text('before'),
+        (new RuntimeThrowingCompilableCompilerTestNode)->setLineNumber(7),
+        new Text('after'),
+    ]);
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        expect(implode('', iterator_to_array($compiled->stream($environment->newRenderContext()), false)))
+            ->toBe('beforeLiquid error (line 7): Internal exceptionafter');
+        expect($compiled->getErrors())->toHaveCount(1);
+        expect($compiled->getErrors()[0]->lineNumber)->toBe(7);
+    } finally {
+        @unlink($path);
+    }
+});
+
+test('unexpected node compilation errors propagate without publishing an artifact', function () {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('prefix');
+    $template->root->body->pushChild(new FailingCompilableCompilerTestNode(unsupported: false));
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        expect(fn () => $environment->compile($template, $path))
+            ->toThrow(RuntimeException::class, 'compiler test failure');
+        expect(is_file($path))->toBeFalse();
+    } finally {
+        if (is_file($path)) {
+            unlink($path);
         }
-
-        protected function renderCompiled(RenderContext $context): iterable
-        {
-            yield 'before';
-            yield from $this->yieldNode($context, 7, (function (): \Generator {
-                yield 'legacy';
-
-                throw new RuntimeException('legacy node failure');
-            })());
-            yield 'after';
-        }
-    };
-    $context = $environment->newRenderContext();
-
-    expect($compiled->render($context))
-        ->toBe('beforelegacyLiquid error (line 7): Internal exceptionafter');
-    expect($compiled->getErrors())->toHaveCount(1);
-    expect($compiled->getErrors()[0]->lineNumber)->toBe(7);
+    }
 });
 
 test('compilation fails when a fallback node cannot be safely reconstructed', function () {

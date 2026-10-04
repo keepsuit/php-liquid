@@ -184,7 +184,7 @@ class RenderTag extends Tag implements CanBeCompiled, CanBeStreamed, HasParseTre
             $context->writeOutput($expression);
         } else {
             $context->flushStreamBuffer();
-            $context->write('yield from '.$expression.';');
+            $context->writeYield('from '.$expression);
         }
     }
 
