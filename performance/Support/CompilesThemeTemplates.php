@@ -17,35 +17,17 @@ trait CompilesThemeTemplates
             ->build();
     }
 
-    /**
-     * @param  array<string, Template>|null  $templates
-     * @return array{templates: array<string, CompiledTemplate>, paths: array<string, string>}
-     */
-    protected function compileThemeTemplates(
-        Environment $environment,
-        string $cacheDirectory,
-        ?array $templates = null,
-    ): array {
+    protected function compileThemeTemplates(Environment $environment, string $cacheDirectory): void
+    {
         $cacheDirectory = $this->prepareCompiledDirectory($cacheDirectory);
-        $compiledTemplates = [];
-        $artifactPaths = [];
 
         foreach (StorefrontTheme::templateNames() as $templateName) {
-            $template = $templates[$templateName] ?? $environment->parseTemplate($templateName);
-            $artifactPath = $this->compiledTemplatePath($cacheDirectory, $templateName);
-            $compiledTemplates[$templateName] = $this->compileTemplateToPath(
+            $environment->templatesCache->set($templateName, $this->compileTemplateToPath(
                 $environment,
-                $template,
-                $artifactPath,
-            );
-            $artifactPaths[$templateName] = $artifactPath;
-            $environment->templatesCache->set($templateName, $compiledTemplates[$templateName]);
+                $environment->parseTemplate($templateName),
+                $this->compiledTemplatePath($cacheDirectory, $templateName),
+            ));
         }
-
-        return [
-            'templates' => $compiledTemplates,
-            'paths' => $artifactPaths,
-        ];
     }
 
     protected function compileTemplateToPath(

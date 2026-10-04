@@ -2,7 +2,9 @@
 
 namespace Keepsuit\Liquid\Performance\benchmarks;
 
+use Keepsuit\Liquid\Compiler\Compiler;
 use Keepsuit\Liquid\Environment;
+use Keepsuit\Liquid\ParsedTemplate;
 use Keepsuit\Liquid\Performance\Support\CompilesThemeTemplates;
 use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
 use PhpBench\Attributes\BeforeMethods;
@@ -44,6 +46,9 @@ class ThemeBench
      */
     private array $sources;
 
+    /** @var array<string, ParsedTemplate> */
+    private array $templates;
+
     /** @var list<string> */
     private array $pageTemplateNames;
 
@@ -52,9 +57,12 @@ class ThemeBench
         $this->environment = StorefrontTheme::environment();
 
         $this->sources = [];
+        $this->templates = [];
 
         foreach (StorefrontTheme::templateNames() as $name) {
-            $this->environment->parseTemplate($name);
+            $template = $this->environment->parseTemplate($name);
+            assert($template instanceof ParsedTemplate);
+            $this->templates[$name] = $template;
             $this->sources[$name] = StorefrontTheme::templateSource($name);
         }
 
@@ -81,6 +89,16 @@ class ThemeBench
     {
         foreach ($this->sources as $name => $source) {
             $this->environment->parseString($source, $name);
+        }
+    }
+
+    #[BeforeMethods('setUp')]
+    public function benchCompile(): void
+    {
+        $compiler = new Compiler;
+
+        foreach ($this->templates as $template) {
+            $compiler->compile($template);
         }
     }
 
