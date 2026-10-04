@@ -21,14 +21,10 @@ slower"* and nothing more. It cannot tell you *what* got slower, because a
 regression in any one tag is averaged across everything else. Don't expect it to
 localize.
 
-**`cache`** (`TemplateCacheBench`) measures template-cache build and
-fresh-environment load+render for every supported backend. The `LoadAndRender*`
-subjects use `keepInMemory: false` and measure a disk read on every `get()`;
-`benchFreshRequestSerialize` measures a fresh request with the default
-`keepInMemory: true`. The compiled subject builds deterministic PHP artifacts
-during setup, then `benchLoadAndRenderCompiled` measures their filesystem-backed
-load+render path; artifact compilation and cache setup are outside the timed
-boundary.
+**`cache`** (`TemplateCacheBench`) runs the same two subjects for every backend
+(in-memory, serialize, var-export, compiled): `benchBuild*` parses the theme into an
+empty cache, and `benchLoadAndRender*` builds a fresh environment per revolution, as
+a new request would, then loads the warm cache and renders every page.
 
 **`operations`** (`OperationBench`) measures single operations on tiny templates.
 This is where per-feature sensitivity lives, and where a benchmark is allowed to
