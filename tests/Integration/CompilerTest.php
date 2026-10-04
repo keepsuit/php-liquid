@@ -2766,6 +2766,7 @@ test('compiled filter arguments fully evaluate lookups in positional and named o
         $environment->compile($template, $path);
         $compiled = require $path;
         expect(file_get_contents($path))
+            ->not->toContain('[...[')
             ->not->toContain("new VariableLookup('first'")
             ->not->toContain("new VariableLookup('product'")
             ->not->toContain("new VariableLookup('last'");
@@ -2788,6 +2789,35 @@ test('compiled filter arguments fully evaluate lookups in positional and named o
         @unlink($path);
     }
 });
+
+test('compiled filter argument arrays retain numeric reindexing and overwritten evaluations', function (array $positional, array $named, string $expected) {
+    $environment = EnvironmentFactory::new()->addExtension(new CompilerTestExtension)->build();
+    $template = $environment->parseString('');
+    $arguments = array_map(fn () => new VariableLookup('counter'), $positional);
+    $namedArguments = array_map(fn () => new VariableLookup('counter'), $named);
+    $template->root->body->pushChild(new Variable('x', [['compiler_arguments', $arguments, $namedArguments]]));
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        expect(file_get_contents($path))->not->toContain('[...[');
+        $compiled = require $path;
+        foreach ([$template, $compiled] as $candidate) {
+            foreach (['render', 'stream'] as $method) {
+                $counter = new CompilerCountingPartialValue;
+                $output = $candidate->$method($environment->newRenderContext(data: ['counter' => $counter]));
+                expect($method === 'render' ? $output : implode('', iterator_to_array($output)))->toBe($expected);
+                expect($counter->calls)->toBe(count($positional) + count($named));
+            }
+        }
+    } finally {
+        @unlink($path);
+    }
+})->with([
+    'sparse numeric keys' => [[8 => null, -2 => null], ['named' => null], '["x",1,2,3]'],
+    'overwritten string key' => [['first' => null], ['first' => null, 'named' => null], '["x",2,null,3]'],
+    'named only' => [[], ['first' => null, 'named' => null], '["x",1,null,2]'],
+]);
 
 test('compiled filter arguments preserve strict missing values and evaluation order', function (bool $strict, bool $named) {
     $environment = EnvironmentFactory::new()->addExtension(new CompilerTestExtension)->setStrictVariables($strict)->setRethrowErrors(false)->build();

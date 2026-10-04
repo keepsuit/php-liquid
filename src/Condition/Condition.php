@@ -104,9 +104,15 @@ class Condition implements CanBeExported, HasParseTreeVisitorChildren
                 }
                 // Normalize the left value before evaluating the right value:
                 // AsLiquidValue implementations may have observable effects.
+                $left = is_scalar($condition->left) || $condition->left === null
+                    ? $left
+                    : '$this->conditionValue('.$left.')';
+                $right = $context->writeEvaluatedExpression($condition->right);
+                $right = is_scalar($condition->right) || $condition->right === null
+                    ? $right
+                    : '$this->conditionValue('.$right.')';
                 $parent = $context->writeClassName(self::class).'::compare('
-                    .'$this->conditionValue('.$left.'), '
-                    .'$this->conditionValue('.$context->writeEvaluatedExpression($condition->right).'), '
+                    .$left.', '.$right.', '
                     .$context->writeValue($condition->operator).', '.$context->writeValue($operator).')';
             }
 

@@ -3,6 +3,7 @@
 use Keepsuit\Liquid\Compiler\CompiledTemplate;
 use Keepsuit\Liquid\Compiler\Compiler;
 use Keepsuit\Liquid\Compiler\CompilerContext;
+use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Nodes\Node;
@@ -17,7 +18,7 @@ class ImportedCompilerOptimizationNode extends Node implements CanBeCompiled
 
     public function render(RenderContext $context): string
     {
-        return $this->class;
+        return ltrim($this->class, '\\');
     }
 
     public function compile(CompilerContext $context): void
@@ -119,7 +120,72 @@ test('compiled class imports preserve collisions and global class names', functi
     expect($context->writeClassName('First\\Value'))->toBe('Value');
     expect($context->writeClassName('Second\\Value'))->toBe('\\Second\\Value');
     expect($context->writeClassName('Third\\value'))->toBe('\\Third\\value');
+    expect($context->writeClassName('\\DateTime'))->toBe('DateTime');
+    expect($context->writeClassName('\\First\\Value'))->toBe('Value');
+    expect($context->writeClassName('\\Second\\Value'))->toBe('\\Second\\Value');
+    expect($context->getImportedClasses())->not->toContain('\\DateTime', '\\First\\Value');
 });
+
+test('compiled imports accept fully qualified class names', function (array $classes) {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('');
+    assert($template instanceof ParsedTemplate);
+    foreach ($classes as $class) {
+        $template->root->body->pushChild(new ImportedCompilerOptimizationNode($class));
+    }
+    $path = compilerOptimizationPath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        $expected = $template->render($environment->newRenderContext());
+        expect($compiled->render($environment->newRenderContext()))->toBe($expected);
+        expect(implode('', iterator_to_array($compiled->stream($environment->newRenderContext()))))->toBe($expected);
+    } finally {
+        @unlink($path);
+    }
+})->with([
+    'existing import' => [['\\'.RenderContext::class]],
+    'global class first' => [['DateTime', '\\DateTime']],
+    'fully qualified global class first' => [['\\DateTime', 'DateTime']],
+    'colliding names' => [['\\First\\Value', 'First\\Value', '\\Second\\Value']],
+]);
+
+test('compiled scalar comparisons retain runtime operator changes', function (string $literal, mixed $value) {
+    $environment = EnvironmentFactory::new()->build();
+    $template = $environment->parseString('{% if '.$literal.' == '.$literal.' %}yes{% else %}no{% endif %}');
+    $path = compilerOptimizationPath();
+
+    try {
+        $environment->compile($template, $path);
+        expect(file_get_contents($path))->not->toContain('->conditionValue(');
+        $compiled = require $path;
+        foreach ([false, true] as $result) {
+            foreach ([$template, $compiled] as $candidate) {
+                foreach (['render', 'stream'] as $method) {
+                    $calls = [];
+                    Condition::registerOperator('==', function ($left, $right) use (&$calls, $result): bool {
+                        $calls[] = [$left, $right];
+
+                        return $result;
+                    });
+                    $output = $candidate->$method($environment->newRenderContext());
+                    expect($method === 'render' ? $output : implode('', iterator_to_array($output)))->toBe($result ? 'yes' : 'no');
+                    expect($calls)->toBe([[$value, $value]]);
+                }
+            }
+        }
+    } finally {
+        Condition::deleteOperator('==');
+        @unlink($path);
+    }
+})->with([
+    'string' => ['"text"', 'text'],
+    'integer' => ['1', 1],
+    'float' => ['1.25', 1.25],
+    'boolean' => ['false', false],
+    'null' => ['nil', null],
+]);
 
 test('compiled artifact identity includes imported class names', function () {
     $environment = EnvironmentFactory::new()->build();

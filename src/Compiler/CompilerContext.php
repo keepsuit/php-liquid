@@ -693,6 +693,11 @@ final class CompilerContext
             return $this->classNames[$class];
         }
 
+        $class = ltrim($class, '\\');
+        if (isset($this->classNames[$class])) {
+            return $this->classNames[$class];
+        }
+
         $namespace = strrpos($class, '\\');
         $name = $namespace === false ? $class : substr($class, $namespace + 1);
         foreach ($this->classNames as $importedName) {

@@ -107,12 +107,7 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
         foreach ($this->filters as [$filterName, $filterArgs, $filterNamedArgs]) {
             $args = '';
             if ($filterArgs !== [] || $filterNamedArgs !== []) {
-                $args = $this->compileFilterArguments($context, $filterArgs);
-                if ($filterNamedArgs !== []) {
-                    $namedArgs = $this->compileFilterArguments($context, $filterNamedArgs);
-                    $args = '[...'.$args.', ...'.$namedArgs.']';
-                }
-                $args = ', '.$args;
+                $args = ', '.$this->compileFilterArguments($context, $filterArgs, $filterNamedArgs);
             }
 
             $context->write($value.' = $context->applyFilter('.$context->writeValue($filterName).', '.$value.$args.');');
@@ -121,12 +116,18 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeExpor
         return $value;
     }
 
-    private function compileFilterArguments(CompilerContext $context, array $arguments): string
+    private function compileFilterArguments(CompilerContext $context, array $arguments, array $namedArguments): string
     {
         $values = [];
-        foreach ($arguments as $key => $argument) {
-            $key = $context->writeValue($key);
-            $values[] = $key.' => '.$context->writeEvaluatedExpression($argument);
+        $position = 0;
+        foreach ([$arguments, $namedArguments] as $group) {
+            foreach ($group as $key => $argument) {
+                // Unpacking both groups reindexes numeric keys without skipping
+                // evaluation of expressions whose string keys are overwritten.
+                $key = $namedArguments !== [] && is_int($key) ? $position++ : $key;
+                $key = $context->writeValue($key);
+                $values[] = $key.' => '.$context->writeEvaluatedExpression($argument);
+            }
         }
 
         return '['.implode(', ', $values).']';
