@@ -3,8 +3,6 @@
         "fully_qualified_strict_types": false
     },
     "exclude": [
-        "tests/cache",
-        "performance/cache",
-        "performance/benchmarks/cache"
+        "tests/cache"
     ]
 }

@@ -2,11 +2,13 @@
 
 namespace Keepsuit\Liquid\Performance\benchmarks;
 
+use Keepsuit\Liquid\Compiler\CompiledTemplate;
 use Keepsuit\Liquid\Compiler\Compiler;
 use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\ParsedTemplate;
-use Keepsuit\Liquid\Performance\Support\CompilesThemeTemplates;
 use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
+use Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache;
+use PhpBench\Attributes\AfterMethods;
 use PhpBench\Attributes\BeforeMethods;
 use PhpBench\Attributes\Groups;
 use PhpBench\Attributes\Iterations;
@@ -32,11 +34,13 @@ use PhpBench\Attributes\Revs;
 #[OutputTimeUnit('seconds', precision: 3)]
 class ThemeBench
 {
-    use CompilesThemeTemplates;
-
     private Environment $environment;
 
     private Environment $compiledEnvironment;
+
+    private CompiledTemplatesCache $compiledCache;
+
+    private string $compiledDirectory;
 
     /**
      * Sources are read up front: reading them inside a benchmark would measure
@@ -69,11 +73,37 @@ class ThemeBench
         $this->pageTemplateNames = StorefrontTheme::pageTemplateNames();
     }
 
+    /**
+     * Artifacts are written by one cache and loaded by another: a cache keeps the
+     * parsed template it was given in memory, which would render interpreted.
+     */
     public function setUpCompiled(): void
     {
-        $this->compiledEnvironment = $this->newCompiledEnvironment();
-        $this->compileThemeTemplates($this->compiledEnvironment, __DIR__.'/cache/compiled');
+        $this->compiledDirectory = sys_get_temp_dir().'/keepsuit-liquid-phpbench-'.bin2hex(random_bytes(8));
+        $builder = StorefrontTheme::environmentFactory()
+            ->setTemplatesCache(new CompiledTemplatesCache($this->compiledDirectory, keepInMemory: false))
+            ->build();
+
+        foreach (StorefrontTheme::templateNames() as $name) {
+            $builder->parseTemplate($name);
+        }
+
+        $this->compiledCache = new CompiledTemplatesCache($this->compiledDirectory);
+        $this->compiledEnvironment = StorefrontTheme::environmentFactory()->setTemplatesCache($this->compiledCache)->build();
+
+        foreach (StorefrontTheme::templateNames() as $name) {
+            if (! $this->compiledEnvironment->parseTemplate($name) instanceof CompiledTemplate) {
+                throw new \RuntimeException("Template {$name} did not load as a compiled artifact.");
+            }
+        }
+
         $this->pageTemplateNames = StorefrontTheme::pageTemplateNames();
+    }
+
+    public function tearDownCompiled(): void
+    {
+        $this->compiledCache->clear();
+        rmdir($this->compiledDirectory);
     }
 
     #[BeforeMethods('setUp')]
@@ -111,6 +141,7 @@ class ThemeBench
     }
 
     #[BeforeMethods('setUpCompiled')]
+    #[AfterMethods('tearDownCompiled')]
     public function benchRenderCompiled(): void
     {
         foreach ($this->pageTemplateNames as $pageTemplateName) {
@@ -127,6 +158,7 @@ class ThemeBench
     }
 
     #[BeforeMethods('setUpCompiled')]
+    #[AfterMethods('tearDownCompiled')]
     public function benchStreamCompiled(): void
     {
         foreach ($this->pageTemplateNames as $pageTemplateName) {

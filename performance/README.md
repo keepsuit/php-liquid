@@ -35,6 +35,10 @@ The split is what lets the theme be realistic. Whenever realism and measurement
 sensitivity conflict inside the theme, realism wins — sensitivity is not the
 theme's job.
 
+Benchmarks run with OPcache enabled and JIT disabled, both locally (`phpbench.json`)
+and in CI. With JIT, short-lived benchmark processes mostly measure JIT compilation of
+the large generated template functions.
+
 Pull-request comparisons enforce a worst-subject throughput regression threshold
 of 5%. The comparator still labels changes inside its 2% noise band as neutral,
 and marks RSD above 5% as high variance for review.

@@ -29,6 +29,7 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           extensions: ${{ env.REQUIRED_PHP_EXTENSIONS }}
+          ini-values: opcache.jit=disable
           coverage: none
 
       - name: "Cache composer dependencies"
