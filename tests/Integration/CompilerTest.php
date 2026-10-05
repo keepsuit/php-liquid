@@ -3100,7 +3100,7 @@ test('expression values remain exportable while variables compile directly', fun
 
     expect($variable)
         ->toBeInstanceOf(CanBeCompiled::class)
-        ->toBeInstanceOf(CanBeExported::class);
+        ->not->toBeInstanceOf(CanBeExported::class);
 
     $values = [
         new VariableLookup('name'),
