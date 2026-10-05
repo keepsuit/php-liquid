@@ -23,6 +23,8 @@ test('compiled cache compiles misses and loads roots and partials from disk', fu
     $template = $environment->parseTemplate('hello');
     expect($template)->toBeInstanceOf(ParsedTemplate::class)
         ->and($cache->has('hello'))->toBeTrue()
+        ->and($cache->get('hello'))->toBeInstanceOf(CompiledTemplate::class)
+        ->and($environment->parseTemplate('hello'))->toBeInstanceOf(CompiledTemplate::class)
         ->and($template->render($environment->newRenderContext(data: ['name' => 'John'])))->toBe('Hello John!')
         ->and($fileSystem->fileReadCount)->toBe(2);
 
@@ -52,11 +54,30 @@ test('compiled cache compiles misses and loads roots and partials from disk', fu
 
 test('compiled cache follows the filesystem memory retention option', function (bool $keepInMemory) {
     $path = __DIR__.'/../cache/compiled-memory';
-    $writer = new CompiledTemplatesCache($path);
+    $writer = new class($path, keepInMemory: $keepInMemory) extends CompiledTemplatesCache
+    {
+        public int $loads = 0;
+
+        protected function loadCompiledTemplate(string $compiledPath): ?\Keepsuit\Liquid\Template
+        {
+            $this->loads++;
+
+            return parent::loadCompiledTemplate($compiledPath);
+        }
+    };
     $writer->clear();
-    $parsed = parseSource('Hello {{ name }}');
-    $writer->set('test', $parsed);
-    expect($writer->get('test'))->toBe($parsed);
+    $writer->set('test', parseSource('Hello {{ name }}'));
+    $written = $writer->get('test');
+    expect($written)->toBeInstanceOf(CompiledTemplate::class)
+        ->and($written?->render(buildRenderContext(data: ['name' => 'John'])))->toBe('Hello John')
+        ->and($writer->loads)->toBe($keepInMemory ? 0 : 1);
+
+    $writer->set('test', parseSource('Welcome {{ name }}'));
+    $replacement = $writer->get('test');
+    expect($replacement)->toBeInstanceOf(CompiledTemplate::class)
+        ->not->toBe($written)
+        ->and($replacement?->render(buildRenderContext(data: ['name' => 'Jane'])))->toBe('Welcome Jane')
+        ->and($writer->loads)->toBe($keepInMemory ? 0 : 2);
 
     $reader = new CompiledTemplatesCache($path, keepInMemory: $keepInMemory);
     $first = $reader->get('test');

@@ -73,27 +73,17 @@ class ThemeBench
         $this->pageTemplateNames = StorefrontTheme::pageTemplateNames();
     }
 
-    /**
-     * Artifacts are written by one cache and loaded by another: a cache keeps the
-     * parsed template it was given in memory, which would render interpreted.
-     */
     public function setUpCompiled(): void
     {
         $this->compiledDirectory = sys_get_temp_dir().'/keepsuit-liquid-phpbench-'.bin2hex(random_bytes(8));
-        $builder = StorefrontTheme::environmentFactory()
-            ->setTemplatesCache(new CompiledTemplatesCache($this->compiledDirectory, keepInMemory: false))
-            ->build();
-
-        foreach (StorefrontTheme::templateNames() as $name) {
-            $builder->parseTemplate($name);
-        }
-
         $this->compiledCache = new CompiledTemplatesCache($this->compiledDirectory);
         $this->compiledEnvironment = StorefrontTheme::environmentFactory()->setTemplatesCache($this->compiledCache)->build();
 
         foreach (StorefrontTheme::templateNames() as $name) {
-            if (! $this->compiledEnvironment->parseTemplate($name) instanceof CompiledTemplate) {
-                throw new \RuntimeException("Template {$name} did not load as a compiled artifact.");
+            $this->compiledEnvironment->parseTemplate($name);
+
+            if (! $this->compiledCache->get($name) instanceof CompiledTemplate) {
+                throw new \RuntimeException("Template {$name} is not cached as a compiled artifact.");
             }
         }
 

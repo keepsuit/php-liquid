@@ -9,9 +9,9 @@ use Keepsuit\Liquid\ParsedTemplate;
 class Compiler
 {
     /**
-     * Write a requireable compiled artifact for the given template.
+     * Write a requireable compiled artifact and return its validated instance.
      */
-    public function compileToFile(ParsedTemplate $template, string $compiledPath): void
+    public function compileToFile(ParsedTemplate $template, string $compiledPath): CompiledTemplate
     {
         $directory = dirname($compiledPath);
 
@@ -49,6 +49,8 @@ class Compiler
             if (function_exists('opcache_invalidate')) {
                 opcache_invalidate($compiledPath, true);
             }
+
+            return $compiled;
         } finally {
             if (is_file($temporaryPath)) {
                 unlink($temporaryPath);
