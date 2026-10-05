@@ -254,3 +254,22 @@ test('recompiling an artifact at the same path updates its output and opcache ti
         removeCompilerArtifactSafetyDirectory($directory);
     }
 });
+
+test('compiling an artifact without a request time backdates it from the current time', function () {
+    $directory = compilerArtifactSafetyDirectory();
+    $path = compilerArtifactSafetyPath($directory);
+    $environment = EnvironmentFactory::new()->build();
+    $requestTime = $_SERVER['REQUEST_TIME'];
+    unset($_SERVER['REQUEST_TIME']);
+
+    try {
+        $before = time();
+        $environment->compile($environment->parseString('ok'), $path);
+        clearstatcache(true, $path);
+
+        expect(filemtime($path))->toBeGreaterThanOrEqual($before - 5)->toBeLessThanOrEqual(time() - 5);
+    } finally {
+        $_SERVER['REQUEST_TIME'] = $requestTime;
+        removeCompilerArtifactSafetyDirectory($directory);
+    }
+});
