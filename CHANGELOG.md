@@ -15,16 +15,29 @@ All notable changes to `liquid` will be documented in this file.
 - `Keepsuit\Liquid\Template` is now an interface. Use `ParsedTemplate` for the concrete
   parsed template class; `AbstractTemplate` is the shared base class. Serialized caches
   containing the old `Template` class become cache misses.
+  - Replace `new Template($document)` with `new ParsedTemplate($document)`.
+  - `$template->root` is only available on `ParsedTemplate`; type hints on `Template` keep working.
+  - Stale serialized entries are reparsed and overwritten on first use; clear the cache on deploy
+    to avoid the reparse.
 - Remove the protected `renderOutput` method from `Nodes\Variable` and the protected
   `undefined` and `walkLookups` methods from `Nodes\VariableLookup`.
+  - Replace `$this->renderOutput($output)` with `Variable::renderEvaluated($context, $output)`.
+  - Subclasses of `VariableLookup` should override `evaluate()` or call
+    `VariableLookup::evaluateParts($context, $name, $lookups)`, which resolves the lookup chain
+    and returns `UndefinedVariable` under `strictVariables`.
 - Native nodes, conditions and tags now implement `CanBeCompiled` or `CanBeExported`, adding
   public `compile()` and `export()` methods. Subclasses that already declare these methods with
   a different signature must be updated.
+  - Rename unrelated `compile()`/`export()` methods, or match the signatures
+    `compile(CompilerContext $context): void` and `export(CompilerContext $context): ?string`.
 - Interpreted `BodyNode::stream()` now yields chunks of custom `CanBeStreamed` nodes without
   buffering, so stream chunk boundaries may change. The concatenated output is unchanged.
+  - Code that inspects individual chunks should concatenate them instead.
 - Align float output and string conversions with Shopify Liquid 5.13: integral floats
   retain `.0`, full float precision is preserved, and scientific notation follows Ruby.
   Prices and output snapshots may change.
+  - `{{ 3.0 }}` and `{{ 2 | times: 1.0 }}` now render `3.0` and `2.0` instead of `3` and `2`.
+    Apply `round` or a money filter where an integral output is expected.
 - `plus`, `minus`, `times`, `divided_by`, `modulo` and `sum` compute with decimal arithmetic like
   Shopify (`{{ 0.1 | plus: 0.2 }}` renders `0.3`). Adds the `brick/math` dependency.
 - Align `tablerow` HTML whitespace with Shopify: adjacent cells, newlines between rows,
