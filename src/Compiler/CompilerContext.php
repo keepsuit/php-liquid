@@ -366,9 +366,13 @@ final class CompilerContext
     public function flushStreamBufferIfFull(): void
     {
         if (! $this->rendering && $this->buffering && ! $this->builder->streamBufferState()['checked']) {
-            $this->write('if (strlen($buffer) >= 4096) {')->indent();
-            $this->writeYield('$buffer')->resetStreamBuffer();
-            $this->outdent()->write('}');
+            $this->builder->writeLines(<<<'PHP'
+                if (strlen($buffer) >= 4096) {
+                    yield $buffer;
+                    $buffer = "";
+                }
+                PHP);
+            $this->builder->markYield();
             $this->builder->setStreamBufferState(['checked' => true, 'empty' => false, 'maxLength' => 4095]);
         }
     }
@@ -376,12 +380,11 @@ final class CompilerContext
     public function flushStreamBuffer(bool $reset = true): void
     {
         if (! $this->rendering && $this->buffering && ! $this->builder->streamBufferState()['empty']) {
-            $this->write('if ($buffer !== "") {')->indent();
-            $this->writeYield('$buffer');
-            if ($reset) {
-                $this->resetStreamBuffer();
-            }
-            $this->outdent()->write('}');
+            $this->builder->writeLines('if ($buffer !== "") {'
+                ."\n    yield \$buffer;"
+                .($reset ? "\n    \$buffer = \"\";" : '')
+                ."\n}");
+            $this->builder->markYield();
             $this->builder->setStreamBufferState(['checked' => $reset, 'empty' => $reset, 'maxLength' => $reset ? 0 : null]);
         }
     }
@@ -637,14 +640,26 @@ final class CompilerContext
 
         $line = $this->writeValue($node->lineNumber());
         $successBufferState = $this->builder->streamBufferState();
+        $error = '$this->compiledErrorOutput($exception, $context->handleError($exception, '.$line.'))';
+        if ($this->rendering) {
+            $this->builder->dedent()->writeLines('} catch (\\Throwable $exception) {'
+                ."\n    \$output .= (".$error.' ?? "");'
+                ."\n}");
+            $this->builder->setStreamBufferState([
+                'checked' => $successBufferState['checked'],
+                'empty' => false,
+                'maxLength' => $successBufferState['checked'] ? 4095 : null,
+            ]);
+
+            return;
+        }
         $this->outdent()->write('} catch (\\Throwable $exception) {');
         // A throw into yield can precede the buffer reset. Catch paths cannot
         // reuse facts about the successful path through this node.
         $this->builder->setStreamBufferState(['checked' => false, 'empty' => false, 'maxLength' => null]);
         $this->indent();
         $this->flushStreamBuffer();
-        $error = '$this->compiledErrorOutput($exception, $context->handleError($exception, '.$line.'))';
-        if ($this->rendering || $this->buffering) {
+        if ($this->buffering) {
             $this->writeOutput('('.$error.' ?? "")');
         } else {
             $value = $this->temporaryVariable();
