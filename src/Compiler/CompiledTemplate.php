@@ -75,9 +75,7 @@ abstract class CompiledTemplate extends AbstractTemplate
     }
 
     /**
-     * Execute one lazily-created compiled node under Liquid's configured error
-     * handling policy. The generated closure is only invoked while this method
-     * owns the node-level error boundary.
+     * Error boundary for a compiled extension node.
      *
      * @param  Closure(): iterable<string>  $node
      * @return \Generator<string>

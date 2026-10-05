@@ -50,13 +50,7 @@ class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
     }
 
     /**
-     * The body is compiled into an inline lazy generator: the base template owns
-     * its error boundary, while the body carries no state that needs its own
-     * scope beyond the render context.
-     *
-     * Mirrors render(): Text cannot fail or interrupt, so it needs no guard, and
-     * every other child is followed by a bail-out rather than the whole body
-     * being wrapped in a per-child hasInterrupt() check.
+     * Interrupts break out of a single do/while instead of a hasInterrupt() check around every child.
      */
     public function compile(CompilerContext $context): void
     {
