@@ -551,15 +551,19 @@ final class CompilerContext
 
     private function inheritsNativeCompileMethod(Node $node): bool
     {
-        if (! ($node instanceof AssignTag || $node instanceof CaptureTag || $node instanceof ForTag || $node instanceof LiquidTag || $node instanceof RenderTag
-            || $node instanceof Variable || $node instanceof BodyNode || $node instanceof Document)
-            || in_array($node::class, self::RUNTIME_OVERRIDE_NODE_CLASSES, true)) {
+        if (in_array($node::class, self::RUNTIME_OVERRIDE_NODE_CLASSES, true)) {
             return false;
         }
 
-        $compilerClass = (new \ReflectionMethod($node, 'compile'))->getDeclaringClass()->getName();
+        foreach (self::RUNTIME_OVERRIDE_NODE_CLASSES as $class) {
+            if ($node instanceof $class) {
+                $compilerClass = (new \ReflectionMethod($node, 'compile'))->getDeclaringClass()->getName();
 
-        return $node::class !== $compilerClass && in_array($compilerClass, self::RUNTIME_OVERRIDE_NODE_CLASSES, true);
+                return in_array($compilerClass, self::RUNTIME_OVERRIDE_NODE_CLASSES, true);
+            }
+        }
+
+        return false;
     }
 
     private function compileNativeTag(Node $node): bool
