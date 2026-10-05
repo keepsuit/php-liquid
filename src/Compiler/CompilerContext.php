@@ -253,11 +253,7 @@ final class CompilerContext
 
     private function writeSource(string $source): void
     {
-        foreach (explode("\n", rtrim($source, "\n")) as $line) {
-            if ($line !== '') {
-                $this->write($line);
-            }
-        }
+        $this->builder->writeLines($source, skipEmptyLines: true);
     }
 
     public function compileRootBody(BodyNode $body): void

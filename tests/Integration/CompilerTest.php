@@ -2818,6 +2818,29 @@ test('compiler context writes indented output statements', function () {
         ->toBe("function generated() {\nif (true) {\nreturn true;\n}\n}\n");
 });
 
+test('code builder copies source blocks with indentation and optional empty lines', function (bool $skipEmptyLines) {
+    $builder = new CodeBuilder;
+    $builder->writeRaw('prefix')->indent();
+    $checkpoint = $builder->checkpoint();
+
+    expect($builder->writeLines("first\n\n\$second\n\n", $skipEmptyLines))->toBe($builder);
+    $builder->dedent()->writeLine('last');
+
+    expect($builder->getSource())->toBe($skipEmptyLines
+        ? "prefix\n    first\n    \$second\nlast\n"
+        : "prefix\n    first\n\n    \$second\nlast\n");
+
+    $builder->rollback($checkpoint);
+    expect($builder->getSource())->toBe('prefix');
+})->with([false, true]);
+
+test('code builder handles empty source blocks', function (bool $skipEmptyLines) {
+    $builder = new CodeBuilder;
+    $builder->indent()->writeLines('', $skipEmptyLines);
+
+    expect($builder->getSource())->toBe($skipEmptyLines ? '' : "\n");
+})->with([false, true]);
+
 test('compiler and code builder writer methods are fluent', function () {
     $builder = new CodeBuilder;
 

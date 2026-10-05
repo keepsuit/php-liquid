@@ -60,6 +60,33 @@ class CodeBuilder
         return $this;
     }
 
+    public function writeLines(string $source, bool $skipEmptyLines = false): static
+    {
+        $source = rtrim($source, "\n")."\n";
+        if ($skipEmptyLines) {
+            $source = preg_replace('/^\n/m', '', $source);
+            assert($source !== null);
+        }
+
+        if ($source === '') {
+            return $this;
+        }
+
+        if ($this->source !== '' && ! str_ends_with($this->source, "\n")) {
+            $this->source .= "\n";
+        }
+
+        if ($this->indentLevel > 0) {
+            $indentation = $this->indentation[$this->indentLevel] ??= str_repeat('    ', $this->indentLevel);
+            $source = preg_replace('/^(?=.)/m', $indentation, $source);
+            assert($source !== null);
+        }
+
+        $this->source .= $source;
+
+        return $this;
+    }
+
     public function writeRaw(string $fragment): static
     {
         $this->streamBufferState = ['checked' => false, 'empty' => false, 'maxLength' => null];

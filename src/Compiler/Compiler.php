@@ -168,9 +168,7 @@ class Compiler
             ->writeLine('{')
             ->indent();
 
-        foreach (explode("\n", rtrim($body, "\n")) as $line) {
-            $builder->writeLine($line);
-        }
+        $builder->writeLines($body);
 
         $builder
             ->dedent()
@@ -180,17 +178,13 @@ class Compiler
             ->writeLine('{')
             ->indent();
 
-        foreach (explode("\n", rtrim($renderBody, "\n")) as $line) {
-            $builder->writeLine($line);
-        }
+        $builder->writeLines($renderBody);
 
         $builder->dedent()->writeLine('}');
 
         foreach ($renderedBodies as $source) {
             $builder->writeLine();
-            foreach (explode("\n", rtrim($source, "\n")) as $line) {
-                $builder->writeLine($line);
-            }
+            $builder->writeLines($source);
         }
 
         $builder
