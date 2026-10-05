@@ -42,12 +42,6 @@ class Variable extends Node implements CanBeCompiled, CanBeEvaluated, CanBeStrea
 
     public function compile(CompilerContext $context): void
     {
-        if (static::class !== self::class) {
-            $context->compileFallback($this);
-
-            return;
-        }
-
         if ($this->filters !== []) {
             $context->writeOutput(self::compileRenderEvaluated($context, $this->compileValue($context)));
 

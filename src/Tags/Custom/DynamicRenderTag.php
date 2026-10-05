@@ -15,12 +15,6 @@ class DynamicRenderTag extends RenderTag
 {
     public function compile(CompilerContext $context): void
     {
-        if (static::class !== self::class) {
-            $context->compileFallback($this);
-
-            return;
-        }
-
         if (is_string($this->templateNameExpression)) {
             $this->compilePartial($context, $context->writeValue($this->templateNameExpression));
 

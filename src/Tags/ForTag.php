@@ -88,12 +88,6 @@ class ForTag extends TagBlock implements CanBeCompiled, CanBeStreamed, HasParseT
      */
     public function compile(CompilerContext $context): void
     {
-        if (static::class !== self::class) {
-            $context->compileFallback($this);
-
-            return;
-        }
-
         $segment = $context->temporaryVariable();
         $loop = $context->temporaryVariable();
         $value = $context->temporaryVariable();

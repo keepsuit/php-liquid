@@ -57,12 +57,6 @@ class AssignTag extends Tag implements CanBeCompiled, HasParseTreeVisitorChildre
 
     public function compile(CompilerContext $context): void
     {
-        if (static::class !== self::class) {
-            $context->compileFallback($this);
-
-            return;
-        }
-
         $value = $this->from->compileValue($context);
         $context->write($context->writeClassName(self::class).'::assignValue($context, '.$context->writeValue($this->to).', '.$value.');');
     }

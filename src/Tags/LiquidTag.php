@@ -107,12 +107,6 @@ class LiquidTag extends Tag implements CanBeCompiled
 
     public function compile(CompilerContext $context): void
     {
-        if (static::class !== self::class) {
-            $context->compileFallback($this);
-
-            return;
-        }
-
         // LiquidTag renders its complete body even during streaming.
         $value = $context->temporaryVariable();
         $context->writeRenderedBody($this->body, $value);

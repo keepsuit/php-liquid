@@ -54,12 +54,6 @@ class CaptureTag extends TagBlock implements CanBeCompiled
 
     public function compile(CompilerContext $context): void
     {
-        if (static::class !== self::class) {
-            $context->compileFallback($this);
-
-            return;
-        }
-
         $value = $context->temporaryVariable();
         $context->writeCaptureBody($this->body, $value);
         $context->write('$context->setToActiveScope('.$context->writeValue($this->to).', '.$value.');');
