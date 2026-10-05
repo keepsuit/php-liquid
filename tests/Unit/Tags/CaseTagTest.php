@@ -3,7 +3,7 @@
 use Keepsuit\Liquid\Tags\CaseTag;
 
 test('case children', function () {
-    $template = parseTemplate('{% case var %}{% when true %}WHEN{% else %}ELSE{% endcase %}');
+    $template = parseSource('{% case var %}{% when true %}WHEN{% else %}ELSE{% endcase %}');
 
     expect($template->root->body->children())
         ->toHaveCount(1)

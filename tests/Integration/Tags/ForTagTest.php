@@ -8,6 +8,49 @@ use Keepsuit\Liquid\Tests\Stubs\ErrorDrop;
 use Keepsuit\Liquid\Tests\Stubs\LoaderDrop;
 use Keepsuit\Liquid\Tests\Stubs\ThingWithValue;
 
+test('limited ranges preserve offsets reversals and continuation without expanding the range', function () {
+    $source = '{% for i in (1..1000000000) reversed offset:2 limit:3 %}{{ i }},{% endfor %}'
+        .'{% for i in (1..1000000000) offset:continue limit:2 %}{{ i }},{% endfor %}'
+        .'{% for i in (1..1000000000) offset:-2 limit:1 %}{{ i }},{% endfor %}';
+
+    assertTemplateResult('5,4,3,6,7,999999999,', $source);
+    expect(implode('', iterator_to_array(streamTemplate($source))))->toBe('5,4,3,6,7,999999999,');
+});
+
+test('range subclasses retain their iterator and eager evaluation order in for loops', function () {
+    $events = [];
+    $range = new class(1, 1000000000) extends \Keepsuit\Liquid\Nodes\Range
+    {
+        public Closure $onIterate;
+
+        public function getIterator(): ArrayIterator
+        {
+            ($this->onIterate)();
+
+            return new ArrayIterator(['custom', 'tail']);
+        }
+    };
+    $range->onIterate = function () use (&$events) {
+        $events[] = 'iterate';
+    };
+    $data = [
+        'items' => $range,
+        'offset' => function () use (&$events) {
+            $events[] = 'offset';
+
+            return 0;
+        },
+        'limit' => function () use (&$events) {
+            $events[] = 'limit';
+
+            return 1;
+        },
+    ];
+
+    assertTemplateResult('custom', '{% for i in items offset:offset limit:limit %}{{ i }}{% endfor %}', data: $data);
+    expect($events)->toBe(['iterate', 'offset', 'limit']);
+});
+
 test('for', function () {
     assertTemplateResult(
         ' yo  yo  yo  yo ',
@@ -405,3 +448,17 @@ test('for cleans up registers', function () {
 
     expect($context->getRegister('for_stack'))->toBe([]);
 });
+
+test('in-memory for bodies retain loop scope and restore outer variables', function (string $method) {
+    $environment = \Keepsuit\Liquid\Environment::default();
+    $template = $environment->parseString('{% for item in items %}{{ item }}:{{ forloop.index }};{% endfor %}');
+    assert($template instanceof \Keepsuit\Liquid\ParsedTemplate);
+    $tag = $template->root->body->children()[0];
+    assert($tag instanceof \Keepsuit\Liquid\Tags\ForTag);
+    $context = $environment->newRenderContext(data: ['items' => ['a', 'b'], 'item' => 'outer', 'forloop' => 'outer loop']);
+    $output = $tag->$method($context);
+    expect($method === 'streamBlocks' ? implode('', iterator_to_array($output, preserve_keys: false)) : $output)->toBe('a:1;b:2;');
+    expect($context->getRegister('for_stack'))->toBe([]);
+    expect($context->get('item'))->toBe('outer');
+    expect($context->get('forloop'))->toBe('outer loop');
+})->with(['renderBlocks', 'streamBlocks']);

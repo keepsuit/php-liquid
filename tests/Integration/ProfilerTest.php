@@ -9,7 +9,7 @@ use Keepsuit\Liquid\Tests\Stubs\ProfilingFileSystem;
 use Keepsuit\Liquid\Tests\Stubs\SleepTag;
 
 test('profiling can be enabled with extension', function () {
-    $environment = EnvironmentFactory::new()->build();
+    $environment = testEnvironment(EnvironmentFactory::new()->build());
     $template = $environment->parseString("{{ 'a string' | upcase }}");
 
     $template->render($context = $environment->newRenderContext());
@@ -72,11 +72,11 @@ test('profile rendering time', function () {
 });
 
 test('profiling multiple renders', function () {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setFilesystem(new ProfilingFileSystem)
         ->registerTag(SleepTag::class)
         ->addExtension(new ProfilerExtension($profiler = new Profiler, tags: true, variables: true))
-        ->build();
+        ->build());
 
     $context = $environment->newRenderContext();
     $template = $environment->parseString('{% sleep 0.001 %}', 'index');
@@ -200,11 +200,11 @@ test('profiling support duration', function () {
 
 function profileTemplate(string $source, array $assigns = []): Profile
 {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setFilesystem(new ProfilingFileSystem)
         ->registerTag(SleepTag::class)
         ->addExtension(new ProfilerExtension($profiler = new Profiler, tags: true, variables: true))
-        ->build();
+        ->build());
 
     $template = $environment->parseString($source);
 

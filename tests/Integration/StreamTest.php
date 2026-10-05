@@ -1,5 +1,65 @@
 <?php
 
+use Keepsuit\Liquid\Contracts\CanBeStreamed;
+use Keepsuit\Liquid\Environment;
+use Keepsuit\Liquid\EnvironmentFactory;
+use Keepsuit\Liquid\Exceptions\ResourceLimitException;
+use Keepsuit\Liquid\Parse\TagParseContext;
+use Keepsuit\Liquid\Render\RenderContext;
+use Keepsuit\Liquid\Render\ResourceLimits;
+use Keepsuit\Liquid\Tag;
+use Keepsuit\Liquid\Template;
+
+class UnsupportedCompilerStreamTestTag extends Tag implements CanBeStreamed
+{
+    public static function tagName(): string
+    {
+        return 'unsupported_compiler_stream';
+    }
+
+    public function parse(TagParseContext $context): static
+    {
+        return $this;
+    }
+
+    public function render(RenderContext $context): string
+    {
+        return 'runtime1runtime2';
+    }
+
+    public function stream(RenderContext $context): \Generator
+    {
+        yield 'runtime1';
+        yield 'runtime2';
+    }
+}
+
+function compileStreamTestTemplate(Environment $environment, Template $template): Template
+{
+    $path = tempnam(sys_get_temp_dir(), 'liquid-compiled-stream-');
+
+    if ($path === false) {
+        throw new RuntimeException('Unable to create a temporary compiled template path.');
+    }
+
+    unlink($path);
+    $path .= '.php';
+
+    try {
+        $environment->compile($template, $path);
+
+        /** @var Template $compiled */
+        return require $path;
+    } finally {
+        @unlink($path);
+    }
+}
+
+function streamChunks(Template $template, RenderContext $context): array
+{
+    return iterator_to_array($template->stream($context));
+}
+
 test('template can be streamed', function () {
     $stream = streamTemplate(<<<'LIQUID'
     text
@@ -59,6 +119,36 @@ test('generator variable with filters is not streamed', function () {
         ->{0}->toBe(str_repeat('a', 4096).','.str_repeat('b', 4096));
 });
 
+test('array output preserves order coercion and generator materialization', function (bool $useCompiler, string $method) {
+    $environment = Environment::default();
+    $template = $environment->parseString('before{{ values }}after');
+    $template = $useCompiler ? compileStreamTestTemplate($environment, $template) : $template;
+    $events = [];
+    $object = new class($events)
+    {
+        public function __construct(private array &$events) {}
+
+        public function __toString(): string
+        {
+            $this->events[] = 'stringify';
+
+            return 'object';
+        }
+    };
+    $generator = (static function () use (&$events, $object): Generator {
+        $events[] = 'first';
+        yield $object;
+        $events[] = 'second';
+        yield 'tail';
+    })();
+    $data = ['values' => ['text', [true, false, null, 2.5], ['key' => 'value'], $generator]];
+    $output = $template->$method($environment->newRenderContext(data: $data));
+
+    expect($method === 'stream' ? implode('', iterator_to_array($output)) : $output)
+        ->toBe('beforetexttruefalse2.5valueobjecttailafter');
+    expect($events)->toBe(['first', 'second', 'stringify']);
+})->with(['in-memory' => false, 'compiled' => true])->with(['render', 'stream']);
+
 test('for tags stream their body chunks', function () {
     $stream = streamTemplate(
         '{% for item in items %}<item>{{ item }}</item>{% endfor %}',
@@ -95,7 +185,7 @@ test('if, unless, and case tags stream their selected body chunks', function () 
 });
 
 test('streaming enforces the render length limit across chunks', function () {
-    $environment = \Keepsuit\Liquid\Environment::default();
+    $environment = testEnvironment(\Keepsuit\Liquid\Environment::default());
     $template = $environment->parseString('{% for i in (1..6) %}{{ i }}{% endfor %}');
 
     $stream = $template->stream($environment->newRenderContext(
@@ -113,9 +203,9 @@ test('streaming enforces the render length limit across chunks', function () {
 });
 
 test('the render length limit covers chunks from partials and custom nodes', function () {
-    $environment = \Keepsuit\Liquid\EnvironmentFactory::new()
+    $environment = testEnvironment(\Keepsuit\Liquid\EnvironmentFactory::new()
         ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem(partials: ['snippet' => '{% streaming %}']))
-        ->build();
+        ->build());
     $environment->tagRegistry->register(\Keepsuit\Liquid\Tests\Stubs\StreamingTag::class);
 
     // The tag lives outside the library and yields its own chunks, nested one
@@ -137,7 +227,7 @@ test('the render length limit covers chunks from partials and custom nodes', fun
 });
 
 test('the render length limit caps one stream, not the context lifetime', function () {
-    $environment = \Keepsuit\Liquid\Environment::default();
+    $environment = testEnvironment(\Keepsuit\Liquid\Environment::default());
     $template = $environment->parseString('abcdefgh');
     $context = $environment->newRenderContext(
         resourceLimits: new \Keepsuit\Liquid\Render\ResourceLimits(renderLengthLimit: 10),
@@ -151,7 +241,7 @@ test('the render length limit caps one stream, not the context lifetime', functi
 });
 
 test('grouped output reaches the consumer before a rethrown error', function () {
-    $environment = \Keepsuit\Liquid\EnvironmentFactory::new()->setRethrowErrors(true)->build();
+    $environment = testEnvironment(\Keepsuit\Liquid\EnvironmentFactory::new()->setRethrowErrors(true)->build());
     $template = $environment->parseString('HELLO WORLD {{ boom.standard_error }} tail');
 
     $context = $environment->newRenderContext(staticData: [
@@ -182,10 +272,10 @@ test('grouped output survives an error handler throwing a non liquid exception',
         }
     };
 
-    $environment = \Keepsuit\Liquid\EnvironmentFactory::new()
+    $environment = testEnvironment(\Keepsuit\Liquid\EnvironmentFactory::new()
         ->setErrorHandler($handler)
         ->setRethrowErrors(false)
-        ->build();
+        ->build());
     $template = $environment->parseString('PREFIX {{ boom.standard_error }} tail');
 
     $context = $environment->newRenderContext(staticData: [
@@ -203,7 +293,7 @@ test('grouped output survives an error handler throwing a non liquid exception',
 });
 
 test('a consumer can stop reading a stream part way through', function () {
-    $environment = \Keepsuit\Liquid\Environment::default();
+    $environment = testEnvironment(\Keepsuit\Liquid\Environment::default());
     $template = $environment->parseString('{% for i in items %}{{ i }}{% endfor %}');
 
     $context = $environment->newRenderContext(staticData: [
@@ -222,7 +312,7 @@ test('a consumer can stop reading a stream part way through', function () {
 });
 
 test('streamed for tags preserve break and continue behavior', function () {
-    $environment = \Keepsuit\Liquid\Environment::default();
+    $environment = testEnvironment(\Keepsuit\Liquid\Environment::default());
     $template = $environment->parseString(<<<'LIQUID'
     {% for item in items %}{{ item }}{% if item == 'b' %}{% continue %}{% endif %}x{% if item == 'c' %}{% break %}{% endif %}{% endfor %}
     LIQUID
@@ -234,4 +324,245 @@ test('streamed for tags preserve break and continue behavior', function () {
 
     expect(implode('', iterator_to_array($template->stream($context))))
         ->toBe('axbcx');
+});
+
+test('compiled stream preserves complete output', function () {
+    $environment = Environment::default();
+    $source = "text\n{{ var }}";
+    $template = $environment->parseString($source, name: 'stream.liquid');
+    $compiled = compileStreamTestTemplate($environment, $template);
+
+    $interpreted = streamChunks($template, $environment->newRenderContext(staticData: [
+        'var' => static function () {
+            yield 'text1';
+            yield 'text2';
+        },
+    ]));
+    $optimized = streamChunks($compiled, $environment->newRenderContext(staticData: [
+        'var' => static function () {
+            yield 'text1';
+            yield 'text2';
+        },
+    ]));
+
+    expect(implode('', $optimized))
+        ->toBe(implode('', $interpreted))
+        ->toBe("text\ntext1text2");
+});
+
+test('compiled for loops enforce the length limit across buffered iterations', function () {
+    $environment = Environment::default();
+    $template = $environment->parseString('{% for item in items %}{{ item }}{% endfor %}');
+    $compiled = compileStreamTestTemplate($environment, $template);
+    $context = $environment->newRenderContext(
+        staticData: ['items' => [str_repeat('a', 4096), 'bb', 'c']],
+        resourceLimits: new ResourceLimits(renderLengthLimit: 4096),
+    );
+
+    $stream = $compiled->stream($context);
+
+    expect($stream->current())->toBe(str_repeat('a', 4096));
+    expect(fn () => $stream->next())->toThrow(ResourceLimitException::class);
+});
+
+test('abandoning a buffered compiled stream restores nested loop scopes', function () {
+    $environment = Environment::default();
+    $template = $environment->parseString('{% for item in items %}{% for inner in items %}{{ inner }}{% endfor %}{% endfor %}');
+    $compiled = compileStreamTestTemplate($environment, $template);
+    $context = $environment->newRenderContext(data: [
+        'items' => array_fill(0, 8, str_repeat('x', 1024)),
+        'item' => 'outer item',
+        'inner' => 'outer inner',
+        'forloop' => 'outer loop',
+    ]);
+    $stream = $compiled->stream($context);
+
+    expect($stream->current())->toBe(str_repeat('x', 4096));
+    expect($context->getRegister('for_stack'))->toHaveCount(2);
+    unset($stream);
+
+    expect($context->getRegister('for_stack'))->toBe([]);
+    expect($context->get('item'))->toBe('outer item');
+    expect($context->get('inner'))->toBe('outer inner');
+    expect($context->get('forloop'))->toBe('outer loop');
+});
+
+test('stream flushes its prefix before an error handler throws and restores loop scopes', function (bool $useCompiler) {
+    $handler = new class implements \Keepsuit\Liquid\Contracts\LiquidErrorHandler
+    {
+        public function handle(Throwable $error): string
+        {
+            throw new RuntimeException('from handler');
+        }
+    };
+    $environment = EnvironmentFactory::new()->setErrorHandler($handler)->setRethrowErrors(false)->build();
+    $template = $environment->parseString('PREFIX {% for item in items %}{{ boom.standard_error }}{% endfor %} tail');
+    $template = $useCompiler ? compileStreamTestTemplate($environment, $template) : $template;
+    $context = $environment->newRenderContext(data: [
+        'items' => [1, 2],
+        'item' => 'outer',
+        'boom' => new \Keepsuit\Liquid\Tests\Stubs\ErrorDrop,
+    ]);
+    $received = [];
+
+    expect(function () use ($template, $context, &$received) {
+        foreach ($template->stream($context) as $chunk) {
+            $received[] = $chunk;
+        }
+    })->toThrow(RuntimeException::class, 'from handler');
+
+    expect($received)->toBe(['PREFIX ']);
+    expect($context->getRegister('for_stack'))->toBe([]);
+    expect($context->get('item'))->toBe('outer');
+})->with(['in-memory' => false, 'compiled' => true]);
+
+test('streamed scalar variables leave later values lazy after a full buffer', function (bool $useCompiler, bool $filtered) {
+    $environment = Environment::default();
+    $template = $environment->parseString('prefix{{ first'.($filtered ? ' | upcase' : '').' }}{{ second }}');
+    $template = $useCompiler ? compileStreamTestTemplate($environment, $template) : $template;
+    $firstCalls = 0;
+    $secondCalls = 0;
+    $stream = $template->stream($environment->newRenderContext(data: [
+        'first' => function () use (&$firstCalls) {
+            $firstCalls++;
+
+            return str_repeat('x', 4090);
+        },
+        'second' => function () use (&$secondCalls) {
+            $secondCalls++;
+
+            return 'tail';
+        },
+    ]));
+
+    expect([$firstCalls, $secondCalls])->toBe([0, 0]);
+    expect($stream->current())->toBe('prefix'.str_repeat($filtered ? 'X' : 'x', 4090));
+    expect([$firstCalls, $secondCalls])->toBe([1, 0]);
+    $stream->next();
+    expect($stream->current())->toBe('tail');
+    expect([$firstCalls, $secondCalls])->toBe([1, 1]);
+})->with(['in-memory' => false, 'compiled' => true])->with(['unfiltered' => false, 'filtered' => true]);
+
+test('in-memory variable subclasses retain their stream overrides', function () {
+    $variable = new class('ignored') extends \Keepsuit\Liquid\Nodes\Variable
+    {
+        public function stream(RenderContext $context): Generator
+        {
+            yield 'custom';
+        }
+    };
+    $body = new \Keepsuit\Liquid\Nodes\BodyNode([$variable]);
+
+    expect(iterator_to_array($body->stream(Environment::default()->newRenderContext())))->toBe(['custom']);
+});
+
+test('compiled stream does not evaluate until the generator is consumed', function () {
+    $environment = Environment::default();
+    $template = $environment->parseString('{{ value }}');
+    $compiled = compileStreamTestTemplate($environment, $template);
+    $evaluations = 0;
+    $stream = $compiled->stream($environment->newRenderContext(staticData: [
+        'value' => static function () use (&$evaluations): string {
+            $evaluations++;
+
+            return 'value';
+        },
+    ]));
+
+    expect($stream)->toBeInstanceOf(Generator::class);
+    expect($evaluations)->toBe(0);
+    expect($stream->current())->toBe('value');
+    expect($evaluations)->toBe(1);
+});
+
+test('compiled stream preserves filtered generator output as one chunk', function () {
+    $environment = Environment::default();
+    $template = $environment->parseString('{{ var | join: "," }}');
+    $compiled = compileStreamTestTemplate($environment, $template);
+
+    $factory = static fn (): \Generator => (static function () {
+        yield 'text1';
+        yield 'text2';
+    })();
+
+    $interpreted = streamChunks($template, $environment->newRenderContext(staticData: ['var' => $factory]));
+    $optimized = streamChunks($compiled, $environment->newRenderContext(staticData: ['var' => $factory]));
+
+    expect($optimized)->toBe($interpreted)->toBe(['text1,text2']);
+});
+
+test('compiled generator variables consume and coerce one value at a time', function () {
+    $environment = Environment::default();
+    $compiled = compileStreamTestTemplate($environment, $environment->parseString('{{ value }}'));
+    $consumed = 0;
+    $value = (static function () use (&$consumed): Generator {
+        foreach ([true, null, ['a', 'b'], 2.5] as $chunk) {
+            $consumed++;
+            yield $chunk;
+        }
+    })();
+    $stream = $compiled->stream($environment->newRenderContext(data: ['value' => $value]));
+
+    expect($consumed)->toBe(0);
+    expect($stream->current())->toBe('true');
+    expect($consumed)->toBe(1);
+    $stream->next();
+    expect($stream->current())->toBe('');
+    expect($consumed)->toBe(2);
+    $stream->next();
+    expect($stream->current())->toBe('ab');
+    expect($consumed)->toBe(3);
+    $stream->next();
+    expect($stream->current())->toBe('2.5');
+    expect($consumed)->toBe(4);
+});
+
+test('compiled stream preserves unsupported tag output', function () {
+    $environment = EnvironmentFactory::new()
+        ->registerTag(UnsupportedCompilerStreamTestTag::class)
+        ->build();
+    $template = $environment->parseString('before{% unsupported_compiler_stream %}after');
+    $compiled = compileStreamTestTemplate($environment, $template);
+
+    $interpreted = streamChunks($template, $environment->newRenderContext());
+    $optimized = streamChunks($compiled, $environment->newRenderContext());
+
+    expect($optimized)
+        ->toBe($interpreted)
+        ->toBe(['before', 'runtime1', 'runtime2', 'after']);
+});
+
+test('compiled stream preserves interrupts', function () {
+    $environment = Environment::default();
+    $template = $environment->parseString('before{% break %}after');
+    $compiled = compileStreamTestTemplate($environment, $template);
+
+    $interpreted = streamChunks($template, $environment->newRenderContext());
+    $optimized = streamChunks($compiled, $environment->newRenderContext());
+
+    expect(implode('', $optimized))
+        ->toBe(implode('', $interpreted))
+        ->toBe('before');
+});
+
+test('compiled stream preserves resource-limit exceptions', function () {
+    $environment = Environment::default();
+    $template = $environment->parseString('0123456789', name: 'limited.liquid');
+    $compiled = compileStreamTestTemplate($environment, $template);
+
+    $interpretedContext = $environment->newRenderContext(
+        resourceLimits: new ResourceLimits(renderLengthLimit: 9),
+    );
+    $compiledContext = $environment->newRenderContext(
+        resourceLimits: new ResourceLimits(renderLengthLimit: 9),
+    );
+
+    expect(fn () => streamChunks($template, $interpretedContext))
+        ->toThrow(ResourceLimitException::class);
+    expect(fn () => streamChunks($compiled, $compiledContext))
+        ->toThrow(ResourceLimitException::class);
+
+    expect($compiledContext->resourceLimits->reached())
+        ->toBe($interpretedContext->resourceLimits->reached())
+        ->toBeTrue();
 });

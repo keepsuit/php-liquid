@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
@@ -53,6 +54,22 @@ class UnlessTag extends IfTag
         }
 
         yield from $this->streamConditions($context, $this->conditions);
+    }
+
+    public function compile(CompilerContext $context): void
+    {
+        if ($this->unlessCondition !== null) {
+            $context->write('if (! ('.$context->writeConditionExpression($this->unlessCondition).')) {');
+            $context->indent();
+
+            if ($this->unlessCondition->body !== null) {
+                $context->compileBody($this->unlessCondition->body);
+            }
+
+            $context->outdent()->write('}');
+        }
+
+        $this->compileConditions($context, $this->conditions, false);
     }
 
     public function parseTreeVisitorChildren(): array

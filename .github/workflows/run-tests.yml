@@ -29,6 +29,7 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           extensions: ${{ env.REQUIRED_PHP_EXTENSIONS }}
+          ini-values: opcache.jit=disable
           coverage: none
 
       - name: "Cache composer dependencies"
@@ -45,5 +46,12 @@ jobs:
       - name: Install dependencies
         run: composer update --${{ matrix.stability }} --prefer-dist --no-interaction
 
-      - name: Execute tests
+      - name: Execute tests with in-memory templates
         run: vendor/bin/pest
+        env:
+          LIQUID_TEST_BACKEND: in-memory
+
+      - name: Execute tests with compiled templates
+        run: vendor/bin/pest
+        env:
+          LIQUID_TEST_BACKEND: compiled

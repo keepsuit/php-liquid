@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Parse\TagParseContext;
@@ -43,5 +44,22 @@ class IfChanged extends TagBlock
         $context->setRegister('ifchanged', $output);
 
         return $output;
+    }
+
+    /** @internal */
+    public function compileNative(CompilerContext $context): void
+    {
+        if ($this->body::class !== BodyNode::class) {
+            $context->compileFallback($this);
+
+            return;
+        }
+
+        $output = $context->temporaryVariable();
+        $context->writeRenderedBody($this->body, $output);
+        $context->write('if ($context->getRegister("ifchanged") !== '.$output.') {')->indent();
+        $context->write('$context->setRegister("ifchanged", '.$output.');');
+        $context->writeOutput($output);
+        $context->outdent()->write('}');
     }
 }

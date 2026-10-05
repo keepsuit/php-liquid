@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
+use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Drops\ForLoopDrop;
@@ -11,7 +13,6 @@ use Keepsuit\Liquid\Parse\ExpressionParser;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Parse\TokenType;
 use Keepsuit\Liquid\Render\RenderContext;
-use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\UndefinedVariable;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\Template;
@@ -19,7 +20,7 @@ use Keepsuit\Liquid\Template;
 /**
  * @phpstan-import-type Expression from ExpressionParser
  */
-class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildren
+class RenderTag extends Tag implements CanBeCompiled, CanBeStreamed, HasParseTreeVisitorChildren
 {
     protected string|VariableLookup $templateNameExpression;
 
@@ -102,17 +103,21 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
         return $this;
     }
 
+    /**
+     * Rendering does not go through stream(): a partial reached through the
+     * generator chain pays for a Generator per nesting level, and render tags
+     * are the most common node in a real theme.
+     */
     public function render(RenderContext $context): string
     {
         $partial = $this->loadPartial($context);
         $templateName = $partial->name() ?? '';
 
-        $contextVariableName = ($this->aliasName ?? Arr::last(explode('/', $templateName)));
-        assert(is_string($contextVariableName));
+        $contextVariableName = $this->aliasName ?? self::defaultVariableName($templateName);
 
         $variable = $this->variableNameExpression ? $context->evaluate($this->variableNameExpression) : null;
 
-        $values = $this->resolveLoopValues($variable);
+        $values = self::loopValues($variable, $this->isForLoop);
 
         if ($values === null) {
             return $partial->render($this->buildPartialContext($context, $templateName, [
@@ -135,17 +140,60 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
         return $output;
     }
 
+    /**
+     * Compile the common static partial form without rebuilding the tag object
+     * in the generated template.
+     */
+    public function compile(CompilerContext $context): void
+    {
+        if (! is_string($this->templateNameExpression)) {
+            $context->compileFallback($this);
+
+            return;
+        }
+
+        $this->compilePartial($context, $context->writeValue($this->templateNameExpression));
+    }
+
+    protected function compilePartial(CompilerContext $context, string $templateName): void
+    {
+        $attributes = [];
+        foreach ($this->attributes as $key => $value) {
+            $attributes[] = $context->writeValue($key).' => '.$this->compileExpressionValue($context, $value);
+        }
+
+        $expression = sprintf(
+            '$this->%s($context, %s, %s, %s, [%s])',
+            ($context->isRendering() ? 'renderPartial' : 'yieldPartial').($this->isForLoop ? 'Loop' : ''),
+            $templateName,
+            $this->compileExpressionValue($context, $this->variableNameExpression),
+            $context->writeValue($this->aliasName),
+            implode(', ', $attributes),
+        );
+
+        if ($context->isRendering()) {
+            $context->writeOutput($expression);
+        } else {
+            $context->flushStreamBuffer();
+            $context->writeYield('from '.$expression);
+        }
+    }
+
+    private function compileExpressionValue(CompilerContext $context, mixed $value): string
+    {
+        return $context->writeLookupValue($value) ?? $context->writeCachedValue($value);
+    }
+
     public function stream(RenderContext $context): \Generator
     {
         $partial = $this->loadPartial($context);
         $templateName = $partial->name() ?? '';
 
-        $contextVariableName = ($this->aliasName ?? Arr::last(explode('/', $templateName)));
-        assert(is_string($contextVariableName));
+        $contextVariableName = $this->aliasName ?? self::defaultVariableName($templateName);
 
         $variable = $this->variableNameExpression ? $context->evaluate($this->variableNameExpression) : null;
 
-        $values = $this->resolveLoopValues($variable);
+        $values = self::loopValues($variable, $this->isForLoop);
 
         if ($values !== null) {
             $forLoop = new ForLoopDrop($templateName, count($values));
@@ -197,11 +245,13 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
     /**
      * Returns null when the partial must be rendered once: `with`, or `for` over a non-iterable value.
      *
+     * @internal
+     *
      * @return array<mixed>|null
      */
-    private function resolveLoopValues(mixed $variable): ?array
+    public static function loopValues(mixed $variable, bool $isForLoop): ?array
     {
-        if (! $this->isForLoop) {
+        if (! $isForLoop) {
             return null;
         }
 
@@ -210,6 +260,14 @@ class RenderTag extends Tag implements CanBeStreamed, HasParseTreeVisitorChildre
         }
 
         return is_iterable($variable) ? iterator_to_array($variable) : null;
+    }
+
+    /** @internal */
+    public static function defaultVariableName(string $templateName): string
+    {
+        $separator = strrpos($templateName, '/');
+
+        return $separator === false ? $templateName : substr($templateName, $separator + 1);
     }
 
     protected function buildPartialContext(RenderContext $rootContext, string $templateName, array $variables = []): RenderContext

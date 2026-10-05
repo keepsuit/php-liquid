@@ -71,12 +71,12 @@ test('every numeric filter accepts nil booleans and non-numeric strings', functi
 ])->with(['nil', 'true', 'false', "'abc'"]);
 
 test('numeric coercion keeps environment options independent', function (bool $strictVariables, bool $strictFilters, bool $rethrowErrors, bool $stream) {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setStrictVariables($strictVariables)
         ->setStrictFilters($strictFilters)
         ->setRethrowErrors($rethrowErrors)
         ->setLazyParsing(false)
-        ->build();
+        ->build());
     $context = $environment->newRenderContext(data: ['value' => null]);
     $template = $environment->parseString("{{ value | plus: true }}|{{ '1abc' | minus: false }}|{{ 7.5 | modulo: -2 }}|{{ 1.0 | divided_by: 0 }}");
 
@@ -87,10 +87,10 @@ test('numeric coercion keeps environment options independent', function (bool $s
 })->with([false, true], [false, true], [false, true], [false, true]);
 
 test('numeric filters report missing variables in inputs and arguments under strict variables', function (string $source, bool $rethrowErrors, bool $stream) {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setStrictVariables(true)
         ->setRethrowErrors($rethrowErrors)
-        ->build();
+        ->build());
     $context = $environment->newRenderContext();
     $template = $environment->parseString($source);
     $render = fn () => $stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context);
@@ -115,7 +115,7 @@ test('missing variables coerce to zero without strict variables', function () {
 });
 
 test('integer division and modulo by zero remain Liquid arithmetic errors', function (string $source, bool $rethrowErrors, bool $stream) {
-    $environment = EnvironmentFactory::new()->setRethrowErrors($rethrowErrors)->build();
+    $environment = testEnvironment(EnvironmentFactory::new()->setRethrowErrors($rethrowErrors)->build());
     $context = $environment->newRenderContext();
     $template = $environment->parseString($source);
     $render = fn () => $stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context);
@@ -136,10 +136,10 @@ test('integer division and modulo by zero remain Liquid arithmetic errors', func
 ])->with([false, true], [false, true]);
 
 test('strict filters only controls unknown filters after numeric coercion', function (bool $strictFilters, bool $rethrowErrors) {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setStrictFilters($strictFilters)
         ->setRethrowErrors($rethrowErrors)
-        ->build();
+        ->build());
     $context = $environment->newRenderContext();
     $template = $environment->parseString("{{ 'abc' | plus: 1 | unknown }}");
 
@@ -161,13 +161,13 @@ test('custom filter overrides retain their original types and PHP coercion', fun
 });
 
 test('numeric coercion works in partials with either lazy parsing setting', function (bool $lazyParsing, bool $stream) {
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setStrictVariables(true)
         ->setStrictFilters(true)
         ->setRethrowErrors(true)
         ->setLazyParsing($lazyParsing)
         ->setFilesystem(new StubFileSystem(['number' => '{{ value | plus: 1 }}']))
-        ->build();
+        ->build());
     $template = $environment->parseString("{% render 'number', value: nil %}");
     $context = $environment->newRenderContext();
 

@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Interrupts\BreakInterrupt;
 use Keepsuit\Liquid\Parse\TagParseContext;
@@ -31,5 +32,11 @@ class BreakTag extends Tag
         $context->pushInterrupt(new BreakInterrupt);
 
         return '';
+    }
+
+    /** @internal */
+    public function compileNative(CompilerContext $context): void
+    {
+        $context->write('$context->pushInterrupt(new '.$context->writeClassName(BreakInterrupt::class).');');
     }
 }

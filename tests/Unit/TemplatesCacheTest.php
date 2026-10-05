@@ -9,7 +9,7 @@ test('templates cache', function (LiquidTemplatesCache $cache) {
         ->has('test')->toBe(false)
         ->get('test')->toBeNull();
 
-    $template = parseTemplate('Hello {{ name }}');
+    $template = parseSource('Hello {{ name }}');
 
     $cache->set('test', $template);
     expect($cache)
@@ -35,6 +35,8 @@ test('templates cache', function (LiquidTemplatesCache $cache) {
     'serialize & memory' => fn () => new \Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache(__DIR__.'/../cache/serialize', keepInMemory: true),
     'var export' => fn () => new \Keepsuit\Liquid\TemplatesCache\VarExportTemplatesCache(__DIR__.'/../cache/var_export', keepInMemory: false),
     'var export & memory' => fn () => new \Keepsuit\Liquid\TemplatesCache\VarExportTemplatesCache(__DIR__.'/../cache/var_export', keepInMemory: true),
+    'compiled' => fn () => new \Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache(__DIR__.'/../cache/compiled', keepInMemory: false),
+    'compiled & memory' => fn () => new \Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache(__DIR__.'/../cache/compiled', keepInMemory: true),
 ]);
 
 function countingSerializeCache(string $path, bool $keepInMemory): \Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache
@@ -56,7 +58,7 @@ test('filesystem cache keeps templates loaded from disk in memory', function () 
     $path = __DIR__.'/../cache/serialize-memo';
     $writer = countingSerializeCache($path, true);
     $writer->clear();
-    $writer->set('test', parseTemplate('Hello {{ name }}'));
+    $writer->set('test', parseSource('Hello {{ name }}'));
 
     $reader = countingSerializeCache($path, true);
     $first = $reader->get('test');
@@ -74,7 +76,7 @@ test('filesystem cache without keepInMemory loads from disk on every get', funct
     $path = __DIR__.'/../cache/serialize-memo';
     $writer = countingSerializeCache($path, true);
     $writer->clear();
-    $writer->set('test', parseTemplate('Hello {{ name }}'));
+    $writer->set('test', parseSource('Hello {{ name }}'));
 
     $reader = countingSerializeCache($path, false);
     $reader->get('test');
@@ -91,6 +93,6 @@ test('filesystem cache does not memoize missing templates', function () {
     $reader = countingSerializeCache($path, true);
     expect($reader->get('missing'))->toBeNull();
 
-    $writer->set('missing', parseTemplate('Hello'));
+    $writer->set('missing', parseSource('Hello'));
     expect($reader->get('missing'))->toBeInstanceOf(\Keepsuit\Liquid\Template::class);
 });

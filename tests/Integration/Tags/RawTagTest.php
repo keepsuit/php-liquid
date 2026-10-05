@@ -78,7 +78,7 @@ test('access raw tag body', function () {
     {% raw %}$content{% endraw %}
     LIQUID;
 
-    $template = parseTemplate($template);
+    $template = parseSource($template);
     $rawTag = $template->root->body->children()[0] ?? null;
 
     expect($rawTag)

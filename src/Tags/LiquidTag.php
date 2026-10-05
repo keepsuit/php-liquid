@@ -2,6 +2,8 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
+use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Parse\TagParseContext;
@@ -11,7 +13,7 @@ use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tag;
 use Keepsuit\Liquid\TagBlock;
 
-class LiquidTag extends Tag
+class LiquidTag extends Tag implements CanBeCompiled
 {
     protected BodyNode $body;
 
@@ -101,6 +103,14 @@ class LiquidTag extends Tag
     public function render(RenderContext $context): string
     {
         return $this->body->render($context);
+    }
+
+    public function compile(CompilerContext $context): void
+    {
+        // LiquidTag renders its complete body even during streaming.
+        $value = $context->temporaryVariable();
+        $context->writeRenderedBody($this->body, $value);
+        $context->writeOutput($value);
     }
 
     /**

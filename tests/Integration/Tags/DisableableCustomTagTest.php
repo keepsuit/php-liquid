@@ -1,5 +1,7 @@
 <?php
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
+use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\Disableable;
 use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Nodes\BodyNode;
@@ -26,6 +28,17 @@ test('block tag disabling multiple tags', function () {
 
     expect(renderTemplate('{% disable %}{% custom %};{% custom2 %}{% enddisable %}', renderErrors: true, factory: $this->templateFactory))
         ->toBe('Liquid error (line 1): custom usage is not allowed in this context;Liquid error (line 1): custom2 usage is not allowed in this context');
+});
+
+test('compiled block tag disabling nested compiled tag', function () {
+    $factory = EnvironmentFactory::new()
+        ->registerTag(CompiledCustomTag::class)
+        ->registerTag(CompiledDisableCustomTag::class);
+    $source = '{% disable %}{% custom %}{% enddisable %};{% custom %}';
+    $expected = 'Liquid error (line 1): custom usage is not allowed in this context;custom';
+
+    expect(renderTemplate($source, renderErrors: true, factory: $factory))->toBe($expected);
+    expect(implode('', iterator_to_array(streamTemplate($source, renderErrors: true, factory: $factory), false)))->toBe($expected);
 });
 
 class CustomTag extends Tag implements Disableable
@@ -105,5 +118,29 @@ class DisableBothTag extends TagBlock
     public function render(RenderContext $context): string
     {
         return $context->withDisabledTags(['custom', 'custom2'], fn () => $this->body?->render($context) ?? '');
+    }
+}
+
+class CompiledCustomTag extends CustomTag implements CanBeCompiled
+{
+    public function compile(CompilerContext $context): void
+    {
+        $context->writeText(static::tagName());
+    }
+}
+
+class CompiledDisableCustomTag extends DisableCustomTag implements CanBeCompiled
+{
+    public function compile(CompilerContext $context): void
+    {
+        assert($this->body !== null);
+
+        $output = $context->temporaryVariable();
+        $context->write($output.' = $context->withDisabledTags([\'custom\'], function () use ($context): string {');
+        $context->indent();
+        $context->writeRenderedBody($this->body, '$body');
+        $context->write('return $body;');
+        $context->outdent()->write('});');
+        $context->writeOutput($output);
     }
 }

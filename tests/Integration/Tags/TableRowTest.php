@@ -1,5 +1,13 @@
 <?php
 
+test('tablerow selects limited ranges before materialization', function () {
+    $source = '{% tablerow i in (1..1000000000) offset:-2 limit:1 cols:1 %}{{ i }}{% endtablerow %}';
+    $expected = "<tr class=\"row1\">\n<td class=\"col1\">999999999</td></tr>\n";
+
+    assertTemplateResult($expected, $source);
+    expect(implode('', iterator_to_array(streamTemplate($source))))->toBe($expected);
+});
+
 test('tablerow markup matches Shopify byte for byte in render and stream', function () {
     $source = '{% tablerow i in arr cols:2 %}{{ i }}{% endtablerow %}';
     $expected = "<tr class=\"row1\">\n<td class=\"col1\">1</td><td class=\"col2\">2</td></tr>\n<tr class=\"row2\"><td class=\"col1\">3</td></tr>\n";

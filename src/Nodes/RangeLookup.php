@@ -2,17 +2,30 @@
 
 namespace Keepsuit\Liquid\Nodes;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Contracts\CanBeEvaluated;
+use Keepsuit\Liquid\Contracts\CanBeExported;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Render\RenderContext;
 
-class RangeLookup implements CanBeEvaluated, HasParseTreeVisitorChildren
+class RangeLookup implements CanBeEvaluated, CanBeExported, HasParseTreeVisitorChildren
 {
     final public function __construct(
         public readonly mixed $start,
         public readonly mixed $end,
     ) {}
+
+    public function export(CompilerContext $context): ?string
+    {
+        if (static::class !== self::class) {
+            return null;
+        }
+
+        return 'new '.$context->writeClassName(self::class).'('
+            .$context->writeValue($this->start).', '
+            .$context->writeValue($this->end).')';
+    }
 
     public function parseTreeVisitorChildren(): array
     {

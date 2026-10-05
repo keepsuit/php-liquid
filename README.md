@@ -125,6 +125,36 @@ $stream = $template->stream($context);
 // $stream is a Generator<string>
 ```
 
+### Compiled templates
+
+Compilation is opt-in. For production, use `CompiledTemplatesCache` to compile named
+templates on cache misses and load PHP artifacts on subsequent disk hits:
+
+```php
+$environment = \Keepsuit\Liquid\EnvironmentFactory::new()
+    ->setFilesystem(new \Keepsuit\Liquid\FileSystems\LocalFileSystem(__DIR__.'/views'))
+    ->setTemplatesCache(new \Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache(__DIR__.'/cache/liquid'))
+    ->build();
+
+$template = $environment->parseTemplate('hello');
+echo $template->render($environment->newRenderContext(data: ['name' => 'John']));
+```
+
+The first miss returns a parsed template; disk hits return a compiled template. With
+`keepInMemory: true` (the default), compiled templates stay in memory for the cache
+instance once loaded; templates written on a miss are loaded by the next hit.
+Use `remove($name)` or `clear()` when templates change or the library is upgraded.
+For manual artifact management, call `Environment::compile($parsedTemplate, $path)`
+and load the result with `require $path`.
+
+Loaded artifacts also support `stream()`. Compiled artifact classes remain loaded for the
+lifetime of a long-running worker.
+
+Custom `CanBeCompiled` nodes should throw
+`Keepsuit\Liquid\Compiler\UnsupportedNodeException` to request runtime fallback.
+Any other exception aborts compilation. Generated yields must go through
+`CompilerContext::writeYield()`, not `write('yield ...')`.
+
 ### Output formatting
 
 Float output follows Shopify Liquid 5.13: integral floats keep `.0` (`{{ 2 | times: 1.5 }}` renders
@@ -389,8 +419,9 @@ $environment->addExtension(new CustomExtension());
 
 ### Templates cache
 
-By default compiled templates are kept in a `MemoryTemplatesCache`, which lasts as long as the PHP process, so with PHP-FPM every request parses the templates again.
-`SerializeTemplatesCache` and `VarExportTemplatesCache` store compiled templates on disk.
+By default parsed templates are kept in a `MemoryTemplatesCache`, which lasts as long as the PHP process, so with PHP-FPM every request parses the templates again.
+`SerializeTemplatesCache` and `VarExportTemplatesCache` store parsed templates on disk;
+`CompiledTemplatesCache` stores executable PHP artifacts.
 With `keepInMemory: true` (the default) each template is read from disk only once per cache instance.
 
 ```php
@@ -438,6 +469,19 @@ But this package provides some custom tags and filters that you can use.
 
 ```bash
 composer test
+```
+
+This runs the full suite twice, using in-memory and compiled templates with the same
+expected outputs. Rendering helpers compile roots and partials, including partials
+loaded lazily. Parser, AST and serialized-cache tests retain their parsed fixtures;
+compiler-specific tests continue to exercise their explicit backends. Streaming
+output comparisons concatenate chunks when their boundaries are not part of the test.
+
+To run a single backend:
+
+```bash
+composer test:in-memory
+composer test:compiled
 ```
 
 ## Changelog

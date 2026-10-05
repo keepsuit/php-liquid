@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Parse\TagParseContext;
 use Keepsuit\Liquid\Render\RenderContext;
@@ -38,5 +39,16 @@ class IncrementTag extends Tag
         $context->setData($this->variableName, $counter + 1);
 
         return (string) $counter;
+    }
+
+    /** @internal */
+    public function compileNative(CompilerContext $context): void
+    {
+        $counter = $context->temporaryVariable();
+        $name = $context->writeValue($this->variableName);
+        $context->write($counter.' = $context->getData('.$name.');');
+        $context->write($counter.' = is_int('.$counter.') ? '.$counter.' : 0;');
+        $context->write('$context->setData('.$name.', '.$counter.' + 1);');
+        $context->writeOutput('(string) '.$counter);
     }
 }

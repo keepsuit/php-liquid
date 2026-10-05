@@ -9,19 +9,22 @@ php performance/profile-theme.php --output=profile.json
 
 ## What each group is for
 
-The three groups have different jobs, and conflating them is how a benchmark suite
+The benchmark groups have different jobs, and conflating them is how a benchmark suite
 stops being useful.
 
 **`default`** (`ThemeBench`) renders the storefront theme — 29 templates across
-four pages. It answers *"did rendering get slower"* and nothing more. It cannot
-tell you *what* got slower, because a regression in any one tag is averaged
-across everything else. Don't expect it to localize.
+four pages — with both interpreted `benchRender` and precompiled
+`benchRenderCompiled` subjects, plus `benchTokenize`, `benchParse` and `benchCompile`
+(code generation only, no filesystem). Compilation and artifact loading happen during
+setup, outside the timed compiled-render subject. It answers *"did rendering get
+slower"* and nothing more. It cannot tell you *what* got slower, because a
+regression in any one tag is averaged across everything else. Don't expect it to
+localize.
 
-**`cache`** (`TemplateCacheBench`) measures compilation and fresh-environment
-loading for every supported template-cache backend. The `LoadAndRender*` subjects
-use `keepInMemory: false` and measure a disk read on every `get()`;
-`benchFreshRequestSerialize` measures a fresh request with the default
-`keepInMemory: true`.
+**`cache`** (`TemplateCacheBench`) runs the same two subjects for every backend
+(in-memory, serialize, var-export, compiled): `benchBuild*` parses the theme into an
+empty cache, and `benchLoadAndRender*` builds a fresh environment per revolution, as
+a new request would, then loads the warm cache and renders every page.
 
 **`operations`** (`OperationBench`) measures single operations on tiny templates.
 This is where per-feature sensitivity lives, and where a benchmark is allowed to
@@ -31,6 +34,10 @@ instrument than a realistic page.
 The split is what lets the theme be realistic. Whenever realism and measurement
 sensitivity conflict inside the theme, realism wins — sensitivity is not the
 theme's job.
+
+Benchmarks run with OPcache enabled and JIT disabled, both locally (`phpbench.json`)
+and in CI. With JIT, short-lived benchmark processes mostly measure JIT compilation of
+the large generated template functions.
 
 Pull-request comparisons enforce a worst-subject throughput regression threshold
 of 5%. The comparator still labels changes inside its 2% noise band as neutral,
@@ -106,7 +113,7 @@ Known gaps, in rough priority order:
 - **Coverage-only tags.** `tablerow`, `increment`, `decrement`, `ifchanged`,
   `raw` and `doc` are unbenchmarked. Real themes barely use them, so they belong
   in `operations` rather than in the theme.
-- **`TemplateCacheBench` shape.** Six subjects are driven by six near-identical
+- **`TemplateCacheBench` shape.** Seven subjects are driven by seven near-identical
   `setUp*` wrappers around a string `match`; `ParamProviders` could reduce that
   repetition. Each benchmark setup now receives a unique temporary cache path,
   so concurrent runs do not share cache files.

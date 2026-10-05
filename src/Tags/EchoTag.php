@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Nodes\Variable;
@@ -44,5 +45,11 @@ class EchoTag extends Tag implements HasParseTreeVisitorChildren
     public function render(RenderContext $context): string
     {
         return $this->variable->render($context);
+    }
+
+    /** @internal */
+    public function compileNative(CompilerContext $context): void
+    {
+        $context->writeOutput(Variable::compileRenderEvaluated($context, $this->variable->compileValue($context)));
     }
 }

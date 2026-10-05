@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid;
 
+use Keepsuit\Liquid\Compiler\Compiler;
 use Keepsuit\Liquid\Contracts\LiquidErrorHandler;
 use Keepsuit\Liquid\Contracts\LiquidExtension;
 use Keepsuit\Liquid\Contracts\LiquidFileSystem;
@@ -130,6 +131,14 @@ class Environment
     public function parseTemplate(string $templateName): Template
     {
         return $this->newParseContext()->parseTemplate($templateName);
+    }
+
+    /**
+     * Write a requireable compiled artifact for the given template.
+     */
+    public function compile(ParsedTemplate $template, string $compiledPath): void
+    {
+        (new Compiler)->compileToFile($template, $compiledPath);
     }
 
     public function addExtension(LiquidExtension $extension): static

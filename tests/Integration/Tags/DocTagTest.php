@@ -152,7 +152,7 @@ test('access doc tag body', function () {
     {% doc %}$content{% enddoc %}
     LIQUID;
 
-    $template = parseTemplate($template);
+    $template = parseSource($template);
     $docTag = $template->root->body->children()[0] ?? null;
 
     expect($docTag)

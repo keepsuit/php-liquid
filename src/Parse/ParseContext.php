@@ -8,6 +8,7 @@ use Keepsuit\Liquid\Exceptions\InternalException;
 use Keepsuit\Liquid\Exceptions\LiquidException;
 use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
+use Keepsuit\Liquid\ParsedTemplate;
 use Keepsuit\Liquid\Support\OutputsBag;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\TemplateSharedState;
@@ -91,7 +92,7 @@ class ParseContext
 
             $root = $this->parser->parse($tokenStream, $name);
 
-            return new Template(
+            return new ParsedTemplate(
                 root: $root,
                 state: new TemplateSharedState(
                     partials: $this->partials,

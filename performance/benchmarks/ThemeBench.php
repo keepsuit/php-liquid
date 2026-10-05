@@ -2,8 +2,13 @@
 
 namespace Keepsuit\Liquid\Performance\benchmarks;
 
+use Keepsuit\Liquid\Compiler\CompiledTemplate;
+use Keepsuit\Liquid\Compiler\Compiler;
 use Keepsuit\Liquid\Environment;
+use Keepsuit\Liquid\ParsedTemplate;
 use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
+use Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache;
+use PhpBench\Attributes\AfterMethods;
 use PhpBench\Attributes\BeforeMethods;
 use PhpBench\Attributes\Groups;
 use PhpBench\Attributes\Iterations;
@@ -27,10 +32,15 @@ use PhpBench\Attributes\Revs;
 #[Revs(20)]
 #[OutputMode('throughput')]
 #[OutputTimeUnit('seconds', precision: 3)]
-#[BeforeMethods('setUp')]
 class ThemeBench
 {
     private Environment $environment;
+
+    private Environment $compiledEnvironment;
+
+    private CompiledTemplatesCache $compiledCache;
+
+    private string $compiledDirectory;
 
     /**
      * Sources are read up front: reading them inside a benchmark would measure
@@ -40,22 +50,53 @@ class ThemeBench
      */
     private array $sources;
 
+    /** @var array<string, ParsedTemplate> */
+    private array $templates;
+
     /** @var list<string> */
     private array $pageTemplateNames;
 
     public function setUp(): void
     {
         $this->environment = StorefrontTheme::environment();
+
         $this->sources = [];
+        $this->templates = [];
 
         foreach (StorefrontTheme::templateNames() as $name) {
-            $this->environment->parseTemplate($name);
+            $template = $this->environment->parseTemplate($name);
+            assert($template instanceof ParsedTemplate);
+            $this->templates[$name] = $template;
             $this->sources[$name] = StorefrontTheme::templateSource($name);
         }
 
         $this->pageTemplateNames = StorefrontTheme::pageTemplateNames();
     }
 
+    public function setUpCompiled(): void
+    {
+        $this->compiledDirectory = sys_get_temp_dir().'/keepsuit-liquid-phpbench-'.bin2hex(random_bytes(8));
+        $this->compiledCache = new CompiledTemplatesCache($this->compiledDirectory);
+        $this->compiledEnvironment = StorefrontTheme::environmentFactory()->setTemplatesCache($this->compiledCache)->build();
+
+        foreach (StorefrontTheme::templateNames() as $name) {
+            $this->compiledEnvironment->parseTemplate($name);
+
+            if (! $this->compiledCache->get($name) instanceof CompiledTemplate) {
+                throw new \RuntimeException("Template {$name} is not cached as a compiled artifact.");
+            }
+        }
+
+        $this->pageTemplateNames = StorefrontTheme::pageTemplateNames();
+    }
+
+    public function tearDownCompiled(): void
+    {
+        $this->compiledCache->clear();
+        rmdir($this->compiledDirectory);
+    }
+
+    #[BeforeMethods('setUp')]
     public function benchTokenize(): void
     {
         foreach ($this->sources as $source) {
@@ -63,6 +104,7 @@ class ThemeBench
         }
     }
 
+    #[BeforeMethods('setUp')]
     public function benchParse(): void
     {
         foreach ($this->sources as $name => $source) {
@@ -70,6 +112,17 @@ class ThemeBench
         }
     }
 
+    #[BeforeMethods('setUp')]
+    public function benchCompile(): void
+    {
+        $compiler = new Compiler;
+
+        foreach ($this->templates as $template) {
+            $compiler->compile($template);
+        }
+    }
+
+    #[BeforeMethods('setUp')]
     public function benchRender(): void
     {
         foreach ($this->pageTemplateNames as $pageTemplateName) {
@@ -77,10 +130,29 @@ class ThemeBench
         }
     }
 
+    #[BeforeMethods('setUpCompiled')]
+    #[AfterMethods('tearDownCompiled')]
+    public function benchRenderCompiled(): void
+    {
+        foreach ($this->pageTemplateNames as $pageTemplateName) {
+            StorefrontTheme::renderPage($this->compiledEnvironment, $pageTemplateName);
+        }
+    }
+
+    #[BeforeMethods('setUp')]
     public function benchStream(): void
     {
         foreach ($this->pageTemplateNames as $pageTemplateName) {
             $this->drain(StorefrontTheme::streamPage($this->environment, $pageTemplateName));
+        }
+    }
+
+    #[BeforeMethods('setUpCompiled')]
+    #[AfterMethods('tearDownCompiled')]
+    public function benchStreamCompiled(): void
+    {
+        foreach ($this->pageTemplateNames as $pageTemplateName) {
+            $this->drain(StorefrontTheme::streamPage($this->compiledEnvironment, $pageTemplateName));
         }
     }
 

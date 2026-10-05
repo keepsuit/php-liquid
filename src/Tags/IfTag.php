@@ -2,8 +2,10 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Condition\Condition;
 use Keepsuit\Liquid\Condition\ElseCondition;
+use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Parse\TagParseContext;
@@ -12,7 +14,7 @@ use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\TagBlock;
 
-class IfTag extends TagBlock implements CanBeStreamed
+class IfTag extends TagBlock implements CanBeCompiled, CanBeStreamed
 {
     /** @var Condition[] */
     protected array $conditions = [];
@@ -76,6 +78,50 @@ class IfTag extends TagBlock implements CanBeStreamed
             }
 
             return;
+        }
+    }
+
+    public function compile(CompilerContext $context): void
+    {
+        $this->compileConditions($context, $this->conditions);
+    }
+
+    /**
+     * @param  array<Condition>  $conditions
+     */
+    protected function compileConditions(CompilerContext $context, array $conditions, bool $first = true): void
+    {
+        foreach ($conditions as $condition) {
+            $isElse = $condition->else();
+
+            if ($isElse && $first) {
+                if ($condition->body !== null) {
+                    $context->compileBody($condition->body);
+                }
+
+                break;
+            }
+
+            if ($isElse) {
+                $context->write('else {');
+            } else {
+                $keyword = $first ? 'if' : 'elseif';
+                $context->write($keyword.' ('.$context->writeConditionExpression($condition).') {');
+            }
+
+            $context->indent();
+
+            if ($condition->body !== null) {
+                $context->compileBody($condition->body);
+            }
+
+            $context->outdent()->write('}');
+
+            if ($isElse) {
+                break;
+            }
+
+            $first = false;
         }
     }
 

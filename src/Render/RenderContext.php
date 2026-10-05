@@ -130,6 +130,23 @@ final class RenderContext
         return array_shift($this->scopes) ?? [];
     }
 
+    /** @internal Paired by generated loops using try/finally. */
+    public function enterScope(): void
+    {
+        try {
+            $this->push();
+        } catch (\Throwable $exception) {
+            $this->pop();
+            throw $exception;
+        }
+    }
+
+    /** @internal */
+    public function leaveScope(): void
+    {
+        $this->pop();
+    }
+
     /**
      * @template TResult
      *
@@ -186,7 +203,13 @@ final class RenderContext
 
     public function set(string $key, mixed $value): void
     {
-        Arr::set($this->scopes[0], $key, $value);
+        if (str_contains($key, '.')) {
+            Arr::set($this->scopes[0], $key, $value);
+
+            return;
+        }
+
+        $this->scopes[0][$key] = $value;
     }
 
     public function get(string $key): mixed
@@ -209,17 +232,17 @@ final class RenderContext
         // Deliberately not written as a loop over [...$this->scopes, $this->data, ...]:
         // building that list would allocate an array on every variable reference.
         foreach ($this->scopes as $scope) {
-            if (array_key_exists($key, $scope)) {
-                return $this->resolveVariable($scope[$key]);
+            if ($scope !== [] && array_key_exists($key, $scope)) {
+                return is_object($value = $scope[$key]) ? $this->resolveVariable($value) : $value;
             }
         }
 
         if (array_key_exists($key, $this->data)) {
-            return $this->resolveVariable($this->data[$key]);
+            return is_object($value = $this->data[$key]) ? $this->resolveVariable($value) : $value;
         }
 
         if (array_key_exists($key, $this->sharedState->staticVariables)) {
-            return $this->resolveVariable($this->sharedState->staticVariables[$key]);
+            return is_object($value = $this->sharedState->staticVariables[$key]) ? $this->resolveVariable($value) : $value;
         }
 
         // Fall back to the implicit self drop only when no value was found anywhere.
@@ -278,12 +301,14 @@ final class RenderContext
 
     public function internalContextLookup(mixed $scope, int|string $key): mixed
     {
+        if (is_array($scope)) {
+            $value = $scope[$key] ?? (array_key_exists($key, $scope) ? null : $this->missingValue);
+
+            return is_object($value) ? $this->normalizeValue($value) : $value;
+        }
+
         try {
             $value = match (true) {
-                is_array($scope) => match (true) {
-                    array_key_exists($key, $scope) => $scope[$key],
-                    default => $this->missingValue,
-                },
                 $scope instanceof Drop => $scope->{$key},
                 is_object($scope) => match (true) {
                     $this->objectHasProperty($scope, (string) $key) => $scope->{$key},
@@ -328,12 +353,8 @@ final class RenderContext
 
     public function normalizeValue(mixed $value): mixed
     {
-        // Only objects can need normalization, and scalars dominate the hot path.
-        if (! is_object($value)) {
-            return $value;
-        }
-
-        if ($value instanceof MissingValue) {
+        // Only closures and MapsToLiquid values are normalized or cached.
+        if (! $value instanceof Closure && ! $value instanceof MapsToLiquid) {
             return $value;
         }
 
@@ -345,17 +366,13 @@ final class RenderContext
             return $this->sharedState->computedObjectsCache[$value] ??= $this->normalizeValue($value($this));
         }
 
-        if ($value instanceof MapsToLiquid) {
-            $liquidValue = $value->toLiquid();
+        $liquidValue = $value->toLiquid();
 
-            // Check if toLiquid() returns itself
-            return $this->sharedState->computedObjectsCache[$value] ??= match (true) {
-                $value === $liquidValue => $value,
-                default => $this->normalizeValue($liquidValue)
-            };
-        }
-
-        return $value;
+        // Check if toLiquid() returns itself
+        return $this->sharedState->computedObjectsCache[$value] ??= match (true) {
+            $value === $liquidValue => $value,
+            default => $this->normalizeValue($liquidValue)
+        };
     }
 
     public function applyFilter(string $filter, mixed $value, array $args = []): mixed
@@ -452,7 +469,7 @@ final class RenderContext
 
         $template = $parseContext->loadPartial($templateName);
 
-        $this->sharedState->outputs->merge($template->state->outputs);
+        $this->sharedState->outputs->merge($template->getState()->outputs);
 
         return $template;
     }
@@ -476,12 +493,23 @@ final class RenderContext
     {
         $this->checkOverflow();
 
-        $subContext = new RenderContext(
-            options: $options ?? $this->options,
-            resourceLimits: $this->resourceLimits,
-            environment: $this->environment,
-            sharedState: $this->sharedState,
-        );
+        if ($options === null || $options === $this->options) {
+            // Cloning is much cheaper than construction on the partial hot path.
+            // Every per-context property must be reset here.
+            $subContext = clone $this;
+            $subContext->data = [];
+            $subContext->scopes = [[]];
+            $subContext->dynamicRegisters = [];
+            $subContext->interrupts = [];
+            $subContext->selfDrop = null;
+        } else {
+            $subContext = new RenderContext(
+                options: $options,
+                resourceLimits: $this->resourceLimits,
+                environment: $this->environment,
+                sharedState: $this->sharedState,
+            );
+        }
         $subContext->baseScopeDepth = $this->baseScopeDepth + 1;
         $subContext->templateName = $templateName;
         $subContext->partial = true;

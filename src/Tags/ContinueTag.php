@@ -2,6 +2,7 @@
 
 namespace Keepsuit\Liquid\Tags;
 
+use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Interrupts\ContinueInterrupt;
 use Keepsuit\Liquid\Parse\TagParseContext;
@@ -31,5 +32,11 @@ class ContinueTag extends Tag
         $context->pushInterrupt(new ContinueInterrupt);
 
         return '';
+    }
+
+    /** @internal */
+    public function compileNative(CompilerContext $context): void
+    {
+        $context->write('$context->pushInterrupt(new '.$context->writeClassName(ContinueInterrupt::class).');');
     }
 }

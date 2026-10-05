@@ -71,7 +71,7 @@ test('float string conversions share output formatting', function () {
 });
 
 test('arrays and generators render floats consistently', function (bool $stream) {
-    $environment = EnvironmentFactory::new()->build();
+    $environment = testEnvironment(EnvironmentFactory::new()->build());
     $context = $environment->newRenderContext(data: [
         'values' => [1.0, [2.0]],
         'chunks' => (function () {
@@ -101,13 +101,13 @@ test('float formatting is independent of numeric locale', function () {
 
 test('output formatting keeps environment options independent in partials', function (bool $options, bool $stream) {
     $source = '{{ 2 | times: 1.5 }}|{%- raw -%} a {%- endraw -%}|{% tablerow i in items cols:2 %}{{ i }}{% endtablerow %}';
-    $environment = EnvironmentFactory::new()
+    $environment = testEnvironment(EnvironmentFactory::new()
         ->setStrictVariables($options)
         ->setStrictFilters($options)
         ->setRethrowErrors($options)
         ->setLazyParsing($options)
         ->setFilesystem(new StubFileSystem(partials: ['p' => $source]))
-        ->build();
+        ->build());
     $template = $environment->parseString("{% render 'p', items: items %}");
     $context = $environment->newRenderContext(data: ['items' => [1.0, 2.0, 3.0]]);
 

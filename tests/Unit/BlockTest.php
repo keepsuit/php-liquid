@@ -6,7 +6,7 @@ use Keepsuit\Liquid\Tags\DocTag;
 use Keepsuit\Liquid\Tags\IfTag;
 
 test('blankspace', function () {
-    $template = parseTemplate('  ');
+    $template = parseSource('  ');
 
     expect($template->root->body->children())
         ->toHaveCount(1)
@@ -15,7 +15,7 @@ test('blankspace', function () {
 });
 
 test('variable beginning', function () {
-    $template = parseTemplate('{{funk}}  ');
+    $template = parseSource('{{funk}}  ');
 
     expect($template->root->body->children())
         ->toHaveCount(2)
@@ -24,7 +24,7 @@ test('variable beginning', function () {
 });
 
 test('variable end', function () {
-    $template = parseTemplate('  {{funk}}');
+    $template = parseSource('  {{funk}}');
 
     expect($template->root->body->children())
         ->toHaveCount(2)
@@ -33,7 +33,7 @@ test('variable end', function () {
 });
 
 test('variable middle', function () {
-    $template = parseTemplate('  {{funk}}  ');
+    $template = parseSource('  {{funk}}  ');
 
     expect($template->root->body->children())
         ->toHaveCount(3)
@@ -43,7 +43,7 @@ test('variable middle', function () {
 });
 
 test('variable many embedded fragments', function () {
-    $template = parseTemplate('  {{funk}} {{so}} {{brother}} ');
+    $template = parseSource('  {{funk}} {{so}} {{brother}} ');
 
     expect($template->root->body->children())
         ->toHaveCount(7)
@@ -57,7 +57,7 @@ test('variable many embedded fragments', function () {
 });
 
 test('with block', function () {
-    $template = parseTemplate('  {% if hi %} hi {% endif %} ');
+    $template = parseSource('  {% if hi %} hi {% endif %} ');
 
     expect($template->root->body->children())
         ->toHaveCount(3)
@@ -69,7 +69,7 @@ test('with block', function () {
 });
 
 test('doc tag with block', function () {
-    $template = parseTemplate('  {% doc %} {% enddoc %} ');
+    $template = parseSource('  {% doc %} {% enddoc %} ');
 
     expect($template->root->body->children())
         ->toHaveCount(3)

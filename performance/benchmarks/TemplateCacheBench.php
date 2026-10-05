@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid\Performance\benchmarks;
 use Keepsuit\Liquid\Contracts\LiquidTemplatesCache;
 use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
+use Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache;
 use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
 use Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache;
 use Keepsuit\Liquid\TemplatesCache\VarExportTemplatesCache;
@@ -16,168 +17,168 @@ use PhpBench\Attributes\OutputMode;
 use PhpBench\Attributes\OutputTimeUnit;
 use PhpBench\Attributes\Revs;
 
+/**
+ * Every backend has the same two subjects:
+ * - Build: parse the whole theme into an empty cache.
+ * - LoadAndRender: a fresh environment per revolution, as in a new request,
+ *   loads the warm cache and renders every page.
+ */
 #[Groups(['cache'])]
 #[Iterations(10)]
 #[Revs(20)]
 #[OutputMode('throughput')]
 #[OutputTimeUnit('seconds', precision: 3)]
-#[AfterMethods('clearCache')]
+#[AfterMethods('tearDown')]
 class TemplateCacheBench
 {
-    private const CACHE_DIRECTORY = 'keepsuit-liquid-phpbench';
-
-    private Environment $environment;
-
-    private LiquidTemplatesCache $cache;
-
-    /** @var list<string> */
-    private array $templateNames;
-
-    /** @var list<string> */
-    private array $pageTemplateNames;
+    private string $backend;
 
     private string $cacheDirectory;
 
-    #[BeforeMethods('setUpInMemoryBuild')]
+    private LiquidTemplatesCache $cache;
+
+    private Environment $environment;
+
+    #[BeforeMethods('setUpInMemory')]
     public function benchBuildInMemory(): void
     {
-        $this->buildStaticTheme();
+        $this->build();
     }
 
-    #[BeforeMethods('setUpInMemoryCachedRender')]
+    #[BeforeMethods('setUpInMemoryWarm')]
     public function benchLoadAndRenderInMemory(): void
     {
-        $this->renderCachedTheme();
+        $this->loadAndRender();
     }
 
-    #[BeforeMethods('setUpSerializeBuild')]
+    #[BeforeMethods('setUpSerialize')]
     public function benchBuildSerialize(): void
     {
-        $this->buildStaticTheme();
+        $this->build();
     }
 
-    #[BeforeMethods('setUpSerializeCachedRender')]
+    #[BeforeMethods('setUpSerializeWarm')]
     public function benchLoadAndRenderSerialize(): void
     {
-        $this->renderCachedTheme();
+        $this->loadAndRender();
     }
 
-    #[BeforeMethods('setUpVarExporterBuild')]
+    #[BeforeMethods('setUpVarExporter')]
     public function benchBuildVarExporter(): void
     {
-        $this->buildStaticTheme();
+        $this->build();
     }
 
-    #[BeforeMethods('setUpVarExporterCachedRender')]
+    #[BeforeMethods('setUpVarExporterWarm')]
     public function benchLoadAndRenderVarExporter(): void
     {
-        $this->renderCachedTheme();
+        $this->loadAndRender();
     }
 
-    #[BeforeMethods('setUpSerializeFreshRequest')]
-    public function benchFreshRequestSerialize(): void
+    #[BeforeMethods('setUpCompiled')]
+    public function benchBuildCompiled(): void
     {
-        $this->environment = StorefrontTheme::environmentFactory()
-            ->setTemplatesCache(new SerializeTemplatesCache($this->cachePath('serialize')))
-            ->build();
-
-        $this->renderCachedTheme();
+        $this->build();
     }
 
-    public function setUpSerializeFreshRequest(): void
+    #[BeforeMethods('setUpCompiledWarm')]
+    public function benchLoadAndRenderCompiled(): void
     {
-        $this->setUpBuild('serialize');
-        $this->compileStaticTheme($this->environment);
+        $this->loadAndRender();
     }
 
-    public function setUpInMemoryBuild(): void
+    public function setUpInMemory(): void
     {
-        $this->setUpBuild('memory');
+        $this->setUp('memory');
     }
 
-    public function setUpInMemoryCachedRender(): void
+    public function setUpInMemoryWarm(): void
     {
-        $this->setUpCachedRender('memory');
+        $this->setUp('memory', warm: true);
     }
 
-    public function setUpSerializeBuild(): void
+    public function setUpSerialize(): void
     {
-        $this->setUpBuild('serialize');
+        $this->setUp('serialize');
     }
 
-    public function setUpSerializeCachedRender(): void
+    public function setUpSerializeWarm(): void
     {
-        $this->setUpCachedRender('serialize');
+        $this->setUp('serialize', warm: true);
     }
 
-    public function setUpVarExporterBuild(): void
+    public function setUpVarExporter(): void
     {
-        $this->setUpBuild('var-exporter');
+        $this->setUp('var-exporter');
     }
 
-    public function setUpVarExporterCachedRender(): void
+    public function setUpVarExporterWarm(): void
     {
-        $this->setUpCachedRender('var-exporter');
+        $this->setUp('var-exporter', warm: true);
     }
 
-    public function clearCache(): void
+    public function setUpCompiled(): void
+    {
+        $this->setUp('compiled');
+    }
+
+    public function setUpCompiledWarm(): void
+    {
+        $this->setUp('compiled', warm: true);
+    }
+
+    public function tearDown(): void
     {
         $this->cache->clear();
-    }
 
-    private function setUpBuild(string $backend): void
-    {
-        $this->templateNames = StorefrontTheme::templateNames();
-        $this->pageTemplateNames = StorefrontTheme::pageTemplateNames();
-        $this->cacheDirectory = sys_get_temp_dir().'/'.self::CACHE_DIRECTORY.'-'.bin2hex(random_bytes(8));
-        $this->cache = $this->newCache($backend);
-        $this->cache->clear();
-        $this->environment = StorefrontTheme::environmentFactory()->setTemplatesCache($this->cache)->build();
-    }
-
-    private function setUpCachedRender(string $backend): void
-    {
-        $this->setUpBuild($backend);
-        $this->compileStaticTheme($this->environment);
-
-        $this->cache = $backend === 'memory'
-            ? $this->cache
-            : $this->newCache($backend);
-        $this->environment = StorefrontTheme::environmentFactory()->setTemplatesCache($this->cache)->build();
-    }
-
-    private function compileStaticTheme(Environment $environment): void
-    {
-        foreach ($this->templateNames as $templateName) {
-            $environment->parseTemplate($templateName);
+        if ($this->backend !== 'memory') {
+            rmdir($this->cacheDirectory);
         }
     }
 
-    private function buildStaticTheme(): void
+    private function setUp(string $backend, bool $warm = false): void
     {
-        $this->cache->clear();
-        $this->compileStaticTheme($this->environment);
-    }
+        $this->backend = $backend;
+        $this->cacheDirectory = sys_get_temp_dir().'/keepsuit-liquid-phpbench-'.bin2hex(random_bytes(8));
+        $this->cache = $this->newCache(keepInMemory: false);
+        $this->environment = $this->newEnvironment($this->cache);
 
-    private function renderCachedTheme(): void
-    {
-        foreach ($this->pageTemplateNames as $templateName) {
-            StorefrontTheme::renderPage($this->environment, $templateName);
+        if ($warm) {
+            $this->build();
         }
     }
 
-    private function newCache(string $backend): LiquidTemplatesCache
+    private function build(): void
     {
-        return match ($backend) {
+        $this->cache->clear();
+
+        foreach (StorefrontTheme::templateNames() as $templateName) {
+            $this->environment->parseTemplate($templateName);
+        }
+    }
+
+    private function loadAndRender(): void
+    {
+        $environment = $this->newEnvironment($this->backend === 'memory' ? $this->cache : $this->newCache());
+
+        foreach (StorefrontTheme::pageTemplateNames() as $templateName) {
+            StorefrontTheme::renderPage($environment, $templateName);
+        }
+    }
+
+    private function newEnvironment(LiquidTemplatesCache $cache): Environment
+    {
+        return StorefrontTheme::environmentFactory()->setTemplatesCache($cache)->build();
+    }
+
+    private function newCache(bool $keepInMemory = true): LiquidTemplatesCache
+    {
+        return match ($this->backend) {
             'memory' => new MemoryTemplatesCache,
-            'serialize' => new SerializeTemplatesCache($this->cachePath('serialize'), keepInMemory: false),
-            'var-exporter' => new VarExportTemplatesCache($this->cachePath('var-exporter'), keepInMemory: false),
-            default => throw new \InvalidArgumentException("Unknown templates cache backend [$backend]."),
+            'serialize' => new SerializeTemplatesCache($this->cacheDirectory, $keepInMemory),
+            'var-exporter' => new VarExportTemplatesCache($this->cacheDirectory, $keepInMemory),
+            'compiled' => new CompiledTemplatesCache($this->cacheDirectory, $keepInMemory),
+            default => throw new \InvalidArgumentException("Unknown templates cache backend [{$this->backend}]."),
         };
-    }
-
-    private function cachePath(string $backend): string
-    {
-        return $this->cacheDirectory.'/'.$backend;
     }
 }
