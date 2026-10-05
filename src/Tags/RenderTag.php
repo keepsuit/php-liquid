@@ -146,7 +146,7 @@ class RenderTag extends Tag implements CanBeCompiled, CanBeStreamed, HasParseTre
      */
     public function compile(CompilerContext $context): void
     {
-        if (static::class !== self::class || ! is_string($this->templateNameExpression)) {
+        if (! is_string($this->templateNameExpression)) {
             $context->compileFallback($this);
 
             return;
@@ -157,27 +157,18 @@ class RenderTag extends Tag implements CanBeCompiled, CanBeStreamed, HasParseTre
 
     protected function compilePartial(CompilerContext $context, string $templateName): void
     {
-        $variable = $context->writeLookupValue($this->variableNameExpression);
         $attributes = [];
-        $compiledLookups = $variable !== null;
         foreach ($this->attributes as $key => $value) {
-            $source = $context->writeLookupValue($value);
-            if ($source === null) {
-                $compiledLookups = false;
-
-                break;
-            }
-            $attributes[] = $context->writeValue($key).' => '.$source;
+            $attributes[] = $context->writeValue($key).' => '.$this->compileExpressionValue($context, $value);
         }
 
-        $method = $context->isRendering() ? 'renderPartial' : 'yieldPartial';
         $expression = sprintf(
-            '$this->%s($context, %s, %s, %s, %s)',
-            $method.($this->isForLoop ? 'Loop' : '').($compiledLookups ? 'WithLookups' : ''),
+            '$this->%s($context, %s, %s, %s, [%s])',
+            ($context->isRendering() ? 'renderPartial' : 'yieldPartial').($this->isForLoop ? 'Loop' : ''),
             $templateName,
-            $compiledLookups ? $variable : $context->writeCachedValue($this->variableNameExpression),
+            $this->compileExpressionValue($context, $this->variableNameExpression),
             $context->writeValue($this->aliasName),
-            $compiledLookups ? '['.implode(', ', $attributes).']' : $context->writeCachedValue($this->attributes),
+            implode(', ', $attributes),
         );
 
         if ($context->isRendering()) {
@@ -186,6 +177,11 @@ class RenderTag extends Tag implements CanBeCompiled, CanBeStreamed, HasParseTre
             $context->flushStreamBuffer();
             $context->writeYield('from '.$expression);
         }
+    }
+
+    private function compileExpressionValue(CompilerContext $context, mixed $value): string
+    {
+        return $context->writeLookupValue($value) ?? $context->writeCachedValue($value);
     }
 
     public function stream(RenderContext $context): \Generator

@@ -18,7 +18,11 @@ class RangeLookup implements CanBeEvaluated, CanBeExported, HasParseTreeVisitorC
 
     public function export(CompilerContext $context): ?string
     {
-        return 'new \\'.static::class.'('
+        if (static::class !== self::class) {
+            return null;
+        }
+
+        return 'new '.$context->writeClassName(self::class).'('
             .$context->writeValue($this->start).', '
             .$context->writeValue($this->end).')';
     }

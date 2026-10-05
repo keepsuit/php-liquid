@@ -3432,3 +3432,36 @@ test('compilation fails when a fallback node cannot be safely reconstructed', fu
         }
     }
 });
+
+test('compiled partials evaluate non-lookup arguments like interpreted partials', function (string $source) {
+    $environment = EnvironmentFactory::new()
+        ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem(['p' => '[{{ p }}|{{ range | join: "," }}|{{ item }}]']))
+        ->build();
+    $template = $environment->parseString($source);
+    $path = temporaryCompiledTemplatePath();
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        $data = ['items' => ['a', 'b'], 'key' => 1, 'n' => 3];
+
+        $expected = $template->render($environment->newRenderContext(data: $data));
+        expect($compiled->render($environment->newRenderContext(data: $data)))->toBe($expected);
+        expect(implode('', iterator_to_array($compiled->stream($environment->newRenderContext(data: $data)), false)))->toBe($expected);
+    } finally {
+        @unlink($path);
+    }
+})->with([
+    'range attribute' => '{% render "p", range: (1..n), item: items[key] %}',
+    'dynamic lookup variable' => '{% render "p" with items[key] as p, range: (1..n) %}',
+    'loop over range' => '{% render "p" for (1..n) as p, item: items[key] %}',
+]);
+
+class CompilerSubclassedRangeLookup extends RangeLookup {}
+
+test('range lookup subclasses are not exported as plain ranges', function () {
+    $context = new CompilerContext;
+
+    expect((new RangeLookup(1, 3))->export($context))->toBeString()
+        ->and((new CompilerSubclassedRangeLookup(1, 3))->export($context))->toBeNull();
+});

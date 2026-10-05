@@ -12,7 +12,7 @@ use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\MissingValue;
 use Keepsuit\Liquid\Support\UndefinedVariable;
 
-/** @phpstan-type CompiledLookup scalar|array{string, list<string|int>}|null */
+/** @phpstan-type CompiledLookup scalar|array{string, list<string|int>}|CanBeEvaluated|null */
 class VariableLookup implements CanBeEvaluated, CanBeExported, HasParseTreeVisitorChildren
 {
     const FILTER_METHODS = ['size', 'first', 'last'];
