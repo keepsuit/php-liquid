@@ -4,13 +4,12 @@ namespace Keepsuit\Liquid\Condition;
 
 use Keepsuit\Liquid\Compiler\CompilerContext;
 use Keepsuit\Liquid\Contracts\AsLiquidValue;
-use Keepsuit\Liquid\Contracts\CanBeExported;
 use Keepsuit\Liquid\Contracts\HasParseTreeVisitorChildren;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\Arr;
 
-class Condition implements CanBeExported, HasParseTreeVisitorChildren
+class Condition implements HasParseTreeVisitorChildren
 {
     /**
      * @var array<string, \Closure>
@@ -30,49 +29,6 @@ class Condition implements CanBeExported, HasParseTreeVisitorChildren
         protected ?string $operator = null,
         protected mixed $right = null
     ) {}
-
-    public function export(CompilerContext $context): ?string
-    {
-        $conditions = [];
-        $seen = [];
-        for ($condition = $this; $condition !== null; $condition = $condition->childCondition) {
-            // Preserve custom constructors/evaluators and cyclic object graphs
-            // through the existing serialization fallback.
-            $id = spl_object_id($condition);
-            if ($condition::class !== self::class || isset($seen[$id])) {
-                return null;
-            }
-            $seen[$id] = true;
-            $conditions[] = $condition;
-        }
-
-        // The body is deliberately left out: the compiler emits it as code and
-        // only ever calls evaluate() on the rebuilt condition.
-        $source = null;
-        for ($index = count($conditions) - 1; $index >= 0; $index--) {
-            $condition = $conditions[$index];
-            $parent = 'new '.$context->writeClassName(self::class).'('
-                .$context->writeValue($condition->left).', '
-                .$context->writeValue($condition->operator).', '
-                .$context->writeValue($condition->right).')';
-            $relation = $condition->childRelation === null
-                ? 'null'
-                : $context->writeClassName(ConditionsRelation::class).'::'.$condition->childRelation->name;
-            $source = $source === null ? $parent
-                : $context->writeClassName(self::class).'::chain('.$parent.', '.$relation.', '.$source.')';
-        }
-
-        return $source;
-    }
-
-    /** @internal */
-    public static function chain(self $condition, ?ConditionsRelation $relation, self $child): self
-    {
-        $condition->childRelation = $relation;
-        $condition->childCondition = $child;
-
-        return $condition;
-    }
 
     /** @internal */
     public function compileExpression(CompilerContext $context): string

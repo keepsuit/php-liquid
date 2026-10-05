@@ -1844,7 +1844,6 @@ test('native condition chains compile without reconstructed objects', function (
 
         expect(file_get_contents($compiledPath))
             ->not->toContain('\unserialize(')
-            ->not->toContain('Condition::chain(')
             ->not->toContain('private readonly mixed $value')
             ->toContain(' && ')
             ->not->toContain('deepclone_from_array')
@@ -3106,7 +3105,6 @@ test('expression values remain exportable while variables compile directly', fun
     $values = [
         new VariableLookup('name'),
         new RangeLookup(1, 5),
-        new Condition(1, '==', 1),
     ];
 
     foreach ($values as $value) {

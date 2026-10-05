@@ -25,9 +25,10 @@ All notable changes to `liquid` will be documented in this file.
   - Subclasses of `VariableLookup` should override `evaluate()` or call
     `VariableLookup::evaluateParts($context, $name, $lookups)`, which resolves the lookup chain
     and returns `UndefinedVariable` under `strictVariables`.
-- Native nodes, conditions and tags now implement `CanBeCompiled` or `CanBeExported`, adding
-  public `compile()` and `export()` methods. Subclasses that already declare these methods with
-  a different signature must be updated.
+- Native nodes and tags now implement `CanBeCompiled` or `CanBeExported`, adding public
+  `compile()` and `export()` methods. `Condition` adds the public `compileExpression()` and
+  static `compare()` methods. Subclasses that already declare these methods with a different
+  signature must be updated.
   - Rename unrelated `compile()`/`export()` methods, or match the signatures
     `compile(CompilerContext $context): void` and `export(CompilerContext $context): ?string`.
 - Interpreted `BodyNode::stream()` now yields chunks of custom `CanBeStreamed` nodes without
