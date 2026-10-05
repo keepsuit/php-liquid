@@ -9,9 +9,9 @@ use Keepsuit\Liquid\ParsedTemplate;
 class Compiler
 {
     /**
-     * Write a requireable compiled artifact and return its validated instance.
+     * Write a requireable compiled artifact; the generated source is not validated until it is loaded.
      */
-    public function compileToFile(ParsedTemplate $template, string $compiledPath): CompiledTemplate
+    public function compileToFile(ParsedTemplate $template, string $compiledPath): void
     {
         $directory = dirname($compiledPath);
 
@@ -20,11 +20,7 @@ class Compiler
         }
 
         $source = $this->compile($template);
-        $temporaryPath = tempnam($directory, '.'.basename($compiledPath).'.tmp-');
-
-        if ($temporaryPath === false) {
-            throw new \RuntimeException(sprintf('Unable to create temporary compiled template artifact: %s', $compiledPath));
-        }
+        $temporaryPath = $directory.'/.'.basename($compiledPath).'.tmp-'.bin2hex(random_bytes(8));
 
         try {
             $bytesWritten = file_put_contents($temporaryPath, $source);
@@ -33,13 +29,6 @@ class Compiler
                 throw new \RuntimeException(sprintf('Unable to write compiled template artifact: %s', $compiledPath));
             }
 
-            $compiled = require $temporaryPath;
-
-            if (! $compiled instanceof CompiledTemplate) {
-                throw new \RuntimeException(sprintf('Invalid compiled template artifact: %s', $compiledPath));
-            }
-
-            chmod($temporaryPath, 0666 & ~umask());
             $this->publishArtifact($temporaryPath, $compiledPath);
 
             if (is_numeric($_SERVER['REQUEST_TIME'])) {
@@ -49,8 +38,6 @@ class Compiler
             if (function_exists('opcache_invalidate')) {
                 opcache_invalidate($compiledPath, true);
             }
-
-            return $compiled;
         } finally {
             if (is_file($temporaryPath)) {
                 unlink($temporaryPath);
@@ -106,7 +93,7 @@ class Compiler
         }
 
         $className = 'Template_'.substr(hash(
-            'sha256',
+            'xxh128',
             $name.$body.$renderBody.implode('', $fallbackValueSource).implode('', $renderedBodies)
                 .implode('', $bodyContext->getImportedClasses()),
         ), 0, 32);

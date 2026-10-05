@@ -142,7 +142,7 @@ echo $template->render($environment->newRenderContext(data: ['name' => 'John']))
 
 The first miss returns a parsed template; disk hits return a compiled template. With
 `keepInMemory: true` (the default), compiled templates stay in memory for the cache
-instance, including those written on a miss.
+instance once loaded; templates written on a miss are loaded by the next hit.
 Use `remove($name)` or `clear()` when templates change or the library is upgraded.
 For manual artifact management, call `Environment::compile($parsedTemplate, $path)`
 and load the result with `require $path`.

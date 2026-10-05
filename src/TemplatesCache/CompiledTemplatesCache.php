@@ -10,15 +10,13 @@ use Keepsuit\Liquid\Template;
 class CompiledTemplatesCache extends FilesystemTemplatesCache
 {
     /**
-     * Keep the instance validated during publication without loading it again.
+     * Only the artifact is written; memory is filled by the next get().
      */
     public function set(string $name, Template $template): void
     {
-        $compiled = $this->compileTemplate($this->getCompiledPath($name), $template);
+        unset($this->cache[$name]);
 
-        if ($this->keepInMemory) {
-            $this->cache[$name] = $compiled;
-        }
+        $this->saveCompiledTemplate($this->getCompiledPath($name), $template);
     }
 
     protected function getCompiledPath(string $name): string
@@ -28,26 +26,21 @@ class CompiledTemplatesCache extends FilesystemTemplatesCache
 
     protected function saveCompiledTemplate(string $compiledPath, Template $template): void
     {
-        $this->compileTemplate($compiledPath, $template);
-    }
-
-    private function compileTemplate(string $compiledPath, Template $template): CompiledTemplate
-    {
         if (! $template instanceof ParsedTemplate) {
             throw new \InvalidArgumentException('CompiledTemplatesCache requires a parsed template.');
         }
 
-        return (new Compiler)->compileToFile($template, $compiledPath);
+        (new Compiler)->compileToFile($template, $compiledPath);
     }
 
     protected function loadCompiledTemplate(string $compiledPath): ?Template
     {
-        try {
-            $template = require $compiledPath;
-
-            return $template instanceof CompiledTemplate ? $template : null;
-        } catch (\Throwable) {
+        if (! is_file($compiledPath)) {
             return null;
         }
+
+        $template = require $compiledPath;
+
+        return $template instanceof CompiledTemplate ? $template : null;
     }
 }

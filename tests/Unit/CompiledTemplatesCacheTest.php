@@ -70,14 +70,14 @@ test('compiled cache follows the filesystem memory retention option', function (
     $written = $writer->get('test');
     expect($written)->toBeInstanceOf(CompiledTemplate::class)
         ->and($written?->render(buildRenderContext(data: ['name' => 'John'])))->toBe('Hello John')
-        ->and($writer->loads)->toBe($keepInMemory ? 0 : 1);
+        ->and($writer->loads)->toBe(1);
 
     $writer->set('test', parseSource('Welcome {{ name }}'));
     $replacement = $writer->get('test');
     expect($replacement)->toBeInstanceOf(CompiledTemplate::class)
         ->not->toBe($written)
         ->and($replacement?->render(buildRenderContext(data: ['name' => 'Jane'])))->toBe('Welcome Jane')
-        ->and($writer->loads)->toBe($keepInMemory ? 0 : 2);
+        ->and($writer->loads)->toBe(2);
 
     $reader = new CompiledTemplatesCache($path, keepInMemory: $keepInMemory);
     $first = $reader->get('test');
@@ -94,12 +94,12 @@ test('compiled cache follows the filesystem memory retention option', function (
     expect($reader->get('test'))->toBeNull();
 })->with([false, true]);
 
-test('corrupted compiled artifacts are cache misses and can be rebuilt', function (string $source) {
+test('artifacts that do not return a compiled template are cache misses and can be rebuilt', function () {
     $path = __DIR__.'/../cache/compiled-corrupted';
     $cache = new CompiledTemplatesCache($path, keepInMemory: false);
     $cache->clear();
     $artifactPath = $path.'/'.hash('sha256', 'hello').'.php';
-    file_put_contents($artifactPath, $source);
+    file_put_contents($artifactPath, '<?php return false;');
 
     expect($cache->has('hello'))->toBeTrue()
         ->and($cache->get('hello'))->toBeNull();
@@ -117,8 +117,33 @@ test('corrupted compiled artifacts are cache misses and can be rebuilt', functio
         ->and($fileSystem->fileReadCount)->toBe(1);
 
     $cache->clear();
+});
+
+test('an artifact removed between existence check and load is a cache miss', function () {
+    $cache = new class(__DIR__.'/../cache/compiled-missing') extends CompiledTemplatesCache
+    {
+        public function load(string $compiledPath): ?\Keepsuit\Liquid\Template
+        {
+            return $this->loadCompiledTemplate($compiledPath);
+        }
+    };
+
+    expect($cache->load(__DIR__.'/../cache/compiled-missing/absent.php'))->toBeNull();
+    $cache->clear();
+});
+
+test('artifacts that fail to load surface the error', function (string $source, string $exception) {
+    $path = __DIR__.'/../cache/compiled-broken';
+    $cache = new CompiledTemplatesCache($path, keepInMemory: false);
+    $cache->clear();
+    file_put_contents($path.'/'.hash('sha256', 'hello').'.php', $source);
+
+    try {
+        expect(fn () => $cache->get('hello'))->toThrow($exception);
+    } finally {
+        $cache->clear();
+    }
 })->with([
-    'invalid return value' => '<?php return false;',
-    'invalid PHP' => '<?php return (',
-    'load exception' => '<?php throw new RuntimeException("Broken artifact");',
+    'invalid PHP' => ['<?php return (', ParseError::class],
+    'load exception' => ['<?php throw new RuntimeException("Broken artifact");', RuntimeException::class],
 ]);
