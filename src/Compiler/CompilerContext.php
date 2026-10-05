@@ -7,6 +7,7 @@ use Keepsuit\Liquid\Contracts\CanBeCompiled;
 use Keepsuit\Liquid\Contracts\CanBeExported;
 use Keepsuit\Liquid\Contracts\CanBeStreamed;
 use Keepsuit\Liquid\Contracts\Disableable;
+use Keepsuit\Liquid\Exceptions\TagDisabledException;
 use Keepsuit\Liquid\Nodes\BodyNode;
 use Keepsuit\Liquid\Nodes\Document;
 use Keepsuit\Liquid\Nodes\Node;
@@ -500,6 +501,9 @@ final class CompilerContext
 
         try {
             $this->writeNodeStart($node, $lazy);
+            if (! $fallback) {
+                $this->writeTagEnabledCheck($node);
+            }
             if ($lazy) {
                 $this->writeSource($this->compileExtensionSource($node));
             } else {
@@ -531,6 +535,18 @@ final class CompilerContext
             $this->compileFallback($node);
             $this->writeNodeEnd($node, false);
         }
+    }
+
+    private function writeTagEnabledCheck(Node $node): void
+    {
+        if (! ($node instanceof Disableable && $node instanceof Tag)) {
+            return;
+        }
+
+        $tagName = $this->writeValue($node::tagName());
+        $this->write('if ($context->tagDisabled('.$tagName.')) {')->indent();
+        $this->write('throw new '.$this->writeClassName(TagDisabledException::class).'('.$tagName.');');
+        $this->outdent()->write('}');
     }
 
     private function inheritsNativeCompileMethod(Node $node): bool
