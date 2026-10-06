@@ -8,16 +8,39 @@ use Keepsuit\Liquid\Parse\TokenStream;
 use Keepsuit\Liquid\ParsedTemplate;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
-use Keepsuit\Liquid\Tests\Support\CompiledTestEnvironment;
+use Keepsuit\Liquid\Tests\Support\CompiledTestTemplatesCache;
 use PHPUnit\Framework\ExpectationFailedException;
 
 function testEnvironment(Environment $environment): Environment
 {
-    return match (getenv('LIQUID_TEST_BACKEND') ?: 'in-memory') {
-        'in-memory' => $environment,
-        'compiled' => CompiledTestEnvironment::wrap($environment),
+    $compiled = match (getenv('LIQUID_TEST_BACKEND') ?: 'in-memory') {
+        'in-memory' => false,
+        'compiled' => true,
         default => throw new InvalidArgumentException('Unknown LIQUID_TEST_BACKEND.'),
     };
+
+    if (! $compiled || $environment->templatesCache instanceof CompiledTestTemplatesCache) {
+        return $environment;
+    }
+
+    $reflection = new ReflectionClass(Environment::class);
+    $compiledEnvironment = $reflection->newInstanceWithoutConstructor();
+
+    // Preserve registries, extensions and options, including changes made after construction.
+    foreach ($reflection->getProperties() as $property) {
+        if ($property->isStatic()) {
+            continue;
+        }
+
+        $value = $property->getValue($environment);
+        if ($property->getName() === 'templatesCache') {
+            $value = new CompiledTestTemplatesCache($environment->templatesCache, $environment);
+        }
+
+        $property->setValue($compiledEnvironment, $value);
+    }
+
+    return $compiledEnvironment;
 }
 
 /** Parse a source for assertions on the parser, AST or parsed cache format. */
@@ -31,8 +54,8 @@ function testParseString(Environment $environment, string $source, ?string $name
 {
     $template = $environment->parseString($source, $name);
 
-    return $environment instanceof CompiledTestEnvironment
-        ? CompiledTestEnvironment::compileTemplate($environment, $template)
+    return $environment->templatesCache instanceof CompiledTestTemplatesCache
+        ? $environment->templatesCache->compileTemplate($template)
         : $template;
 }
 
