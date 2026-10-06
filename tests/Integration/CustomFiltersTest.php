@@ -6,14 +6,16 @@ beforeEach(function () {
         ->registerFilters(\Keepsuit\Liquid\Filters\Custom\TernaryFilter::class);
 });
 
-test('ternary', function () {
-    expect(renderTemplate('{{ true | ternary: "yes", "no" }}', factory: $this->factory))->toBe('yes');
-    expect(renderTemplate('{{ test | ternary: "yes", "no" }}', factory: $this->factory, staticData: ['test' => ['a']]))->toBe('yes');
-    expect(renderTemplate('{{ test | ternary: "yes", "no" }}', factory: $this->factory, staticData: ['test' => 'a']))->toBe('yes');
-    expect(renderTemplate('{{ test | ternary: "yes", "no" }}', factory: $this->factory, staticData: ['test' => new \Keepsuit\Liquid\Tests\Stubs\IntegerDrop('1')]))->toBe('yes');
+describe('rendering with template backends', function () {
+    test('ternary', function (bool $compiled) {
+        expect(renderTemplate('{{ true | ternary: "yes", "no" }}', factory: $this->factory, compiled: $compiled))->toBe('yes');
+        expect(renderTemplate('{{ test | ternary: "yes", "no" }}', factory: $this->factory, staticData: ['test' => ['a']], compiled: $compiled))->toBe('yes');
+        expect(renderTemplate('{{ test | ternary: "yes", "no" }}', factory: $this->factory, staticData: ['test' => 'a'], compiled: $compiled))->toBe('yes');
+        expect(renderTemplate('{{ test | ternary: "yes", "no" }}', factory: $this->factory, staticData: ['test' => new \Keepsuit\Liquid\Tests\Stubs\IntegerDrop('1')], compiled: $compiled))->toBe('yes');
 
-    expect(renderTemplate('{{ false | ternary: "yes", "no" }}', factory: $this->factory))->toBe('no');
-    expect(renderTemplate('{{ test | ternary: "yes", "no" }}', factory: $this->factory, staticData: ['test' => []]))->toBe('no');
-    expect(renderTemplate('{{ test | ternary: "yes", "no" }}', factory: $this->factory, staticData: ['test' => '']))->toBe('no');
-    expect(renderTemplate('{{ test | ternary: "yes", "no" }}', factory: $this->factory, staticData: ['test' => null]))->toBe('no');
-});
+        expect(renderTemplate('{{ false | ternary: "yes", "no" }}', factory: $this->factory, compiled: $compiled))->toBe('no');
+        expect(renderTemplate('{{ test | ternary: "yes", "no" }}', factory: $this->factory, staticData: ['test' => []], compiled: $compiled))->toBe('no');
+        expect(renderTemplate('{{ test | ternary: "yes", "no" }}', factory: $this->factory, staticData: ['test' => ''], compiled: $compiled))->toBe('no');
+        expect(renderTemplate('{{ test | ternary: "yes", "no" }}', factory: $this->factory, staticData: ['test' => null], compiled: $compiled))->toBe('no');
+    });
+})->with('template backends');

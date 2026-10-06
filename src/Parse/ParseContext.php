@@ -79,10 +79,10 @@ class ParseContext
 
         $this->environment->templatesCache->set($templateName, $template);
 
-        return $template;
+        return $this->environment->templatesCache->get($templateName) ?? $template;
     }
 
-    public function parse(TokenStream|string $source, ?string $name = null): Template
+    public function parse(TokenStream|string $source, ?string $name = null): ParsedTemplate
     {
         $this->partials = [];
         $this->outputs = new OutputsBag;

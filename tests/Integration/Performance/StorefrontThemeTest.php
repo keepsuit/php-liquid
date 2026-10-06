@@ -10,13 +10,19 @@ use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
  * variable or filter into a failure here, rather than into empty output nobody
  * notices in a benchmark.
  */
-function storefrontStrictEnvironment(): Keepsuit\Liquid\Environment
+function storefrontStrictEnvironment(bool $compiled): Keepsuit\Liquid\Environment
 {
-    return testEnvironment(StorefrontTheme::environmentFactory()
+    $factory = StorefrontTheme::environmentFactory();
+
+    if ($compiled) {
+        $factory->setTemplatesCache(testCompiledTemplatesCache());
+    }
+
+    return $factory
         ->setStrictVariables(true)
         ->setStrictFilters(true)
         ->setRethrowErrors(true)
-        ->build());
+        ->build();
 }
 
 test('every discovered template exists and every template on disk is discovered', function () {
@@ -50,29 +56,6 @@ test('every discovered template exists and every template on disk is discovered'
     expect($onDisk)->toBe($expected);
 });
 
-test('every page renders through the layout with no missing variables or filters', function () {
-    $environment = storefrontStrictEnvironment();
-
-    foreach ([
-        'templates.index' => 'Better everyday rituals',
-        'templates.collection' => 'Summer Essentials',
-        'templates.product' => 'Weekend Bag',
-        'templates.page' => 'Our story',
-    ] as $templateName => $expectedContent) {
-        $rendered = StorefrontTheme::renderPage($environment, $templateName);
-
-        expect($rendered)
-            ->toContain('<header class="site-header">')
-            ->toContain($expectedContent)
-            ->toContain('<footer class="site-footer">')
-            // Fixture filters, asserted on their output: an unknown filter renders
-            // its input unchanged, so only a filtered value proves it ran.
-            ->toContain('3 items &middot; €126.50')
-            // A capture that escapes its assembled result would double-escape this.
-            ->toMatch('/<title>[^<]+ &mdash; Northstar Goods<\/title>/');
-    }
-});
-
 test('page and layout data stay scoped to their own template work', function () {
     $indexData = StorefrontTheme::renderData('templates.index');
     $productData = StorefrontTheme::renderData('templates.product');
@@ -83,46 +66,6 @@ test('page and layout data stay scoped to their own template work', function () 
         ->not->toHaveKeys(['shop', 'cart', 'linklists', 'articles', 'page'])
         ->and($indexData['layout'])->toHaveKeys(['shop', 'cart', 'linklists', 'template', 'page_title'])
         ->and($indexData['layout']['shop'])->toBe($indexData['page']['shop']);
-});
-
-test('every page keeps its page-specific partial workload', function () {
-    $environment = storefrontStrictEnvironment();
-
-    foreach ([
-        'templates.index' => ['class="hero"', 'Packing light for a weekend away'],
-        'templates.collection' => ['class="collection-filters"', 'class="product-grid"'],
-        'templates.product' => ['class="variant-picker"', '<caption>Details</caption>'],
-        'templates.page' => ['class="page-content__section"', 'Contact us'],
-    ] as $templateName => $markers) {
-        $rendered = StorefrontTheme::renderPage($environment, $templateName);
-
-        expect($rendered)
-            ->toContain($markers[0])
-            ->toContain($markers[1]);
-    }
-});
-
-test('streaming a page produces the same bytes as rendering it', function () {
-    $environment = storefrontStrictEnvironment();
-
-    foreach (StorefrontTheme::pageTemplateNames() as $templateName) {
-        $rendered = StorefrontTheme::renderPage($environment, $templateName);
-        $streamed = implode('', iterator_to_array(
-            StorefrontTheme::streamPage($environment, $templateName),
-            false,
-        ));
-
-        expect($streamed)->toBe($rendered);
-    }
-});
-
-test('the collection page renders every product in the collection', function () {
-    $environment = storefrontStrictEnvironment();
-
-    $rendered = StorefrontTheme::renderPage($environment, 'templates.collection');
-
-    expect(Database::collection()->products)->toHaveCount(Database::PRODUCTS_PER_PAGE)
-        ->and(substr_count($rendered, 'class="product-card"'))->toBe(Database::PRODUCTS_PER_PAGE);
 });
 
 test('hand-wired cart totals stay consistent with the rendered summary', function () {
@@ -150,12 +93,77 @@ test('products expose each drop resolution strategy the theme relies on', functi
     expect($product->inStockVariantCount())->toBe(3);
 });
 
-test('metafields resolve through liquidMethodMissing when the theme renders them', function () {
-    // The one dynamic path in the fixture, asserted through a real render so the
-    // template lookup is what proves it, not a direct property access.
-    $rendered = StorefrontTheme::renderPage(storefrontStrictEnvironment(), 'templates.product');
+describe('rendering with template backends', function () {
+    test('every page renders through the layout with no missing variables or filters', function (bool $compiled) {
+        $environment = storefrontStrictEnvironment(compiled: $compiled);
 
-    expect($rendered)
-        ->toContain('<td>Waxed canvas, bridle leather</td>')
-        ->toContain('<td>Condition leather twice a year</td>');
-});
+        foreach ([
+            'templates.index' => 'Better everyday rituals',
+            'templates.collection' => 'Summer Essentials',
+            'templates.product' => 'Weekend Bag',
+            'templates.page' => 'Our story',
+        ] as $templateName => $expectedContent) {
+            $rendered = StorefrontTheme::renderPage($environment, $templateName);
+
+            expect($rendered)
+                ->toContain('<header class="site-header">')
+                ->toContain($expectedContent)
+                ->toContain('<footer class="site-footer">')
+                // Fixture filters, asserted on their output: an unknown filter renders
+                // its input unchanged, so only a filtered value proves it ran.
+                ->toContain('3 items &middot; €126.50')
+                // A capture that escapes its assembled result would double-escape this.
+                ->toMatch('/<title>[^<]+ &mdash; Northstar Goods<\/title>/');
+        }
+    });
+
+    test('every page keeps its page-specific partial workload', function (bool $compiled) {
+        $environment = storefrontStrictEnvironment(compiled: $compiled);
+
+        foreach ([
+            'templates.index' => ['class="hero"', 'Packing light for a weekend away'],
+            'templates.collection' => ['class="collection-filters"', 'class="product-grid"'],
+            'templates.product' => ['class="variant-picker"', '<caption>Details</caption>'],
+            'templates.page' => ['class="page-content__section"', 'Contact us'],
+        ] as $templateName => $markers) {
+            $rendered = StorefrontTheme::renderPage($environment, $templateName);
+
+            expect($rendered)
+                ->toContain($markers[0])
+                ->toContain($markers[1]);
+        }
+    });
+
+    test('streaming a page produces the same bytes as rendering it', function (bool $compiled) {
+        $environment = storefrontStrictEnvironment(compiled: $compiled);
+
+        foreach (StorefrontTheme::pageTemplateNames() as $templateName) {
+            $rendered = StorefrontTheme::renderPage($environment, $templateName);
+            $streamed = implode('', iterator_to_array(
+                StorefrontTheme::streamPage($environment, $templateName),
+                false,
+            ));
+
+            expect($streamed)->toBe($rendered);
+        }
+    });
+
+    test('the collection page renders every product in the collection', function (bool $compiled) {
+        $environment = storefrontStrictEnvironment(compiled: $compiled);
+
+        $rendered = StorefrontTheme::renderPage($environment, 'templates.collection');
+
+        expect(Database::collection()->products)->toHaveCount(Database::PRODUCTS_PER_PAGE)
+            ->and(substr_count($rendered, 'class="product-card"'))->toBe(Database::PRODUCTS_PER_PAGE);
+    });
+
+    test('metafields resolve through liquidMethodMissing when the theme renders them', function (bool $compiled) {
+        // The one dynamic path in the fixture, asserted through a real render so the
+        // template lookup is what proves it, not a direct property access.
+        $rendered = StorefrontTheme::renderPage(storefrontStrictEnvironment(compiled: $compiled), 'templates.product');
+
+        expect($rendered)
+            ->toContain('<td>Waxed canvas, bridle leather</td>')
+            ->toContain('<td>Condition leather twice a year</td>');
+    });
+})->with('template backends');

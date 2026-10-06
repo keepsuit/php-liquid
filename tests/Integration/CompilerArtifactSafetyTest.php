@@ -231,12 +231,10 @@ test('compiled artifacts use permissions derived from the umask', function (int 
     }
 })->with([0022, 0002]);
 
-test('recompiling an artifact at the same path updates its output and opcache timestamp', function () {
+test('recompiling an artifact at the same path updates its output', function () {
     $directory = compilerArtifactSafetyDirectory();
     $path = compilerArtifactSafetyPath($directory);
     $environment = EnvironmentFactory::new()->build();
-    $requestTime = $_SERVER['REQUEST_TIME'];
-    $_SERVER['REQUEST_TIME'] = time();
 
     try {
         $environment->compile($environment->parseString('first'), $path);
@@ -247,29 +245,24 @@ test('recompiling an artifact at the same path updates its output and opcache ti
         clearstatcache(true, $path);
         $second = require $path;
 
-        expect(filemtime($path))->toBe($_SERVER['REQUEST_TIME'] - 5);
         expect($second->render($environment->newRenderContext()))->toBe('second');
     } finally {
-        $_SERVER['REQUEST_TIME'] = $requestTime;
         removeCompilerArtifactSafetyDirectory($directory);
     }
 });
 
-test('compiling an artifact without a request time backdates it from the current time', function () {
+test('compiling an artifact preserves its write timestamp', function () {
     $directory = compilerArtifactSafetyDirectory();
     $path = compilerArtifactSafetyPath($directory);
     $environment = EnvironmentFactory::new()->build();
-    $requestTime = $_SERVER['REQUEST_TIME'];
-    unset($_SERVER['REQUEST_TIME']);
 
     try {
         $before = time();
         $environment->compile($environment->parseString('ok'), $path);
         clearstatcache(true, $path);
 
-        expect(filemtime($path))->toBeGreaterThanOrEqual($before - 5)->toBeLessThanOrEqual(time() - 5);
+        expect(filemtime($path))->toBeGreaterThanOrEqual($before)->toBeLessThanOrEqual(time());
     } finally {
-        $_SERVER['REQUEST_TIME'] = $requestTime;
         removeCompilerArtifactSafetyDirectory($directory);
     }
 });

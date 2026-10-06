@@ -16,6 +16,7 @@ use PhpBench\Attributes\Iterations;
 use PhpBench\Attributes\OutputMode;
 use PhpBench\Attributes\OutputTimeUnit;
 use PhpBench\Attributes\Revs;
+use Spatie\TemporaryDirectory\TemporaryDirectory;
 
 /**
  * Every backend has the same two subjects:
@@ -33,7 +34,7 @@ class TemplateCacheBench
 {
     private string $backend;
 
-    private string $cacheDirectory;
+    private TemporaryDirectory $cacheDirectory;
 
     private LiquidTemplatesCache $cache;
 
@@ -131,15 +132,13 @@ class TemplateCacheBench
     {
         $this->cache->clear();
 
-        if ($this->backend !== 'memory') {
-            rmdir($this->cacheDirectory);
-        }
+        $this->cacheDirectory->delete();
     }
 
     private function setUp(string $backend, bool $warm = false): void
     {
         $this->backend = $backend;
-        $this->cacheDirectory = sys_get_temp_dir().'/keepsuit-liquid-phpbench-'.bin2hex(random_bytes(8));
+        $this->cacheDirectory = (new TemporaryDirectory)->deleteWhenDestroyed()->create();
         $this->cache = $this->newCache(keepInMemory: false);
         $this->environment = $this->newEnvironment($this->cache);
 
@@ -175,9 +174,9 @@ class TemplateCacheBench
     {
         return match ($this->backend) {
             'memory' => new MemoryTemplatesCache,
-            'serialize' => new SerializeTemplatesCache($this->cacheDirectory, $keepInMemory),
-            'var-exporter' => new VarExportTemplatesCache($this->cacheDirectory, $keepInMemory),
-            'compiled' => new CompiledTemplatesCache($this->cacheDirectory, $keepInMemory),
+            'serialize' => new SerializeTemplatesCache($this->cacheDirectory->path(), $keepInMemory),
+            'var-exporter' => new VarExportTemplatesCache($this->cacheDirectory->path(), $keepInMemory),
+            'compiled' => new CompiledTemplatesCache($this->cacheDirectory->path(), $keepInMemory),
             default => throw new \InvalidArgumentException("Unknown templates cache backend [{$this->backend}]."),
         };
     }

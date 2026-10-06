@@ -37,54 +37,6 @@ test('variables', function (bool $strict) {
     'strict' => true,
 ]);
 
-test('variables not existing', function (bool $strict) {
-    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
-
-    if ($strict) {
-        expect($context->get('does_not_exist'))->toBeInstanceOf(UndefinedVariable::class);
-        expect(fn () => renderTemplate('{{ does_not_exists }}', strictVariables: true))->toThrow(\Keepsuit\Liquid\Exceptions\UndefinedVariableException::class, 'Variable `does_not_exists` not found');
-    } else {
-        expect($context->get('does_not_exist'))->toBeNull();
-        assertTemplateResult('', '{{ does_not_exists }}', strictVariables: $strict);
-    }
-
-    assertTemplateResult('true', '{% if does_not_exist == nil %}true{% endif %}', strictVariables: $strict);
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
-
-test('array size', function (bool $strict) {
-    assertTemplateResult(
-        'true',
-        '{% if numbers.size == 4 %}true{% endif %}',
-        ['numbers' => [1, 2, 3, 4]],
-        strictVariables: $strict
-    );
-    assertTemplateResult(
-        'true',
-        '{% if numbers.size == 4 %}true{% endif %}',
-        ['numbers' => [1 => 1, 2 => 2, 3 => 3, 4 => 4]],
-        strictVariables: $strict
-    );
-    assertTemplateResult(
-        'true',
-        '{% if numbers.size == 1000 %}true{% endif %}',
-        ['numbers' => [1 => 1, 2 => 2, 3 => 3, 4 => 4, 'size' => 1000]],
-        strictVariables: $strict
-    );
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
-
-test('hyphenated variable', function (bool $strict) {
-    assertTemplateResult('godz', '{{ oh-my }}', ['oh-my' => 'godz'], strictVariables: $strict);
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
-
 test('add filter', function (bool $strict) {
     $context = \Keepsuit\Liquid\EnvironmentFactory::new()
         ->registerFilters(\Keepsuit\Liquid\Tests\Stubs\TestFilters::class)
@@ -175,39 +127,6 @@ test('add item in inner scope', function (bool $strict) {
     'strict' => true,
 ]);
 
-test('hierarchical data', function (bool $strict) {
-    $assigns = ['hash' => ['name' => 'tobi']];
-    assertTemplateResult('tobi', '{{ hash.name }}', $assigns, strictVariables: $strict);
-    assertTemplateResult('tobi', '{{ hash["name"] }}', $assigns, strictVariables: $strict);
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
-
-test('keywords', function (bool $strict) {
-    assertTemplateResult('pass', '{% if true == expect %}pass{% endif %}', ['expect' => true], strictVariables: $strict);
-    assertTemplateResult('pass', '{% if false == expect %}pass{% endif %}', ['expect' => false], strictVariables: $strict);
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
-
-test('digits', function (bool $strict) {
-    assertTemplateResult('pass', '{% if 100 == expect %}pass{% endif %}', ['expect' => 100], strictVariables: $strict);
-    assertTemplateResult('pass', '{% if 100.00 == expect %}pass{% endif %}', ['expect' => 100.00], strictVariables: $strict);
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
-
-test('strings', function (bool $strict) {
-    assertTemplateResult('hello!', '{{ "hello!" }}', strictVariables: $strict);
-    assertTemplateResult('hello!', "{{ 'hello!' }}", strictVariables: $strict);
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
-
 test('merge', function (bool $strict) {
     $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->merge(['test' => 'test']);
@@ -217,153 +136,6 @@ test('merge', function (bool $strict) {
     expect($context)
         ->get('test')->toBe('newvalue')
         ->get('foo')->toBe('bar');
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
-
-test('array notation', function (bool $strict) {
-    $assigns = ['test' => ['a', 'b']];
-    assertTemplateResult('a', '{{ test[0] }}', $assigns, strictVariables: $strict);
-    assertTemplateResult('b', '{{ test[1] }}', $assigns, strictVariables: $strict);
-    assertTemplateResult('pass', '{% if test[2] == nil %}pass{% endif %}', $assigns, strictVariables: $strict);
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
-
-test('recursive array notation', function (bool $strict) {
-    $assigns = ['test' => ['test' => [1, 2, 3, 4, 5]]];
-    assertTemplateResult('1', '{{ test.test[0] }}', $assigns, strictVariables: $strict);
-
-    $assigns = ['test' => [['test' => 'worked']]];
-    assertTemplateResult('worked', '{{ test[0].test }}', $assigns, strictVariables: $strict);
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
-
-test('negative array indexes and quoted negative keys', function (bool $strict) {
-    $array = [3, 1, 2];
-
-    assertTemplateResult('2', '{{ arr[-1] }}', ['arr' => $array], strictVariables: $strict);
-    assertTemplateResult('1', '{{ arr[index] }}', ['arr' => $array, 'index' => -2], strictVariables: $strict);
-    assertTemplateResult('quoted key', '{{ hash["-1"] }}', ['hash' => ['-1' => 'quoted key']], strictVariables: $strict);
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
-
-test('out of range negative array indexes follow missing variable behavior', function () {
-    assertTemplateResult('', '{{ arr[-4] }}', ['arr' => [3, 1, 2]]);
-    assertTemplateResult('', '{{ arr[-1] }}', ['arr' => []]);
-
-    expect(fn () => renderTemplate('{{ arr[-4] }}', ['arr' => [3, 1, 2]], strictVariables: true))
-        ->toThrow(\Keepsuit\Liquid\Exceptions\UndefinedVariableException::class);
-});
-
-test('hash to array transition', function (bool $strict) {
-    $assigns = [
-        'colors' => [
-            'Blue' => ['003366', '336699', '6699CC', '99CCFF'],
-            'Green' => ['003300', '336633', '669966', '99CC99'],
-            'Yellow' => ['CC9900', 'FFCC00', 'FFFF99', 'FFFFCC'],
-            'Red' => ['660000', '993333', 'CC6666', 'FF9999'],
-        ],
-    ];
-
-    assertTemplateResult('003366', '{{ colors.Blue[0] }}', $assigns, strictVariables: $strict);
-    assertTemplateResult('FF9999', '{{ colors.Red[3] }}', $assigns, strictVariables: $strict);
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
-
-test('array first/last', function (bool $strict) {
-    $assigns = ['test' => [1, 2, 3, 4, 5]];
-    assertTemplateResult('1', '{{ test.first }}', $assigns, strictVariables: $strict);
-    assertTemplateResult('pass', '{% if test.last == 5 %}pass{% endif %}', $assigns, strictVariables: $strict);
-
-    $assigns = ['test' => ['test' => [1, 2, 3, 4, 5]]];
-    assertTemplateResult('1', '{{ test.test.first }}', $assigns, strictVariables: $strict);
-    assertTemplateResult('5', '{{ test.test.last }}', $assigns, strictVariables: $strict);
-
-    $assigns = ['test' => [1]];
-    assertTemplateResult('1', '{{ test.first }}', $assigns, strictVariables: $strict);
-    assertTemplateResult('1', '{{ test.last }}', $assigns, strictVariables: $strict);
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
-
-test('string size/first/last lookup', function (bool $strict) {
-    $string = 'Hello World';
-
-    assertTemplateResult('11', '{{ value.size }}', ['value' => $string], strictVariables: $strict);
-    assertTemplateResult('true', '{% if value.size > 2 %}true{% else %}false{% endif %}', ['value' => $string], strictVariables: $strict);
-    assertTemplateResult('H', '{{ value.first }}', ['value' => $string], strictVariables: $strict);
-    assertTemplateResult('d', '{{ value.last }}', ['value' => $string], strictVariables: $strict);
-    assertTemplateResult('11|H|d', '{{ value["size"] }}|{{ value["first"] }}|{{ value["last"] }}', ['value' => $string], strictVariables: $strict);
-
-    $unicode = 'éclair';
-    assertTemplateResult('6', '{{ value.size }}', ['value' => $unicode], strictVariables: $strict);
-    assertTemplateResult('é', '{{ value.first }}', ['value' => $unicode], strictVariables: $strict);
-    assertTemplateResult('r', '{{ value.last }}', ['value' => $unicode], strictVariables: $strict);
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
-
-test('access hashes with hash notation', function (bool $strict) {
-    $assigns = ['products' => ['count' => 5, 'tags' => ['deepsnow', 'freestyle']]];
-    assertTemplateResult('5', '{{ products["count"] }}', $assigns, strictVariables: $strict);
-    assertTemplateResult('deepsnow', '{{ products["tags"][0] }}', $assigns, strictVariables: $strict);
-    assertTemplateResult('deepsnow', '{{ products["tags"].first }}', $assigns, strictVariables: $strict);
-
-    $assigns = ['product' => ['variants' => [['title' => 'draft151cm'], ['title' => 'element151cm']]]];
-    assertTemplateResult('draft151cm', '{{ product["variants"][0]["title"] }}', $assigns, strictVariables: $strict);
-    assertTemplateResult('element151cm', '{{ product["variants"][1]["title"] }}', $assigns, strictVariables: $strict);
-    assertTemplateResult('draft151cm', '{{ product["variants"].first["title"] }}', $assigns, strictVariables: $strict);
-    assertTemplateResult('element151cm', '{{ product["variants"].last["title"] }}', $assigns, strictVariables: $strict);
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
-
-test('access hashes with hash access variables', function (bool $strict) {
-    $assigns = [
-        'var' => 'tags',
-        'nested' => ['var' => 'tags'],
-        'products' => ['count' => 5, 'tags' => ['deepsnow', 'freestyle']],
-    ];
-
-    assertTemplateResult('deepsnow', '{{ products[var].first }}', $assigns, strictVariables: $strict);
-    assertTemplateResult('freestyle', '{{ products[nested.var].last }}', $assigns, strictVariables: $strict);
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
-
-test('hash notation for lookup filters', function (bool $strict) {
-    assertTemplateResult('1', '{{ value.first }}', ['value' => [1, 2, 3, 4, 5]], strictVariables: $strict);
-    assertTemplateResult('1', '{{ value["first"] }}', ['value' => [1, 2, 3, 4, 5]], strictVariables: $strict);
-
-    assertTemplateResult('Hello', '{{ value["first"] }}', ['value' => ['first' => 'Hello']], strictVariables: $strict);
-    assertTemplateResult('', '{{ value["first"] }}', ['value' => ['key' => 'value']], strictVariables: $strict);
-    assertTemplateResult('|keyvalue', '{{ value.first }}|{{ value | first }}', ['value' => ['key' => 'value']], strictVariables: $strict);
-    assertTemplateResult('', '{{ value.first }}', ['value' => new ArrayIterator(['key' => 'value'])], strictVariables: $strict);
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
-
-test('first can appear in middle of call chain', function (bool $strict) {
-    $assigns = ['product' => ['variants' => [['title' => 'draft151cm'], ['title' => 'element151cm']]]];
-
-    assertTemplateResult('draft151cm', '{{ product.variants[0].title }}', $assigns, strictVariables: $strict);
-    assertTemplateResult('element151cm', '{{ product.variants[1].title }}', $assigns, strictVariables: $strict);
-    assertTemplateResult('draft151cm', '{{ product.variants.first.title }}', $assigns, strictVariables: $strict);
-    assertTemplateResult('element151cm', '{{ product.variants.last.title }}', $assigns, strictVariables: $strict);
 })->with([
     'default' => false,
     'strict' => true,
@@ -433,18 +205,6 @@ test('nested context from within drop', function (bool $strict) {
     $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->merge(['test' => '123', 'vars' => ['local' => new ContextSensitiveDrop]]);
     expect($context->get('vars.local.test'))->toBe('123');
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
-
-test('ranges', function (bool $strict) {
-    assertTemplateResult('1..5', '{{ (1..5) }}', strictVariables: $strict);
-    assertTemplateResult('pass', '{% if (1..5) == expect %}pass{% endif %}', ['expect' => new Range(1, 5)], strictVariables: $strict);
-
-    $assigns = ['test' => '5'];
-    assertTemplateResult('1..5', '{{ (1..test) }}', $assigns, strictVariables: $strict);
-    assertTemplateResult('5..5', '{{ (test..test) }}', $assigns, strictVariables: $strict);
 })->with([
     'default' => false,
     'strict' => true,
@@ -692,37 +452,6 @@ test('new isolated subcontext inherit resource limits', function (bool $strict) 
     'strict' => true,
 ]);
 
-test('new isolated subcontext inherit environment', function (bool $strict) {
-    $environment = testEnvironment(\Keepsuit\Liquid\EnvironmentFactory::new()
-        ->setFilesystem($fileSystem = new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem)
-        ->setStrictVariables($strict)
-        ->build());
-
-    $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict), environment: $environment);
-    $subContext = $context->newIsolatedSubContext('sub');
-
-    expect($subContext)
-        ->environment->toBe($environment)
-        ->environment->fileSystem->toBe($fileSystem);
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
-
-test('new isolated subcontext inherit filters', function (bool $strict) {
-    $context = \Keepsuit\Liquid\EnvironmentFactory::new()
-        ->setStrictVariables($strict)
-        ->registerFilters(\Keepsuit\Liquid\Tests\Stubs\TestFilters::class)
-        ->build()
-        ->newRenderContext();
-    $subContext = $context->newIsolatedSubContext('sub');
-
-    expect(parseTemplate('{{ "hi?" | hi }}')->render($subContext))->toBe('hi? hi!');
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
-
 test('disabled specified tags', function (bool $strict) {
     $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->withDisabledTags(['foo', 'bar'], function (RenderContext $context) {
@@ -864,3 +593,272 @@ test('lazy variable resolution falls back when a lookup path misses', function (
     'default' => false,
     'strict' => true,
 ]);
+
+describe('rendering with template backends', function () {
+    test('variables not existing', function (bool $compiled, bool $strict) {
+        $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
+
+        if ($strict) {
+            expect($context->get('does_not_exist'))->toBeInstanceOf(UndefinedVariable::class);
+            expect(fn () => renderTemplate('{{ does_not_exists }}', strictVariables: true, compiled: $compiled))->toThrow(\Keepsuit\Liquid\Exceptions\UndefinedVariableException::class, 'Variable `does_not_exists` not found');
+        } else {
+            expect($context->get('does_not_exist'))->toBeNull();
+            assertTemplateResult('', '{{ does_not_exists }}', strictVariables: $strict, compiled: $compiled);
+        }
+
+        assertTemplateResult('true', '{% if does_not_exist == nil %}true{% endif %}', strictVariables: $strict, compiled: $compiled);
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
+
+    test('array size', function (bool $compiled, bool $strict) {
+        assertTemplateResult(
+            'true',
+            '{% if numbers.size == 4 %}true{% endif %}',
+            ['numbers' => [1, 2, 3, 4]],
+            strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult(
+            'true',
+            '{% if numbers.size == 4 %}true{% endif %}',
+            ['numbers' => [1 => 1, 2 => 2, 3 => 3, 4 => 4]],
+            strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult(
+            'true',
+            '{% if numbers.size == 1000 %}true{% endif %}',
+            ['numbers' => [1 => 1, 2 => 2, 3 => 3, 4 => 4, 'size' => 1000]],
+            strictVariables: $strict, compiled: $compiled);
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
+
+    test('hyphenated variable', function (bool $compiled, bool $strict) {
+        assertTemplateResult('godz', '{{ oh-my }}', ['oh-my' => 'godz'], strictVariables: $strict, compiled: $compiled);
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
+
+    test('hierarchical data', function (bool $compiled, bool $strict) {
+        $assigns = ['hash' => ['name' => 'tobi']];
+        assertTemplateResult('tobi', '{{ hash.name }}', $assigns, strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('tobi', '{{ hash["name"] }}', $assigns, strictVariables: $strict, compiled: $compiled);
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
+
+    test('keywords', function (bool $compiled, bool $strict) {
+        assertTemplateResult('pass', '{% if true == expect %}pass{% endif %}', ['expect' => true], strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('pass', '{% if false == expect %}pass{% endif %}', ['expect' => false], strictVariables: $strict, compiled: $compiled);
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
+
+    test('digits', function (bool $compiled, bool $strict) {
+        assertTemplateResult('pass', '{% if 100 == expect %}pass{% endif %}', ['expect' => 100], strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('pass', '{% if 100.00 == expect %}pass{% endif %}', ['expect' => 100.00], strictVariables: $strict, compiled: $compiled);
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
+
+    test('strings', function (bool $compiled, bool $strict) {
+        assertTemplateResult('hello!', '{{ "hello!" }}', strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('hello!', "{{ 'hello!' }}", strictVariables: $strict, compiled: $compiled);
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
+
+    test('array notation', function (bool $compiled, bool $strict) {
+        $assigns = ['test' => ['a', 'b']];
+        assertTemplateResult('a', '{{ test[0] }}', $assigns, strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('b', '{{ test[1] }}', $assigns, strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('pass', '{% if test[2] == nil %}pass{% endif %}', $assigns, strictVariables: $strict, compiled: $compiled);
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
+
+    test('recursive array notation', function (bool $compiled, bool $strict) {
+        $assigns = ['test' => ['test' => [1, 2, 3, 4, 5]]];
+        assertTemplateResult('1', '{{ test.test[0] }}', $assigns, strictVariables: $strict, compiled: $compiled);
+
+        $assigns = ['test' => [['test' => 'worked']]];
+        assertTemplateResult('worked', '{{ test[0].test }}', $assigns, strictVariables: $strict, compiled: $compiled);
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
+
+    test('negative array indexes and quoted negative keys', function (bool $compiled, bool $strict) {
+        $array = [3, 1, 2];
+
+        assertTemplateResult('2', '{{ arr[-1] }}', ['arr' => $array], strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('1', '{{ arr[index] }}', ['arr' => $array, 'index' => -2], strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('quoted key', '{{ hash["-1"] }}', ['hash' => ['-1' => 'quoted key']], strictVariables: $strict, compiled: $compiled);
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
+
+    test('out of range negative array indexes follow missing variable behavior', function (bool $compiled) {
+        assertTemplateResult('', '{{ arr[-4] }}', ['arr' => [3, 1, 2]], compiled: $compiled);
+        assertTemplateResult('', '{{ arr[-1] }}', ['arr' => []], compiled: $compiled);
+
+        expect(fn () => renderTemplate('{{ arr[-4] }}', ['arr' => [3, 1, 2]], strictVariables: true, compiled: $compiled))
+            ->toThrow(\Keepsuit\Liquid\Exceptions\UndefinedVariableException::class);
+    });
+
+    test('hash to array transition', function (bool $compiled, bool $strict) {
+        $assigns = [
+            'colors' => [
+                'Blue' => ['003366', '336699', '6699CC', '99CCFF'],
+                'Green' => ['003300', '336633', '669966', '99CC99'],
+                'Yellow' => ['CC9900', 'FFCC00', 'FFFF99', 'FFFFCC'],
+                'Red' => ['660000', '993333', 'CC6666', 'FF9999'],
+            ],
+        ];
+
+        assertTemplateResult('003366', '{{ colors.Blue[0] }}', $assigns, strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('FF9999', '{{ colors.Red[3] }}', $assigns, strictVariables: $strict, compiled: $compiled);
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
+
+    test('array first/last', function (bool $compiled, bool $strict) {
+        $assigns = ['test' => [1, 2, 3, 4, 5]];
+        assertTemplateResult('1', '{{ test.first }}', $assigns, strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('pass', '{% if test.last == 5 %}pass{% endif %}', $assigns, strictVariables: $strict, compiled: $compiled);
+
+        $assigns = ['test' => ['test' => [1, 2, 3, 4, 5]]];
+        assertTemplateResult('1', '{{ test.test.first }}', $assigns, strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('5', '{{ test.test.last }}', $assigns, strictVariables: $strict, compiled: $compiled);
+
+        $assigns = ['test' => [1]];
+        assertTemplateResult('1', '{{ test.first }}', $assigns, strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('1', '{{ test.last }}', $assigns, strictVariables: $strict, compiled: $compiled);
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
+
+    test('string size/first/last lookup', function (bool $compiled, bool $strict) {
+        $string = 'Hello World';
+
+        assertTemplateResult('11', '{{ value.size }}', ['value' => $string], strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('true', '{% if value.size > 2 %}true{% else %}false{% endif %}', ['value' => $string], strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('H', '{{ value.first }}', ['value' => $string], strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('d', '{{ value.last }}', ['value' => $string], strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('11|H|d', '{{ value["size"] }}|{{ value["first"] }}|{{ value["last"] }}', ['value' => $string], strictVariables: $strict, compiled: $compiled);
+
+        $unicode = 'éclair';
+        assertTemplateResult('6', '{{ value.size }}', ['value' => $unicode], strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('é', '{{ value.first }}', ['value' => $unicode], strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('r', '{{ value.last }}', ['value' => $unicode], strictVariables: $strict, compiled: $compiled);
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
+
+    test('access hashes with hash notation', function (bool $compiled, bool $strict) {
+        $assigns = ['products' => ['count' => 5, 'tags' => ['deepsnow', 'freestyle']]];
+        assertTemplateResult('5', '{{ products["count"] }}', $assigns, strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('deepsnow', '{{ products["tags"][0] }}', $assigns, strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('deepsnow', '{{ products["tags"].first }}', $assigns, strictVariables: $strict, compiled: $compiled);
+
+        $assigns = ['product' => ['variants' => [['title' => 'draft151cm'], ['title' => 'element151cm']]]];
+        assertTemplateResult('draft151cm', '{{ product["variants"][0]["title"] }}', $assigns, strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('element151cm', '{{ product["variants"][1]["title"] }}', $assigns, strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('draft151cm', '{{ product["variants"].first["title"] }}', $assigns, strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('element151cm', '{{ product["variants"].last["title"] }}', $assigns, strictVariables: $strict, compiled: $compiled);
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
+
+    test('access hashes with hash access variables', function (bool $compiled, bool $strict) {
+        $assigns = [
+            'var' => 'tags',
+            'nested' => ['var' => 'tags'],
+            'products' => ['count' => 5, 'tags' => ['deepsnow', 'freestyle']],
+        ];
+
+        assertTemplateResult('deepsnow', '{{ products[var].first }}', $assigns, strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('freestyle', '{{ products[nested.var].last }}', $assigns, strictVariables: $strict, compiled: $compiled);
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
+
+    test('hash notation for lookup filters', function (bool $compiled, bool $strict) {
+        assertTemplateResult('1', '{{ value.first }}', ['value' => [1, 2, 3, 4, 5]], strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('1', '{{ value["first"] }}', ['value' => [1, 2, 3, 4, 5]], strictVariables: $strict, compiled: $compiled);
+
+        assertTemplateResult('Hello', '{{ value["first"] }}', ['value' => ['first' => 'Hello']], strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('', '{{ value["first"] }}', ['value' => ['key' => 'value']], strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('|keyvalue', '{{ value.first }}|{{ value | first }}', ['value' => ['key' => 'value']], strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('', '{{ value.first }}', ['value' => new ArrayIterator(['key' => 'value'])], strictVariables: $strict, compiled: $compiled);
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
+
+    test('first can appear in middle of call chain', function (bool $compiled, bool $strict) {
+        $assigns = ['product' => ['variants' => [['title' => 'draft151cm'], ['title' => 'element151cm']]]];
+
+        assertTemplateResult('draft151cm', '{{ product.variants[0].title }}', $assigns, strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('element151cm', '{{ product.variants[1].title }}', $assigns, strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('draft151cm', '{{ product.variants.first.title }}', $assigns, strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('element151cm', '{{ product.variants.last.title }}', $assigns, strictVariables: $strict, compiled: $compiled);
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
+
+    test('ranges', function (bool $compiled, bool $strict) {
+        assertTemplateResult('1..5', '{{ (1..5) }}', strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('pass', '{% if (1..5) == expect %}pass{% endif %}', ['expect' => new Range(1, 5)], strictVariables: $strict, compiled: $compiled);
+
+        $assigns = ['test' => '5'];
+        assertTemplateResult('1..5', '{{ (1..test) }}', $assigns, strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('5..5', '{{ (test..test) }}', $assigns, strictVariables: $strict, compiled: $compiled);
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
+
+    test('new isolated subcontext inherit environment', function (bool $compiled, bool $strict) {
+        $environment = testEnvironmentFactory($compiled)
+            ->setFilesystem($fileSystem = new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem)
+            ->setStrictVariables($strict)->build();
+
+        $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict), environment: $environment);
+        $subContext = $context->newIsolatedSubContext('sub');
+
+        expect($subContext)
+            ->environment->toBe($environment)
+            ->environment->fileSystem->toBe($fileSystem);
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
+
+    test('new isolated subcontext inherit filters', function (bool $compiled, bool $strict) {
+        $context = \Keepsuit\Liquid\EnvironmentFactory::new()
+            ->setStrictVariables($strict)
+            ->registerFilters(\Keepsuit\Liquid\Tests\Stubs\TestFilters::class)
+            ->build()
+            ->newRenderContext();
+        $subContext = $context->newIsolatedSubContext('sub');
+
+        expect(parseTemplate('{{ "hi?" | hi }}', compiled: $compiled)->render($subContext))->toBe('hi? hi!');
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
+})->with('template backends');

@@ -31,10 +31,6 @@ class Compiler
 
             $this->publishArtifact($temporaryPath, $compiledPath);
 
-            // Backdated so opcache.file_update_protection does not skip caching a freshly written artifact.
-            $requestTime = $_SERVER['REQUEST_TIME'] ?? null;
-            touch($compiledPath, (is_int($requestTime) ? $requestTime : time()) - 5);
-
             if (function_exists('opcache_invalidate')) {
                 opcache_invalidate($compiledPath, true);
             }

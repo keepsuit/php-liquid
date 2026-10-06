@@ -120,7 +120,7 @@ class Environment
     /**
      * @throws LiquidException
      */
-    public function parseString(string $source, ?string $name = null): Template
+    public function parseString(string $source, ?string $name = null): ParsedTemplate
     {
         return $this->newParseContext()->parse($source, name: $name);
     }

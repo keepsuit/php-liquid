@@ -1,28 +1,71 @@
 <?php
 
+use Keepsuit\Liquid\Compiler\CompiledTemplate;
 use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\TokenStream;
+use Keepsuit\Liquid\ParsedTemplate;
 use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
-use Keepsuit\Liquid\Tests\Support\CompiledTestEnvironment;
 use PHPUnit\Framework\ExpectationFailedException;
+use Spatie\TemporaryDirectory\TemporaryDirectory;
 
-function testEnvironment(Environment $environment): Environment
+function testTemporaryDirectory(): TemporaryDirectory
 {
-    return match (getenv('LIQUID_TEST_BACKEND') ?: 'in-memory') {
-        'in-memory' => $environment,
-        'compiled' => CompiledTestEnvironment::wrap($environment),
-        default => throw new InvalidArgumentException('Unknown LIQUID_TEST_BACKEND.'),
-    };
+    // Retain the owners until process shutdown so caches can keep using their paths.
+    static $directories = [];
+
+    return $directories[] = TemporaryDirectory::make()->deleteWhenDestroyed();
+}
+
+function testCompiledTemplatesCache(): CompiledTemplatesCache
+{
+    return new CompiledTemplatesCache(testTemporaryDirectory()->path());
+}
+
+function testEnvironmentFactory(bool $compiled): EnvironmentFactory
+{
+    $factory = EnvironmentFactory::new();
+
+    if ($compiled) {
+        $factory->setTemplatesCache(testCompiledTemplatesCache());
+    }
+
+    return $factory;
 }
 
 /** Parse a source for assertions on the parser, AST or parsed cache format. */
-function parseSource(string $source, ?Environment $environment = null): Template
+function parseSource(string $source, ?Environment $environment = null): ParsedTemplate
 {
     return ($environment ?? Environment::default())->parseString($source);
+}
+
+/** Parse a source and compile it when the environment uses the compiled test backend. */
+function testParseString(Environment $environment, string $source, ?string $name = null): Template
+{
+    $template = $environment->parseString($source, $name);
+
+    if (! $environment->templatesCache instanceof CompiledTemplatesCache) {
+        return $template;
+    }
+
+    $path = tempnam(sys_get_temp_dir(), 'liquid-test-root-');
+    if ($path === false) {
+        throw new RuntimeException('Unable to create a compiled test template.');
+    }
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        assert($compiled instanceof CompiledTemplate);
+
+        return $compiled;
+    } finally {
+        unlink($path);
+    }
 }
 
 /**
@@ -31,8 +74,9 @@ function parseSource(string $source, ?Environment $environment = null): Template
 function parseTemplate(
     string $source,
     ?Environment $environment = null,
+    bool $compiled = false,
 ): Template {
-    return testEnvironment($environment ?? Environment::default())->parseString($source);
+    return testParseString($environment ?? testEnvironmentFactory($compiled)->build(), $source);
 }
 
 function buildRenderContext(
@@ -64,15 +108,19 @@ function renderTemplate(
     array $partials = [],
     bool $renderErrors = false,
     bool $strictVariables = false,
-    EnvironmentFactory $factory = new EnvironmentFactory
+    EnvironmentFactory $factory = new EnvironmentFactory,
+    bool $compiled = false,
 ): string {
-    $environment = testEnvironment($factory
+    if ($compiled) {
+        $factory->setTemplatesCache(testCompiledTemplatesCache());
+    }
+
+    $environment = $factory
         ->setFilesystem(new StubFileSystem(partials: $partials))
         ->setStrictVariables($strictVariables)
-        ->setRethrowErrors(! $renderErrors)
-        ->build());
+        ->setRethrowErrors(! $renderErrors)->build();
 
-    $template = $environment->parseString($template);
+    $template = testParseString($environment, $template);
 
     $context = buildRenderContext(
         data: $data,
@@ -97,15 +145,19 @@ function streamTemplate(
     array $partials = [],
     bool $renderErrors = false,
     bool $strictVariables = false,
-    EnvironmentFactory $factory = new EnvironmentFactory
+    EnvironmentFactory $factory = new EnvironmentFactory,
+    bool $compiled = false,
 ): Generator {
-    $environment = testEnvironment($factory
+    if ($compiled) {
+        $factory->setTemplatesCache(testCompiledTemplatesCache());
+    }
+
+    $environment = $factory
         ->setFilesystem(new StubFileSystem(partials: $partials))
         ->setStrictVariables($strictVariables)
-        ->setRethrowErrors(! $renderErrors)
-        ->build());
+        ->setRethrowErrors(! $renderErrors)->build();
 
-    $template = $environment->parseString($template);
+    $template = testParseString($environment, $template);
 
     $context = buildRenderContext(
         data: $data,
@@ -126,7 +178,8 @@ function assertTemplateResult(
     array $partials = [],
     bool $renderErrors = false,
     bool $strictVariables = false,
-    EnvironmentFactory $factory = new EnvironmentFactory
+    EnvironmentFactory $factory = new EnvironmentFactory,
+    bool $compiled = false,
 ): void {
     expect(renderTemplate(
         template: $template,
@@ -137,6 +190,7 @@ function assertTemplateResult(
         renderErrors: $renderErrors,
         strictVariables: $strictVariables,
         factory: $factory,
+        compiled: $compiled,
     ))->toBe($expected);
 }
 
@@ -147,9 +201,10 @@ function assertMatchSyntaxError(
     array $staticData = [],
     array $registers = [],
     array $partials = [],
+    bool $compiled = false,
 ): void {
     try {
-        renderTemplate(template: $template, data: $data, staticData: $staticData, registers: $registers, partials: $partials);
+        renderTemplate(template: $template, data: $data, staticData: $staticData, registers: $registers, partials: $partials, compiled: $compiled);
     } catch (SyntaxException $exception) {
         expect($exception->toLiquidErrorMessage())->toBe($error);
 
