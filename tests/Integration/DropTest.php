@@ -8,105 +8,107 @@ use Keepsuit\Liquid\Tests\Stubs\ContextDrop;
 use Keepsuit\Liquid\Tests\Stubs\EnumerableDrop;
 use Keepsuit\Liquid\Tests\Stubs\ProductDrop;
 
-test('product drop', function () {
-    expect(renderTemplate('  ', ['product' => new ProductDrop]))->toBe('  ');
-});
+describe('rendering with template backends', function () {
+    test('product drop', function (bool $compiled) {
+        expect(renderTemplate('  ', ['product' => new ProductDrop], compiled: $compiled))->toBe('  ');
+    });
 
-test('drop does only respond to whitelisted methods', function () {
-    expect(renderTemplate('{{ product.__construct }}', ['product' => new ProductDrop]))->toBe('');
-    expect(renderTemplate('{{ product.__toString }}', ['product' => new ProductDrop]))->toBe('');
-    expect(renderTemplate('{{ product.whatever }}', ['product' => new ProductDrop]))->toBe('');
-    expect(renderTemplate('{{ product | map: "__construct" }}', ['product' => new ProductDrop]))->toBe('');
-    expect(renderTemplate('{{ product | map: "__toString" }}', ['product' => new ProductDrop]))->toBe('');
-    expect(renderTemplate('{{ product | map: "whatever" }}', ['product' => new ProductDrop]))->toBe('');
-});
+    test('drop does only respond to whitelisted methods', function (bool $compiled) {
+        expect(renderTemplate('{{ product.__construct }}', ['product' => new ProductDrop], compiled: $compiled))->toBe('');
+        expect(renderTemplate('{{ product.__toString }}', ['product' => new ProductDrop], compiled: $compiled))->toBe('');
+        expect(renderTemplate('{{ product.whatever }}', ['product' => new ProductDrop], compiled: $compiled))->toBe('');
+        expect(renderTemplate('{{ product | map: "__construct" }}', ['product' => new ProductDrop], compiled: $compiled))->toBe('');
+        expect(renderTemplate('{{ product | map: "__toString" }}', ['product' => new ProductDrop], compiled: $compiled))->toBe('');
+        expect(renderTemplate('{{ product | map: "whatever" }}', ['product' => new ProductDrop], compiled: $compiled))->toBe('');
+    });
 
-test('text drop', function () {
-    expect(renderTemplate(' {{ product.text.text }} ', ['product' => new ProductDrop]))->toBe(' text1 ');
-});
+    test('text drop', function (bool $compiled) {
+        expect(renderTemplate(' {{ product.text.text }} ', ['product' => new ProductDrop], compiled: $compiled))->toBe(' text1 ');
+    });
 
-test('catchall unknown method', function () {
-    expect(renderTemplate(' {{ product.catch_all.unknown }} ', ['product' => new ProductDrop]))->toBe(' catchall_method: unknown ');
-});
+    test('catchall unknown method', function (bool $compiled) {
+        expect(renderTemplate(' {{ product.catch_all.unknown }} ', ['product' => new ProductDrop], compiled: $compiled))->toBe(' catchall_method: unknown ');
+    });
 
-test('catchall integer argument drop', function () {
-    expect(renderTemplate(' {{ product.catch_all[8] }} ', ['product' => new ProductDrop]))->toBe(' catchall_method: 8 ');
-});
+    test('catchall integer argument drop', function (bool $compiled) {
+        expect(renderTemplate(' {{ product.catch_all[8] }} ', ['product' => new ProductDrop], compiled: $compiled))->toBe(' catchall_method: 8 ');
+    });
 
-test('text array drop', function () {
-    expect(renderTemplate('{% for text in product.text.array %} {{text}} {% endfor %}', ['product' => new ProductDrop]))->toBe(' text1  text2 ');
-});
+    test('text array drop', function (bool $compiled) {
+        expect(renderTemplate('{% for text in product.text.array %} {{text}} {% endfor %}', ['product' => new ProductDrop], compiled: $compiled))->toBe(' text1  text2 ');
+    });
 
-test('context drop', function () {
-    expect(renderTemplate(' {{ context.bar }} ', ['context' => new ContextDrop, 'bar' => 'carrot']))->toBe(' carrot ');
-});
+    test('context drop', function (bool $compiled) {
+        expect(renderTemplate(' {{ context.bar }} ', ['context' => new ContextDrop, 'bar' => 'carrot'], compiled: $compiled))->toBe(' carrot ');
+    });
 
-test('context drop array with map', function () {
-    expect(renderTemplate(' {{ contexts | map: "bar" }} ', ['contexts' => [new ContextDrop, new ContextDrop], 'bar' => 'carrot']))
-        ->toBe(' carrotcarrot ');
-});
+    test('context drop array with map', function (bool $compiled) {
+        expect(renderTemplate(' {{ contexts | map: "bar" }} ', ['contexts' => [new ContextDrop, new ContextDrop], 'bar' => 'carrot'], compiled: $compiled))
+            ->toBe(' carrotcarrot ');
+    });
 
-test('nested context drop', function () {
-    expect(renderTemplate(' {{ product.context.foo }} ', ['product' => new ProductDrop, 'foo' => 'monkey']))
-        ->toBe(' monkey ');
-});
+    test('nested context drop', function (bool $compiled) {
+        expect(renderTemplate(' {{ product.context.foo }} ', ['product' => new ProductDrop, 'foo' => 'monkey'], compiled: $compiled))
+            ->toBe(' monkey ');
+    });
 
-test('protected', function () {
-    expect(renderTemplate(' {{ product.callmenot }} ', ['product' => new ProductDrop]))
-        ->toBe('  ');
-});
+    test('protected', function (bool $compiled) {
+        expect(renderTemplate(' {{ product.callmenot }} ', ['product' => new ProductDrop], compiled: $compiled))
+            ->toBe('  ');
+    });
 
-test('php reserved methods not allowed', function () {
-    foreach (['__construct', '__toString', '__get', '__set', '__call'] as $method) {
-        expect(renderTemplate(sprintf(' {{ product.%s }} ', $method), ['product' => new ProductDrop]))->toBe('  ');
-    }
-});
+    test('php reserved methods not allowed', function (bool $compiled) {
+        foreach (['__construct', '__toString', '__get', '__set', '__call'] as $method) {
+            expect(renderTemplate(sprintf(' {{ product.%s }} ', $method), ['product' => new ProductDrop], compiled: $compiled))->toBe('  ');
+        }
+    });
 
-test('scope', function () {
-    expect(renderTemplate('{{ context.scopes }}', ['context' => new ContextDrop]))->toBe('1');
-    expect(renderTemplate('{%for i in dummy%}{{ context.scopes }}{%endfor%}', ['context' => new ContextDrop, 'dummy' => [1]]))->toBe('2');
-    expect(renderTemplate('{%for i in dummy%}{%for i in dummy%}{{ context.scopes }}{%endfor%}{%endfor%}', ['context' => new ContextDrop, 'dummy' => [1]]))->toBe('3');
-});
+    test('scope', function (bool $compiled) {
+        expect(renderTemplate('{{ context.scopes }}', ['context' => new ContextDrop], compiled: $compiled))->toBe('1');
+        expect(renderTemplate('{%for i in dummy%}{{ context.scopes }}{%endfor%}', ['context' => new ContextDrop, 'dummy' => [1]], compiled: $compiled))->toBe('2');
+        expect(renderTemplate('{%for i in dummy%}{%for i in dummy%}{{ context.scopes }}{%endfor%}{%endfor%}', ['context' => new ContextDrop, 'dummy' => [1]], compiled: $compiled))->toBe('3');
+    });
 
-test('scope through closure', function () {
-    expect(renderTemplate('{{ s }}', ['context' => new ContextDrop, 's' => fn (RenderContext $context) => $context->get('context.scopes')]))->toBe('1');
-    expect(renderTemplate('{%for i in dummy%}{{ s }}{%endfor%}', ['context' => new ContextDrop, 's' => fn (RenderContext $context) => $context->get('context.scopes'), 'dummy' => [1]]))->toBe('2');
-    expect(renderTemplate('{%for i in dummy%}{%for i in dummy%}{{ s }}{%endfor%}{%endfor%}', ['context' => new ContextDrop, 's' => fn (RenderContext $context) => $context->get('context.scopes'), 'dummy' => [1]]))->toBe('3');
-});
+    test('scope through closure', function (bool $compiled) {
+        expect(renderTemplate('{{ s }}', ['context' => new ContextDrop, 's' => fn (RenderContext $context) => $context->get('context.scopes')], compiled: $compiled))->toBe('1');
+        expect(renderTemplate('{%for i in dummy%}{{ s }}{%endfor%}', ['context' => new ContextDrop, 's' => fn (RenderContext $context) => $context->get('context.scopes'), 'dummy' => [1]], compiled: $compiled))->toBe('2');
+        expect(renderTemplate('{%for i in dummy%}{%for i in dummy%}{{ s }}{%endfor%}{%endfor%}', ['context' => new ContextDrop, 's' => fn (RenderContext $context) => $context->get('context.scopes'), 'dummy' => [1]], compiled: $compiled))->toBe('3');
+    });
 
-test('scope with assign', function () {
-    expect(renderTemplate('{% assign a = "variable"%}{{a}}', ['context' => new ContextDrop]))->toBe('variable');
-    expect(renderTemplate('{% assign a = "variable"%}{%for i in dummy%}{{a}}{%endfor%}', ['context' => new ContextDrop, 'dummy' => [1]]))->toBe('variable');
-    expect(renderTemplate('{% assign header_gif = "test"%}{{header_gif}}', ['context' => new ContextDrop]))->toBe('test');
-});
+    test('scope with assign', function (bool $compiled) {
+        expect(renderTemplate('{% assign a = "variable"%}{{a}}', ['context' => new ContextDrop], compiled: $compiled))->toBe('variable');
+        expect(renderTemplate('{% assign a = "variable"%}{%for i in dummy%}{{a}}{%endfor%}', ['context' => new ContextDrop, 'dummy' => [1]], compiled: $compiled))->toBe('variable');
+        expect(renderTemplate('{% assign header_gif = "test"%}{{header_gif}}', ['context' => new ContextDrop], compiled: $compiled))->toBe('test');
+    });
 
-test('scope from tags', function () {
-    expect(renderTemplate('{% for i in context.scopes_as_array %}{{i}}{% endfor %}', ['context' => new ContextDrop, 'dummy' => [1]]))->toBe('1');
-    expect(renderTemplate('{%for a in dummy%}{% for i in context.scopes_as_array %}{{i}}{% endfor %}{% endfor %}', ['context' => new ContextDrop, 'dummy' => [1]]))->toBe('12');
-    expect(renderTemplate('{%for a in dummy%}{%for a in dummy%}{% for i in context.scopes_as_array %}{{i}}{% endfor %}{% endfor %}{% endfor %}', ['context' => new ContextDrop, 'dummy' => [1]]))->toBe('123');
-});
+    test('scope from tags', function (bool $compiled) {
+        expect(renderTemplate('{% for i in context.scopes_as_array %}{{i}}{% endfor %}', ['context' => new ContextDrop, 'dummy' => [1]], compiled: $compiled))->toBe('1');
+        expect(renderTemplate('{%for a in dummy%}{% for i in context.scopes_as_array %}{{i}}{% endfor %}{% endfor %}', ['context' => new ContextDrop, 'dummy' => [1]], compiled: $compiled))->toBe('12');
+        expect(renderTemplate('{%for a in dummy%}{%for a in dummy%}{% for i in context.scopes_as_array %}{{i}}{% endfor %}{% endfor %}{% endfor %}', ['context' => new ContextDrop, 'dummy' => [1]], compiled: $compiled))->toBe('123');
+    });
 
-test('access context from drop', function () {
-    expect(renderTemplate('{%for a in dummy%}{{ context.loop_pos }}{% endfor %}', ['context' => new ContextDrop, 'dummy' => [1, 2, 3]]))->toBe('123');
-});
+    test('access context from drop', function (bool $compiled) {
+        expect(renderTemplate('{%for a in dummy%}{{ context.loop_pos }}{% endfor %}', ['context' => new ContextDrop, 'dummy' => [1, 2, 3]], compiled: $compiled))->toBe('123');
+    });
 
-test('enumerable drop', function () {
-    expect(renderTemplate('{% for c in collection %}{{c}}{% endfor %}', ['collection' => new EnumerableDrop]))->toBe('123');
-    expect(renderTemplate('{{collection.size}}', ['collection' => new EnumerableDrop]))->toBe('3');
-});
+    test('enumerable drop', function (bool $compiled) {
+        expect(renderTemplate('{% for c in collection %}{{c}}{% endfor %}', ['collection' => new EnumerableDrop], compiled: $compiled))->toBe('123');
+        expect(renderTemplate('{{collection.size}}', ['collection' => new EnumerableDrop], compiled: $compiled))->toBe('3');
+    });
 
-test('empty string value access', function () {
-    expect(renderTemplate('{{ product[value] }}', ['product' => new ProductDrop, 'value' => '']))->toBe('');
-});
+    test('empty string value access', function (bool $compiled) {
+        expect(renderTemplate('{{ product[value] }}', ['product' => new ProductDrop, 'value' => ''], compiled: $compiled))->toBe('');
+    });
 
-test('null value access', function () {
-    expect(renderTemplate('{{ product[value] }}', ['product' => new ProductDrop, 'value' => null]))->toBe('');
-});
+    test('null value access', function (bool $compiled) {
+        expect(renderTemplate('{{ product[value] }}', ['product' => new ProductDrop, 'value' => null], compiled: $compiled))->toBe('');
+    });
 
-test('default to string on drops', function () {
-    expect(renderTemplate('{{ product }}', ['product' => new ProductDrop]))->toBe(ProductDrop::class);
-    expect(renderTemplate('{{ collection }}', ['collection' => new EnumerableDrop]))->toBe(EnumerableDrop::class);
-});
+    test('default to string on drops', function (bool $compiled) {
+        expect(renderTemplate('{{ product }}', ['product' => new ProductDrop], compiled: $compiled))->toBe(ProductDrop::class);
+        expect(renderTemplate('{{ collection }}', ['collection' => new EnumerableDrop], compiled: $compiled))->toBe(EnumerableDrop::class);
+    });
+})->with('template backends');
 
 test('drop toArray', function () {
     $context = Environment::default()->newRenderContext();

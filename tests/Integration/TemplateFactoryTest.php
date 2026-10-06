@@ -3,28 +3,28 @@
 use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
-test('parse template from string', function () {
-    $environment = testEnvironment(EnvironmentFactory::new()
-        ->build());
+describe('rendering with template backends', function () {
+    test('parse template from string', function (bool $compiled) {
+        $environment = testEnvironmentFactory($compiled)->build();
 
-    $template = testParseString($environment, 'Hello World', 'foo');
+        $template = testParseString($environment, 'Hello World', 'foo');
 
-    expect($template->name())->toBe('foo');
-    expect($template->render($environment->newRenderContext()))->toBe('Hello World');
-});
+        expect($template->name())->toBe('foo');
+        expect($template->render($environment->newRenderContext()))->toBe('Hello World');
+    });
 
-test('parse template from file', function () {
-    $environment = testEnvironment(EnvironmentFactory::new()
-        ->setFilesystem(new StubFileSystem([
-            'foo' => 'Hello World',
-        ]))
-        ->build());
+    test('parse template from file', function (bool $compiled) {
+        $environment = testEnvironmentFactory($compiled)
+            ->setFilesystem(new StubFileSystem([
+                'foo' => 'Hello World',
+            ]))->build();
 
-    $template = $environment->parseTemplate('foo');
+        $template = $environment->parseTemplate('foo');
 
-    expect($template->name())->toBe('foo');
-    expect($template->render($environment->newRenderContext()))->toBe('Hello World');
-});
+        expect($template->name())->toBe('foo');
+        expect($template->render($environment->newRenderContext()))->toBe('Hello World');
+    });
+})->with('template backends');
 
 test('parse template returns the parsed result when the cache does not retain it', function () {
     $cache = new class extends \Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache

@@ -243,100 +243,94 @@ test('reverse', function () {
     expect($this->filters->invoke($this->context, 'reverse', [1, 2, 3, 4]))->toBe([4, 3, 2, 1]);
 });
 
-test('map', function () {
-    expect($this->filters->invoke($this->context, 'map', [['a' => 1], ['a' => 2], ['a' => 3], ['a' => 4]], ['a']))->toBe([1, 2, 3, 4]);
+describe('rendering with template backends 1', function () {
+    test('map', function (bool $compiled) {
+        expect($this->filters->invoke($this->context, 'map', [['a' => 1], ['a' => 2], ['a' => 3], ['a' => 4]], ['a']))->toBe([1, 2, 3, 4]);
 
-    assertTemplateResult(
-        'abc',
-        "{{ ary | map:'foo' | map:'bar' }}",
-        ['ary' => [['foo' => ['bar' => 'a']], ['foo' => ['bar' => 'b']], ['foo' => ['bar' => 'c']]]],
-    );
-});
+        assertTemplateResult(
+            'abc',
+            "{{ ary | map:'foo' | map:'bar' }}",
+            ['ary' => [['foo' => ['bar' => 'a']], ['foo' => ['bar' => 'b']], ['foo' => ['bar' => 'c']]]],
+            compiled: $compiled);
+    });
 
-test('map calls toLiquid', function () {
-    $thing = new ThingWithParamToLiquid;
+    test('map calls toLiquid', function (bool $compiled) {
+        $thing = new ThingWithParamToLiquid;
 
-    assertTemplateResult(
-        'woot: 1',
-        '{{ foo | map: "whatever" }}',
-        ['foo' => [$thing]]
-    );
-});
+        assertTemplateResult(
+            'woot: 1',
+            '{{ foo | map: "whatever" }}',
+            ['foo' => [$thing]], compiled: $compiled);
+    });
 
-test('map calls context', function () {
-    $model = new \Keepsuit\Liquid\Tests\Stubs\TestModel('test');
+    test('map calls context', function (bool $compiled) {
+        $model = new \Keepsuit\Liquid\Tests\Stubs\TestModel('test');
 
-    assertTemplateResult(
-        '{test=>1234}',
-        '{{ foo | map: "registers" }}',
-        staticData: [
-            'foo' => $model,
-        ],
-        registers: [
-            'test' => 1234,
-        ]
-    );
-});
+        assertTemplateResult(
+            '{test=>1234}',
+            '{{ foo | map: "registers" }}',
+            staticData: [
+                'foo' => $model,
+            ],
+            registers: [
+                'test' => 1234,
+            ], compiled: $compiled);
+    });
 
-test('map on hashes', function () {
-    assertTemplateResult(
-        '4217',
-        '{{ thing | map: "foo" | map: "bar" }}',
-        staticData: ['thing' => ['foo' => [['bar' => 42], ['bar' => 17]]]]
-    );
-});
+    test('map on hashes', function (bool $compiled) {
+        assertTemplateResult(
+            '4217',
+            '{{ thing | map: "foo" | map: "bar" }}',
+            staticData: ['thing' => ['foo' => [['bar' => 42], ['bar' => 17]]]], compiled: $compiled);
+    });
 
-test('legacy map on hashes with dynamic key', function () {
-    assertTemplateResult(
-        '42',
-        '{% assign key = \'foo\' %}{{ thing | map: key | map: \'bar\' }}',
-        staticData: ['thing' => ['foo' => ['bar' => 42]]]
-    );
-});
+    test('legacy map on hashes with dynamic key', function (bool $compiled) {
+        assertTemplateResult(
+            '42',
+            '{% assign key = \'foo\' %}{{ thing | map: key | map: \'bar\' }}',
+            staticData: ['thing' => ['foo' => ['bar' => 42]]], compiled: $compiled);
+    });
 
-test('sort calls to liquid', function () {
-    $t = new ThingWithParamToLiquid;
+    test('sort calls to liquid', function (bool $compiled) {
+        $t = new ThingWithParamToLiquid;
 
-    assertTemplateResult(
-        'woot: 1',
-        '{{ foo | sort: "whatever" }}',
-        staticData: ['foo' => [$t]]
-    );
+        assertTemplateResult(
+            'woot: 1',
+            '{{ foo | sort: "whatever" }}',
+            staticData: ['foo' => [$t]], compiled: $compiled);
 
-    expect($t->value)->toBe(1);
-});
+        expect($t->value)->toBe(1);
+    });
 
-test('map over Closure', function () {
-    $d = new TestDrop('testfoo');
-    $c = fn () => $d;
+    test('map over Closure', function (bool $compiled) {
+        $d = new TestDrop('testfoo');
+        $c = fn () => $d;
 
-    assertTemplateResult(
-        'testfoo',
-        '{{ closures | map: "value" }}',
-        staticData: ['closures' => [$c]]
-    );
-});
+        assertTemplateResult(
+            'testfoo',
+            '{{ closures | map: "value" }}',
+            staticData: ['closures' => [$c]], compiled: $compiled);
+    });
 
-test('map over drops returning Closures', function () {
-    $drops = [
-        ['closure' => fn () => 'foo'],
-        ['closure' => fn () => 'bar'],
-    ];
+    test('map over drops returning Closures', function (bool $compiled) {
+        $drops = [
+            ['closure' => fn () => 'foo'],
+            ['closure' => fn () => 'bar'],
+        ];
 
-    assertTemplateResult(
-        'foobar',
-        '{{ drops | map: "closure" }}',
-        staticData: ['drops' => $drops]
-    );
-});
+        assertTemplateResult(
+            'foobar',
+            '{{ drops | map: "closure" }}',
+            staticData: ['drops' => $drops], compiled: $compiled);
+    });
 
-test('map works on iterator', function () {
-    assertTemplateResult(
-        '123',
-        '{{ foo | map: "foo" }}',
-        staticData: ['foo' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop]
-    );
-});
+    test('map works on iterator', function (bool $compiled) {
+        assertTemplateResult(
+            '123',
+            '{{ foo | map: "foo" }}',
+            staticData: ['foo' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop], compiled: $compiled);
+    });
+})->with('template backends');
 
 test('map returns empty on 2d input array', function () {
     $foo = [
@@ -358,34 +352,32 @@ test('map returns empty with no property', function () {
     expect(fn () => $this->filters->invoke($this->context, 'map', $foo, [null]))->toThrow(InvalidArgumentException::class);
 });
 
-test('sort works on iterator', function () {
-    assertTemplateResult(
-        '213',
-        '{{ foo | sort: "bar" | map: "foo" }}',
-        staticData: ['foo' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop]
-    );
-});
+describe('rendering with template backends 2', function () {
+    test('sort works on iterator', function (bool $compiled) {
+        assertTemplateResult(
+            '213',
+            '{{ foo | sort: "bar" | map: "foo" }}',
+            staticData: ['foo' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop], compiled: $compiled);
+    });
 
-test('first and last calls toLiquid', function () {
-    assertTemplateResult(
-        'foobar',
-        '{{ foo | first }}',
-        staticData: ['foo' => [new \Keepsuit\Liquid\Tests\Stubs\ThingWithToLiquid]]
-    );
-    assertTemplateResult(
-        'foobar',
-        '{{ foo | last }}',
-        staticData: ['foo' => [new \Keepsuit\Liquid\Tests\Stubs\ThingWithToLiquid]]
-    );
-});
+    test('first and last calls toLiquid', function (bool $compiled) {
+        assertTemplateResult(
+            'foobar',
+            '{{ foo | first }}',
+            staticData: ['foo' => [new \Keepsuit\Liquid\Tests\Stubs\ThingWithToLiquid]], compiled: $compiled);
+        assertTemplateResult(
+            'foobar',
+            '{{ foo | last }}',
+            staticData: ['foo' => [new \Keepsuit\Liquid\Tests\Stubs\ThingWithToLiquid]], compiled: $compiled);
+    });
 
-test('truncate calls toLiquid', function () {
-    assertTemplateResult(
-        'wo...',
-        '{{ foo | truncate: 5 }}',
-        staticData: ['foo' => new ThingWithParamToLiquid]
-    );
-});
+    test('truncate calls toLiquid', function (bool $compiled) {
+        assertTemplateResult(
+            'wo...',
+            '{{ foo | truncate: 5 }}',
+            staticData: ['foo' => new ThingWithParamToLiquid], compiled: $compiled);
+    });
+})->with('template backends');
 
 test('date', function () {
     expect($this->filters->invoke($this->context, 'date', new DateTime('2006-05-05 10:00:00'), ['%B']))->toBe('May');
@@ -501,190 +493,192 @@ test('first last', function () {
     expect($this->filters->invoke($this->context, 'last', ['a' => 1, 'b' => 2]))->toBeNull();
 });
 
-test('replace', function () {
-    expect($this->filters->invoke($this->context, 'replace', 'a a a a', ['a', 'b']))->toBe('b b b b');
-    expect($this->filters->invoke($this->context, 'replace', '1 1 1 1', [1, 2]))->toBe('2 2 2 2');
-    expect($this->filters->invoke($this->context, 'replace', '1 1 1 1', [2, 3]))->toBe('1 1 1 1');
-    assertTemplateResult(
-        '2 2 2 2',
-        "{{ '1 1 1 1' | replace: '1', 2 }}",
-    );
+describe('rendering with template backends 3', function () {
+    test('replace', function (bool $compiled) {
+        expect($this->filters->invoke($this->context, 'replace', 'a a a a', ['a', 'b']))->toBe('b b b b');
+        expect($this->filters->invoke($this->context, 'replace', '1 1 1 1', [1, 2]))->toBe('2 2 2 2');
+        expect($this->filters->invoke($this->context, 'replace', '1 1 1 1', [2, 3]))->toBe('1 1 1 1');
+        assertTemplateResult(
+            '2 2 2 2',
+            "{{ '1 1 1 1' | replace: '1', 2 }}",
+            compiled: $compiled);
 
-    expect($this->filters->invoke($this->context, 'replace_first', 'a a a a', ['a', 'b']))->toBe('b a a a');
-    expect($this->filters->invoke($this->context, 'replace_first', '1 1 1 1', [1, 2]))->toBe('2 1 1 1');
-    expect($this->filters->invoke($this->context, 'replace_first', '1 1 1 1', [2, 3]))->toBe('1 1 1 1');
-    assertTemplateResult(
-        '2 1 1 1',
-        "{{ '1 1 1 1' | replace_first: '1', 2 }}",
-    );
+        expect($this->filters->invoke($this->context, 'replace_first', 'a a a a', ['a', 'b']))->toBe('b a a a');
+        expect($this->filters->invoke($this->context, 'replace_first', '1 1 1 1', [1, 2]))->toBe('2 1 1 1');
+        expect($this->filters->invoke($this->context, 'replace_first', '1 1 1 1', [2, 3]))->toBe('1 1 1 1');
+        assertTemplateResult(
+            '2 1 1 1',
+            "{{ '1 1 1 1' | replace_first: '1', 2 }}",
+            compiled: $compiled);
 
-    expect($this->filters->invoke($this->context, 'replace_last', 'a a a a', ['a', 'b']))->toBe('a a a b');
-    expect($this->filters->invoke($this->context, 'replace_last', '1 1 1 1', [1, 2]))->toBe('1 1 1 2');
-    expect($this->filters->invoke($this->context, 'replace_last', '1 1 1 1', [2, 3]))->toBe('1 1 1 1');
-    assertTemplateResult(
-        '1 1 1 2',
-        "{{ '1 1 1 1' | replace_last: '1', 2 }}",
-    );
-});
+        expect($this->filters->invoke($this->context, 'replace_last', 'a a a a', ['a', 'b']))->toBe('a a a b');
+        expect($this->filters->invoke($this->context, 'replace_last', '1 1 1 1', [1, 2]))->toBe('1 1 1 2');
+        expect($this->filters->invoke($this->context, 'replace_last', '1 1 1 1', [2, 3]))->toBe('1 1 1 1');
+        assertTemplateResult(
+            '1 1 1 2',
+            "{{ '1 1 1 1' | replace_last: '1', 2 }}",
+            compiled: $compiled);
+    });
 
-test('remove', function () {
-    expect($this->filters->invoke($this->context, 'remove', 'a a a a', ['a']))->toBe('   ');
-    assertTemplateResult(
-        '   ',
-        "{{ '1 1 1 1' | remove: 1 }}",
-    );
+    test('remove', function (bool $compiled) {
+        expect($this->filters->invoke($this->context, 'remove', 'a a a a', ['a']))->toBe('   ');
+        assertTemplateResult(
+            '   ',
+            "{{ '1 1 1 1' | remove: 1 }}",
+            compiled: $compiled);
 
-    expect($this->filters->invoke($this->context, 'remove_first', 'a b a a', ['a ']))->toBe('b a a');
-    assertTemplateResult(
-        ' 1 1 1',
-        "{{ '1 1 1 1' | remove_first: 1 }}",
-    );
+        expect($this->filters->invoke($this->context, 'remove_first', 'a b a a', ['a ']))->toBe('b a a');
+        assertTemplateResult(
+            ' 1 1 1',
+            "{{ '1 1 1 1' | remove_first: 1 }}",
+            compiled: $compiled);
 
-    expect($this->filters->invoke($this->context, 'remove_last', 'a a b a', [' a']))->toBe('a a b');
-    assertTemplateResult(
-        '1 1 1 ',
-        "{{ '1 1 1 1' | remove_last: 1 }}",
-    );
-});
+        expect($this->filters->invoke($this->context, 'remove_last', 'a a b a', [' a']))->toBe('a a b');
+        assertTemplateResult(
+            '1 1 1 ',
+            "{{ '1 1 1 1' | remove_last: 1 }}",
+            compiled: $compiled);
+    });
 
-test('pipes in string arguments', function () {
-    assertTemplateResult('foobar', "{{ 'foo|bar' | remove: '|' }}");
-});
+    test('pipes in string arguments', function (bool $compiled) {
+        assertTemplateResult('foobar', "{{ 'foo|bar' | remove: '|' }}", compiled: $compiled);
+    });
 
-test('strip', function () {
-    assertTemplateResult('ab c', '{{ source | strip }}', staticData: ['source' => ' ab c  ']);
-    assertTemplateResult('ab c', '{{ source | strip }}', staticData: ['source' => " \tab c  \n \t"]);
-});
+    test('strip', function (bool $compiled) {
+        assertTemplateResult('ab c', '{{ source | strip }}', staticData: ['source' => ' ab c  '], compiled: $compiled);
+        assertTemplateResult('ab c', '{{ source | strip }}', staticData: ['source' => " \tab c  \n \t"], compiled: $compiled);
+    });
 
-test('lstrip', function () {
-    assertTemplateResult('ab c  ', '{{ source | lstrip }}', staticData: ['source' => ' ab c  ']);
-    assertTemplateResult("ab c  \n \t", '{{ source | lstrip }}', staticData: ['source' => " \tab c  \n \t"]);
-});
+    test('lstrip', function (bool $compiled) {
+        assertTemplateResult('ab c  ', '{{ source | lstrip }}', staticData: ['source' => ' ab c  '], compiled: $compiled);
+        assertTemplateResult("ab c  \n \t", '{{ source | lstrip }}', staticData: ['source' => " \tab c  \n \t"], compiled: $compiled);
+    });
 
-test('rstrip', function () {
-    assertTemplateResult(' ab c', '{{ source | rstrip }}', staticData: ['source' => ' ab c  ']);
-    assertTemplateResult(" \tab c", '{{ source | rstrip }}', staticData: ['source' => " \tab c  \n \t"]);
-});
+    test('rstrip', function (bool $compiled) {
+        assertTemplateResult(' ab c', '{{ source | rstrip }}', staticData: ['source' => ' ab c  '], compiled: $compiled);
+        assertTemplateResult(" \tab c", '{{ source | rstrip }}', staticData: ['source' => " \tab c  \n \t"], compiled: $compiled);
+    });
 
-test('squish', function () {
-    assertTemplateResult('foo bar boo', '{{ source | squish }}', staticData: ['source' => " foo   bar\n\t   boo   "]);
-    assertTemplateResult('', '{{ source | squish }}', staticData: ['source' => null]);
-    assertTemplateResult('', '{{ source | squish }}', staticData: ['source' => ' ']);
-});
+    test('squish', function (bool $compiled) {
+        assertTemplateResult('foo bar boo', '{{ source | squish }}', staticData: ['source' => " foo   bar\n\t   boo   "], compiled: $compiled);
+        assertTemplateResult('', '{{ source | squish }}', staticData: ['source' => null], compiled: $compiled);
+        assertTemplateResult('', '{{ source | squish }}', staticData: ['source' => ' '], compiled: $compiled);
+    });
 
-test('strip new lines', function () {
-    assertTemplateResult('abc', '{{ source | strip_newlines }}', staticData: ['source' => "a\nb\nc"]);
-    assertTemplateResult('abc', '{{ source | strip_newlines }}', staticData: ['source' => "a\r\nb\nc"]);
-});
+    test('strip new lines', function (bool $compiled) {
+        assertTemplateResult('abc', '{{ source | strip_newlines }}', staticData: ['source' => "a\nb\nc"], compiled: $compiled);
+        assertTemplateResult('abc', '{{ source | strip_newlines }}', staticData: ['source' => "a\r\nb\nc"], compiled: $compiled);
+    });
 
-test('new lines to br', function () {
-    assertTemplateResult("a<br />\nb<br />\nc", '{{ source | newline_to_br }}', staticData: ['source' => "a\nb\nc"]);
-    assertTemplateResult("a<br />\nb<br />\nc", '{{ source | newline_to_br }}', staticData: ['source' => "a\r\nb\nc"]);
-});
+    test('new lines to br', function (bool $compiled) {
+        assertTemplateResult("a<br />\nb<br />\nc", '{{ source | newline_to_br }}', staticData: ['source' => "a\nb\nc"], compiled: $compiled);
+        assertTemplateResult("a<br />\nb<br />\nc", '{{ source | newline_to_br }}', staticData: ['source' => "a\r\nb\nc"], compiled: $compiled);
+    });
 
-test('plus', function () {
-    assertTemplateResult('2', '{{ 1 | plus:1 }}');
-    assertTemplateResult('2.1', "{{ '1' | plus:'1.1' }}");
+    test('plus', function (bool $compiled) {
+        assertTemplateResult('2', '{{ 1 | plus:1 }}', compiled: $compiled);
+        assertTemplateResult('2.1', "{{ '1' | plus:'1.1' }}", compiled: $compiled);
 
-    assertTemplateResult('5', "{{ price | plus:'2' }}", staticData: ['price' => new NumberDrop(3)]);
-});
+        assertTemplateResult('5', "{{ price | plus:'2' }}", staticData: ['price' => new NumberDrop(3)], compiled: $compiled);
+    });
 
-test('minus', function () {
-    assertTemplateResult('4', '{{ 5 | minus:1 }}');
-    assertTemplateResult('2.3', "{{ '4.3' | minus:'2' }}");
+    test('minus', function (bool $compiled) {
+        assertTemplateResult('4', '{{ 5 | minus:1 }}', compiled: $compiled);
+        assertTemplateResult('2.3', "{{ '4.3' | minus:'2' }}", compiled: $compiled);
 
-    assertTemplateResult('5', "{{ price | minus:'2' }}", staticData: ['price' => new NumberDrop(7)]);
-});
+        assertTemplateResult('5', "{{ price | minus:'2' }}", staticData: ['price' => new NumberDrop(7)], compiled: $compiled);
+    });
 
-test('abs', function () {
-    assertTemplateResult('17', '{{ 17 | abs }}');
-    assertTemplateResult('17', '{{ -17 | abs }}');
-    assertTemplateResult('17', "{{ '17' | abs }}");
-    assertTemplateResult('17', "{{ '-17' | abs }}");
-    assertTemplateResult('0', '{{ 0 | abs }}');
-    assertTemplateResult('0', "{{ '0' | abs }}");
-    assertTemplateResult('17.42', '{{ 17.42 | abs }}');
-    assertTemplateResult('17.42', '{{ -17.42 | abs }}');
-    assertTemplateResult('17.42', "{{ '17.42' | abs }}");
-    assertTemplateResult('17.42', "{{ '-17.42' | abs }}");
-});
+    test('abs', function (bool $compiled) {
+        assertTemplateResult('17', '{{ 17 | abs }}', compiled: $compiled);
+        assertTemplateResult('17', '{{ -17 | abs }}', compiled: $compiled);
+        assertTemplateResult('17', "{{ '17' | abs }}", compiled: $compiled);
+        assertTemplateResult('17', "{{ '-17' | abs }}", compiled: $compiled);
+        assertTemplateResult('0', '{{ 0 | abs }}', compiled: $compiled);
+        assertTemplateResult('0', "{{ '0' | abs }}", compiled: $compiled);
+        assertTemplateResult('17.42', '{{ 17.42 | abs }}', compiled: $compiled);
+        assertTemplateResult('17.42', '{{ -17.42 | abs }}', compiled: $compiled);
+        assertTemplateResult('17.42', "{{ '17.42' | abs }}", compiled: $compiled);
+        assertTemplateResult('17.42', "{{ '-17.42' | abs }}", compiled: $compiled);
+    });
 
-test('times', function () {
-    assertTemplateResult('12', '{{ 3 | times:4 }}');
-    assertTemplateResult('7.25', '{{ 0.0725 | times:100 }}');
-    assertTemplateResult('-7.25', '{{ "-0.0725" | times:100 }}');
-    assertTemplateResult('7.25', '{{ "-0.0725" | times: -100 }}');
-    assertTemplateResult('4', '{{ price | times:2 }}', ['price' => new NumberDrop(2)]);
-});
+    test('times', function (bool $compiled) {
+        assertTemplateResult('12', '{{ 3 | times:4 }}', compiled: $compiled);
+        assertTemplateResult('7.25', '{{ 0.0725 | times:100 }}', compiled: $compiled);
+        assertTemplateResult('-7.25', '{{ "-0.0725" | times:100 }}', compiled: $compiled);
+        assertTemplateResult('7.25', '{{ "-0.0725" | times: -100 }}', compiled: $compiled);
+        assertTemplateResult('4', '{{ price | times:2 }}', ['price' => new NumberDrop(2)], compiled: $compiled);
+    });
 
-test('divided by', function () {
-    assertTemplateResult('4', '{{ 12 | divided_by:3 }}');
-    assertTemplateResult('4', '{{ 14 | divided_by:3 }}');
+    test('divided by', function (bool $compiled) {
+        assertTemplateResult('4', '{{ 12 | divided_by:3 }}', compiled: $compiled);
+        assertTemplateResult('4', '{{ 14 | divided_by:3 }}', compiled: $compiled);
 
-    assertTemplateResult('5', '{{ 15 | divided_by:3 }}');
-    expect(fn () => renderTemplate('{{ 5 | divided_by:0 }}'))->toThrow(ArithmeticException::class);
+        assertTemplateResult('5', '{{ 15 | divided_by:3 }}', compiled: $compiled);
+        expect(fn () => renderTemplate('{{ 5 | divided_by:0 }}', compiled: $compiled))->toThrow(ArithmeticException::class);
 
-    assertTemplateResult('0.5', '{{ 2.0 | divided_by:4 }}');
-    assertTemplateResult('5', '{{ price | divided_by:2 }}', ['price' => new NumberDrop(10)]);
-});
+        assertTemplateResult('0.5', '{{ 2.0 | divided_by:4 }}', compiled: $compiled);
+        assertTemplateResult('5', '{{ price | divided_by:2 }}', ['price' => new NumberDrop(10)], compiled: $compiled);
+    });
 
-test('modulo', function () {
-    assertTemplateResult('1', '{{ 3 | modulo:2 }}');
-    expect(fn () => renderTemplate('{{ 1 | modulo: 0 }}'))->toThrow(ArithmeticException::class);
-    assertTemplateResult('1', '{{ price | modulo:2 }}', ['price' => new NumberDrop(3)]);
-});
+    test('modulo', function (bool $compiled) {
+        assertTemplateResult('1', '{{ 3 | modulo:2 }}', compiled: $compiled);
+        expect(fn () => renderTemplate('{{ 1 | modulo: 0 }}', compiled: $compiled))->toThrow(ArithmeticException::class);
+        assertTemplateResult('1', '{{ price | modulo:2 }}', ['price' => new NumberDrop(3)], compiled: $compiled);
+    });
 
-test('round', function () {
-    assertTemplateResult('5', '{{ input | round }}', ['input' => 4.6]);
-    assertTemplateResult('4', "{{ '4.3' | round }}");
-    assertTemplateResult('4.56', '{{ input | round: 2 }}', ['input' => 4.5612]);
-    assertTemplateResult('5', '{{ price | round }}', ['price' => new NumberDrop(4.6)]);
-    assertTemplateResult('4', '{{ price | round }}', ['price' => new NumberDrop(4.3)]);
-});
+    test('round', function (bool $compiled) {
+        assertTemplateResult('5', '{{ input | round }}', ['input' => 4.6], compiled: $compiled);
+        assertTemplateResult('4', "{{ '4.3' | round }}", compiled: $compiled);
+        assertTemplateResult('4.56', '{{ input | round: 2 }}', ['input' => 4.5612], compiled: $compiled);
+        assertTemplateResult('5', '{{ price | round }}', ['price' => new NumberDrop(4.6)], compiled: $compiled);
+        assertTemplateResult('4', '{{ price | round }}', ['price' => new NumberDrop(4.3)], compiled: $compiled);
+    });
 
-test('ceil', function () {
-    assertTemplateResult('5', '{{ input | ceil }}', ['input' => 4.6]);
-    assertTemplateResult('5', "{{ '4.3' | ceil }}");
-    assertTemplateResult('5', '{{ price | ceil }}', ['price' => new NumberDrop(4.6)]);
-});
+    test('ceil', function (bool $compiled) {
+        assertTemplateResult('5', '{{ input | ceil }}', ['input' => 4.6], compiled: $compiled);
+        assertTemplateResult('5', "{{ '4.3' | ceil }}", compiled: $compiled);
+        assertTemplateResult('5', '{{ price | ceil }}', ['price' => new NumberDrop(4.6)], compiled: $compiled);
+    });
 
-test('floor', function () {
-    assertTemplateResult('4', '{{ input | floor }}', ['input' => 4.6]);
-    assertTemplateResult('4', "{{ '4.3' | floor }}");
-    assertTemplateResult('4', '{{ price | floor }}', ['price' => new NumberDrop(4.6)]);
-});
+    test('floor', function (bool $compiled) {
+        assertTemplateResult('4', '{{ input | floor }}', ['input' => 4.6], compiled: $compiled);
+        assertTemplateResult('4', "{{ '4.3' | floor }}", compiled: $compiled);
+        assertTemplateResult('4', '{{ price | floor }}', ['price' => new NumberDrop(4.6)], compiled: $compiled);
+    });
 
-test('at most', function () {
-    assertTemplateResult('4', '{{ 5 | at_most:4 }}');
-    assertTemplateResult('5', '{{ 5 | at_most:5 }}');
-    assertTemplateResult('5', '{{ 5 | at_most:6 }}');
+    test('at most', function (bool $compiled) {
+        assertTemplateResult('4', '{{ 5 | at_most:4 }}', compiled: $compiled);
+        assertTemplateResult('5', '{{ 5 | at_most:5 }}', compiled: $compiled);
+        assertTemplateResult('5', '{{ 5 | at_most:6 }}', compiled: $compiled);
 
-    assertTemplateResult('4.5', '{{ 4.5 | at_most:5 }}');
-    assertTemplateResult('5', '{{ width | at_most:5 }}', ['width' => new NumberDrop(6)]);
-    assertTemplateResult('4', '{{ width | at_most:5 }}', ['width' => new NumberDrop(4)]);
-    assertTemplateResult('4', '{{ 5 | at_most:width }}', ['width' => new NumberDrop(4)]);
-});
+        assertTemplateResult('4.5', '{{ 4.5 | at_most:5 }}', compiled: $compiled);
+        assertTemplateResult('5', '{{ width | at_most:5 }}', ['width' => new NumberDrop(6)], compiled: $compiled);
+        assertTemplateResult('4', '{{ width | at_most:5 }}', ['width' => new NumberDrop(4)], compiled: $compiled);
+        assertTemplateResult('4', '{{ 5 | at_most:width }}', ['width' => new NumberDrop(4)], compiled: $compiled);
+    });
 
-test('at least', function () {
-    assertTemplateResult('5', '{{ 5 | at_least:4 }}');
-    assertTemplateResult('5', '{{ 5 | at_least:5 }}');
-    assertTemplateResult('6', '{{ 5 | at_least:6 }}');
+    test('at least', function (bool $compiled) {
+        assertTemplateResult('5', '{{ 5 | at_least:4 }}', compiled: $compiled);
+        assertTemplateResult('5', '{{ 5 | at_least:5 }}', compiled: $compiled);
+        assertTemplateResult('6', '{{ 5 | at_least:6 }}', compiled: $compiled);
 
-    assertTemplateResult('5', '{{ 4.5 | at_least:5 }}');
-    assertTemplateResult('6', '{{ width | at_least:5 }}', ['width' => new NumberDrop(6)]);
-    assertTemplateResult('5', '{{ width | at_least:5 }}', ['width' => new NumberDrop(4)]);
-    assertTemplateResult('6', '{{ 5 | at_least:width }}', ['width' => new NumberDrop(6)]);
-});
+        assertTemplateResult('5', '{{ 4.5 | at_least:5 }}', compiled: $compiled);
+        assertTemplateResult('6', '{{ width | at_least:5 }}', ['width' => new NumberDrop(6)], compiled: $compiled);
+        assertTemplateResult('5', '{{ width | at_least:5 }}', ['width' => new NumberDrop(4)], compiled: $compiled);
+        assertTemplateResult('6', '{{ 5 | at_least:width }}', ['width' => new NumberDrop(6)], compiled: $compiled);
+    });
 
-test('append', function () {
-    assertTemplateResult('bcd', "{{ a | append: 'd'}}", ['a' => 'bc', 'b' => 'd']);
-    assertTemplateResult('bcd', '{{ a | append: b}}', ['a' => 'bc', 'b' => 'd']);
-});
+    test('append', function (bool $compiled) {
+        assertTemplateResult('bcd', "{{ a | append: 'd'}}", ['a' => 'bc', 'b' => 'd'], compiled: $compiled);
+        assertTemplateResult('bcd', '{{ a | append: b}}', ['a' => 'bc', 'b' => 'd'], compiled: $compiled);
+    });
 
-test('prepend', function () {
-    assertTemplateResult('abc', "{{ a | prepend: 'a'}}", ['a' => 'bc', 'b' => 'a']);
-    assertTemplateResult('abc', '{{ a | prepend: b}}', ['a' => 'bc', 'b' => 'a']);
-});
+    test('prepend', function (bool $compiled) {
+        assertTemplateResult('abc', "{{ a | prepend: 'a'}}", ['a' => 'bc', 'b' => 'a'], compiled: $compiled);
+        assertTemplateResult('abc', '{{ a | prepend: b}}', ['a' => 'bc', 'b' => 'a'], compiled: $compiled);
+    });
+})->with('template backends');
 
 test('concat', function () {
     expect($this->filters->invoke($this->context, 'concat', [1, 2], [[3, 4]]))->toBe([1, 2, 3, 4]);
@@ -694,83 +688,85 @@ test('concat', function () {
     expect(fn () => $this->filters->invoke($this->context, 'concat', [1, 2], [10]))->toThrow(InvalidArgumentException::class);
 });
 
-test('default', function () {
-    expect($this->filters->invoke($this->context, 'default', 'foo', ['bar']))->toBe('foo');
-    expect($this->filters->invoke($this->context, 'default', null, ['bar']))->toBe('bar');
-    expect($this->filters->invoke($this->context, 'default', '', ['bar']))->toBe('bar');
-    expect($this->filters->invoke($this->context, 'default', false, ['bar']))->toBe('bar');
-    expect($this->filters->invoke($this->context, 'default', [], ['bar']))->toBe('bar');
+describe('rendering with template backends 4', function () {
+    test('default', function (bool $compiled) {
+        expect($this->filters->invoke($this->context, 'default', 'foo', ['bar']))->toBe('foo');
+        expect($this->filters->invoke($this->context, 'default', null, ['bar']))->toBe('bar');
+        expect($this->filters->invoke($this->context, 'default', '', ['bar']))->toBe('bar');
+        expect($this->filters->invoke($this->context, 'default', false, ['bar']))->toBe('bar');
+        expect($this->filters->invoke($this->context, 'default', [], ['bar']))->toBe('bar');
 
-    assertTemplateResult('bar', "{{ false | default: 'bar' }}");
-    assertTemplateResult('bar', "{{ drop | default: 'bar' }}", ['drop' => new BooleanDrop(false)]);
-    assertTemplateResult('Yay', "{{ drop | default: 'bar' }}", ['drop' => new BooleanDrop(true)]);
-});
+        assertTemplateResult('bar', "{{ false | default: 'bar' }}", compiled: $compiled);
+        assertTemplateResult('bar', "{{ drop | default: 'bar' }}", ['drop' => new BooleanDrop(false)], compiled: $compiled);
+        assertTemplateResult('Yay', "{{ drop | default: 'bar' }}", ['drop' => new BooleanDrop(true)], compiled: $compiled);
+    });
 
-test('default handle undefined variable', function (bool $strict) {
-    expect($this->filters->invoke($this->context, 'default', new UndefinedVariable('foo'), ['bar']))->toBe('bar');
+    test('default handle undefined variable', function (bool $compiled, bool $strict) {
+        expect($this->filters->invoke($this->context, 'default', new UndefinedVariable('foo'), ['bar']))->toBe('bar');
 
-    assertTemplateResult('bar', '{{ foo | default: "bar" }}', strictVariables: $strict);
-    assertTemplateResult('bar', '{{ foo.x | default: "bar" }}', strictVariables: $strict);
-    assertTemplateResult('bar', '{{ foo.x.y | default: "bar" }}', strictVariables: $strict);
-})->with([
-    'default' => false,
-    'strict' => true,
-]);
+        assertTemplateResult('bar', '{{ foo | default: "bar" }}', strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('bar', '{{ foo.x | default: "bar" }}', strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('bar', '{{ foo.x.y | default: "bar" }}', strictVariables: $strict, compiled: $compiled);
+    })->with([
+        'default' => false,
+        'strict' => true,
+    ]);
 
-test('default handle false', function () {
-    expect($this->filters->invoke($this->context, 'default', 'foo', ['bar', 'allow_false' => true]))->toBe('foo');
-    expect($this->filters->invoke($this->context, 'default', null, ['bar', 'allow_false' => true]))->toBe('bar');
-    expect($this->filters->invoke($this->context, 'default', '', ['bar', 'allow_false' => true]))->toBe('bar');
-    expect($this->filters->invoke($this->context, 'default', false, ['bar', 'allow_false' => true]))->toBe(false);
-    expect($this->filters->invoke($this->context, 'default', [], ['bar', 'allow_false' => true]))->toBe('bar');
+    test('default handle false', function (bool $compiled) {
+        expect($this->filters->invoke($this->context, 'default', 'foo', ['bar', 'allow_false' => true]))->toBe('foo');
+        expect($this->filters->invoke($this->context, 'default', null, ['bar', 'allow_false' => true]))->toBe('bar');
+        expect($this->filters->invoke($this->context, 'default', '', ['bar', 'allow_false' => true]))->toBe('bar');
+        expect($this->filters->invoke($this->context, 'default', false, ['bar', 'allow_false' => true]))->toBe(false);
+        expect($this->filters->invoke($this->context, 'default', [], ['bar', 'allow_false' => true]))->toBe('bar');
 
-    assertTemplateResult('false', "{{ false | default: 'bar', allow_false: true }}");
-    assertTemplateResult('Nay', "{{ drop | default: 'bar', allow_false: true }}", ['drop' => new BooleanDrop(false)]);
-    assertTemplateResult('Yay', "{{ drop | default: 'bar', allow_false: true }}", ['drop' => new BooleanDrop(true)]);
-});
+        assertTemplateResult('false', "{{ false | default: 'bar', allow_false: true }}", compiled: $compiled);
+        assertTemplateResult('Nay', "{{ drop | default: 'bar', allow_false: true }}", ['drop' => new BooleanDrop(false)], compiled: $compiled);
+        assertTemplateResult('Yay', "{{ drop | default: 'bar', allow_false: true }}", ['drop' => new BooleanDrop(true)], compiled: $compiled);
+    });
 
-test('where', function () {
-    $input = [
-        ['handle' => 'alpha', 'ok' => true],
-        ['handle' => 'beta', 'ok' => false],
-        ['handle' => 'gamma', 'ok' => false],
-        ['handle' => 'delta', 'ok' => true],
-    ];
+    test('where', function (bool $compiled) {
+        $input = [
+            ['handle' => 'alpha', 'ok' => true],
+            ['handle' => 'beta', 'ok' => false],
+            ['handle' => 'gamma', 'ok' => false],
+            ['handle' => 'delta', 'ok' => true],
+        ];
 
-    $expectation = [
-        ['handle' => 'alpha', 'ok' => true],
-        ['handle' => 'delta', 'ok' => true],
-    ];
-    expect($this->filters->invoke($this->context, 'where', $input, ['ok', true]))->toBe($expectation);
-    expect($this->filters->invoke($this->context, 'where', $input, ['ok']))->toBe($expectation);
+        $expectation = [
+            ['handle' => 'alpha', 'ok' => true],
+            ['handle' => 'delta', 'ok' => true],
+        ];
+        expect($this->filters->invoke($this->context, 'where', $input, ['ok', true]))->toBe($expectation);
+        expect($this->filters->invoke($this->context, 'where', $input, ['ok']))->toBe($expectation);
 
-    $template = "{{ array | where: 'ok' | map: 'handle' | join: ' ' }}";
-    assertTemplateResult('alpha delta', $template, ['array' => $input]);
-});
+        $template = "{{ array | where: 'ok' | map: 'handle' | join: ' ' }}";
+        assertTemplateResult('alpha delta', $template, ['array' => $input], compiled: $compiled);
+    });
 
-test('where with value', function () {
-    $input = [
-        ['handle' => 'alpha', 'ok' => true],
-        ['handle' => 'beta', 'ok' => false],
-        ['handle' => 'gamma', 'ok' => false],
-        ['handle' => 'delta', 'ok' => true],
-    ];
+    test('where with value', function (bool $compiled) {
+        $input = [
+            ['handle' => 'alpha', 'ok' => true],
+            ['handle' => 'beta', 'ok' => false],
+            ['handle' => 'gamma', 'ok' => false],
+            ['handle' => 'delta', 'ok' => true],
+        ];
 
-    $template = "{{ array | where: 'ok', true | map: 'handle' | join: ' ' }}";
-    assertTemplateResult('alpha delta', $template, ['array' => $input]);
-});
+        $template = "{{ array | where: 'ok', true | map: 'handle' | join: ' ' }}";
+        assertTemplateResult('alpha delta', $template, ['array' => $input], compiled: $compiled);
+    });
 
-test('where with false value', function () {
-    $input = [
-        ['handle' => 'alpha', 'ok' => true],
-        ['handle' => 'beta', 'ok' => false],
-        ['handle' => 'gamma', 'ok' => false],
-        ['handle' => 'delta', 'ok' => true],
-    ];
+    test('where with false value', function (bool $compiled) {
+        $input = [
+            ['handle' => 'alpha', 'ok' => true],
+            ['handle' => 'beta', 'ok' => false],
+            ['handle' => 'gamma', 'ok' => false],
+            ['handle' => 'delta', 'ok' => true],
+        ];
 
-    $template = "{{ array | where: 'ok', false | map: 'handle' | join: ' ' }}";
-    assertTemplateResult('beta gamma', $template, ['array' => $input]);
-});
+        $template = "{{ array | where: 'ok', false | map: 'handle' | join: ' ' }}";
+        assertTemplateResult('beta gamma', $template, ['array' => $input], compiled: $compiled);
+    });
+})->with('template backends');
 
 test('where string keys', function () {
     $input = ['alpha', 'beta', 'gamma', 'delta'];
@@ -874,165 +870,167 @@ test('sum with unindexable values', function () {
     expect($this->filters->invoke($this->context, 'sum', $input))->toBe(1);
 });
 
-test('sum without property calls to liquid', function () {
-    $t = new ThingWithParamToLiquid;
+describe('rendering with template backends 5', function () {
+    test('sum without property calls to liquid', function (bool $compiled) {
+        $t = new ThingWithParamToLiquid;
 
-    renderTemplate('{{ foo | sum }}', staticData: ['foo' => [$t]]);
+        renderTemplate('{{ foo | sum }}', staticData: ['foo' => [$t]], compiled: $compiled);
 
-    expect($t->value)->toBe(1);
-});
+        expect($t->value)->toBe(1);
+    });
 
-test('sum with property calls to liquid on property values', function () {
-    $t = new ThingWithParamToLiquid;
+    test('sum with property calls to liquid on property values', function (bool $compiled) {
+        $t = new ThingWithParamToLiquid;
 
-    renderTemplate('{{ foo | sum: "quantity" }}', staticData: ['foo' => [['quantity' => $t]]]);
+        renderTemplate('{{ foo | sum: "quantity" }}', staticData: ['foo' => [['quantity' => $t]]], compiled: $compiled);
 
-    expect($t->value)->toBe(1);
-});
+        expect($t->value)->toBe(1);
+    });
 
-test('find with value', function () {
-    $products = [
-        ['title' => 'Pro goggles', 'price' => 1299],
-        ['title' => 'Thermal gloves', 'price' => 1499],
-        ['title' => 'Alpine jacket', 'price' => 3999],
-        ['title' => 'Mountain boots', 'price' => 3899],
-        ['title' => 'Safety helmet', 'price' => 1999],
-    ];
+    test('find with value', function (bool $compiled) {
+        $products = [
+            ['title' => 'Pro goggles', 'price' => 1299],
+            ['title' => 'Thermal gloves', 'price' => 1499],
+            ['title' => 'Alpine jacket', 'price' => 3999],
+            ['title' => 'Mountain boots', 'price' => 3899],
+            ['title' => 'Safety helmet', 'price' => 1999],
+        ];
 
-    $template = <<<'LIQUID'
+        $template = <<<'LIQUID'
         {%- assign product = products | find: 'price', 3999 -%}
         {{- product.title -}}
         LIQUID;
 
-    assertTemplateResult('Alpine jacket', $template, ['products' => $products]);
-});
+        assertTemplateResult('Alpine jacket', $template, ['products' => $products], compiled: $compiled);
+    });
 
-test('find on empty array', function () {
-    expect($this->filters->invoke($this->context, 'find', [], ['foo', 'bar']))->toBeNull();
+    test('find on empty array', function (bool $compiled) {
+        expect($this->filters->invoke($this->context, 'find', [], ['foo', 'bar']))->toBeNull();
 
-    $template = <<<'LIQUID'
+        $template = <<<'LIQUID'
         {%- assign product = products | find: 'title.content', 'Not found' -%}
         {%- unless product -%}
         Product not found.
         {%- endunless -%}
         LIQUID;
 
-    assertTemplateResult('Product not found.', $template, ['products' => []]);
-});
+        assertTemplateResult('Product not found.', $template, ['products' => []], compiled: $compiled);
+    });
 
-test('find index with value', function () {
-    $products = [
-        ['title' => 'Pro goggles', 'price' => 1299],
-        ['title' => 'Thermal gloves', 'price' => 1499],
-        ['title' => 'Alpine jacket', 'price' => 3999],
-        ['title' => 'Mountain boots', 'price' => 3899],
-        ['title' => 'Safety helmet', 'price' => 1999],
-    ];
+    test('find index with value', function (bool $compiled) {
+        $products = [
+            ['title' => 'Pro goggles', 'price' => 1299],
+            ['title' => 'Thermal gloves', 'price' => 1499],
+            ['title' => 'Alpine jacket', 'price' => 3999],
+            ['title' => 'Mountain boots', 'price' => 3899],
+            ['title' => 'Safety helmet', 'price' => 1999],
+        ];
 
-    $template = <<<'LIQUID'
+        $template = <<<'LIQUID'
         {%- assign index = products | find_index: 'price', 3999 -%}
         {{- index -}}
         LIQUID;
 
-    assertTemplateResult('2', $template, ['products' => $products]);
-});
+        assertTemplateResult('2', $template, ['products' => $products], compiled: $compiled);
+    });
 
-test('find index on empty array', function () {
-    expect($this->filters->invoke($this->context, 'find_index', [], ['foo', 'bar']))->toBeNull();
+    test('find index on empty array', function (bool $compiled) {
+        expect($this->filters->invoke($this->context, 'find_index', [], ['foo', 'bar']))->toBeNull();
 
-    $template = <<<'LIQUID'
+        $template = <<<'LIQUID'
         {%- assign index = products | find_index: 'title.content', 'Not found' -%}
         {%- unless index -%}
         Index not found.
         {%- endunless -%}
         LIQUID;
 
-    assertTemplateResult('Index not found.', $template, ['products' => []]);
-});
+        assertTemplateResult('Index not found.', $template, ['products' => []], compiled: $compiled);
+    });
 
-test('has', function () {
-    $input = [
-        ['handle' => 'alpha', 'ok' => true],
-        ['handle' => 'beta', 'ok' => false],
-        ['handle' => 'gamma', 'ok' => false],
-        ['handle' => 'delta', 'ok' => true],
-    ];
+    test('has', function (bool $compiled) {
+        $input = [
+            ['handle' => 'alpha', 'ok' => true],
+            ['handle' => 'beta', 'ok' => false],
+            ['handle' => 'gamma', 'ok' => false],
+            ['handle' => 'delta', 'ok' => true],
+        ];
 
-    assertTemplateResult(
-        'true',
-        '{{ array | has: "ok" }}',
-        ['array' => $input],
-    );
+        assertTemplateResult(
+            'true',
+            '{{ array | has: "ok" }}',
+            ['array' => $input],
+            compiled: $compiled);
 
-    assertTemplateResult(
-        'true',
-        '{{ array | has: "ok", true }}',
-        ['array' => $input],
-    );
-});
+        assertTemplateResult(
+            'true',
+            '{{ array | has: "ok", true }}',
+            ['array' => $input],
+            compiled: $compiled);
+    });
 
-test('has when does not have it', function () {
-    $input = [
-        ['handle' => 'alpha', 'ok' => false],
-        ['handle' => 'beta', 'ok' => false],
-        ['handle' => 'gamma', 'ok' => false],
-        ['handle' => 'delta', 'ok' => false],
-    ];
+    test('has when does not have it', function (bool $compiled) {
+        $input = [
+            ['handle' => 'alpha', 'ok' => false],
+            ['handle' => 'beta', 'ok' => false],
+            ['handle' => 'gamma', 'ok' => false],
+            ['handle' => 'delta', 'ok' => false],
+        ];
 
-    assertTemplateResult(
-        'false',
-        '{{ array | has: "ok" }}',
-        ['array' => $input],
-    );
+        assertTemplateResult(
+            'false',
+            '{{ array | has: "ok" }}',
+            ['array' => $input],
+            compiled: $compiled);
 
-    assertTemplateResult(
-        'false',
-        '{{ array | has: "ok", true }}',
-        ['array' => $input],
-    );
-});
+        assertTemplateResult(
+            'false',
+            '{{ array | has: "ok", true }}',
+            ['array' => $input],
+            compiled: $compiled);
+    });
 
-test('has on empty array', function () {
-    expect($this->filters->invoke($this->context, 'has', [], ['foo', 'bar']))->toBe(false);
+    test('has on empty array', function (bool $compiled) {
+        expect($this->filters->invoke($this->context, 'has', [], ['foo', 'bar']))->toBe(false);
 
-    $template = <<<'LIQUID'
+        $template = <<<'LIQUID'
         {%- assign has_product = products | has: 'title.content', 'Not found' -%}
         {%- unless has_product -%}
         Product not found.
         {%- endunless -%}
         LIQUID;
-    assertTemplateResult('Product not found.', $template, ['products' => []]);
-});
+        assertTemplateResult('Product not found.', $template, ['products' => []], compiled: $compiled);
+    });
 
-test('has with false value', function () {
-    $input = [
-        ['handle' => 'alpha', 'ok' => true],
-        ['handle' => 'beta', 'ok' => false],
-        ['handle' => 'gamma', 'ok' => false],
-        ['handle' => 'delta', 'ok' => true],
-    ];
+    test('has with false value', function (bool $compiled) {
+        $input = [
+            ['handle' => 'alpha', 'ok' => true],
+            ['handle' => 'beta', 'ok' => false],
+            ['handle' => 'gamma', 'ok' => false],
+            ['handle' => 'delta', 'ok' => true],
+        ];
 
-    assertTemplateResult(
-        'true',
-        '{{ array | has: "ok", false }}',
-        ['array' => $input],
-    );
-});
+        assertTemplateResult(
+            'true',
+            '{{ array | has: "ok", false }}',
+            ['array' => $input],
+            compiled: $compiled);
+    });
 
-test('has with false value when does not have it', function () {
-    $input = [
-        ['handle' => 'alpha', 'ok' => true],
-        ['handle' => 'beta', 'ok' => true],
-        ['handle' => 'gamma', 'ok' => true],
-        ['handle' => 'delta', 'ok' => true],
-    ];
+    test('has with false value when does not have it', function (bool $compiled) {
+        $input = [
+            ['handle' => 'alpha', 'ok' => true],
+            ['handle' => 'beta', 'ok' => true],
+            ['handle' => 'gamma', 'ok' => true],
+            ['handle' => 'delta', 'ok' => true],
+        ];
 
-    assertTemplateResult(
-        'false',
-        '{{ array | has: "ok", false }}',
-        ['array' => $input],
-    );
-});
+        assertTemplateResult(
+            'false',
+            '{{ array | has: "ok", false }}',
+            ['array' => $input],
+            compiled: $compiled);
+    });
+})->with('template backends');
 
 test('join calls to liquid on each element', function () {
     $drop = new class implements \Keepsuit\Liquid\Contracts\MapsToLiquid
@@ -1046,47 +1044,49 @@ test('join calls to liquid on each element', function () {
     expect($this->filters->invoke($this->context, 'join', [$drop, $drop], [', ']))->toBe('i did it, i did it');
 });
 
-test('reject', function () {
-    $input = [
-        ['handle' => 'alpha', 'ok' => true],
-        ['handle' => 'beta', 'ok' => false],
-        ['handle' => 'gamma', 'ok' => false],
-        ['handle' => 'delta', 'ok' => true],
-    ];
+describe('rendering with template backends 6', function () {
+    test('reject', function (bool $compiled) {
+        $input = [
+            ['handle' => 'alpha', 'ok' => true],
+            ['handle' => 'beta', 'ok' => false],
+            ['handle' => 'gamma', 'ok' => false],
+            ['handle' => 'delta', 'ok' => true],
+        ];
 
-    assertTemplateResult(
-        'beta gamma',
-        '{{ array | reject: "ok" | map: "handle" | join: " " }}',
-        ['array' => $input],
-    );
-});
+        assertTemplateResult(
+            'beta gamma',
+            '{{ array | reject: "ok" | map: "handle" | join: " " }}',
+            ['array' => $input],
+            compiled: $compiled);
+    });
 
-test('reject with value', function () {
-    $input = [
-        ['handle' => 'alpha', 'ok' => true],
-        ['handle' => 'beta', 'ok' => false],
-        ['handle' => 'gamma', 'ok' => false],
-        ['handle' => 'delta', 'ok' => true],
-    ];
+    test('reject with value', function (bool $compiled) {
+        $input = [
+            ['handle' => 'alpha', 'ok' => true],
+            ['handle' => 'beta', 'ok' => false],
+            ['handle' => 'gamma', 'ok' => false],
+            ['handle' => 'delta', 'ok' => true],
+        ];
 
-    assertTemplateResult(
-        'beta gamma',
-        '{{ array | reject: "ok", true | map: "handle" | join: " " }}',
-        ['array' => $input],
-    );
-});
+        assertTemplateResult(
+            'beta gamma',
+            '{{ array | reject: "ok", true | map: "handle" | join: " " }}',
+            ['array' => $input],
+            compiled: $compiled);
+    });
 
-test('reject with false value', function () {
-    $input = [
-        ['handle' => 'alpha', 'ok' => true],
-        ['handle' => 'beta', 'ok' => false],
-        ['handle' => 'gamma', 'ok' => false],
-        ['handle' => 'delta', 'ok' => true],
-    ];
+    test('reject with false value', function (bool $compiled) {
+        $input = [
+            ['handle' => 'alpha', 'ok' => true],
+            ['handle' => 'beta', 'ok' => false],
+            ['handle' => 'gamma', 'ok' => false],
+            ['handle' => 'delta', 'ok' => true],
+        ];
 
-    assertTemplateResult(
-        'alpha delta',
-        '{{ array | reject: "ok", false | map: "handle" | join: " " }}',
-        ['array' => $input],
-    );
-});
+        assertTemplateResult(
+            'alpha delta',
+            '{{ array | reject: "ok", false | map: "handle" | join: " " }}',
+            ['array' => $input],
+            compiled: $compiled);
+    });
+})->with('template backends');

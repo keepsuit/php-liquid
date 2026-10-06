@@ -1,7 +1,6 @@
 <?php
 
 use Keepsuit\Liquid\Environment;
-use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Exceptions\ResourceLimitException;
 use Keepsuit\Liquid\Exceptions\UndefinedFilterException;
 use Keepsuit\Liquid\Exceptions\UndefinedVariableException;
@@ -13,15 +12,17 @@ use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
 use Keepsuit\Liquid\TemplateSharedState;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
-test('parsed templates implement the template contract', function () {
-    $template = testParseString(testEnvironment(Environment::default()), 'hello', name: 'hello');
+describe('rendering with template backends 1', function () {
+    test('parsed templates implement the template contract', function (bool $compiled) {
+        $template = testParseString(testEnvironmentFactory($compiled)->build(), 'hello', name: 'hello');
 
-    expect($template)
-        ->toBeInstanceOf(Template::class)
-        ->and($template->getState())->toBeInstanceOf(TemplateSharedState::class)
-        ->and($template->getErrors())->toBeEmpty()
-        ->and($template->name())->toBe('hello');
-});
+        expect($template)
+            ->toBeInstanceOf(Template::class)
+            ->and($template->getState())->toBeInstanceOf(TemplateSharedState::class)
+            ->and($template->getErrors())->toBeEmpty()
+            ->and($template->name())->toBe('hello');
+    });
+})->with('template backends');
 
 test('template caches and partial loading accept template interface implementations', function () {
     $template = new class implements Template
@@ -67,358 +68,352 @@ test('template caches and partial loading accept template interface implementati
     expect($environment->newRenderContext()->loadPartial('partial'))->toBe($template);
 });
 
-test('assigns persist on same context between renders', function () {
-    $template = parseTemplate("{{ foo }}{% assign foo = 'foo' %}{{ foo }}");
+describe('rendering with template backends 2', function () {
+    test('assigns persist on same context between renders', function (bool $compiled) {
+        $template = parseTemplate("{{ foo }}{% assign foo = 'foo' %}{{ foo }}", compiled: $compiled);
 
-    $context = new RenderContext;
-    expect($template->render($context))->toBe('foo');
-    expect($template->render($context))->toBe('foofoo');
-});
+        $context = new RenderContext;
+        expect($template->render($context))->toBe('foo');
+        expect($template->render($context))->toBe('foofoo');
+    });
 
-test('assigns does not persist on different contexts between renders', function () {
-    $template = parseTemplate("{{ foo }}{% assign foo = 'foo' %}{{ foo }}");
+    test('assigns does not persist on different contexts between renders', function (bool $compiled) {
+        $template = parseTemplate("{{ foo }}{% assign foo = 'foo' %}{{ foo }}", compiled: $compiled);
 
-    expect($template->render(new RenderContext))->toBe('foo');
-    expect($template->render(new RenderContext))->toBe('foo');
-});
+        expect($template->render(new RenderContext))->toBe('foo');
+        expect($template->render(new RenderContext))->toBe('foo');
+    });
 
-test('lamdba is called once over multiple renders', function () {
-    $template = parseTemplate('{{ number }}');
+    test('lamdba is called once over multiple renders', function (bool $compiled) {
+        $template = parseTemplate('{{ number }}', compiled: $compiled);
 
-    $global = 0;
-    $context = new RenderContext(
-        staticData: [
-            'number' => function () use (&$global) {
-                $global += 1;
+        $global = 0;
+        $context = new RenderContext(
+            staticData: [
+                'number' => function () use (&$global) {
+                    $global += 1;
 
-                return $global;
-            },
-        ]
-    );
+                    return $global;
+                },
+            ]
+        );
 
-    expect($template->render($context))->toBe('1');
-    expect($template->render($context))->toBe('1');
-});
+        expect($template->render($context))->toBe('1');
+        expect($template->render($context))->toBe('1');
+    });
 
-test('resource limits render length', function () {
-    $template = parseTemplate('0123456789');
+    test('resource limits render length', function (bool $compiled) {
+        $template = parseTemplate('0123456789', compiled: $compiled);
 
-    $context = new RenderContext(
-        resourceLimits: new ResourceLimits(renderLengthLimit: 9)
-    );
-    expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
-    expect($context->resourceLimits->reached())->toBeTrue();
+        $context = new RenderContext(
+            resourceLimits: new ResourceLimits(renderLengthLimit: 9)
+        );
+        expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
+        expect($context->resourceLimits->reached())->toBeTrue();
 
-    $context = new RenderContext(
-        resourceLimits: new ResourceLimits(renderLengthLimit: 10)
-    );
-    expect($template->render($context))->toBe('0123456789');
-    expect($context->resourceLimits->reached())->toBeFalse();
-});
+        $context = new RenderContext(
+            resourceLimits: new ResourceLimits(renderLengthLimit: 10)
+        );
+        expect($template->render($context))->toBe('0123456789');
+        expect($context->resourceLimits->reached())->toBeFalse();
+    });
 
-test('render length limit covers output from partials and custom nodes', function () {
-    $environment = testEnvironment(EnvironmentFactory::new()
-        ->setFilesystem(new StubFileSystem(partials: ['snippet' => '{% streaming %}']))
-        ->build());
-    $environment->tagRegistry->register(\Keepsuit\Liquid\Tests\Stubs\StreamingTag::class);
+    test('render length limit covers output from partials and custom nodes', function (bool $compiled) {
+        $environment = testEnvironmentFactory($compiled)
+            ->setFilesystem(new StubFileSystem(partials: ['snippet' => '{% streaming %}']))->build();
+        $environment->tagRegistry->register(\Keepsuit\Liquid\Tests\Stubs\StreamingTag::class);
 
-    // Checked once on the root output, so a node outside the library nested in
-    // a partial is covered without either of them counting anything.
-    $template = testParseString($environment, '{% render "snippet" %}');
+        // Checked once on the root output, so a node outside the library nested in
+        // a partial is covered without either of them counting anything.
+        $template = testParseString($environment, '{% render "snippet" %}');
 
-    $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 5));
-    expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
+        $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 5));
+        expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
 
-    $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 6));
-    expect($template->render($context))->toBe('abcdef');
-});
+        $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 6));
+        expect($template->render($context))->toBe('abcdef');
+    });
 
-test('capture charges the captured length to the assign score', function () {
-    // Several sibling bodies of differing lengths, so this pins the total to
-    // the captured string rather than to any one body inside it.
-    $context = new RenderContext;
-    parseTemplate('{% capture x %}{% if true %}aaaaaa{% endif %}{% if true %}b{% endif %}{% endcapture %}')
-        ->render($context);
-    expect($context->resourceLimits->getAssignScore())->toBe(7);
+    test('capture charges the captured length to the assign score', function (bool $compiled) {
+        // Several sibling bodies of differing lengths, so this pins the total to
+        // the captured string rather than to any one body inside it.
+        $context = new RenderContext;
+        parseTemplate('{% capture x %}{% if true %}aaaaaa{% endif %}{% if true %}b{% endif %}{% endcapture %}', compiled: $compiled)
+            ->render($context);
+        expect($context->resourceLimits->getAssignScore())->toBe(7);
 
-    // Nested captures are two variables holding 4 bytes each, so they charge
-    // the same 8 as the two equivalent assigns below.
-    $context = new RenderContext;
-    parseTemplate('{% capture outer %}{% capture inner %}abcd{% endcapture %}{{ inner }}{% endcapture %}')
-        ->render($context);
-    expect($context->resourceLimits->getAssignScore())->toBe(8);
+        // Nested captures are two variables holding 4 bytes each, so they charge
+        // the same 8 as the two equivalent assigns below.
+        $context = new RenderContext;
+        parseTemplate('{% capture outer %}{% capture inner %}abcd{% endcapture %}{{ inner }}{% endcapture %}', compiled: $compiled)
+            ->render($context);
+        expect($context->resourceLimits->getAssignScore())->toBe(8);
 
-    $context = new RenderContext;
-    parseTemplate('{% assign a = "abcd" %}{% assign b = a %}')->render($context);
-    expect($context->resourceLimits->getAssignScore())->toBe(8);
-});
+        $context = new RenderContext;
+        parseTemplate('{% assign a = "abcd" %}{% assign b = a %}', compiled: $compiled)->render($context);
+        expect($context->resourceLimits->getAssignScore())->toBe(8);
+    });
 
-test('resource limits render score', function () {
-    $template = parseTemplate('{% for a in (1..10) %} {% for a in (1..10) %} foo {% endfor %} {% endfor %}');
-    $context = new RenderContext(
-        resourceLimits: new ResourceLimits(renderScoreLimit: 50)
-    );
-    expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
-    expect($context->resourceLimits->reached())->toBeTrue();
+    test('resource limits render score', function (bool $compiled) {
+        $template = parseTemplate('{% for a in (1..10) %} {% for a in (1..10) %} foo {% endfor %} {% endfor %}', compiled: $compiled);
+        $context = new RenderContext(
+            resourceLimits: new ResourceLimits(renderScoreLimit: 50)
+        );
+        expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
+        expect($context->resourceLimits->reached())->toBeTrue();
 
-    $template = parseTemplate('{% for a in (1..100) %} foo {% endfor %}');
-    $context = new RenderContext(
-        resourceLimits: new ResourceLimits(renderScoreLimit: 50)
-    );
-    expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
-    expect($context->resourceLimits->reached())->toBeTrue();
+        $template = parseTemplate('{% for a in (1..100) %} foo {% endfor %}', compiled: $compiled);
+        $context = new RenderContext(
+            resourceLimits: new ResourceLimits(renderScoreLimit: 50)
+        );
+        expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
+        expect($context->resourceLimits->reached())->toBeTrue();
 
-    $context = new RenderContext(
-        resourceLimits: new ResourceLimits(renderScoreLimit: 200)
-    );
-    expect($template->render($context))->toBe(str_repeat(' foo ', 100));
-    expect($context->resourceLimits->reached())->toBeFalse();
-});
+        $context = new RenderContext(
+            resourceLimits: new ResourceLimits(renderScoreLimit: 200)
+        );
+        expect($template->render($context))->toBe(str_repeat(' foo ', 100));
+        expect($context->resourceLimits->reached())->toBeFalse();
+    });
 
-test('resource limits abort rendering after first error', function () {
-    $template = parseTemplate('{% for a in (1..100) %} foo1 {% endfor %} bar {% for a in (1..100) %} foo2 {% endfor %}');
-    $context = new RenderContext(
-        options: new RenderContextOptions(rethrowErrors: false),
-        resourceLimits: new ResourceLimits(renderScoreLimit: 50)
-    );
-    expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
-    expect($context->resourceLimits->reached())->toBeTrue();
-});
+    test('resource limits abort rendering after first error', function (bool $compiled) {
+        $template = parseTemplate('{% for a in (1..100) %} foo1 {% endfor %} bar {% for a in (1..100) %} foo2 {% endfor %}', compiled: $compiled);
+        $context = new RenderContext(
+            options: new RenderContextOptions(rethrowErrors: false),
+            resourceLimits: new ResourceLimits(renderScoreLimit: 50)
+        );
+        expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
+        expect($context->resourceLimits->reached())->toBeTrue();
+    });
 
-test('resource limits get updated even if no limits are set', function () {
-    $template = parseTemplate('{% for a in (1..100) %}x{% assign foo = 1 %} {% endfor %}');
-    $context = new RenderContext;
-    $template->render($context);
+    test('resource limits get updated even if no limits are set', function (bool $compiled) {
+        $template = parseTemplate('{% for a in (1..100) %}x{% assign foo = 1 %} {% endfor %}', compiled: $compiled);
+        $context = new RenderContext;
+        $template->render($context);
 
-    expect($context->resourceLimits)
-        ->reached()->toBeFalse()
-        ->getAssignScore()->toBeGreaterThan(0)
-        ->getCumulativeAssignScore()->toBeGreaterThan(0)
-        ->getRenderScore()->toBeGreaterThan(0)
-        ->getCumulativeRenderScore()->toBeGreaterThan(0);
-});
+        expect($context->resourceLimits)
+            ->reached()->toBeFalse()
+            ->getAssignScore()->toBeGreaterThan(0)
+            ->getCumulativeAssignScore()->toBeGreaterThan(0)
+            ->getRenderScore()->toBeGreaterThan(0)
+            ->getCumulativeRenderScore()->toBeGreaterThan(0);
+    });
 
-test('cumulative render score accumulates across repeated partial renders', function () {
-    $environment = testEnvironment(EnvironmentFactory::new()
-        ->setFilesystem(new StubFileSystem(['snippet' => 'x']))
-        ->build());
+    test('cumulative render score accumulates across repeated partial renders', function (bool $compiled) {
+        $environment = testEnvironmentFactory($compiled)
+            ->setFilesystem(new StubFileSystem(['snippet' => 'x']))->build();
 
-    $template = testParseString($environment, '{% render "snippet" %}');
-    $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(cumulativeRenderScoreLimit: 3));
+        $template = testParseString($environment, '{% render "snippet" %}');
+        $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(cumulativeRenderScoreLimit: 3));
 
-    expect($template->render($context))->toBe('x');
-    expect($context->resourceLimits->getRenderScore())->toBeGreaterThan(0)
-        ->and($context->resourceLimits->getCumulativeRenderScore())->toBeGreaterThan(0);
+        expect($template->render($context))->toBe('x');
+        expect($context->resourceLimits->getRenderScore())->toBeGreaterThan(0)
+            ->and($context->resourceLimits->getCumulativeRenderScore())->toBeGreaterThan(0);
 
-    $context->resourceLimits->reset();
+        $context->resourceLimits->reset();
 
-    expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
-});
+        expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
+    });
 
-test('cumulative assign score accumulates across repeated partial renders', function () {
-    $environment = testEnvironment(EnvironmentFactory::new()
-        ->setFilesystem(new StubFileSystem(['snippet' => '{% capture foo %}ab{% endcapture %}']))
-        ->build());
+    test('cumulative assign score accumulates across repeated partial renders', function (bool $compiled) {
+        $environment = testEnvironmentFactory($compiled)
+            ->setFilesystem(new StubFileSystem(['snippet' => '{% capture foo %}ab{% endcapture %}']))->build();
 
-    $template = testParseString($environment, '{% render "snippet" %}');
-    $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(cumulativeAssignScoreLimit: 3));
+        $template = testParseString($environment, '{% render "snippet" %}');
+        $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(cumulativeAssignScoreLimit: 3));
 
-    expect($template->render($context))->toBe('');
-    expect($context->resourceLimits->getAssignScore())->toBe(2)
-        ->and($context->resourceLimits->getCumulativeAssignScore())->toBe(2);
+        expect($template->render($context))->toBe('');
+        expect($context->resourceLimits->getAssignScore())->toBe(2)
+            ->and($context->resourceLimits->getCumulativeAssignScore())->toBe(2);
 
-    $context->resourceLimits->reset();
+        $context->resourceLimits->reset();
 
-    expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
-});
+        expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
+    });
 
-test('render length persists between blocks', function () {
-    $template = parseTemplate('{% if true %}aaaa{% endif %}');
-    $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 3));
-    expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
-    $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 4));
-    expect($template->render($context))->toBe('aaaa');
+    test('render length persists between blocks', function (bool $compiled) {
+        $template = parseTemplate('{% if true %}aaaa{% endif %}', compiled: $compiled);
+        $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 3));
+        expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
+        $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 4));
+        expect($template->render($context))->toBe('aaaa');
 
-    $template = parseTemplate('{% if true %}aaaa{% endif %}{% if true %}bbb{% endif %}');
-    $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 6));
-    expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
-    $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 7));
-    expect($template->render($context))->toBe('aaaabbb');
+        $template = parseTemplate('{% if true %}aaaa{% endif %}{% if true %}bbb{% endif %}', compiled: $compiled);
+        $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 6));
+        expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
+        $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 7));
+        expect($template->render($context))->toBe('aaaabbb');
 
-    $template = parseTemplate('{% if true %}a{% endif %}{% if true %}b{% endif %}{% if true %}a{% endif %}{% if true %}b{% endif %}{% if true %}a{% endif %}{% if true %}b{% endif %}');
-    $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 5));
-    expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
-    $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 6));
-    expect($template->render($context))->toBe('ababab');
-});
+        $template = parseTemplate('{% if true %}a{% endif %}{% if true %}b{% endif %}{% if true %}a{% endif %}{% if true %}b{% endif %}{% if true %}a{% endif %}{% if true %}b{% endif %}', compiled: $compiled);
+        $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 5));
+        expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
+        $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 6));
+        expect($template->render($context))->toBe('ababab');
+    });
 
-test('render length uses number of bytes not characters', function () {
-    $template = parseTemplate('{% if true %}すごい{% endif %}');
-    $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 8));
-    expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
-    $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 9));
-    expect($template->render($context))->toBe('すごい');
-});
+    test('render length uses number of bytes not characters', function (bool $compiled) {
+        $template = parseTemplate('{% if true %}すごい{% endif %}', compiled: $compiled);
+        $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 8));
+        expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
+        $context = new RenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 9));
+        expect($template->render($context))->toBe('すごい');
+    });
 
-test('undefined variables', function (bool $strict) {
-    $environment = testEnvironment(EnvironmentFactory::new()
-        ->setRethrowErrors(false)
-        ->setStrictVariables($strict)
-        ->build());
+    test('undefined variables', function (bool $compiled, bool $strict) {
+        $environment = testEnvironmentFactory($compiled)
+            ->setRethrowErrors(false)
+            ->setStrictVariables($strict)->build();
 
-    $template = parseTemplate('{{x}} {{y}} {{z.a}} {{z.b}} {{z.c.d}}');
-    $context = $environment->newRenderContext(
-        staticData: [
-            'x' => 33,
-            'z' => ['a' => 32, 'c' => ['e' => 31]],
-        ],
-    );
+        $template = parseTemplate('{{x}} {{y}} {{z.a}} {{z.b}} {{z.c.d}}', compiled: $compiled);
+        $context = $environment->newRenderContext(
+            staticData: [
+                'x' => 33,
+                'z' => ['a' => 32, 'c' => ['e' => 31]],
+            ],
+        );
 
-    expect($template->render($context))->toBe('33  32  ');
+        expect($template->render($context))->toBe('33  32  ');
 
-    if ($strict) {
+        if ($strict) {
+            expect($template->getErrors())
+                ->toHaveCount(3)
+                ->{0}->toBeInstanceOf(UndefinedVariableException::class)
+                ->{0}->getMessage()->toBe('Variable `y` not found')
+                ->{1}->toBeInstanceOf(UndefinedVariableException::class)
+                ->{1}->getMessage()->toBe('Variable `z.b` not found')
+                ->{2}->toBeInstanceOf(UndefinedVariableException::class)
+                ->{2}->getMessage()->toBe('Variable `z.c.d` not found');
+        } else {
+            expect($template->getErrors())->toBeEmpty();
+        }
+    })->with([
+        'strict' => true,
+        'default' => false,
+    ]);
+
+    test('null value does not throw exception', function (bool $compiled, bool $strict) {
+        $template = parseTemplate('some{{x}}thing', compiled: $compiled);
+        $context = new RenderContext(
+            staticData: [
+                'x' => null,
+            ],
+            options: new RenderContextOptions(
+                strictVariables: $strict,
+                rethrowErrors: false,
+            )
+        );
+
+        expect($template->render($context))->toBe('something');
+
         expect($template->getErrors())
-            ->toHaveCount(3)
-            ->{0}->toBeInstanceOf(UndefinedVariableException::class)
-            ->{0}->getMessage()->toBe('Variable `y` not found')
-            ->{1}->toBeInstanceOf(UndefinedVariableException::class)
-            ->{1}->getMessage()->toBe('Variable `z.b` not found')
-            ->{2}->toBeInstanceOf(UndefinedVariableException::class)
-            ->{2}->getMessage()->toBe('Variable `z.c.d` not found');
-    } else {
-        expect($template->getErrors())->toBeEmpty();
-    }
-})->with([
-    'strict' => true,
-    'default' => false,
-]);
+            ->toHaveCount(0);
+    })->with([
+        'strict' => true,
+        'default' => false,
+    ]);
 
-test('null value does not throw exception', function (bool $strict) {
-    $template = parseTemplate('some{{x}}thing');
-    $context = new RenderContext(
-        staticData: [
-            'x' => null,
-        ],
-        options: new RenderContextOptions(
-            strictVariables: $strict,
-            rethrowErrors: false,
-        )
-    );
+    test('undefined drop method', function (bool $compiled, bool $strict) {
+        $environment = testEnvironmentFactory($compiled)
+            ->setRethrowErrors(false)
+            ->setStrictVariables($strict)->build();
 
-    expect($template->render($context))->toBe('something');
+        $template = parseTemplate('{{ d.text }} {{ d.undefined }}', compiled: $compiled);
+        $context = $environment->newRenderContext(
+            staticData: [
+                'd' => new \Keepsuit\Liquid\Tests\Stubs\TextDrop,
+            ],
+        );
 
-    expect($template->getErrors())
-        ->toHaveCount(0);
-})->with([
-    'strict' => true,
-    'default' => false,
-]);
-
-test('undefined drop method', function (bool $strict) {
-    $environment = testEnvironment(EnvironmentFactory::new()
-        ->setRethrowErrors(false)
-        ->setStrictVariables($strict)
-        ->build());
-
-    $template = parseTemplate('{{ d.text }} {{ d.undefined }}');
-    $context = $environment->newRenderContext(
-        staticData: [
-            'd' => new \Keepsuit\Liquid\Tests\Stubs\TextDrop,
-        ],
-    );
-
-    expect($template->render($context))->toBe('text1 ');
-
-    if ($strict) {
-        expect($template->getErrors())
-            ->toHaveCount(1)
-            ->{0}->toBeInstanceOf(UndefinedVariableException::class);
-    } else {
-        expect($template->getErrors())->toBeEmpty();
-    }
-})->with([
-    'strict' => true,
-    'default' => false,
-]);
-
-test('undefined drop method throw exception', function (bool $strict) {
-    $environment = testEnvironment(EnvironmentFactory::new()
-        ->setRethrowErrors(true)
-        ->setStrictVariables($strict)
-        ->build());
-
-    $template = parseTemplate('{{ d.text }} {{ d.undefined }}');
-    $context = $environment->newRenderContext(
-        staticData: [
-            'd' => new \Keepsuit\Liquid\Tests\Stubs\TextDrop,
-        ],
-    );
-
-    if ($strict) {
-        expect(fn () => $template->render($context))->toThrow(UndefinedVariableException::class);
-    } else {
         expect($template->render($context))->toBe('text1 ');
-    }
-})->with([
-    'strict' => true,
-    'default' => false,
-]);
 
-test('undefined filter', function (bool $strict) {
-    $environment = testEnvironment(EnvironmentFactory::new()
-        ->setRethrowErrors(false)
-        ->setStrictFilters($strict)
-        ->build());
+        if ($strict) {
+            expect($template->getErrors())
+                ->toHaveCount(1)
+                ->{0}->toBeInstanceOf(UndefinedVariableException::class);
+        } else {
+            expect($template->getErrors())->toBeEmpty();
+        }
+    })->with([
+        'strict' => true,
+        'default' => false,
+    ]);
 
-    $template = parseTemplate('{{a}} {{x | upcase | somefilter1 | somefilter2 | capitalize}}', $environment);
-    $context = $environment->newRenderContext(
-        staticData: [
-            'a' => 123,
-            'x' => 'foo',
-        ],
-    );
+    test('undefined drop method throw exception', function (bool $compiled, bool $strict) {
+        $environment = testEnvironmentFactory($compiled)
+            ->setRethrowErrors(true)
+            ->setStrictVariables($strict)->build();
 
-    if ($strict) {
-        expect($template->render($context))->toBe('123 ');
+        $template = parseTemplate('{{ d.text }} {{ d.undefined }}', compiled: $compiled);
+        $context = $environment->newRenderContext(
+            staticData: [
+                'd' => new \Keepsuit\Liquid\Tests\Stubs\TextDrop,
+            ],
+        );
 
-        expect($template->getErrors())
-            ->toHaveCount(1)
-            ->{0}->toBeInstanceOf(UndefinedFilterException::class);
-    } else {
-        expect($template->render($context))->toBe('123 Foo');
+        if ($strict) {
+            expect(fn () => $template->render($context))->toThrow(UndefinedVariableException::class);
+        } else {
+            expect($template->render($context))->toBe('text1 ');
+        }
+    })->with([
+        'strict' => true,
+        'default' => false,
+    ]);
 
-        expect($template->getErrors())->toBeEmpty();
-    }
-})->with([
-    'strict' => true,
-    'default' => false,
-]);
+    test('undefined filter', function (bool $compiled, bool $strict) {
+        $environment = testEnvironmentFactory($compiled)
+            ->setRethrowErrors(false)
+            ->setStrictFilters($strict)->build();
 
-test('undefined filter throw exception', function (bool $strict) {
-    $environment = testEnvironment(EnvironmentFactory::new()
-        ->setRethrowErrors(true)
-        ->setStrictFilters($strict)
-        ->build());
+        $template = parseTemplate('{{a}} {{x | upcase | somefilter1 | somefilter2 | capitalize}}', $environment, compiled: $compiled);
+        $context = $environment->newRenderContext(
+            staticData: [
+                'a' => 123,
+                'x' => 'foo',
+            ],
+        );
 
-    $template = parseTemplate('{{a}} {{x | upcase | somefilter1 | somefilter2 | capitalize}}');
-    $context = $environment->newRenderContext(
-        staticData: [
-            'a' => 123,
-            'x' => 'foo',
-        ],
-    );
+        if ($strict) {
+            expect($template->render($context))->toBe('123 ');
 
-    if ($strict) {
-        expect(fn () => $template->render($context))->toThrow(UndefinedFilterException::class);
-    } else {
-        expect($template->render($context))->toBe('123 Foo');
-    }
-})->with([
-    'strict' => true,
-    'default' => false,
-]);
+            expect($template->getErrors())
+                ->toHaveCount(1)
+                ->{0}->toBeInstanceOf(UndefinedFilterException::class);
+        } else {
+            expect($template->render($context))->toBe('123 Foo');
 
-test('range literals works as expected', function () {
-    assertTemplateResult('1..5', '{% assign foo = (x..y) %}{{ foo }}', ['x' => 1, 'y' => 5]);
-    assertTemplateResult('12345', '{% assign nums = (x..y) %}{% for num in nums %}{{ num }}{% endfor %}', ['x' => 1, 'y' => 5]);
-});
+            expect($template->getErrors())->toBeEmpty();
+        }
+    })->with([
+        'strict' => true,
+        'default' => false,
+    ]);
+
+    test('undefined filter throw exception', function (bool $compiled, bool $strict) {
+        $environment = testEnvironmentFactory($compiled)
+            ->setRethrowErrors(true)
+            ->setStrictFilters($strict)->build();
+
+        $template = parseTemplate('{{a}} {{x | upcase | somefilter1 | somefilter2 | capitalize}}', compiled: $compiled);
+        $context = $environment->newRenderContext(
+            staticData: [
+                'a' => 123,
+                'x' => 'foo',
+            ],
+        );
+
+        if ($strict) {
+            expect(fn () => $template->render($context))->toThrow(UndefinedFilterException::class);
+        } else {
+            expect($template->render($context))->toBe('123 Foo');
+        }
+    })->with([
+        'strict' => true,
+        'default' => false,
+    ]);
+
+    test('range literals works as expected', function (bool $compiled) {
+        assertTemplateResult('1..5', '{% assign foo = (x..y) %}{{ foo }}', ['x' => 1, 'y' => 5], compiled: $compiled);
+        assertTemplateResult('12345', '{% assign nums = (x..y) %}{% for num in nums %}{{ num }}{% endfor %}', ['x' => 1, 'y' => 5], compiled: $compiled);
+    });
+})->with('template backends');

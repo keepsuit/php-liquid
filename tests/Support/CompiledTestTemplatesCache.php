@@ -3,14 +3,14 @@
 namespace Keepsuit\Liquid\Tests\Support;
 
 use Keepsuit\Liquid\Compiler\CompiledTemplate;
+use Keepsuit\Liquid\Compiler\Compiler;
 use Keepsuit\Liquid\Contracts\LiquidTemplatesCache;
-use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\ParsedTemplate;
 use Keepsuit\Liquid\Template;
 
 class CompiledTestTemplatesCache implements LiquidTemplatesCache
 {
-    public function __construct(private LiquidTemplatesCache $cache, private Environment $environment) {}
+    public function __construct(private LiquidTemplatesCache $cache) {}
 
     public function set(string $name, Template $template): void
     {
@@ -52,7 +52,7 @@ class CompiledTestTemplatesCache implements LiquidTemplatesCache
 
         try {
             assert($template instanceof ParsedTemplate);
-            $this->environment->compile($template, $path);
+            (new Compiler)->compileToFile($template, $path);
             $compiled = require $path;
             assert($compiled instanceof CompiledTemplate);
 

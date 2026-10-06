@@ -9,12 +9,11 @@ use Keepsuit\Liquid\Render\RenderContextOptions;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
 test('invalid syntax fails during parsing regardless of render options', function (string $source, bool $strictVariables, bool $strictFilters, bool $rethrowErrors, bool $lazyParsing) {
-    $environment = testEnvironment(EnvironmentFactory::new()
+    $environment = EnvironmentFactory::new()
         ->setStrictVariables($strictVariables)
         ->setStrictFilters($strictFilters)
         ->setRethrowErrors($rethrowErrors)
-        ->setLazyParsing($lazyParsing)
-        ->build());
+        ->setLazyParsing($lazyParsing)->build();
 
     expect(fn () => testParseString($environment, $source))->toThrow(SyntaxException::class);
 })->with([
@@ -42,22 +41,23 @@ test('invalid syntax fails during parsing regardless of render options', functio
     'assign indexed target' => ['{% assign a[0] = 1 %}'],
 ])->with([false, true])->with([false, true])->with([false, true])->with([false, true]);
 
-test('complete syntax and explicit nil expressions remain valid', function (bool $strictVariables, bool $strictFilters, bool $rethrowErrors, bool $lazyParsing, bool $stream) {
-    $environment = testEnvironment(EnvironmentFactory::new()
-        ->setStrictVariables($strictVariables)
-        ->setStrictFilters($strictFilters)
-        ->setRethrowErrors($rethrowErrors)
-        ->setLazyParsing($lazyParsing)
-        ->build());
-    $template = testParseString($environment, <<<'LIQUID'
+describe('rendering with template backends 1', function () {
+    test('complete syntax and explicit nil expressions remain valid', function (bool $compiled, bool $strictVariables, bool $strictFilters, bool $rethrowErrors, bool $lazyParsing, bool $stream) {
+        $environment = testEnvironmentFactory($compiled)
+            ->setStrictVariables($strictVariables)
+            ->setStrictFilters($strictFilters)
+            ->setRethrowErrors($rethrowErrors)
+            ->setLazyParsing($lazyParsing)->build();
+        $template = testParseString($environment, <<<'LIQUID'
         {% if nil %}N{% elsif n == nil or n == 5 and true %}Y{% endif %}|{% unless null %}U{% endunless %}|{{ n | plus: nil }}|{{ n | plus: null }}|{{ n | abs }}|{% for i in arr %}{% for j in nil %}N{% else %}{{ i }}{% endfor %}{% else %}E{% endfor %}|{% raw %}{% %}{% endraw %}{% comment %}{%- -%}{% endcomment %}{% # inline comment %}
         LIQUID);
-    $context = $environment->newRenderContext(data: ['n' => 5, 'arr' => [1, 2]]);
+        $context = $environment->newRenderContext(data: ['n' => 5, 'arr' => [1, 2]]);
 
-    expect($stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context))
-        ->toBe('Y|U|5|5|5|12|{% %}');
-    expect($context->getErrors())->toBe([]);
-})->with([false, true])->with([false, true])->with([false, true])->with([false, true])->with([false, true]);
+        expect($stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context))
+            ->toBe('Y|U|5|5|5|12|{% %}');
+        expect($context->getErrors())->toBe([]);
+    })->with([false, true])->with([false, true])->with([false, true])->with([false, true])->with([false, true]);
+})->with('template backends');
 
 test('named filter arguments accept explicit nil', function () {
     expect(fn () => EnvironmentFactory::new()->build()->parseString('{{ n | custom: key: nil }}'))
@@ -72,49 +72,50 @@ test('invalid literal partials fail during parsing even when render errors are h
             throw new LogicException('Parse errors must not reach the render error handler.');
         }
     };
-    $environment = testEnvironment(EnvironmentFactory::new()
+    $environment = EnvironmentFactory::new()
         ->setErrorHandler($handler)
         ->setRethrowErrors(false)
         ->setLazyParsing($lazyParsing)
-        ->setFilesystem(new StubFileSystem(['p' => '{% if %}Y{% endif %}']))
-        ->build());
+        ->setFilesystem(new StubFileSystem(['p' => '{% if %}Y{% endif %}']))->build();
 
     expect(fn () => testParseString($environment, "{% render 'p' %}"))->toThrow(SyntaxException::class);
     expect($environment->templatesCache->has('p'))->toBeFalse();
 })->with([false, true]);
 
-test('partial parsing during rendering respects context overrides and error handlers', function (bool $lazyParsing, bool $rethrowErrors, bool $customHandler, bool $stream) {
-    $handler = new class implements LiquidErrorHandler
-    {
-        public function handle(LiquidException $error): string
+describe('rendering with template backends 2', function () {
+    test('partial parsing during rendering respects context overrides and error handlers', function (bool $compiled, bool $lazyParsing, bool $rethrowErrors, bool $customHandler, bool $stream) {
+        $handler = new class implements LiquidErrorHandler
         {
-            return '[handled]';
+            public function handle(LiquidException $error): string
+            {
+                return '[handled]';
+            }
+        };
+        $factory = EnvironmentFactory::new()
+            ->setLazyParsing(! $lazyParsing)
+            ->setRethrowErrors(! $rethrowErrors)
+            ->setFilesystem(new StubFileSystem(['p' => '{{ n | plus: }}']));
+        if ($customHandler) {
+            $factory->setErrorHandler($handler);
         }
-    };
-    $factory = EnvironmentFactory::new()
-        ->setLazyParsing(! $lazyParsing)
-        ->setRethrowErrors(! $rethrowErrors)
-        ->setFilesystem(new StubFileSystem(['p' => '{{ n | plus: }}']));
-    if ($customHandler) {
-        $factory->setErrorHandler($handler);
-    }
-    $environment = testEnvironment($factory->build());
-    $environment->templatesCache->set('p', testParseString($environment, 'valid'));
-    $template = testParseString($environment, "A{% render 'p' %}B");
-    $environment->templatesCache->remove('p');
-    $context = $environment->newRenderContext(options: new RenderContextOptions(
-        strictVariables: true, strictFilters: true, rethrowErrors: $rethrowErrors, lazyParsing: $lazyParsing,
-    ));
-    $render = fn () => $stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context);
+        $environment = testEnvironmentFactory($compiled, $factory)->build();
+        $environment->templatesCache->set('p', testParseString($environment, 'valid'));
+        $template = testParseString($environment, "A{% render 'p' %}B");
+        $environment->templatesCache->remove('p');
+        $context = $environment->newRenderContext(options: new RenderContextOptions(
+            strictVariables: true, strictFilters: true, rethrowErrors: $rethrowErrors, lazyParsing: $lazyParsing,
+        ));
+        $render = fn () => $stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context);
 
-    if ($rethrowErrors) {
-        expect($render)->toThrow($lazyParsing ? SyntaxException::class : StandardException::class);
-    } elseif ($customHandler) {
-        expect($render())->toBe('A[handled]B');
-    } else {
-        expect($render())->toStartWith('ALiquid ')->toEndWith('B');
-    }
-    expect($context->getErrors())->toHaveCount(1);
-    expect($context->getErrors()[0])->toBeInstanceOf($lazyParsing ? SyntaxException::class : StandardException::class);
-    expect($environment->templatesCache->has('p'))->toBeFalse();
-})->with([false, true])->with([false, true])->with([false, true])->with([false, true]);
+        if ($rethrowErrors) {
+            expect($render)->toThrow($lazyParsing ? SyntaxException::class : StandardException::class);
+        } elseif ($customHandler) {
+            expect($render())->toBe('A[handled]B');
+        } else {
+            expect($render())->toStartWith('ALiquid ')->toEndWith('B');
+        }
+        expect($context->getErrors())->toHaveCount(1);
+        expect($context->getErrors()[0])->toBeInstanceOf($lazyParsing ? SyntaxException::class : StandardException::class);
+        expect($environment->templatesCache->has('p'))->toBeFalse();
+    })->with([false, true])->with([false, true])->with([false, true])->with([false, true]);
+})->with('template backends');

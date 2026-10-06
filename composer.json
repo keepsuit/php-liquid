@@ -44,12 +44,7 @@
         }
     },
     "scripts": {
-        "test": [
-            "@test:in-memory",
-            "@test:compiled"
-        ],
-        "test:in-memory": "LIQUID_TEST_BACKEND=in-memory pest",
-        "test:compiled": "LIQUID_TEST_BACKEND=compiled pest",
+        "test": "pest",
         "test-coverage": "pest --coverage",
         "lint": [
             "pint",

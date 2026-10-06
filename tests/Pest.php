@@ -1,5 +1,6 @@
 <?php
 
+use Keepsuit\Liquid\Contracts\LiquidTemplatesCache;
 use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
@@ -7,40 +8,25 @@ use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\TokenStream;
 use Keepsuit\Liquid\ParsedTemplate;
 use Keepsuit\Liquid\Template;
+use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 use Keepsuit\Liquid\Tests\Support\CompiledTestTemplatesCache;
 use PHPUnit\Framework\ExpectationFailedException;
 
-function testEnvironment(Environment $environment): Environment
-{
-    $compiled = match (getenv('LIQUID_TEST_BACKEND') ?: 'in-memory') {
-        'in-memory' => false,
-        'compiled' => true,
-        default => throw new InvalidArgumentException('Unknown LIQUID_TEST_BACKEND.'),
-    };
+function testEnvironmentFactory(
+    bool $compiled,
+    ?EnvironmentFactory $factory = null,
+    ?LiquidTemplatesCache $cache = null,
+): EnvironmentFactory {
+    $factory ??= EnvironmentFactory::new();
 
-    if (! $compiled || $environment->templatesCache instanceof CompiledTestTemplatesCache) {
-        return $environment;
+    if ($compiled) {
+        $factory->setTemplatesCache(new CompiledTestTemplatesCache($cache ?? new MemoryTemplatesCache));
+    } elseif ($cache !== null) {
+        $factory->setTemplatesCache($cache);
     }
 
-    $reflection = new ReflectionClass(Environment::class);
-    $compiledEnvironment = $reflection->newInstanceWithoutConstructor();
-
-    // Preserve registries, extensions and options, including changes made after construction.
-    foreach ($reflection->getProperties() as $property) {
-        if ($property->isStatic()) {
-            continue;
-        }
-
-        $value = $property->getValue($environment);
-        if ($property->getName() === 'templatesCache') {
-            $value = new CompiledTestTemplatesCache($environment->templatesCache, $environment);
-        }
-
-        $property->setValue($compiledEnvironment, $value);
-    }
-
-    return $compiledEnvironment;
+    return $factory;
 }
 
 /** Parse a source for assertions on the parser, AST or parsed cache format. */
@@ -65,8 +51,9 @@ function testParseString(Environment $environment, string $source, ?string $name
 function parseTemplate(
     string $source,
     ?Environment $environment = null,
+    bool $compiled = false,
 ): Template {
-    return testParseString(testEnvironment($environment ?? Environment::default()), $source);
+    return testParseString($environment ?? testEnvironmentFactory($compiled)->build(), $source);
 }
 
 function buildRenderContext(
@@ -98,13 +85,13 @@ function renderTemplate(
     array $partials = [],
     bool $renderErrors = false,
     bool $strictVariables = false,
-    EnvironmentFactory $factory = new EnvironmentFactory
+    EnvironmentFactory $factory = new EnvironmentFactory,
+    bool $compiled = false,
 ): string {
-    $environment = testEnvironment($factory
+    $environment = testEnvironmentFactory($compiled, $factory
         ->setFilesystem(new StubFileSystem(partials: $partials))
         ->setStrictVariables($strictVariables)
-        ->setRethrowErrors(! $renderErrors)
-        ->build());
+        ->setRethrowErrors(! $renderErrors))->build();
 
     $template = testParseString($environment, $template);
 
@@ -131,13 +118,13 @@ function streamTemplate(
     array $partials = [],
     bool $renderErrors = false,
     bool $strictVariables = false,
-    EnvironmentFactory $factory = new EnvironmentFactory
+    EnvironmentFactory $factory = new EnvironmentFactory,
+    bool $compiled = false,
 ): Generator {
-    $environment = testEnvironment($factory
+    $environment = testEnvironmentFactory($compiled, $factory
         ->setFilesystem(new StubFileSystem(partials: $partials))
         ->setStrictVariables($strictVariables)
-        ->setRethrowErrors(! $renderErrors)
-        ->build());
+        ->setRethrowErrors(! $renderErrors))->build();
 
     $template = testParseString($environment, $template);
 
@@ -160,7 +147,8 @@ function assertTemplateResult(
     array $partials = [],
     bool $renderErrors = false,
     bool $strictVariables = false,
-    EnvironmentFactory $factory = new EnvironmentFactory
+    EnvironmentFactory $factory = new EnvironmentFactory,
+    bool $compiled = false,
 ): void {
     expect(renderTemplate(
         template: $template,
@@ -171,6 +159,7 @@ function assertTemplateResult(
         renderErrors: $renderErrors,
         strictVariables: $strictVariables,
         factory: $factory,
+        compiled: $compiled,
     ))->toBe($expected);
 }
 
@@ -181,9 +170,10 @@ function assertMatchSyntaxError(
     array $staticData = [],
     array $registers = [],
     array $partials = [],
+    bool $compiled = false,
 ): void {
     try {
-        renderTemplate(template: $template, data: $data, staticData: $staticData, registers: $registers, partials: $partials);
+        renderTemplate(template: $template, data: $data, staticData: $staticData, registers: $registers, partials: $partials, compiled: $compiled);
     } catch (SyntaxException $exception) {
         expect($exception->toLiquidErrorMessage())->toBe($error);
 

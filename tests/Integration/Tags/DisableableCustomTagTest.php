@@ -16,30 +16,32 @@ beforeEach(function () {
         ->registerTag(Custom2Tag::class);
 });
 
-test('block tag disabling nested tag', function () {
-    $this->templateFactory->registerTag(DisableCustomTag::class);
+describe('rendering with template backends', function () {
+    test('block tag disabling nested tag', function (bool $compiled) {
+        $this->templateFactory->registerTag(DisableCustomTag::class);
 
-    expect(renderTemplate('{% disable %}{% custom %};{% custom2 %}{% enddisable %}', renderErrors: true, factory: $this->templateFactory))
-        ->toBe('Liquid error (line 1): custom usage is not allowed in this context;custom2');
-});
+        expect(renderTemplate('{% disable %}{% custom %};{% custom2 %}{% enddisable %}', renderErrors: true, factory: $this->templateFactory, compiled: $compiled))
+            ->toBe('Liquid error (line 1): custom usage is not allowed in this context;custom2');
+    });
 
-test('block tag disabling multiple tags', function () {
-    $this->templateFactory->registerTag(DisableBothTag::class);
+    test('block tag disabling multiple tags', function (bool $compiled) {
+        $this->templateFactory->registerTag(DisableBothTag::class);
 
-    expect(renderTemplate('{% disable %}{% custom %};{% custom2 %}{% enddisable %}', renderErrors: true, factory: $this->templateFactory))
-        ->toBe('Liquid error (line 1): custom usage is not allowed in this context;Liquid error (line 1): custom2 usage is not allowed in this context');
-});
+        expect(renderTemplate('{% disable %}{% custom %};{% custom2 %}{% enddisable %}', renderErrors: true, factory: $this->templateFactory, compiled: $compiled))
+            ->toBe('Liquid error (line 1): custom usage is not allowed in this context;Liquid error (line 1): custom2 usage is not allowed in this context');
+    });
 
-test('compiled block tag disabling nested compiled tag', function () {
-    $factory = EnvironmentFactory::new()
-        ->registerTag(CompiledCustomTag::class)
-        ->registerTag(CompiledDisableCustomTag::class);
-    $source = '{% disable %}{% custom %}{% enddisable %};{% custom %}';
-    $expected = 'Liquid error (line 1): custom usage is not allowed in this context;custom';
+    test('compiled block tag disabling nested compiled tag', function (bool $compiled) {
+        $factory = EnvironmentFactory::new()
+            ->registerTag(CompiledCustomTag::class)
+            ->registerTag(CompiledDisableCustomTag::class);
+        $source = '{% disable %}{% custom %}{% enddisable %};{% custom %}';
+        $expected = 'Liquid error (line 1): custom usage is not allowed in this context;custom';
 
-    expect(renderTemplate($source, renderErrors: true, factory: $factory))->toBe($expected);
-    expect(implode('', iterator_to_array(streamTemplate($source, renderErrors: true, factory: $factory), false)))->toBe($expected);
-});
+        expect(renderTemplate($source, renderErrors: true, factory: $factory, compiled: $compiled))->toBe($expected);
+        expect(implode('', iterator_to_array(streamTemplate($source, renderErrors: true, factory: $factory, compiled: $compiled), false)))->toBe($expected);
+    });
+})->with('template backends');
 
 class CustomTag extends Tag implements Disableable
 {

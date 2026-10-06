@@ -7,143 +7,146 @@ use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
-test('render with no arguments', function () {
-    assertTemplateResult(
-        'rendered content',
-        '{% render "source" %}',
-        partials: ['source' => 'rendered content'],
-    );
-});
-
-test('render for accepts ranges with inherited strict options', function (string $source, string $expected) {
-    $factory = EnvironmentFactory::new()->setStrictFilters(true)->setLazyParsing(false);
-    assertTemplateResult($expected, $source, partials: ['p' => '{{ i }}'], strictVariables: true, factory: $factory);
-    expect(implode('', iterator_to_array(streamTemplate($source, partials: ['p' => '{{ i }}'], strictVariables: true, factory: $factory))))
-        ->toBe($expected);
-})->with([
-    'ascending' => ["{% render 'p' for (1..3) as i %}", '123'],
-    'descending' => ["{% render 'p' for (3..1) as i %}", ''],
-    'assigned' => ["{% assign items = (1..3) %}{% render 'p' for items as i %}", '123'],
-]);
-
-test('render for over a non-iterable renders the partial once', function (array $data, string $expected) {
-    assertTemplateResult($expected, "{% render 'p' for v as i %}", data: $data, partials: ['p' => '<{{ i }}>']);
-    expect(implode('', iterator_to_array(streamTemplate("{% render 'p' for v as i %}", data: $data, partials: ['p' => '<{{ i }}>']))))->toBe($expected);
-})->with([
-    'string' => [['v' => 'abc'], '<abc>'],
-    'number' => [['v' => 5], '<5>'],
-    'nil' => [['v' => null], '<>'],
-]);
-
-test('render for reports missing variables in strict variables mode', function () {
-    expect(fn () => renderTemplate("{% render 'p' for missing as i %}", partials: ['p' => '{{ i }}'], strictVariables: true))
-        ->toThrow(\Keepsuit\Liquid\Exceptions\UndefinedVariableException::class);
-});
-
-test('render passes named arguments into inner scope', function () {
-    assertTemplateResult(
-        'My Product',
-        '{% render "product", inner_product: outer_product %}',
-        staticData: ['outer_product' => ['title' => 'My Product']],
-        partials: ['product' => '{{ inner_product.title }}'],
-    );
-});
-
-test('render passes parent variable as named arguments into inner scope', function () {
-    assertTemplateResult(
-        'My Product',
-        '{% render "product", product: a %}',
-        data: ['a' => ['title' => 'My Product']],
-        partials: ['product' => '{{ product.title }}'],
-    );
-});
-
-test('render accepts literals as arguments', function () {
-    assertTemplateResult(
-        '123',
-        '{% render "snippet", price: 123 %}',
-        partials: ['snippet' => '{{ price }}'],
-    );
-});
-
-test('render accepts multiple named arguments', function () {
-    assertTemplateResult(
-        '1 2',
-        '{% render "snippet", one: 1, two: 2 %}',
-        partials: ['snippet' => '{{ one }} {{ two }}'],
-    );
-});
-
-test('render accepts multiple named arguments without commas', function () {
-    assertTemplateResult(
-        '1 2',
-        '{% render "snippet" one: 1 two: 2 %}',
-        partials: ['snippet' => '{{ one }} {{ two }}'],
-    );
-});
-
-test('render accepts optional commas around with alias and named arguments', function () {
-    assertTemplateResult(
-        'Product: Draft 151cm override',
-        "{% render 'product', with products[0], as item, note: 'override' %}",
-        staticData: [
-            'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
-        ],
-        partials: [
-            'product' => 'Product: {{ item.title }} {{ note }}',
-        ],
-    );
-});
-
-test('render named arguments override with value', function () {
-    assertTemplateResult(
-        'Element 155cm',
-        "{% render 'product' with products[0], product: products[1] %}",
-        staticData: [
-            'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
-        ],
-        partials: [
-            'product' => '{{ product.title }}',
-        ],
-    );
-});
-
-test('render does not inherit parent scope variables', function () {
-    assertTemplateResult(
-        '',
-        '{% assign outer_variable = "should not be visible" %}{% render "snippet" %}',
-        partials: ['snippet' => '{{ outer_variable }}'],
-    );
-});
-
-test('render does not mutate parent scope', function () {
-    assertTemplateResult(
-        '',
-        "{% render 'snippet' %}{{ inner }}",
-        partials: ['snippet' => '{% assign inner = 1 %}'],
-    );
-});
-
-test('nested render tag', function () {
-    assertTemplateResult(
-        'one two',
-        "{% render 'one' %}",
-        partials: [
-            'one' => "one {% render 'two' %}",
-            'two' => 'two',
-        ],
-    );
-});
-
-test('recursively rendered template does not produce endless loop', function () {
-    expect(fn () => renderTemplate('{% render "loop" %}', partials: ['loop' => '{% render "loop" %}']))
-        ->toThrow(StackLevelException::class);
-});
-
 test('dynamically choosen templates are not allowed', function () {
     expect(fn () => renderTemplate("{% assign name = 'snippet' %}{% render name %}"))
         ->toThrow(SyntaxException::class);
 });
+
+describe('rendering with template backends 1', function () {
+    test('render with no arguments', function (bool $compiled) {
+        assertTemplateResult(
+            'rendered content',
+            '{% render "source" %}',
+            partials: ['source' => 'rendered content'],
+            compiled: $compiled);
+    });
+
+    test('render for accepts ranges with inherited strict options', function (bool $compiled, string $source, string $expected) {
+        $factory = EnvironmentFactory::new()->setStrictFilters(true)->setLazyParsing(false);
+        assertTemplateResult($expected, $source, partials: ['p' => '{{ i }}'], strictVariables: true, factory: $factory, compiled: $compiled);
+        expect(implode('', iterator_to_array(streamTemplate($source, partials: ['p' => '{{ i }}'], strictVariables: true, factory: $factory, compiled: $compiled))))
+            ->toBe($expected);
+    })->with([
+        'ascending' => ["{% render 'p' for (1..3) as i %}", '123'],
+        'descending' => ["{% render 'p' for (3..1) as i %}", ''],
+        'assigned' => ["{% assign items = (1..3) %}{% render 'p' for items as i %}", '123'],
+    ]);
+
+    test('render for over a non-iterable renders the partial once', function (bool $compiled, array $data, string $expected) {
+        assertTemplateResult($expected, "{% render 'p' for v as i %}", data: $data, partials: ['p' => '<{{ i }}>'], compiled: $compiled);
+        expect(implode('', iterator_to_array(streamTemplate("{% render 'p' for v as i %}", data: $data, partials: ['p' => '<{{ i }}>'], compiled: $compiled))))->toBe($expected);
+    })->with([
+        'string' => [['v' => 'abc'], '<abc>'],
+        'number' => [['v' => 5], '<5>'],
+        'nil' => [['v' => null], '<>'],
+    ]);
+
+    test('render for reports missing variables in strict variables mode', function (bool $compiled) {
+        expect(fn () => renderTemplate("{% render 'p' for missing as i %}", partials: ['p' => '{{ i }}'], strictVariables: true, compiled: $compiled))
+            ->toThrow(\Keepsuit\Liquid\Exceptions\UndefinedVariableException::class);
+    });
+
+    test('render passes named arguments into inner scope', function (bool $compiled) {
+        assertTemplateResult(
+            'My Product',
+            '{% render "product", inner_product: outer_product %}',
+            staticData: ['outer_product' => ['title' => 'My Product']],
+            partials: ['product' => '{{ inner_product.title }}'],
+            compiled: $compiled);
+    });
+
+    test('render passes parent variable as named arguments into inner scope', function (bool $compiled) {
+        assertTemplateResult(
+            'My Product',
+            '{% render "product", product: a %}',
+            data: ['a' => ['title' => 'My Product']],
+            partials: ['product' => '{{ product.title }}'],
+            compiled: $compiled);
+    });
+
+    test('render accepts literals as arguments', function (bool $compiled) {
+        assertTemplateResult(
+            '123',
+            '{% render "snippet", price: 123 %}',
+            partials: ['snippet' => '{{ price }}'],
+            compiled: $compiled);
+    });
+
+    test('render accepts multiple named arguments', function (bool $compiled) {
+        assertTemplateResult(
+            '1 2',
+            '{% render "snippet", one: 1, two: 2 %}',
+            partials: ['snippet' => '{{ one }} {{ two }}'],
+            compiled: $compiled);
+    });
+
+    test('render accepts multiple named arguments without commas', function (bool $compiled) {
+        assertTemplateResult(
+            '1 2',
+            '{% render "snippet" one: 1 two: 2 %}',
+            partials: ['snippet' => '{{ one }} {{ two }}'],
+            compiled: $compiled);
+    });
+
+    test('render accepts optional commas around with alias and named arguments', function (bool $compiled) {
+        assertTemplateResult(
+            'Product: Draft 151cm override',
+            "{% render 'product', with products[0], as item, note: 'override' %}",
+            staticData: [
+                'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
+            ],
+            partials: [
+                'product' => 'Product: {{ item.title }} {{ note }}',
+            ],
+            compiled: $compiled);
+    });
+
+    test('render named arguments override with value', function (bool $compiled) {
+        assertTemplateResult(
+            'Element 155cm',
+            "{% render 'product' with products[0], product: products[1] %}",
+            staticData: [
+                'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
+            ],
+            partials: [
+                'product' => '{{ product.title }}',
+            ],
+            compiled: $compiled);
+    });
+
+    test('render does not inherit parent scope variables', function (bool $compiled) {
+        assertTemplateResult(
+            '',
+            '{% assign outer_variable = "should not be visible" %}{% render "snippet" %}',
+            partials: ['snippet' => '{{ outer_variable }}'],
+            compiled: $compiled);
+    });
+
+    test('render does not mutate parent scope', function (bool $compiled) {
+        assertTemplateResult(
+            '',
+            "{% render 'snippet' %}{{ inner }}",
+            partials: ['snippet' => '{% assign inner = 1 %}'],
+            compiled: $compiled);
+    });
+
+    test('nested render tag', function (bool $compiled) {
+        assertTemplateResult(
+            'one two',
+            "{% render 'one' %}",
+            partials: [
+                'one' => "one {% render 'two' %}",
+                'two' => 'two',
+            ],
+            compiled: $compiled);
+    });
+
+    test('recursively rendered template does not produce endless loop', function (bool $compiled) {
+        expect(fn () => renderTemplate('{% render "loop" %}', partials: ['loop' => '{% render "loop" %}'], compiled: $compiled))
+            ->toThrow(StackLevelException::class);
+    });
+
+})->with('template backends');
 
 test('render with filters on template name is invalid', function () {
     expect(fn () => parseTemplate('{% render "snippet" | upcase %}'))
@@ -155,218 +158,216 @@ test('render invalid trailing syntax fails during parse', function () {
         ->toThrow(SyntaxException::class);
 });
 
-test('render tag caches second read of some partial', function () {
-    $environment = testEnvironment(EnvironmentFactory::new()
-        ->setFilesystem($fileSystem = new StubFileSystem(['snippet' => 'echo']))
-        ->build());
+describe('rendering with template backends 2', function () {
+    test('render tag caches second read of some partial', function (bool $compiled) {
+        $environment = testEnvironmentFactory($compiled)
+            ->setFilesystem($fileSystem = new StubFileSystem(['snippet' => 'echo']))->build();
 
-    $template = testParseString($environment, '{% render "snippet" %}{% render "snippet" %}');
+        $template = testParseString($environment, '{% render "snippet" %}{% render "snippet" %}');
 
-    expect($template->render($environment->newRenderContext()))->toBe('echoecho');
-    expect($fileSystem->fileReadCount)->toBe(1);
-    expect($template->render($environment->newRenderContext()))->toBe('echoecho');
-    expect($fileSystem->fileReadCount)->toBe(1);
-});
+        expect($template->render($environment->newRenderContext()))->toBe('echoecho');
+        expect($fileSystem->fileReadCount)->toBe(1);
+        expect($template->render($environment->newRenderContext()))->toBe('echoecho');
+        expect($fileSystem->fileReadCount)->toBe(1);
+    });
 
-test('render tag does cache partials across parsing', function () {
-    $environment = testEnvironment(EnvironmentFactory::new()
-        ->setFilesystem($fileSystem = new StubFileSystem(['snippet' => 'my message']))
-        ->build());
+    test('render tag does cache partials across parsing', function (bool $compiled) {
+        $environment = testEnvironmentFactory($compiled)
+            ->setFilesystem($fileSystem = new StubFileSystem(['snippet' => 'my message']))->build();
 
-    $template = testParseString($environment, '{% render "snippet" %}');
-    expect($template)
-        ->state->partials->toBe(['snippet'])
-        ->render($environment->newRenderContext())->toBe('my message');
-    expect($fileSystem->fileReadCount)->toBe(1);
-    expect($environment->templatesCache->has('snippet'))->toBeTrue();
+        $template = testParseString($environment, '{% render "snippet" %}');
+        expect($template)
+            ->state->partials->toBe(['snippet'])
+            ->render($environment->newRenderContext())->toBe('my message');
+        expect($fileSystem->fileReadCount)->toBe(1);
+        expect($environment->templatesCache->has('snippet'))->toBeTrue();
 
-    $template = testParseString($environment, '{% render "snippet" %}');
-    expect($template)
-        ->state->partials->toBe(['snippet'])
-        ->render($environment->newRenderContext())->toBe('my message');
-    expect($fileSystem->fileReadCount)->toBe(1);
-    expect($environment->templatesCache->has('snippet'))->toBeTrue();
-});
+        $template = testParseString($environment, '{% render "snippet" %}');
+        expect($template)
+            ->state->partials->toBe(['snippet'])
+            ->render($environment->newRenderContext())->toBe('my message');
+        expect($fileSystem->fileReadCount)->toBe(1);
+        expect($environment->templatesCache->has('snippet'))->toBeTrue();
+    });
 
-test('render tag checks the cache before parsing and after storing a missing partial', function () {
-    $cache = new class extends MemoryTemplatesCache
-    {
-        public int $reads = 0;
-
-        public function get(string $name): ?Template
+    test('render tag checks the cache before parsing and after storing a missing partial', function (bool $compiled) {
+        $cache = new class extends MemoryTemplatesCache
         {
-            $this->reads++;
+            public int $reads = 0;
 
-            return parent::get($name);
-        }
-    };
+            public function get(string $name): ?Template
+            {
+                $this->reads++;
 
-    $environment = testEnvironment(EnvironmentFactory::new()
-        ->setFilesystem(new StubFileSystem(['snippet' => 'my message']))
-        ->setTemplatesCache($cache)
-        ->build());
+                return parent::get($name);
+            }
+        };
 
-    testParseString($environment, '{% render "snippet" %}');
+        $environment = testEnvironmentFactory($compiled, cache: $cache)
+            ->setFilesystem(new StubFileSystem(['snippet' => 'my message']))
+            ->build();
 
-    expect($cache->reads)->toBe(2);
-});
+        testParseString($environment, '{% render "snippet" %}');
 
-test('render tag within if statement', function () {
-    assertTemplateResult(
-        'my message',
-        '{% if true %}{% render "snippet" %}{% endif %}',
-        partials: ['snippet' => 'my message'],
-    );
-});
+        expect($cache->reads)->toBe(2);
+    });
 
-test('break through render', function () {
-    assertTemplateResult(
-        '1',
-        '{% for i in (1..3) %}{{ i }}{% break %}{{ i }}{% endfor %}',
-        partials: ['break' => '{% break %}'],
-    );
-    assertTemplateResult(
-        '112233',
-        '{% for i in (1..3) %}{{ i }}{% render "break" %}{{ i }}{% endfor %}',
-        partials: ['break' => '{% break %}'],
-    );
-});
+    test('render tag within if statement', function (bool $compiled) {
+        assertTemplateResult(
+            'my message',
+            '{% if true %}{% render "snippet" %}{% endif %}',
+            partials: ['snippet' => 'my message'],
+            compiled: $compiled);
+    });
 
-test('increment is isolated between renders', function () {
-    assertTemplateResult(
-        '010',
-        '{% increment a %}{% increment a %}{% render "incr" %}',
-        partials: ['incr' => '{% increment a %}'],
-    );
-});
+    test('break through render', function (bool $compiled) {
+        assertTemplateResult(
+            '1',
+            '{% for i in (1..3) %}{{ i }}{% break %}{{ i }}{% endfor %}',
+            partials: ['break' => '{% break %}'],
+            compiled: $compiled);
+        assertTemplateResult(
+            '112233',
+            '{% for i in (1..3) %}{{ i }}{% render "break" %}{{ i }}{% endfor %}',
+            partials: ['break' => '{% break %}'],
+            compiled: $compiled);
+    });
 
-test('decrement is isolated between renders', function () {
-    assertTemplateResult(
-        '-1-2-1',
-        '{% decrement a %}{% decrement a %}{% render "decr" %}',
-        partials: ['decr' => '{% decrement a %}'],
-    );
-});
+    test('increment is isolated between renders', function (bool $compiled) {
+        assertTemplateResult(
+            '010',
+            '{% increment a %}{% increment a %}{% render "incr" %}',
+            partials: ['incr' => '{% increment a %}'],
+            compiled: $compiled);
+    });
 
-test('render tag with', function () {
-    assertTemplateResult(
-        'Product: Draft 151cm ',
-        "{% render 'product' with products[0] %}",
-        staticData: [
-            'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
-        ],
-        partials: [
-            'product' => 'Product: {{ product.title }} ',
-        ],
-    );
-});
+    test('decrement is isolated between renders', function (bool $compiled) {
+        assertTemplateResult(
+            '-1-2-1',
+            '{% decrement a %}{% decrement a %}{% render "decr" %}',
+            partials: ['decr' => '{% decrement a %}'],
+            compiled: $compiled);
+    });
 
-test('render tag with alias', function () {
-    assertTemplateResult(
-        'Product: Draft 151cm ',
-        "{% render 'product_alias' with products[0] as product %}",
-        staticData: [
-            'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
-        ],
-        partials: [
-            'product_alias' => 'Product: {{ product.title }} ',
-        ],
-    );
-});
+    test('render tag with', function (bool $compiled) {
+        assertTemplateResult(
+            'Product: Draft 151cm ',
+            "{% render 'product' with products[0] %}",
+            staticData: [
+                'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
+            ],
+            partials: [
+                'product' => 'Product: {{ product.title }} ',
+            ],
+            compiled: $compiled);
+    });
 
-test('render tag for', function () {
-    assertTemplateResult(
-        'Product: Draft 151cm Product: Element 155cm ',
-        "{% render 'product' for products %}",
-        staticData: [
-            'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
-        ],
-        partials: [
-            'product' => 'Product: {{ product.title }} ',
-        ],
-    );
-});
+    test('render tag with alias', function (bool $compiled) {
+        assertTemplateResult(
+            'Product: Draft 151cm ',
+            "{% render 'product_alias' with products[0] as product %}",
+            staticData: [
+                'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
+            ],
+            partials: [
+                'product_alias' => 'Product: {{ product.title }} ',
+            ],
+            compiled: $compiled);
+    });
 
-test('render tag for alias', function () {
-    assertTemplateResult(
-        'Product: Draft 151cm Product: Element 155cm ',
-        "{% render 'product_alias' for products as product %}",
-        staticData: [
-            'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
-        ],
-        partials: [
-            'product_alias' => 'Product: {{ product.title }} ',
-        ],
-    );
-});
+    test('render tag for', function (bool $compiled) {
+        assertTemplateResult(
+            'Product: Draft 151cm Product: Element 155cm ',
+            "{% render 'product' for products %}",
+            staticData: [
+                'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
+            ],
+            partials: [
+                'product' => 'Product: {{ product.title }} ',
+            ],
+            compiled: $compiled);
+    });
 
-test('render tag forloop', function () {
-    assertTemplateResult(
-        'Product: Draft 151cm first  index:1 Product: Element 155cm  last index:2 ',
-        "{% render 'product' for products %}",
-        staticData: [
-            'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
-        ],
-        partials: [
-            'product' => 'Product: {{ product.title }} {% if forloop.first %}first{% endif %} {% if forloop.last %}last{% endif %} index:{{ forloop.index }} ',
-        ],
-    );
-});
+    test('render tag for alias', function (bool $compiled) {
+        assertTemplateResult(
+            'Product: Draft 151cm Product: Element 155cm ',
+            "{% render 'product_alias' for products as product %}",
+            staticData: [
+                'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
+            ],
+            partials: [
+                'product_alias' => 'Product: {{ product.title }} ',
+            ],
+            compiled: $compiled);
+    });
 
-test('render tag for drop', function () {
-    assertTemplateResult(
-        '123',
-        "{% render 'loop' for iterator as value %}",
-        staticData: [
-            'iterator' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop,
-        ],
-        partials: [
-            'loop' => '{{ value.foo }}',
-        ],
-    );
-});
+    test('render tag forloop', function (bool $compiled) {
+        assertTemplateResult(
+            'Product: Draft 151cm first  index:1 Product: Element 155cm  last index:2 ',
+            "{% render 'product' for products %}",
+            staticData: [
+                'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
+            ],
+            partials: [
+                'product' => 'Product: {{ product.title }} {% if forloop.first %}first{% endif %} {% if forloop.last %}last{% endif %} index:{{ forloop.index }} ',
+            ],
+            compiled: $compiled);
+    });
 
-test('render tag with drop', function () {
-    assertTemplateResult(
-        '1',
-        "{% render 'loop' with data as value %}",
-        staticData: [
-            'data' => 1,
-        ],
-        partials: [
-            'loop' => '{{ value }}',
-        ],
-    );
-});
+    test('render tag for drop', function (bool $compiled) {
+        assertTemplateResult(
+            '123',
+            "{% render 'loop' for iterator as value %}",
+            staticData: [
+                'iterator' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop,
+            ],
+            partials: [
+                'loop' => '{{ value.foo }}',
+            ],
+            compiled: $compiled);
+    });
 
-test('render tag renders error with template name', function () {
-    assertTemplateResult(
-        'Liquid error (foo line 1): Standard error',
-        "{% render 'foo' with errors %}",
-        staticData: [
-            'errors' => new \Keepsuit\Liquid\Tests\Stubs\ErrorDrop,
-        ],
-        partials: [
-            'foo' => '{{ foo.standard_error }}',
-        ],
-        renderErrors: true
-    );
-});
+    test('render tag with drop', function (bool $compiled) {
+        assertTemplateResult(
+            '1',
+            "{% render 'loop' with data as value %}",
+            staticData: [
+                'data' => 1,
+            ],
+            partials: [
+                'loop' => '{{ value }}',
+            ],
+            compiled: $compiled);
+    });
 
-test('render stream', function () {
-    $stream = streamTemplate(
-        "{% render 'product' for products %}",
-        staticData: [
-            'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
-        ],
-        partials: [
-            'product' => 'Product: {{ product.title }} ',
-        ],
-    );
+    test('render tag renders error with template name', function (bool $compiled) {
+        assertTemplateResult(
+            'Liquid error (foo line 1): Standard error',
+            "{% render 'foo' with errors %}",
+            staticData: [
+                'errors' => new \Keepsuit\Liquid\Tests\Stubs\ErrorDrop,
+            ],
+            partials: [
+                'foo' => '{{ foo.standard_error }}',
+            ],
+            renderErrors: true, compiled: $compiled);
+    });
 
-    $output = iterator_to_array($stream);
+    test('render stream', function (bool $compiled) {
+        $stream = streamTemplate(
+            "{% render 'product' for products %}",
+            staticData: [
+                'products' => [['title' => 'Draft 151cm'], ['title' => 'Element 155cm']],
+            ],
+            partials: [
+                'product' => 'Product: {{ product.title }} ',
+            ],
+            compiled: $compiled);
 
-    // Compiled fallback tags can yield different chunk boundaries.
-    expect(implode('', $output))
-        ->toBe('Product: Draft 151cm Product: Element 155cm ');
-});
+        $output = iterator_to_array($stream);
+
+        // Compiled fallback tags can yield different chunk boundaries.
+        expect(implode('', $output))
+            ->toBe('Product: Draft 151cm Product: Element 155cm ');
+    });
+})->with('template backends');

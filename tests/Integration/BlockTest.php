@@ -11,12 +11,14 @@ test('unexpected end tag', function () {
         ->toThrow(SyntaxException::class, "'endunless' is not a valid delimiter for if tag. use endif");
 });
 
-test('with custom tag block', function () {
-    $this->templateFactory->registerTag(\Keepsuit\Liquid\Tests\Stubs\TestTagBlockTag::class);
+describe('rendering with template backends', function () {
 
-    assertTemplateResult(
-        '',
-        '{% testblock %}{% endtestblock %}',
-        factory: $this->templateFactory
-    );
-});
+    test('with custom tag block', function (bool $compiled) {
+        $this->templateFactory->registerTag(\Keepsuit\Liquid\Tests\Stubs\TestTagBlockTag::class);
+
+        assertTemplateResult(
+            '',
+            '{% testblock %}{% endtestblock %}',
+            factory: $this->templateFactory, compiled: $compiled);
+    });
+})->with('template backends');

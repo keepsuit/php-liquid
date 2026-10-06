@@ -1,13 +1,14 @@
 <?php
 
-test('liquid tag', function () {
-    assertTemplateResult('1 2 3', <<<'LIQUID'
+describe('rendering with template backends 1', function () {
+    test('liquid tag', function (bool $compiled) {
+        assertTemplateResult('1 2 3', <<<'LIQUID'
     {%- liquid
         echo array | join: " "
     -%}
-    LIQUID, staticData: ['array' => [1, 2, 3]]);
+    LIQUID, staticData: ['array' => [1, 2, 3]], compiled: $compiled);
 
-    assertTemplateResult('1 2 3', <<<'LIQUID'
+        assertTemplateResult('1 2 3', <<<'LIQUID'
     {%- liquid
         for value in array
             echo value
@@ -16,9 +17,9 @@ test('liquid tag', function () {
             endunless
         endfor
     -%}
-    LIQUID, staticData: ['array' => [1, 2, 3]]);
+    LIQUID, staticData: ['array' => [1, 2, 3]], compiled: $compiled);
 
-    assertTemplateResult('2', <<<'LIQUID'
+        assertTemplateResult('2', <<<'LIQUID'
     {%- liquid
         case value
             when 1
@@ -31,9 +32,9 @@ test('liquid tag', function () {
                 echo "else"
         endcase
     -%}
-    LIQUID, staticData: ['value' => 2]);
+    LIQUID, staticData: ['value' => 2], compiled: $compiled);
 
-    assertTemplateResult('4 8 12 6', <<<'LIQUID'
+        assertTemplateResult('4 8 12 6', <<<'LIQUID'
     {%- liquid
         for value in array
             assign double_value = value | times: 2
@@ -46,21 +47,21 @@ test('liquid tag', function () {
         echo " "
         echo double_value
     -%}
-    LIQUID, staticData: ['array' => [1, 2, 3]]);
+    LIQUID, staticData: ['array' => [1, 2, 3]], compiled: $compiled);
 
-    assertTemplateResult('abc', <<<'LIQUID'
+        assertTemplateResult('abc', <<<'LIQUID'
     {%- liquid echo "a" -%}
     b
     {%- liquid echo "c" -%}
     LIQUID
-    );
-});
+            , compiled: $compiled);
+    });
+})->with('template backends');
 
 test('liquid tag errors', function () {
     assertMatchSyntaxError("Liquid syntax error (line 1): Unknown tag 'error'", <<<'LIQUID'
         {%- liquid error no such tag -%}
-        LIQUID
-    );
+        LIQUID);
 
     assertMatchSyntaxError("Liquid syntax error (line 7): Unknown tag 'error'", <<<'LIQUID'
         {{ test }}
@@ -72,23 +73,20 @@ test('liquid tag errors', function () {
                 error no such tag
             endfor
         -%}
-        LIQUID
-    );
+        LIQUID);
 
     assertMatchSyntaxError('Liquid syntax error (line 2): Unexpected character !', <<<'LIQUID'
         {%- liquid
             !!! the guards are vigilant
         -%}
-        LIQUID
-    );
+        LIQUID);
 
     assertMatchSyntaxError("Liquid syntax error (line 4): 'for' tag was never closed", <<<'LIQUID'
     {%- liquid
         for value in array
             echo 'forgot to close the for tag'
     -%}
-    LIQUID
-    );
+    LIQUID);
 });
 
 test('line number is correct after a blank token', function () {
@@ -96,16 +94,18 @@ test('line number is correct after a blank token', function () {
     assertMatchSyntaxError("Liquid syntax error (line 3): Unknown tag 'error'", "{% liquid echo ''\n  \n error %}");
 });
 
-test('nested liquid tag', function () {
-    assertTemplateResult('good', <<<'LIQUID'
+describe('rendering with template backends 2', function () {
+    test('nested liquid tag', function (bool $compiled) {
+        assertTemplateResult('good', <<<'LIQUID'
     {%- if true -%}
         {%- liquid
             echo "good"
         -%}
     {%- endif -%}
     LIQUID
-    );
-});
+            , compiled: $compiled);
+    });
+})->with('template backends');
 
 test('cannot open blocks living past a liquid tag', function () {
     assertMatchSyntaxError("Liquid syntax error (line 3): 'if' tag was never closed", <<<'LIQUID'
@@ -113,8 +113,7 @@ test('cannot open blocks living past a liquid tag', function () {
         if true
     -%}
     {%- endif -%}
-    LIQUID
-    );
+    LIQUID);
 });
 
 test('cannot close blocks created before a liquid tag', function () {
@@ -122,12 +121,12 @@ test('cannot close blocks created before a liquid tag', function () {
     {%- if true -%}
     42
     {%- liquid endif -%}
-    LIQUID
-    );
+    LIQUID);
 });
 
-test('comment tag inside liquid tag', function () {
-    assertTemplateResult('center', <<<'LIQUID'
+describe('rendering with template backends 3', function () {
+    test('comment tag inside liquid tag', function (bool $compiled) {
+        assertTemplateResult('center', <<<'LIQUID'
     {%- liquid
       comment
         Intended for blocks and sections that provide values for all the referenced settings.
@@ -139,10 +138,10 @@ test('comment tag inside liquid tag', function () {
       assign horizontal_alignment = settings.horizontal_alignment
       echo horizontal_alignment
     -%}
-    LIQUID, staticData: ['settings' => ['horizontal_alignment' => 'center']]);
+    LIQUID, staticData: ['settings' => ['horizontal_alignment' => 'center']], compiled: $compiled);
 
-    // The body is never lexed, so it may contain anything.
-    assertTemplateResult('ttt', <<<'LIQUID'
+        // The body is never lexed, so it may contain anything.
+        assertTemplateResult('ttt', <<<'LIQUID'
     {%- liquid
         comment
             it's a comment {{ with {% delimiters
@@ -150,17 +149,17 @@ test('comment tag inside liquid tag', function () {
         echo 'ttt'
     -%}
     LIQUID
-    );
+            , compiled: $compiled);
 
-    assertTemplateResult('', <<<'LIQUID'
+        assertTemplateResult('', <<<'LIQUID'
     {%- liquid
         comment
         endcomment
     -%}
     LIQUID
-    );
+            , compiled: $compiled);
 
-    assertTemplateResult('12', <<<'LIQUID'
+        assertTemplateResult('12', <<<'LIQUID'
     {%- liquid
         for value in (1..2)
             comment
@@ -170,10 +169,10 @@ test('comment tag inside liquid tag', function () {
         endfor
     -%}
     LIQUID
-    );
+            , compiled: $compiled);
 
-    // Whitespace control of the liquid tag itself is not affected.
-    assertTemplateResult('Hello!World!', <<<'LIQUID'
+        // Whitespace control of the liquid tag itself is not affected.
+        assertTemplateResult('Hello!World!', <<<'LIQUID'
     Hello!
     {%- liquid
         comment
@@ -182,17 +181,18 @@ test('comment tag inside liquid tag', function () {
     -%}
     World!
     LIQUID
-    );
+            , compiled: $compiled);
 
-    // `comment` only opens a comment when it starts a line.
-    assertTemplateResult('ok', <<<'LIQUID'
+        // `comment` only opens a comment when it starts a line.
+        assertTemplateResult('ok', <<<'LIQUID'
     {%- liquid
         assign comment = 'ok'
         echo comment
     -%}
     LIQUID
-    );
-});
+            , compiled: $compiled);
+    });
+})->with('template backends');
 
 test('comment tag inside liquid tag errors', function () {
     assertMatchSyntaxError("Liquid syntax error (line 2): 'comment' tag was never closed", <<<'LIQUID'
@@ -201,8 +201,7 @@ test('comment tag inside liquid tag errors', function () {
             forgot to close the comment
         echo 'a'
     -%}
-    LIQUID
-    );
+    LIQUID);
 
     assertMatchSyntaxError("Liquid syntax error (line 5): Unknown tag 'error'", <<<'LIQUID'
     {%- liquid
@@ -211,19 +210,19 @@ test('comment tag inside liquid tag errors', function () {
         endcomment
         error no such tag
     -%}
-    LIQUID
-    );
+    LIQUID);
 });
 
-test('liquid tag in raw', function () {
-    assertTemplateResult("{% liquid echo 'test' %}", <<<'LIQUID'
+describe('rendering with template backends 4', function () {
+    test('liquid tag in raw', function (bool $compiled) {
+        assertTemplateResult("{% liquid echo 'test' %}", <<<'LIQUID'
     {% raw %}{% liquid echo 'test' %}{% endraw %}
     LIQUID
-    );
-});
+            , compiled: $compiled);
+    });
 
-test('nested liquid tags', function () {
-    assertTemplateResult('good', <<<'LIQUID'
+    test('nested liquid tags', function (bool $compiled) {
+        assertTemplateResult('good', <<<'LIQUID'
     {%- liquid
         liquid
             if true
@@ -231,23 +230,23 @@ test('nested liquid tags', function () {
             endif
     -%}
     LIQUID
-    );
-});
+            , compiled: $compiled);
+    });
 
-test('nested liquid tags on same line', function () {
-    assertTemplateResult('good', <<<'LIQUID'
+    test('nested liquid tags on same line', function (bool $compiled) {
+        assertTemplateResult('good', <<<'LIQUID'
     {%- liquid liquid liquid echo "good" -%}
     LIQUID
-    );
-});
+            , compiled: $compiled);
+    });
 
-test('nested liquid is not skipped if used in non tag position', function () {
-    assertTemplateResult('good', <<<'LIQUID'
+    test('nested liquid is not skipped if used in non tag position', function (bool $compiled) {
+        assertTemplateResult('good', <<<'LIQUID'
     {%- liquid liquid liquid echo liquid -%}
     LIQUID,
-        ['liquid' => 'good']
-    );
-});
+            ['liquid' => 'good'], compiled: $compiled);
+    });
+})->with('template backends');
 
 test('nested liquid with unclosed if tag', function () {
     assertMatchSyntaxError("Liquid syntax error (line 3): 'if' tag was never closed", <<<'LIQUID'
@@ -256,6 +255,5 @@ test('nested liquid with unclosed if tag', function () {
           echo "good"
         endif
     -%}
-    LIQUID
-    );
+    LIQUID);
 });
