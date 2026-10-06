@@ -13,16 +13,11 @@ use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 use PHPUnit\Framework\ExpectationFailedException;
 use Spatie\TemporaryDirectory\TemporaryDirectory;
 
-function testTemporaryDirectory(): TemporaryDirectory
-{
-    static $directories = [];
-
-    return $directories[] = (new TemporaryDirectory)->deleteWhenDestroyed()->create();
-}
-
 function testCompiledTemplatesCache(): CompiledTemplatesCache
 {
-    return new CompiledTemplatesCache(testTemporaryDirectory()->path());
+    $directory = TemporaryDirectory::make()->deleteWhenDestroyed();
+
+    return new CompiledTemplatesCache($directory->path());
 }
 
 function testEnvironmentFactory(bool $compiled): EnvironmentFactory

@@ -1,6 +1,11 @@
 <?php
 
 use Keepsuit\Liquid\Contracts\LiquidTemplatesCache;
+use Spatie\TemporaryDirectory\TemporaryDirectory;
+
+beforeEach(function () {
+    $this->tempDir = TemporaryDirectory::make()->deleteWhenDestroyed()->path();
+});
 
 test('templates cache', function (LiquidTemplatesCache $cache) {
     $cache->clear();
@@ -31,12 +36,12 @@ test('templates cache', function (LiquidTemplatesCache $cache) {
     expect($cache)->has('test')->toBe(false);
 })->with([
     'memory' => fn () => new \Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache,
-    'serialize' => fn () => new \Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache(testTemporaryDirectory()->path(), keepInMemory: false),
-    'serialize & memory' => fn () => new \Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache(testTemporaryDirectory()->path(), keepInMemory: true),
-    'var export' => fn () => new \Keepsuit\Liquid\TemplatesCache\VarExportTemplatesCache(testTemporaryDirectory()->path(), keepInMemory: false),
-    'var export & memory' => fn () => new \Keepsuit\Liquid\TemplatesCache\VarExportTemplatesCache(testTemporaryDirectory()->path(), keepInMemory: true),
-    'compiled' => fn () => new \Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache(testTemporaryDirectory()->path(), keepInMemory: false),
-    'compiled & memory' => fn () => new \Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache(testTemporaryDirectory()->path(), keepInMemory: true),
+    'serialize' => fn () => new \Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache($this->tempDir, keepInMemory: false),
+    'serialize & memory' => fn () => new \Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache($this->tempDir, keepInMemory: true),
+    'var export' => fn () => new \Keepsuit\Liquid\TemplatesCache\VarExportTemplatesCache($this->tempDir, keepInMemory: false),
+    'var export & memory' => fn () => new \Keepsuit\Liquid\TemplatesCache\VarExportTemplatesCache($this->tempDir, keepInMemory: true),
+    'compiled' => fn () => new \Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache($this->tempDir, keepInMemory: false),
+    'compiled & memory' => fn () => new \Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache($this->tempDir, keepInMemory: true),
 ]);
 
 function countingSerializeCache(string $path, bool $keepInMemory): \Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache
@@ -55,12 +60,11 @@ function countingSerializeCache(string $path, bool $keepInMemory): \Keepsuit\Liq
 }
 
 test('filesystem cache keeps templates loaded from disk in memory', function () {
-    $path = testTemporaryDirectory()->path();
-    $writer = countingSerializeCache($path, true);
+    $writer = countingSerializeCache($this->tempDir, true);
     $writer->clear();
     $writer->set('test', parseSource('Hello {{ name }}'));
 
-    $reader = countingSerializeCache($path, true);
+    $reader = countingSerializeCache($this->tempDir, true);
     $first = $reader->get('test');
     $second = $reader->get('test');
 
@@ -73,12 +77,11 @@ test('filesystem cache keeps templates loaded from disk in memory', function () 
 });
 
 test('filesystem cache without keepInMemory loads from disk on every get', function () {
-    $path = testTemporaryDirectory()->path();
-    $writer = countingSerializeCache($path, true);
+    $writer = countingSerializeCache($this->tempDir, true);
     $writer->clear();
     $writer->set('test', parseSource('Hello {{ name }}'));
 
-    $reader = countingSerializeCache($path, false);
+    $reader = countingSerializeCache($this->tempDir, false);
     $reader->get('test');
     $reader->get('test');
 
@@ -86,11 +89,10 @@ test('filesystem cache without keepInMemory loads from disk on every get', funct
 });
 
 test('filesystem cache does not memoize missing templates', function () {
-    $path = testTemporaryDirectory()->path();
-    $writer = countingSerializeCache($path, true);
+    $writer = countingSerializeCache($this->tempDir, true);
     $writer->clear();
 
-    $reader = countingSerializeCache($path, true);
+    $reader = countingSerializeCache($this->tempDir, true);
     expect($reader->get('missing'))->toBeNull();
 
     $writer->set('missing', parseSource('Hello'));

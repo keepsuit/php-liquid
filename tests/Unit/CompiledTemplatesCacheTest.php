@@ -5,10 +5,14 @@ use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\ParsedTemplate;
 use Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
+use Spatie\TemporaryDirectory\TemporaryDirectory;
+
+beforeEach(function () {
+    $this->tempDir = TemporaryDirectory::make()->deleteWhenDestroyed()->path();
+});
 
 test('compiled cache compiles misses and loads roots and partials from disk', function (bool $lazyParsing) {
-    $path = testTemporaryDirectory()->path();
-    $cache = new CompiledTemplatesCache($path);
+    $cache = new CompiledTemplatesCache($this->tempDir);
     $cache->clear();
     $fileSystem = new StubFileSystem([
         'hello' => "Hello {% render 'name', name: name %}!",
@@ -28,7 +32,7 @@ test('compiled cache compiles misses and loads roots and partials from disk', fu
         ->and($template->render($environment->newRenderContext(data: ['name' => 'John'])))->toBe('Hello John!')
         ->and($fileSystem->fileReadCount)->toBe(2);
 
-    $reader = new CompiledTemplatesCache($path);
+    $reader = new CompiledTemplatesCache($this->tempDir);
     $environment = EnvironmentFactory::new()
         ->setFilesystem($fileSystem)
         ->setTemplatesCache($reader)
@@ -53,8 +57,7 @@ test('compiled cache compiles misses and loads roots and partials from disk', fu
 })->with([false, true]);
 
 test('compiled cache follows the filesystem memory retention option', function (bool $keepInMemory) {
-    $path = testTemporaryDirectory()->path();
-    $writer = new class($path, keepInMemory: $keepInMemory) extends CompiledTemplatesCache
+    $writer = new class($this->tempDir, keepInMemory: $keepInMemory) extends CompiledTemplatesCache
     {
         public int $loads = 0;
 
@@ -79,7 +82,7 @@ test('compiled cache follows the filesystem memory retention option', function (
         ->and($replacement?->render(buildRenderContext(data: ['name' => 'Jane'])))->toBe('Welcome Jane')
         ->and($writer->loads)->toBe(2);
 
-    $reader = new CompiledTemplatesCache($path, keepInMemory: $keepInMemory);
+    $reader = new CompiledTemplatesCache($this->tempDir, keepInMemory: $keepInMemory);
     $first = $reader->get('test');
     $second = $reader->get('test');
 
@@ -95,10 +98,9 @@ test('compiled cache follows the filesystem memory retention option', function (
 })->with([false, true]);
 
 test('artifacts that do not return a compiled template are cache misses and can be rebuilt', function () {
-    $path = testTemporaryDirectory()->path();
-    $cache = new CompiledTemplatesCache($path, keepInMemory: false);
+    $cache = new CompiledTemplatesCache($this->tempDir, keepInMemory: false);
     $cache->clear();
-    $artifactPath = $path.'/'.hash('sha256', 'hello').'.php';
+    $artifactPath = $this->tempDir.'/'.hash('sha256', 'hello').'.php';
     file_put_contents($artifactPath, '<?php return false;');
 
     expect($cache->has('hello'))->toBeTrue()
@@ -120,8 +122,7 @@ test('artifacts that do not return a compiled template are cache misses and can 
 });
 
 test('an artifact removed between existence check and load is a cache miss', function () {
-    $path = testTemporaryDirectory()->path();
-    $cache = new class($path) extends CompiledTemplatesCache
+    $cache = new class($this->tempDir) extends CompiledTemplatesCache
     {
         public function load(string $compiledPath): ?\Keepsuit\Liquid\Template
         {
@@ -129,15 +130,14 @@ test('an artifact removed between existence check and load is a cache miss', fun
         }
     };
 
-    expect($cache->load($path.'/absent.php'))->toBeNull();
+    expect($cache->load($this->tempDir.'/absent.php'))->toBeNull();
     $cache->clear();
 });
 
 test('artifacts that fail to load surface the error', function (string $source, string $exception) {
-    $path = testTemporaryDirectory()->path();
-    $cache = new CompiledTemplatesCache($path, keepInMemory: false);
+    $cache = new CompiledTemplatesCache($this->tempDir, keepInMemory: false);
     $cache->clear();
-    file_put_contents($path.'/'.hash('sha256', 'hello').'.php', $source);
+    file_put_contents($this->tempDir.'/'.hash('sha256', 'hello').'.php', $source);
 
     try {
         expect(fn () => $cache->get('hello'))->toThrow($exception);
@@ -150,8 +150,7 @@ test('artifacts that fail to load surface the error', function (string $source, 
 ]);
 
 test('compiled cache preserves partials and outputs collected while parsing', function () {
-    $path = testTemporaryDirectory()->path();
-    $cache = new CompiledTemplatesCache($path);
+    $cache = new CompiledTemplatesCache($this->tempDir);
     $cache->clear();
     $environment = EnvironmentFactory::new()
         ->setFilesystem(new StubFileSystem(['snippet' => 'hi']))
@@ -164,7 +163,7 @@ test('compiled cache preserves partials and outputs collected while parsing', fu
     $template = new ParsedTemplate(root: $environment->parseString('{% render "snippet" %}')->root, state: $state);
 
     $cache->set('main', $template);
-    $compiledState = (new CompiledTemplatesCache($path))->get('main')->getState();
+    $compiledState = (new CompiledTemplatesCache($this->tempDir))->get('main')->getState();
 
     expect($compiledState->partials)->toBe(['snippet'])
         ->and($compiledState->outputs->get('scalar'))->toBe('value')
@@ -175,8 +174,7 @@ test('compiled cache preserves partials and outputs collected while parsing', fu
 });
 
 test('compiled cache rejects outputs that cannot be serialized', function (Closure $value) {
-    $path = testTemporaryDirectory()->path();
-    $cache = new CompiledTemplatesCache($path);
+    $cache = new CompiledTemplatesCache($this->tempDir);
     $cache->clear();
     $environment = EnvironmentFactory::new()->setTemplatesCache($cache)->build();
 
