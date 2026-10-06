@@ -68,6 +68,21 @@ class Compiler
         $body = $bodyContext->getSource();
         $renderBody = $bodyContext->compileRender($template->root);
         $name = $bodyContext->writeValue($template->root->name);
+        $state = $template->getState();
+        $stateArguments = [];
+        if ($state->partials !== []) {
+            $stateArguments[] = 'partials: '.$bodyContext->writeValue($state->partials);
+        }
+        if ($state->outputs->all() !== []) {
+            try {
+                $stateArguments[] = 'outputs: '.$bodyContext->writeValue($state->outputs);
+            } catch (\Throwable $exception) {
+                throw new \RuntimeException(sprintf(
+                    'Unable to serialize the outputs of template %s.',
+                    $template->root->name ?? '<unnamed>',
+                ), previous: $exception);
+            }
+        }
         $fallbackValues = $bodyContext->getFallbackValues();
         $renderedBodies = $bodyContext->getRenderedBodySources();
         $fallbackValueSource = [];
@@ -180,7 +195,7 @@ class Compiler
             ->dedent()
             ->writeLine('}')
             ->writeLine()
-            ->writeLine('return new '.$className.';');
+            ->writeLine('return new '.$className.($stateArguments === [] ? '' : '(new TemplateSharedState('.implode(', ', $stateArguments).'))').';');
 
         return $builder->getSource();
     }

@@ -61,9 +61,7 @@ class CompiledTestEnvironment extends Environment
             $compiled = require $path;
             assert($compiled instanceof CompiledTemplate);
 
-            // Artifacts start with an empty state; retain parsing metadata used
-            // by the same assertions in the interpreted suite.
-            return new ($compiled::class)(clone $template->getState());
+            return $compiled;
         } finally {
             unlink($path);
         }
