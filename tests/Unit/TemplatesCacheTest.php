@@ -1,10 +1,9 @@
 <?php
 
 use Keepsuit\Liquid\Contracts\LiquidTemplatesCache;
-use Spatie\TemporaryDirectory\TemporaryDirectory;
 
 beforeEach(function () {
-    $this->tempDir = TemporaryDirectory::make()->deleteWhenDestroyed()->path();
+    $this->tempDir = testTemporaryDirectory()->path();
 });
 
 test('templates cache', function (LiquidTemplatesCache $cache) {

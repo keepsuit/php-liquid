@@ -5,10 +5,9 @@ use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\ParsedTemplate;
 use Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
-use Spatie\TemporaryDirectory\TemporaryDirectory;
 
 beforeEach(function () {
-    $this->tempDir = TemporaryDirectory::make()->deleteWhenDestroyed()->path();
+    $this->tempDir = testTemporaryDirectory()->path();
 });
 
 test('compiled cache compiles misses and loads roots and partials from disk', function (bool $lazyParsing) {
