@@ -22,6 +22,28 @@ test('render invalid trailing syntax fails during parse', function () {
         ->toThrow(SyntaxException::class);
 });
 
+test('render tag checks the cache before parsing and after storing a missing partial', function () {
+    $cache = new class extends MemoryTemplatesCache
+    {
+        public int $reads = 0;
+
+        public function get(string $name): ?Template
+        {
+            $this->reads++;
+
+            return parent::get($name);
+        }
+    };
+
+    $environment = EnvironmentFactory::new()->setTemplatesCache($cache)
+        ->setFilesystem(new StubFileSystem(['snippet' => 'my message']))
+        ->build();
+
+    $environment->parseString('{% render "snippet" %}');
+
+    expect($cache->reads)->toBe(2);
+});
+
 describe('rendering with template backends', function () {
     test('render with no arguments', function (bool $compiled) {
         assertTemplateResult(
@@ -185,28 +207,6 @@ describe('rendering with template backends', function () {
             ->render($environment->newRenderContext())->toBe('my message');
         expect($fileSystem->fileReadCount)->toBe(1);
         expect($environment->templatesCache->has('snippet'))->toBeTrue();
-    });
-
-    test('render tag checks the cache before parsing and after storing a missing partial', function (bool $compiled) {
-        $cache = new class extends MemoryTemplatesCache
-        {
-            public int $reads = 0;
-
-            public function get(string $name): ?Template
-            {
-                $this->reads++;
-
-                return parent::get($name);
-            }
-        };
-
-        $environment = testEnvironmentFactory($compiled, cache: $cache)
-            ->setFilesystem(new StubFileSystem(['snippet' => 'my message']))
-            ->build();
-
-        testParseString($environment, '{% render "snippet" %}');
-
-        expect($cache->reads)->toBe(2);
     });
 
     test('render tag within if statement', function (bool $compiled) {

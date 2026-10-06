@@ -97,7 +97,7 @@ describe('rendering with template backends', function () {
             $factory->setErrorHandler($handler);
         }
         $environment = $factory->build();
-        $environment->templatesCache->set('p', testParseString($environment, 'valid'));
+        $environment->templatesCache->set('p', $environment->parseString('valid'));
         $template = testParseString($environment, "A{% render 'p' %}B");
         $environment->templatesCache->remove('p');
         $context = $environment->newRenderContext(options: new RenderContextOptions(

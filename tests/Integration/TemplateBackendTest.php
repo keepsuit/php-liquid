@@ -7,8 +7,7 @@ use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
 describe('template helpers with each backend', function () {
     test('the helper returns a normal factory for customization before building', function (bool $compiled) {
-        $cache = new \Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
-        $configured = testEnvironmentFactory($compiled, cache: $cache)->setStrictFilters(true);
+        $configured = testEnvironmentFactory($compiled)->setStrictFilters(true);
 
         expect($configured)->toBeInstanceOf(EnvironmentFactory::class);
 
@@ -19,7 +18,7 @@ describe('template helpers with each backend', function () {
             ->build();
         $template = $environment->parseTemplate('main');
 
-        expect($cache->get('main'))->toBe($template)
+        expect($environment->templatesCache->get('main'))->toBe($template)
             ->toBeInstanceOf($compiled ? CompiledTemplate::class : ParsedTemplate::class);
         expect(fn () => $template->render($environment->newRenderContext()))
             ->toThrow(\Keepsuit\Liquid\Exceptions\UndefinedVariableException::class);

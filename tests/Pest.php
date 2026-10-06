@@ -1,6 +1,6 @@
 <?php
 
-use Keepsuit\Liquid\Contracts\LiquidTemplatesCache;
+use Keepsuit\Liquid\Compiler\CompiledTemplate;
 use Keepsuit\Liquid\Environment;
 use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
@@ -8,21 +8,28 @@ use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\TokenStream;
 use Keepsuit\Liquid\ParsedTemplate;
 use Keepsuit\Liquid\Template;
-use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
+use Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
-use Keepsuit\Liquid\Tests\Support\CompiledTestTemplatesCache;
 use PHPUnit\Framework\ExpectationFailedException;
 
-function testEnvironmentFactory(
-    bool $compiled,
-    ?LiquidTemplatesCache $cache = null,
-): EnvironmentFactory {
+function testCompiledTemplatesCache(): CompiledTemplatesCache
+{
+    $path = sys_get_temp_dir().'/liquid-test-cache-'.bin2hex(random_bytes(8));
+    $cache = new CompiledTemplatesCache($path);
+    register_shutdown_function(static function () use ($path) {
+        (new CompiledTemplatesCache($path))->clear();
+        rmdir($path);
+    });
+
+    return $cache;
+}
+
+function testEnvironmentFactory(bool $compiled): EnvironmentFactory
+{
     $factory = EnvironmentFactory::new();
 
     if ($compiled) {
-        $factory->setTemplatesCache(new CompiledTestTemplatesCache($cache ?? new MemoryTemplatesCache));
-    } elseif ($cache !== null) {
-        $factory->setTemplatesCache($cache);
+        $factory->setTemplatesCache(testCompiledTemplatesCache());
     }
 
     return $factory;
@@ -39,9 +46,24 @@ function testParseString(Environment $environment, string $source, ?string $name
 {
     $template = $environment->parseString($source, $name);
 
-    return $environment->templatesCache instanceof CompiledTestTemplatesCache
-        ? $environment->templatesCache->compileTemplate($template)
-        : $template;
+    if (! $environment->templatesCache instanceof CompiledTemplatesCache) {
+        return $template;
+    }
+
+    $path = tempnam(sys_get_temp_dir(), 'liquid-test-root-');
+    if ($path === false) {
+        throw new RuntimeException('Unable to create a compiled test template.');
+    }
+
+    try {
+        $environment->compile($template, $path);
+        $compiled = require $path;
+        assert($compiled instanceof CompiledTemplate);
+
+        return $compiled;
+    } finally {
+        unlink($path);
+    }
 }
 
 /**
@@ -88,7 +110,7 @@ function renderTemplate(
     bool $compiled = false,
 ): string {
     if ($compiled) {
-        $factory->setTemplatesCache(new CompiledTestTemplatesCache(new MemoryTemplatesCache));
+        $factory->setTemplatesCache(testCompiledTemplatesCache());
     }
 
     $environment = $factory
@@ -125,7 +147,7 @@ function streamTemplate(
     bool $compiled = false,
 ): Generator {
     if ($compiled) {
-        $factory->setTemplatesCache(new CompiledTestTemplatesCache(new MemoryTemplatesCache));
+        $factory->setTemplatesCache(testCompiledTemplatesCache());
     }
 
     $environment = $factory

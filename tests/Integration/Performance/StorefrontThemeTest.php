@@ -14,7 +14,7 @@ function storefrontStrictEnvironment(bool $compiled): Keepsuit\Liquid\Environmen
 {
     $factory = StorefrontTheme::environmentFactory();
     if ($compiled) {
-        $factory->setTemplatesCache(new \Keepsuit\Liquid\Tests\Support\CompiledTestTemplatesCache(new \Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache));
+        $factory->setTemplatesCache(testCompiledTemplatesCache());
     }
 
     return $factory
