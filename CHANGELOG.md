@@ -49,9 +49,23 @@ All notable changes to `liquid` will be documented in this file.
   sections, and missing filter arguments with `SyntaxException` during parsing. Templates
   previously accepted with these syntax errors must be corrected. Parsing remains strict
   independently of render options; existing strict2-aligned syntax restrictions are unchanged.
+- `ParseContext::parse()` and `Environment::parseString()` now return `ParsedTemplate` instead of `Template`.
+  - Custom overrides of these methods must declare a compatible `ParsedTemplate` return type.
+
+### Fixed
+
+- `CompiledTemplatesCache` artifacts persist the `partials` and `outputs` collected while parsing,
+  like the other caches. Outputs that cannot be serialized (closures, resources) throw a
+  `RuntimeException` from `CompiledTemplatesCache::set()` instead of being dropped.
+  Artifacts compiled before this change keep working with empty state until recompiled.
 
 ### Notes
 
+- `Environment::parseTemplate()` returns the template read back from the cache after storing it, so the
+  first load of a named template with `CompiledTemplatesCache` returns a compiled template like later loads.
+  Caches that do not retain templates fall back to the parsed instance.
+- Compiled artifacts keep their actual write timestamps, following the configured OPcache
+  `file_update_protection`.
 - Custom `CanBeCompiled` nodes must throw `Keepsuit\Liquid\Compiler\UnsupportedNodeException`
   to request runtime fallback; any other exception aborts compilation. Emit generated
   yields through `CompilerContext::writeYield()`, not `write('yield ...')`.
