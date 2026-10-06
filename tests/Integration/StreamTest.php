@@ -443,8 +443,8 @@ describe('rendering with template backends', function () {
     });
 
     test('the render length limit covers chunks from partials and custom nodes', function (bool $compiled) {
-        $environment = testEnvironmentFactory($compiled, \Keepsuit\Liquid\EnvironmentFactory::new()
-            ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem(partials: ['snippet' => '{% streaming %}'])))->build();
+        $environment = testEnvironmentFactory($compiled)
+            ->setFilesystem(new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem(partials: ['snippet' => '{% streaming %}']))->build();
         $environment->tagRegistry->register(\Keepsuit\Liquid\Tests\Stubs\StreamingTag::class);
 
         // The tag lives outside the library and yields its own chunks, nested one
@@ -480,7 +480,7 @@ describe('rendering with template backends', function () {
     });
 
     test('grouped output reaches the consumer before a rethrown error', function (bool $compiled) {
-        $environment = testEnvironmentFactory($compiled, \Keepsuit\Liquid\EnvironmentFactory::new()->setRethrowErrors(true))->build();
+        $environment = testEnvironmentFactory($compiled)->setRethrowErrors(true)->build();
         $template = testParseString($environment, 'HELLO WORLD {{ boom.standard_error }} tail');
 
         $context = $environment->newRenderContext(staticData: [
@@ -511,9 +511,9 @@ describe('rendering with template backends', function () {
             }
         };
 
-        $environment = testEnvironmentFactory($compiled, \Keepsuit\Liquid\EnvironmentFactory::new()
+        $environment = testEnvironmentFactory($compiled)
             ->setErrorHandler($handler)
-            ->setRethrowErrors(false))->build();
+            ->setRethrowErrors(false)->build();
         $template = testParseString($environment, 'PREFIX {{ boom.standard_error }} tail');
 
         $context = $environment->newRenderContext(staticData: [

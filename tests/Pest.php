@@ -15,10 +15,9 @@ use PHPUnit\Framework\ExpectationFailedException;
 
 function testEnvironmentFactory(
     bool $compiled,
-    ?EnvironmentFactory $factory = null,
     ?LiquidTemplatesCache $cache = null,
 ): EnvironmentFactory {
-    $factory ??= EnvironmentFactory::new();
+    $factory = EnvironmentFactory::new();
 
     if ($compiled) {
         $factory->setTemplatesCache(new CompiledTestTemplatesCache($cache ?? new MemoryTemplatesCache));
@@ -88,10 +87,14 @@ function renderTemplate(
     EnvironmentFactory $factory = new EnvironmentFactory,
     bool $compiled = false,
 ): string {
-    $environment = testEnvironmentFactory($compiled, $factory
+    if ($compiled) {
+        $factory->setTemplatesCache(new CompiledTestTemplatesCache(new MemoryTemplatesCache));
+    }
+
+    $environment = $factory
         ->setFilesystem(new StubFileSystem(partials: $partials))
         ->setStrictVariables($strictVariables)
-        ->setRethrowErrors(! $renderErrors))->build();
+        ->setRethrowErrors(! $renderErrors)->build();
 
     $template = testParseString($environment, $template);
 
@@ -121,10 +124,14 @@ function streamTemplate(
     EnvironmentFactory $factory = new EnvironmentFactory,
     bool $compiled = false,
 ): Generator {
-    $environment = testEnvironmentFactory($compiled, $factory
+    if ($compiled) {
+        $factory->setTemplatesCache(new CompiledTestTemplatesCache(new MemoryTemplatesCache));
+    }
+
+    $environment = $factory
         ->setFilesystem(new StubFileSystem(partials: $partials))
         ->setStrictVariables($strictVariables)
-        ->setRethrowErrors(! $renderErrors))->build();
+        ->setRethrowErrors(! $renderErrors)->build();
 
     $template = testParseString($environment, $template);
 

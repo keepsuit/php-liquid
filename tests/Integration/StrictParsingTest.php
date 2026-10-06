@@ -89,14 +89,14 @@ describe('rendering with template backends', function () {
                 return '[handled]';
             }
         };
-        $factory = EnvironmentFactory::new()
+        $factory = testEnvironmentFactory($compiled)
             ->setLazyParsing(! $lazyParsing)
             ->setRethrowErrors(! $rethrowErrors)
             ->setFilesystem(new StubFileSystem(['p' => '{{ n | plus: }}']));
         if ($customHandler) {
             $factory->setErrorHandler($handler);
         }
-        $environment = testEnvironmentFactory($compiled, $factory)->build();
+        $environment = $factory->build();
         $environment->templatesCache->set('p', testParseString($environment, 'valid'));
         $template = testParseString($environment, "A{% render 'p' %}B");
         $environment->templatesCache->remove('p');

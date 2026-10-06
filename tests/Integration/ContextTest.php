@@ -833,9 +833,9 @@ describe('rendering with template backends', function () {
     ]);
 
     test('new isolated subcontext inherit environment', function (bool $compiled, bool $strict) {
-        $environment = testEnvironmentFactory($compiled, \Keepsuit\Liquid\EnvironmentFactory::new()
+        $environment = testEnvironmentFactory($compiled)
             ->setFilesystem($fileSystem = new \Keepsuit\Liquid\Tests\Stubs\StubFileSystem)
-            ->setStrictVariables($strict))->build();
+            ->setStrictVariables($strict)->build();
 
         $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict), environment: $environment);
         $subContext = $context->newIsolatedSubContext('sub');

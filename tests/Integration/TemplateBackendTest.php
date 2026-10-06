@@ -7,11 +7,10 @@ use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
 describe('template helpers with each backend', function () {
     test('the helper returns a normal factory for customization before building', function (bool $compiled) {
-        $factory = EnvironmentFactory::new()->setStrictFilters(true);
         $cache = new \Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
-        $configured = testEnvironmentFactory($compiled, factory: $factory, cache: $cache);
+        $configured = testEnvironmentFactory($compiled, cache: $cache)->setStrictFilters(true);
 
-        expect($configured)->toBe($factory)->toBeInstanceOf(EnvironmentFactory::class);
+        expect($configured)->toBeInstanceOf(EnvironmentFactory::class);
 
         $environment = $configured
             ->setFilesystem(new StubFileSystem(['main' => '{{ missing }}']))
