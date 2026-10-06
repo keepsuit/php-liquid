@@ -15,6 +15,7 @@ use PhpBench\Attributes\Iterations;
 use PhpBench\Attributes\OutputMode;
 use PhpBench\Attributes\OutputTimeUnit;
 use PhpBench\Attributes\Revs;
+use Spatie\TemporaryDirectory\TemporaryDirectory;
 
 /**
  * Whole-pipeline canary for the storefront theme.
@@ -40,7 +41,7 @@ class ThemeBench
 
     private CompiledTemplatesCache $compiledCache;
 
-    private string $compiledDirectory;
+    private TemporaryDirectory $compiledDirectory;
 
     /**
      * Sources are read up front: reading them inside a benchmark would measure
@@ -75,8 +76,8 @@ class ThemeBench
 
     public function setUpCompiled(): void
     {
-        $this->compiledDirectory = sys_get_temp_dir().'/keepsuit-liquid-phpbench-'.bin2hex(random_bytes(8));
-        $this->compiledCache = new CompiledTemplatesCache($this->compiledDirectory);
+        $this->compiledDirectory = (new TemporaryDirectory)->deleteWhenDestroyed()->create();
+        $this->compiledCache = new CompiledTemplatesCache($this->compiledDirectory->path());
         $this->compiledEnvironment = StorefrontTheme::environmentFactory()->setTemplatesCache($this->compiledCache)->build();
 
         foreach (StorefrontTheme::templateNames() as $name) {
@@ -93,7 +94,7 @@ class ThemeBench
     public function tearDownCompiled(): void
     {
         $this->compiledCache->clear();
-        rmdir($this->compiledDirectory);
+        $this->compiledDirectory->delete();
     }
 
     #[BeforeMethods('setUp')]

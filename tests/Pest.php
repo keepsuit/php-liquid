@@ -11,17 +11,18 @@ use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 use PHPUnit\Framework\ExpectationFailedException;
+use Spatie\TemporaryDirectory\TemporaryDirectory;
+
+function testTemporaryDirectory(): TemporaryDirectory
+{
+    static $directories = [];
+
+    return $directories[] = (new TemporaryDirectory)->deleteWhenDestroyed()->create();
+}
 
 function testCompiledTemplatesCache(): CompiledTemplatesCache
 {
-    $path = sys_get_temp_dir().'/liquid-test-cache-'.bin2hex(random_bytes(8));
-    $cache = new CompiledTemplatesCache($path);
-    register_shutdown_function(static function () use ($path) {
-        (new CompiledTemplatesCache($path))->clear();
-        rmdir($path);
-    });
-
-    return $cache;
+    return new CompiledTemplatesCache(testTemporaryDirectory()->path());
 }
 
 function testEnvironmentFactory(bool $compiled): EnvironmentFactory

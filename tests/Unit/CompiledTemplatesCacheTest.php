@@ -7,7 +7,7 @@ use Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
 test('compiled cache compiles misses and loads roots and partials from disk', function (bool $lazyParsing) {
-    $path = __DIR__.'/../cache/compiled-miss';
+    $path = testTemporaryDirectory()->path();
     $cache = new CompiledTemplatesCache($path);
     $cache->clear();
     $fileSystem = new StubFileSystem([
@@ -53,7 +53,7 @@ test('compiled cache compiles misses and loads roots and partials from disk', fu
 })->with([false, true]);
 
 test('compiled cache follows the filesystem memory retention option', function (bool $keepInMemory) {
-    $path = __DIR__.'/../cache/compiled-memory';
+    $path = testTemporaryDirectory()->path();
     $writer = new class($path, keepInMemory: $keepInMemory) extends CompiledTemplatesCache
     {
         public int $loads = 0;
@@ -95,7 +95,7 @@ test('compiled cache follows the filesystem memory retention option', function (
 })->with([false, true]);
 
 test('artifacts that do not return a compiled template are cache misses and can be rebuilt', function () {
-    $path = __DIR__.'/../cache/compiled-corrupted';
+    $path = testTemporaryDirectory()->path();
     $cache = new CompiledTemplatesCache($path, keepInMemory: false);
     $cache->clear();
     $artifactPath = $path.'/'.hash('sha256', 'hello').'.php';
@@ -120,7 +120,8 @@ test('artifacts that do not return a compiled template are cache misses and can 
 });
 
 test('an artifact removed between existence check and load is a cache miss', function () {
-    $cache = new class(__DIR__.'/../cache/compiled-missing') extends CompiledTemplatesCache
+    $path = testTemporaryDirectory()->path();
+    $cache = new class($path) extends CompiledTemplatesCache
     {
         public function load(string $compiledPath): ?\Keepsuit\Liquid\Template
         {
@@ -128,12 +129,12 @@ test('an artifact removed between existence check and load is a cache miss', fun
         }
     };
 
-    expect($cache->load(__DIR__.'/../cache/compiled-missing/absent.php'))->toBeNull();
+    expect($cache->load($path.'/absent.php'))->toBeNull();
     $cache->clear();
 });
 
 test('artifacts that fail to load surface the error', function (string $source, string $exception) {
-    $path = __DIR__.'/../cache/compiled-broken';
+    $path = testTemporaryDirectory()->path();
     $cache = new CompiledTemplatesCache($path, keepInMemory: false);
     $cache->clear();
     file_put_contents($path.'/'.hash('sha256', 'hello').'.php', $source);
@@ -149,7 +150,7 @@ test('artifacts that fail to load surface the error', function (string $source, 
 ]);
 
 test('compiled cache preserves partials and outputs collected while parsing', function () {
-    $path = __DIR__.'/../cache/compiled-state';
+    $path = testTemporaryDirectory()->path();
     $cache = new CompiledTemplatesCache($path);
     $cache->clear();
     $environment = EnvironmentFactory::new()
@@ -174,7 +175,7 @@ test('compiled cache preserves partials and outputs collected while parsing', fu
 });
 
 test('compiled cache rejects outputs that cannot be serialized', function (Closure $value) {
-    $path = __DIR__.'/../cache/compiled-outputs';
+    $path = testTemporaryDirectory()->path();
     $cache = new CompiledTemplatesCache($path);
     $cache->clear();
     $environment = EnvironmentFactory::new()->setTemplatesCache($cache)->build();

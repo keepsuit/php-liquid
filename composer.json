@@ -29,6 +29,7 @@
         "phpstan/phpstan-deprecation-rules": "^2.0",
         "spatie/invade": "^2.0",
         "spatie/ray": "^1.28",
+        "spatie/temporary-directory": "^2.3",
         "symfony/console": "^7.0 || ^8.0",
         "symfony/var-exporter": "^7.0 || ^8.0"
     },

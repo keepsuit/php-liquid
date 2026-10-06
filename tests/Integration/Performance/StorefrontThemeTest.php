@@ -13,6 +13,7 @@ use Keepsuit\Liquid\Performance\Support\StorefrontTheme;
 function storefrontStrictEnvironment(bool $compiled): Keepsuit\Liquid\Environment
 {
     $factory = StorefrontTheme::environmentFactory();
+
     if ($compiled) {
         $factory->setTemplatesCache(testCompiledTemplatesCache());
     }
@@ -20,7 +21,8 @@ function storefrontStrictEnvironment(bool $compiled): Keepsuit\Liquid\Environmen
     return $factory
         ->setStrictVariables(true)
         ->setStrictFilters(true)
-        ->setRethrowErrors(true)->build();
+        ->setRethrowErrors(true)
+        ->build();
 }
 
 test('every discovered template exists and every template on disk is discovered', function () {

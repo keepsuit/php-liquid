@@ -31,12 +31,12 @@ test('templates cache', function (LiquidTemplatesCache $cache) {
     expect($cache)->has('test')->toBe(false);
 })->with([
     'memory' => fn () => new \Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache,
-    'serialize' => fn () => new \Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache(__DIR__.'/../cache/serialize', keepInMemory: false),
-    'serialize & memory' => fn () => new \Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache(__DIR__.'/../cache/serialize', keepInMemory: true),
-    'var export' => fn () => new \Keepsuit\Liquid\TemplatesCache\VarExportTemplatesCache(__DIR__.'/../cache/var_export', keepInMemory: false),
-    'var export & memory' => fn () => new \Keepsuit\Liquid\TemplatesCache\VarExportTemplatesCache(__DIR__.'/../cache/var_export', keepInMemory: true),
-    'compiled' => fn () => new \Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache(__DIR__.'/../cache/compiled', keepInMemory: false),
-    'compiled & memory' => fn () => new \Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache(__DIR__.'/../cache/compiled', keepInMemory: true),
+    'serialize' => fn () => new \Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache(testTemporaryDirectory()->path(), keepInMemory: false),
+    'serialize & memory' => fn () => new \Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache(testTemporaryDirectory()->path(), keepInMemory: true),
+    'var export' => fn () => new \Keepsuit\Liquid\TemplatesCache\VarExportTemplatesCache(testTemporaryDirectory()->path(), keepInMemory: false),
+    'var export & memory' => fn () => new \Keepsuit\Liquid\TemplatesCache\VarExportTemplatesCache(testTemporaryDirectory()->path(), keepInMemory: true),
+    'compiled' => fn () => new \Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache(testTemporaryDirectory()->path(), keepInMemory: false),
+    'compiled & memory' => fn () => new \Keepsuit\Liquid\TemplatesCache\CompiledTemplatesCache(testTemporaryDirectory()->path(), keepInMemory: true),
 ]);
 
 function countingSerializeCache(string $path, bool $keepInMemory): \Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache
@@ -55,7 +55,7 @@ function countingSerializeCache(string $path, bool $keepInMemory): \Keepsuit\Liq
 }
 
 test('filesystem cache keeps templates loaded from disk in memory', function () {
-    $path = __DIR__.'/../cache/serialize-memo';
+    $path = testTemporaryDirectory()->path();
     $writer = countingSerializeCache($path, true);
     $writer->clear();
     $writer->set('test', parseSource('Hello {{ name }}'));
@@ -73,7 +73,7 @@ test('filesystem cache keeps templates loaded from disk in memory', function () 
 });
 
 test('filesystem cache without keepInMemory loads from disk on every get', function () {
-    $path = __DIR__.'/../cache/serialize-memo';
+    $path = testTemporaryDirectory()->path();
     $writer = countingSerializeCache($path, true);
     $writer->clear();
     $writer->set('test', parseSource('Hello {{ name }}'));
@@ -86,7 +86,7 @@ test('filesystem cache without keepInMemory loads from disk on every get', funct
 });
 
 test('filesystem cache does not memoize missing templates', function () {
-    $path = __DIR__.'/../cache/serialize-memo';
+    $path = testTemporaryDirectory()->path();
     $writer = countingSerializeCache($path, true);
     $writer->clear();
 
