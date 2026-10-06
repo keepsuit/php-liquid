@@ -12,7 +12,17 @@ test('dynamically choosen templates are not allowed', function () {
         ->toThrow(SyntaxException::class);
 });
 
-describe('rendering with template backends 1', function () {
+test('render with filters on template name is invalid', function () {
+    expect(fn () => parseTemplate('{% render "snippet" | upcase %}'))
+        ->toThrow(SyntaxException::class);
+});
+
+test('render invalid trailing syntax fails during parse', function () {
+    expect(fn () => parseTemplate('{% render "snippet", one: 1, two %}'))
+        ->toThrow(SyntaxException::class);
+});
+
+describe('rendering with template backends', function () {
     test('render with no arguments', function (bool $compiled) {
         assertTemplateResult(
             'rendered content',
@@ -146,19 +156,6 @@ describe('rendering with template backends 1', function () {
             ->toThrow(StackLevelException::class);
     });
 
-})->with('template backends');
-
-test('render with filters on template name is invalid', function () {
-    expect(fn () => parseTemplate('{% render "snippet" | upcase %}'))
-        ->toThrow(SyntaxException::class);
-});
-
-test('render invalid trailing syntax fails during parse', function () {
-    expect(fn () => parseTemplate('{% render "snippet", one: 1, two %}'))
-        ->toThrow(SyntaxException::class);
-});
-
-describe('rendering with template backends 2', function () {
     test('render tag caches second read of some partial', function (bool $compiled) {
         $environment = testEnvironmentFactory($compiled)
             ->setFilesystem($fileSystem = new StubFileSystem(['snippet' => 'echo']))->build();

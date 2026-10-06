@@ -15,7 +15,102 @@ use Keepsuit\Liquid\Support\FilterSupport;
 use Keepsuit\Liquid\Tests\Stubs\BooleanDrop;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
-describe('rendering with template backends 1', function () {
+test('array filters normalize Liquid values and iterator keys', function () {
+    $context = EnvironmentFactory::new()->build()->newRenderContext();
+    expect($context->applyFilter('join', new ArrayIterator([4 => 'a', 9 => 'b']), [',']))->toBe('a,b');
+    expect($context->applyFilter('sort', new ArrayIterator(['first' => 2, 'second' => 1])))->toBe([1, 2]);
+    expect($context->applyFilter('find_index', new ArrayIterator([4 => ['v' => false], 9 => ['v' => true]]), ['v']))->toBe(1);
+    expect($context->applyFilter('reverse', new Range(1, 3)))->toBe([3, 2, 1]);
+    expect($context->applyFilter('where', [['v' => new BooleanDrop(false)], ['v' => new BooleanDrop(true)]], ['v']))->toHaveCount(1);
+    expect($context->applyFilter('map', [['v' => fn () => 'value']], ['v']))->toBe(['value']);
+});
+
+test('array filter syntax remains strict regardless of render options', function () {
+    $environment = EnvironmentFactory::new()->setRethrowErrors(false)->setStrictVariables(false)->setStrictFilters(false)->build();
+    expect(fn () => testParseString($environment, "{{ nil | join: 'x' trailing }}"))->toThrow(SyntaxException::class);
+});
+
+class ArrayFilterOverride extends FiltersProvider
+{
+    public function join(array $input, string $glue = ' '): string
+    {
+        return 'custom';
+    }
+}
+
+class ArraySupportFilters extends FiltersProvider
+{
+    public function labels(mixed $input): string
+    {
+        $support = new FilterSupport($this->context);
+        $labels = [];
+        foreach ($support->iterate($input) as $item) {
+            $labels[] = $support->stringify($support->property($item, 'label'));
+        }
+
+        return implode('|', $labels);
+    }
+}
+
+test('map preserves property arrays and treats a hash as one item', function () {
+    $context = EnvironmentFactory::new()->build()->newRenderContext();
+    expect($context->applyFilter('map', [['tags' => ['x', 'y']]], ['tags']))->toBe([['x', 'y']]);
+    expect($context->applyFilter('map', ['a' => 1], ['a']))->toBe([1]);
+    expect($context->applyFilter('map', ['a' => 1], ['missing']))->toBe([null]);
+    expect($context->applyFilter('map', null, ['a']))->toBe([]);
+    expect($context->applyFilter('map', 'abcdef', ['cd']))->toBe(['cd']);
+});
+
+test('sort filters flatten lists and report incompatible types as Liquid errors', function () {
+    $context = EnvironmentFactory::new()->build()->newRenderContext();
+    expect($context->applyFilter('sort', [[3, 1], [2, null]]))->toBe([1, 2, 3, null]);
+    expect($context->applyFilter('sort_natural', [['b'], ['A', 'c']]))->toBe(['A', 'b', 'c']);
+    expect($context->applyFilter('sort', null))->toBe([]);
+    expect($context->applyFilter('sort_natural', [true, false]))->toBe([false, true]);
+    expect(fn () => $context->applyFilter('sort', [1, '2']))->toThrow(InvalidArgumentException::class);
+    expect($context->applyFilter('sort', [['a' => 1], ['a' => 1.0]]))->toBe([['a' => 1], ['a' => 1.0]]);
+});
+
+test('singleton uniq and sort do not read unused properties', function () {
+    $context = EnvironmentFactory::new()->build()->newRenderContext();
+    foreach (['uniq', 'sort', 'sort_natural'] as $filter) {
+        expect($context->applyFilter($filter, 1, ['v']))->toBe([1]);
+    }
+    expect($context->applyFilter('sort', [1, false], ['v']))->toBeNull();
+    expect($context->applyFilter('uniq', [false, true], ['v']))->toBeNull();
+});
+
+test('string-only array filters preserve exact equality and lexical stable ordering', function () {
+    $context = EnvironmentFactory::new()->build()->newRenderContext();
+
+    expect($context->applyFilter('uniq', ['1', '01', '1', '+1', '-0', '0', '', 'a', 'A', '']))
+        ->toBe(['1', '01', '+1', '-0', '0', '', 'a', 'A']);
+    expect($context->applyFilter('sort', ['10', '2', '02', '1']))->toBe(['02', '1', '10', '2']);
+    expect($context->applyFilter('sort_natural', ['b', 'A', 'a', 'B']))->toBe(['A', 'a', 'b', 'B']);
+});
+
+test('array selectors use Liquid truthiness and condition equality', function () {
+    $context = EnvironmentFactory::new()->build()->newRenderContext();
+    $items = [['v' => false], ['v' => ''], ['v' => []], ['v' => 0], ['v' => 2], ['v' => null]];
+    expect($context->applyFilter('where', $items, ['v']))->toBe([['v' => ''], ['v' => []], ['v' => 0], ['v' => 2]]);
+    expect($context->applyFilter('reject', $items, ['v']))->toBe([['v' => false], ['v' => null]]);
+    expect($context->applyFilter('has', [['v' => '']], ['v']))->toBeTrue();
+    expect($context->applyFilter('find', $items, ['v']))->toBe(['v' => '']);
+    expect($context->applyFilter('find_index', $items, ['v']))->toBe(1);
+    $numbers = [['a' => 1], ['a' => '1'], ['a' => 1.0]];
+    expect($context->applyFilter('where', $numbers, ['a', 1]))->toBe([['a' => 1], ['a' => 1.0]]);
+    expect($context->applyFilter('reject', $numbers, ['a', 1]))->toBe([['a' => '1']]);
+    expect($context->applyFilter('find_index', [['a' => '1'], ['a' => 1.0]], ['a', 1]))->toBe(1);
+});
+
+test('uniq treats signed zero as equal and preserves strict nested hash values', function () {
+    $context = EnvironmentFactory::new()->build()->newRenderContext();
+    expect($context->applyFilter('uniq', [0.0, -0.0]))->toBe([0.0]);
+    expect($context->applyFilter('uniq', [['a' => [1]], ['a' => [1.0]], ['a' => [1]]]))
+        ->toBe([['a' => [1]], ['a' => [1.0]]]);
+});
+
+describe('rendering with template backends', function () {
     test('uniq distinguishes nested list order and types while ignoring hash key order', function (bool $compiled) {
         $items = [
             ['tags' => [1, 2], 'meta' => ['a' => [0.0, -0.0], 'b' => true]],
@@ -159,40 +254,13 @@ describe('rendering with template backends 1', function () {
         expect($stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context))
             ->toBe('1,false,x|')->and($context->getErrors())->toBe([]);
     })->with([false, true], [false, true]);
-})->with('template backends');
 
-test('array filters normalize Liquid values and iterator keys', function () {
-    $context = EnvironmentFactory::new()->build()->newRenderContext();
-    expect($context->applyFilter('join', new ArrayIterator([4 => 'a', 9 => 'b']), [',']))->toBe('a,b');
-    expect($context->applyFilter('sort', new ArrayIterator(['first' => 2, 'second' => 1])))->toBe([1, 2]);
-    expect($context->applyFilter('find_index', new ArrayIterator([4 => ['v' => false], 9 => ['v' => true]]), ['v']))->toBe(1);
-    expect($context->applyFilter('reverse', new Range(1, 3)))->toBe([3, 2, 1]);
-    expect($context->applyFilter('where', [['v' => new BooleanDrop(false)], ['v' => new BooleanDrop(true)]], ['v']))->toHaveCount(1);
-    expect($context->applyFilter('map', [['v' => fn () => 'value']], ['v']))->toBe(['value']);
-});
-
-test('array filter syntax remains strict regardless of render options', function () {
-    $environment = EnvironmentFactory::new()->setRethrowErrors(false)->setStrictVariables(false)->setStrictFilters(false)->build();
-    expect(fn () => testParseString($environment, "{{ nil | join: 'x' trailing }}"))->toThrow(SyntaxException::class);
-});
-
-describe('rendering with template backends 2', function () {
     test('custom array filters retain their parameter types', function (bool $compiled) {
         $factory = EnvironmentFactory::new()->registerFilters(ArrayFilterOverride::class);
         expect(renderTemplate("{{ values | join: ',' }}", data: ['values' => [1, 2]], factory: $factory, compiled: $compiled))->toBe('custom');
         expect(fn () => renderTemplate('{{ nil | join }}', factory: $factory, compiled: $compiled))->toThrow(InternalException::class);
     });
-})->with('template backends');
 
-class ArrayFilterOverride extends FiltersProvider
-{
-    public function join(array $input, string $glue = ' '): string
-    {
-        return 'custom';
-    }
-}
-
-describe('rendering with template backends 3', function () {
     test('custom filters can compose internal filter support with the current context', function (bool $compiled) {
         $environment = testEnvironmentFactory($compiled)->registerFilters(ArraySupportFilters::class)->build();
         $template = testParseString($environment, '{{ items | labels }}');
@@ -220,42 +288,7 @@ describe('rendering with template backends 3', function () {
         $first->set('label', 'again');
         expect($first->applyFilter('map', [$drop], ['label']))->toBe(['again']);
     });
-})->with('template backends');
 
-class ArraySupportFilters extends FiltersProvider
-{
-    public function labels(mixed $input): string
-    {
-        $support = new FilterSupport($this->context);
-        $labels = [];
-        foreach ($support->iterate($input) as $item) {
-            $labels[] = $support->stringify($support->property($item, 'label'));
-        }
-
-        return implode('|', $labels);
-    }
-}
-
-test('map preserves property arrays and treats a hash as one item', function () {
-    $context = EnvironmentFactory::new()->build()->newRenderContext();
-    expect($context->applyFilter('map', [['tags' => ['x', 'y']]], ['tags']))->toBe([['x', 'y']]);
-    expect($context->applyFilter('map', ['a' => 1], ['a']))->toBe([1]);
-    expect($context->applyFilter('map', ['a' => 1], ['missing']))->toBe([null]);
-    expect($context->applyFilter('map', null, ['a']))->toBe([]);
-    expect($context->applyFilter('map', 'abcdef', ['cd']))->toBe(['cd']);
-});
-
-test('sort filters flatten lists and report incompatible types as Liquid errors', function () {
-    $context = EnvironmentFactory::new()->build()->newRenderContext();
-    expect($context->applyFilter('sort', [[3, 1], [2, null]]))->toBe([1, 2, 3, null]);
-    expect($context->applyFilter('sort_natural', [['b'], ['A', 'c']]))->toBe(['A', 'b', 'c']);
-    expect($context->applyFilter('sort', null))->toBe([]);
-    expect($context->applyFilter('sort_natural', [true, false]))->toBe([false, true]);
-    expect(fn () => $context->applyFilter('sort', [1, '2']))->toThrow(InvalidArgumentException::class);
-    expect($context->applyFilter('sort', [['a' => 1], ['a' => 1.0]]))->toBe([['a' => 1], ['a' => 1.0]]);
-});
-
-describe('rendering with template backends 4', function () {
     test('first last and size preserve shape and safely accept scalars', function (bool $compiled) {
         $context = EnvironmentFactory::new()->build()->newRenderContext();
         foreach ([null, false, true, 1.0] as $value) {
@@ -272,27 +305,7 @@ describe('rendering with template backends 4', function () {
         expect($context->applyFilter('last', ['a' => 1, 'b' => 2]))->toBeNull();
         assertTemplateResult('H|o', "{{ 'Hello' | first }}|{{ 'Hello' | last }}", compiled: $compiled);
     });
-})->with('template backends');
 
-test('singleton uniq and sort do not read unused properties', function () {
-    $context = EnvironmentFactory::new()->build()->newRenderContext();
-    foreach (['uniq', 'sort', 'sort_natural'] as $filter) {
-        expect($context->applyFilter($filter, 1, ['v']))->toBe([1]);
-    }
-    expect($context->applyFilter('sort', [1, false], ['v']))->toBeNull();
-    expect($context->applyFilter('uniq', [false, true], ['v']))->toBeNull();
-});
-
-test('string-only array filters preserve exact equality and lexical stable ordering', function () {
-    $context = EnvironmentFactory::new()->build()->newRenderContext();
-
-    expect($context->applyFilter('uniq', ['1', '01', '1', '+1', '-0', '0', '', 'a', 'A', '']))
-        ->toBe(['1', '01', '+1', '-0', '0', '', 'a', 'A']);
-    expect($context->applyFilter('sort', ['10', '2', '02', '1']))->toBe(['02', '1', '10', '2']);
-    expect($context->applyFilter('sort_natural', ['b', 'A', 'a', 'B']))->toBe(['A', 'a', 'b', 'B']);
-});
-
-describe('rendering with template backends 5', function () {
     test('uniq preserves types and compares hash content and drop identity', function (bool $compiled) {
         $context = EnvironmentFactory::new()->build()->newRenderContext();
         $first = new \Keepsuit\Liquid\Tests\Stubs\TestDrop('a');
@@ -303,23 +316,7 @@ describe('rendering with template backends 5', function () {
         expect($context->applyFilter('uniq', [$first, $second, $first]))->toBe([$first, $second]);
         assertTemplateResult('1,1,1.0,true,a', "{{ x | uniq | join: ',' }}", data: ['x' => [1, '1', 1.0, true, 'a', 'a']], compiled: $compiled);
     });
-})->with('template backends');
 
-test('array selectors use Liquid truthiness and condition equality', function () {
-    $context = EnvironmentFactory::new()->build()->newRenderContext();
-    $items = [['v' => false], ['v' => ''], ['v' => []], ['v' => 0], ['v' => 2], ['v' => null]];
-    expect($context->applyFilter('where', $items, ['v']))->toBe([['v' => ''], ['v' => []], ['v' => 0], ['v' => 2]]);
-    expect($context->applyFilter('reject', $items, ['v']))->toBe([['v' => false], ['v' => null]]);
-    expect($context->applyFilter('has', [['v' => '']], ['v']))->toBeTrue();
-    expect($context->applyFilter('find', $items, ['v']))->toBe(['v' => '']);
-    expect($context->applyFilter('find_index', $items, ['v']))->toBe(1);
-    $numbers = [['a' => 1], ['a' => '1'], ['a' => 1.0]];
-    expect($context->applyFilter('where', $numbers, ['a', 1]))->toBe([['a' => 1], ['a' => 1.0]]);
-    expect($context->applyFilter('reject', $numbers, ['a', 1]))->toBe([['a' => '1']]);
-    expect($context->applyFilter('find_index', [['a' => '1'], ['a' => 1.0]], ['a', 1]))->toBe(1);
-});
-
-describe('rendering with template backends 6', function () {
     test('concat flattens its input and retains the appended array structure', function (bool $compiled) {
         $environment = testEnvironmentFactory($compiled)->build();
         $context = $environment->newRenderContext();
@@ -348,10 +345,3 @@ describe('rendering with template backends 6', function () {
         expect($context->getErrors())->not->toBeEmpty();
     })->with([false, true], [false, true]);
 })->with('template backends');
-
-test('uniq treats signed zero as equal and preserves strict nested hash values', function () {
-    $context = EnvironmentFactory::new()->build()->newRenderContext();
-    expect($context->applyFilter('uniq', [0.0, -0.0]))->toBe([0.0]);
-    expect($context->applyFilter('uniq', [['a' => [1]], ['a' => [1.0]], ['a' => [1]]]))
-        ->toBe([['a' => [1]], ['a' => [1.0]]]);
-});

@@ -1,6 +1,17 @@
 <?php
 
-describe('rendering with template backends 1', function () {
+test('tablerow strict parsing rejects malformed params', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Expected :, got Number - Valid syntax: tablerow <var> in <collection> [attributes...]',
+        '{% tablerow n in numbers cols 3 %}{% endtablerow %}',
+        ['numbers' => [1, 2, 3]]);
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Unexpected end of template - Valid syntax: tablerow <var> in <collection> [attributes...]',
+        '{% tablerow n in numbers cols: 3, limit %}{% endtablerow %}',
+        ['numbers' => [1, 2, 3]]);
+});
+
+describe('rendering with template backends', function () {
     test('tablerow selects limited ranges before materialization', function (bool $compiled) {
         $source = '{% tablerow i in (1..1000000000) offset:-2 limit:1 cols:1 %}{{ i }}{% endtablerow %}';
         $expected = "<tr class=\"row1\">\n<td class=\"col1\">999999999</td></tr>\n";
@@ -256,20 +267,7 @@ describe('rendering with template backends 1', function () {
             renderErrors: true,
             compiled: $compiled);
     });
-})->with('template backends');
 
-test('tablerow strict parsing rejects malformed params', function () {
-    assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Expected :, got Number - Valid syntax: tablerow <var> in <collection> [attributes...]',
-        '{% tablerow n in numbers cols 3 %}{% endtablerow %}',
-        ['numbers' => [1, 2, 3]]);
-    assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Unexpected end of template - Valid syntax: tablerow <var> in <collection> [attributes...]',
-        '{% tablerow n in numbers cols: 3, limit %}{% endtablerow %}',
-        ['numbers' => [1, 2, 3]]);
-});
-
-describe('rendering with template backends 2', function () {
     test('tablerow handles interrupts', function (bool $compiled) {
         assertTemplateResult(
             "<tr class=\"row1\">\n<td class=\"col1\"> 1 </td></tr>\n",

@@ -1,22 +1,5 @@
 <?php
 
-describe('rendering with template backends 1', function () {
-    test('doc tag', function (bool $compiled) {
-        $template = <<<'LIQUID'
-    {% doc %}
-        Renders loading-spinner.
-        @param {string} foo - some foo
-        @param {string} [bar] - optional bar
-        @example
-        {% render 'loading-spinner', foo: 'foo' %}
-        {% render 'loading-spinner', foo: 'foo', bar: 'bar' %}
-    {% enddoc %}
-    LIQUID;
-
-        assertTemplateResult('', $template, compiled: $compiled);
-    });
-})->with('template backends');
-
 test('doc tag does not support extra arguments', function () {
     $template = <<<'LIQUID'
     {% doc extra %}
@@ -32,7 +15,53 @@ test('doc tag must support valid tags', function () {
     assertMatchSyntaxError('Liquid syntax error (line 1): Unexpected character }', '{% doc } foo %}{% enddoc %}');
 });
 
-describe('rendering with template backends 2', function () {
+test('doc tag does not allow nested docs', function () {
+    $template = <<<'LIQUID'
+    {% doc %}
+        {% doc %}
+            {% doc %}
+    {% enddoc %}
+    LIQUID;
+
+    assertMatchSyntaxError('Liquid syntax error (line 4): Nested doc tags are not allowed - Valid syntax: doc', $template);
+});
+
+test('access doc tag body', function () {
+    $content = <<<'EOF'
+    Renders loading-spinner.
+    @param {string} foo - some foo
+    @param {string} [bar] - optional bar
+    EOF;
+
+    $template = <<<LIQUID
+    {% doc %}$content{% enddoc %}
+    LIQUID;
+
+    $template = parseSource($template);
+    $docTag = $template->root->body->children()[0] ?? null;
+
+    expect($docTag)
+        ->toBeInstanceOf(\Keepsuit\Liquid\Tags\DocTag::class)
+        ->getBody()->toBeInstanceOf(\Keepsuit\Liquid\Nodes\Raw::class)
+        ->getBody()->value->toBe($content);
+});
+
+describe('rendering with template backends', function () {
+    test('doc tag', function (bool $compiled) {
+        $template = <<<'LIQUID'
+    {% doc %}
+        Renders loading-spinner.
+        @param {string} foo - some foo
+        @param {string} [bar] - optional bar
+        @example
+        {% render 'loading-spinner', foo: 'foo' %}
+        {% render 'loading-spinner', foo: 'foo', bar: 'bar' %}
+    {% enddoc %}
+    LIQUID;
+
+        assertTemplateResult('', $template, compiled: $compiled);
+    });
+
     test('doc tag ignores liquid nodes', function (bool $compiled) {
         $template = <<<'LIQUID'
     {% doc %}
@@ -59,20 +88,7 @@ describe('rendering with template backends 2', function () {
 
         assertTemplateResult('', $template, compiled: $compiled);
     });
-})->with('template backends');
 
-test('doc tag does not allow nested docs', function () {
-    $template = <<<'LIQUID'
-    {% doc %}
-        {% doc %}
-            {% doc %}
-    {% enddoc %}
-    LIQUID;
-
-    assertMatchSyntaxError('Liquid syntax error (line 4): Nested doc tags are not allowed - Valid syntax: doc', $template);
-});
-
-describe('rendering with template backends 3', function () {
     test('doc tag ignores nested raw tags', function (bool $compiled) {
         $template = <<<'LIQUID'
     {% doc %}
@@ -145,23 +161,3 @@ describe('rendering with template backends 3', function () {
         assertTemplateResult('', "{% doc %}123{% enddoc\n   xyz %}{% enddoc %}", compiled: $compiled);
     });
 })->with('template backends');
-
-test('access doc tag body', function () {
-    $content = <<<'EOF'
-    Renders loading-spinner.
-    @param {string} foo - some foo
-    @param {string} [bar] - optional bar
-    EOF;
-
-    $template = <<<LIQUID
-    {% doc %}$content{% enddoc %}
-    LIQUID;
-
-    $template = parseSource($template);
-    $docTag = $template->root->body->children()[0] ?? null;
-
-    expect($docTag)
-        ->toBeInstanceOf(\Keepsuit\Liquid\Tags\DocTag::class)
-        ->getBody()->toBeInstanceOf(\Keepsuit\Liquid\Nodes\Raw::class)
-        ->getBody()->value->toBe($content);
-});

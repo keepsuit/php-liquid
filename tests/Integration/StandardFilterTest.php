@@ -243,95 +243,6 @@ test('reverse', function () {
     expect($this->filters->invoke($this->context, 'reverse', [1, 2, 3, 4]))->toBe([4, 3, 2, 1]);
 });
 
-describe('rendering with template backends 1', function () {
-    test('map', function (bool $compiled) {
-        expect($this->filters->invoke($this->context, 'map', [['a' => 1], ['a' => 2], ['a' => 3], ['a' => 4]], ['a']))->toBe([1, 2, 3, 4]);
-
-        assertTemplateResult(
-            'abc',
-            "{{ ary | map:'foo' | map:'bar' }}",
-            ['ary' => [['foo' => ['bar' => 'a']], ['foo' => ['bar' => 'b']], ['foo' => ['bar' => 'c']]]],
-            compiled: $compiled);
-    });
-
-    test('map calls toLiquid', function (bool $compiled) {
-        $thing = new ThingWithParamToLiquid;
-
-        assertTemplateResult(
-            'woot: 1',
-            '{{ foo | map: "whatever" }}',
-            ['foo' => [$thing]], compiled: $compiled);
-    });
-
-    test('map calls context', function (bool $compiled) {
-        $model = new \Keepsuit\Liquid\Tests\Stubs\TestModel('test');
-
-        assertTemplateResult(
-            '{test=>1234}',
-            '{{ foo | map: "registers" }}',
-            staticData: [
-                'foo' => $model,
-            ],
-            registers: [
-                'test' => 1234,
-            ], compiled: $compiled);
-    });
-
-    test('map on hashes', function (bool $compiled) {
-        assertTemplateResult(
-            '4217',
-            '{{ thing | map: "foo" | map: "bar" }}',
-            staticData: ['thing' => ['foo' => [['bar' => 42], ['bar' => 17]]]], compiled: $compiled);
-    });
-
-    test('legacy map on hashes with dynamic key', function (bool $compiled) {
-        assertTemplateResult(
-            '42',
-            '{% assign key = \'foo\' %}{{ thing | map: key | map: \'bar\' }}',
-            staticData: ['thing' => ['foo' => ['bar' => 42]]], compiled: $compiled);
-    });
-
-    test('sort calls to liquid', function (bool $compiled) {
-        $t = new ThingWithParamToLiquid;
-
-        assertTemplateResult(
-            'woot: 1',
-            '{{ foo | sort: "whatever" }}',
-            staticData: ['foo' => [$t]], compiled: $compiled);
-
-        expect($t->value)->toBe(1);
-    });
-
-    test('map over Closure', function (bool $compiled) {
-        $d = new TestDrop('testfoo');
-        $c = fn () => $d;
-
-        assertTemplateResult(
-            'testfoo',
-            '{{ closures | map: "value" }}',
-            staticData: ['closures' => [$c]], compiled: $compiled);
-    });
-
-    test('map over drops returning Closures', function (bool $compiled) {
-        $drops = [
-            ['closure' => fn () => 'foo'],
-            ['closure' => fn () => 'bar'],
-        ];
-
-        assertTemplateResult(
-            'foobar',
-            '{{ drops | map: "closure" }}',
-            staticData: ['drops' => $drops], compiled: $compiled);
-    });
-
-    test('map works on iterator', function (bool $compiled) {
-        assertTemplateResult(
-            '123',
-            '{{ foo | map: "foo" }}',
-            staticData: ['foo' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop], compiled: $compiled);
-    });
-})->with('template backends');
-
 test('map returns empty on 2d input array', function () {
     $foo = [
         [1],
@@ -351,33 +262,6 @@ test('map returns empty with no property', function () {
 
     expect(fn () => $this->filters->invoke($this->context, 'map', $foo, [null]))->toThrow(InvalidArgumentException::class);
 });
-
-describe('rendering with template backends 2', function () {
-    test('sort works on iterator', function (bool $compiled) {
-        assertTemplateResult(
-            '213',
-            '{{ foo | sort: "bar" | map: "foo" }}',
-            staticData: ['foo' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop], compiled: $compiled);
-    });
-
-    test('first and last calls toLiquid', function (bool $compiled) {
-        assertTemplateResult(
-            'foobar',
-            '{{ foo | first }}',
-            staticData: ['foo' => [new \Keepsuit\Liquid\Tests\Stubs\ThingWithToLiquid]], compiled: $compiled);
-        assertTemplateResult(
-            'foobar',
-            '{{ foo | last }}',
-            staticData: ['foo' => [new \Keepsuit\Liquid\Tests\Stubs\ThingWithToLiquid]], compiled: $compiled);
-    });
-
-    test('truncate calls toLiquid', function (bool $compiled) {
-        assertTemplateResult(
-            'wo...',
-            '{{ foo | truncate: 5 }}',
-            staticData: ['foo' => new ThingWithParamToLiquid], compiled: $compiled);
-    });
-})->with('template backends');
 
 test('date', function () {
     expect($this->filters->invoke($this->context, 'date', new DateTime('2006-05-05 10:00:00'), ['%B']))->toBe('May');
@@ -493,7 +377,241 @@ test('first last', function () {
     expect($this->filters->invoke($this->context, 'last', ['a' => 1, 'b' => 2]))->toBeNull();
 });
 
-describe('rendering with template backends 3', function () {
+test('concat', function () {
+    expect($this->filters->invoke($this->context, 'concat', [1, 2], [[3, 4]]))->toBe([1, 2, 3, 4]);
+    expect($this->filters->invoke($this->context, 'concat', [1, 2], [['a']]))->toBe([1, 2, 'a']);
+    expect($this->filters->invoke($this->context, 'concat', [1, 2], [[10]]))->toBe([1, 2, 10]);
+
+    expect(fn () => $this->filters->invoke($this->context, 'concat', [1, 2], [10]))->toThrow(InvalidArgumentException::class);
+});
+
+test('where string keys', function () {
+    $input = ['alpha', 'beta', 'gamma', 'delta'];
+
+    $expectation = ['beta'];
+
+    expect($this->filters->invoke($this->context, 'where', $input, ['be']))->toBe($expectation);
+});
+
+test('where no key set', function () {
+    $input = [
+        ['handle' => 'alpha', 'ok' => true],
+        ['handle' => 'beta'],
+        ['handle' => 'gamma'],
+        ['handle' => 'delta', 'ok' => true],
+    ];
+
+    $expectation = [
+        ['handle' => 'alpha', 'ok' => true],
+        ['handle' => 'delta', 'ok' => true],
+    ];
+
+    expect($this->filters->invoke($this->context, 'where', $input, ['ok', true]))->toBe($expectation);
+    expect($this->filters->invoke($this->context, 'where', $input, ['ok']))->toBe($expectation);
+});
+
+test('where non boolean value', function () {
+    $input = [
+        ['message' => 'Bonjour!', 'language' => 'French'],
+        ['message' => 'Hello!', 'language' => 'English'],
+        ['message' => 'Hallo!', 'language' => 'German'],
+    ];
+
+    expect($this->filters->invoke($this->context, 'where', $input, ['language', 'French']))->toBe([['message' => 'Bonjour!', 'language' => 'French']]);
+    expect($this->filters->invoke($this->context, 'where', $input, ['language', 'German']))->toBe([['message' => 'Hallo!', 'language' => 'German']]);
+    expect($this->filters->invoke($this->context, 'where', $input, ['language', 'English']))->toBe([['message' => 'Hello!', 'language' => 'English']]);
+});
+
+test('where non array map input', function () {
+    expect($this->filters->invoke($this->context, 'where', ['a' => 'ok'], ['a', 'ok']))->toBe([['a' => 'ok']]);
+    expect($this->filters->invoke($this->context, 'where', ['a' => 'not ok'], ['a', 'ok']))->toBe([]);
+});
+
+test('where indexable but non map value', function () {
+    expect(fn () => $this->filters->invoke($this->context, 'where', 1, ['ok', true]))->toThrow(InvalidArgumentException::class);
+    expect(fn () => $this->filters->invoke($this->context, 'where', 1, ['ok']))->toThrow(InvalidArgumentException::class);
+});
+
+test('where array of only unindexable values', function () {
+    expect($this->filters->invoke($this->context, 'where', [null], ['ok', true]))->toBeNull();
+    expect($this->filters->invoke($this->context, 'where', [null], ['ok']))->toBeNull();
+});
+
+test('where no target value', function () {
+    $input = [
+        ['foo' => false],
+        ['foo' => true],
+        ['foo' => 'for sure'],
+        ['bar' => true],
+    ];
+
+    expect($this->filters->invoke($this->context, 'where', $input, ['foo']))->toBe([['foo' => true], ['foo' => 'for sure']]);
+});
+
+test('sum with all numbers', function () {
+    $input = [1, 2];
+
+    expect($this->filters->invoke($this->context, 'sum', $input))->toBe(3);
+    expect(fn () => $this->filters->invoke($this->context, 'sum', $input, ['quantity']))->toThrow(InvalidArgumentException::class);
+});
+
+test('sum with numeric strings', function () {
+    $input = [1, 2, '3', '4'];
+
+    expect($this->filters->invoke($this->context, 'sum', $input))->toBe(10);
+    expect(fn () => $this->filters->invoke($this->context, 'sum', $input, ['quantity']))->toThrow(InvalidArgumentException::class);
+});
+
+test('sum with indexable map values', function () {
+    $input = [
+        ['quantity' => 1],
+        ['quantity' => 2, 'weight' => 3],
+        ['weight' => 4],
+    ];
+
+    expect($this->filters->invoke($this->context, 'sum', $input))->toBe(0);
+    expect($this->filters->invoke($this->context, 'sum', $input, ['quantity']))->toBe(3);
+    expect($this->filters->invoke($this->context, 'sum', $input, ['weight']))->toBe(7);
+    expect($this->filters->invoke($this->context, 'sum', $input, ['subtotal']))->toBe(0);
+});
+
+test('sum with indexable non map values', function () {
+    $input = [1, 2, 'foo', ['quantity' => 3]];
+
+    expect($this->filters->invoke($this->context, 'sum', $input))->toBe(3);
+});
+
+test('sum with unindexable values', function () {
+    $input = [1, true, null, ['quantity' => 2]];
+
+    expect($this->filters->invoke($this->context, 'sum', $input))->toBe(1);
+});
+
+test('join calls to liquid on each element', function () {
+    $drop = new class implements \Keepsuit\Liquid\Contracts\MapsToLiquid
+    {
+        public function toLiquid(): string
+        {
+            return 'i did it';
+        }
+    };
+
+    expect($this->filters->invoke($this->context, 'join', [$drop, $drop], [', ']))->toBe('i did it, i did it');
+});
+
+describe('rendering with template backends', function () {
+    test('map', function (bool $compiled) {
+        expect($this->filters->invoke($this->context, 'map', [['a' => 1], ['a' => 2], ['a' => 3], ['a' => 4]], ['a']))->toBe([1, 2, 3, 4]);
+
+        assertTemplateResult(
+            'abc',
+            "{{ ary | map:'foo' | map:'bar' }}",
+            ['ary' => [['foo' => ['bar' => 'a']], ['foo' => ['bar' => 'b']], ['foo' => ['bar' => 'c']]]],
+            compiled: $compiled);
+    });
+
+    test('map calls toLiquid', function (bool $compiled) {
+        $thing = new ThingWithParamToLiquid;
+
+        assertTemplateResult(
+            'woot: 1',
+            '{{ foo | map: "whatever" }}',
+            ['foo' => [$thing]], compiled: $compiled);
+    });
+
+    test('map calls context', function (bool $compiled) {
+        $model = new \Keepsuit\Liquid\Tests\Stubs\TestModel('test');
+
+        assertTemplateResult(
+            '{test=>1234}',
+            '{{ foo | map: "registers" }}',
+            staticData: [
+                'foo' => $model,
+            ],
+            registers: [
+                'test' => 1234,
+            ], compiled: $compiled);
+    });
+
+    test('map on hashes', function (bool $compiled) {
+        assertTemplateResult(
+            '4217',
+            '{{ thing | map: "foo" | map: "bar" }}',
+            staticData: ['thing' => ['foo' => [['bar' => 42], ['bar' => 17]]]], compiled: $compiled);
+    });
+
+    test('legacy map on hashes with dynamic key', function (bool $compiled) {
+        assertTemplateResult(
+            '42',
+            '{% assign key = \'foo\' %}{{ thing | map: key | map: \'bar\' }}',
+            staticData: ['thing' => ['foo' => ['bar' => 42]]], compiled: $compiled);
+    });
+
+    test('sort calls to liquid', function (bool $compiled) {
+        $t = new ThingWithParamToLiquid;
+
+        assertTemplateResult(
+            'woot: 1',
+            '{{ foo | sort: "whatever" }}',
+            staticData: ['foo' => [$t]], compiled: $compiled);
+
+        expect($t->value)->toBe(1);
+    });
+
+    test('map over Closure', function (bool $compiled) {
+        $d = new TestDrop('testfoo');
+        $c = fn () => $d;
+
+        assertTemplateResult(
+            'testfoo',
+            '{{ closures | map: "value" }}',
+            staticData: ['closures' => [$c]], compiled: $compiled);
+    });
+
+    test('map over drops returning Closures', function (bool $compiled) {
+        $drops = [
+            ['closure' => fn () => 'foo'],
+            ['closure' => fn () => 'bar'],
+        ];
+
+        assertTemplateResult(
+            'foobar',
+            '{{ drops | map: "closure" }}',
+            staticData: ['drops' => $drops], compiled: $compiled);
+    });
+
+    test('map works on iterator', function (bool $compiled) {
+        assertTemplateResult(
+            '123',
+            '{{ foo | map: "foo" }}',
+            staticData: ['foo' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop], compiled: $compiled);
+    });
+
+    test('sort works on iterator', function (bool $compiled) {
+        assertTemplateResult(
+            '213',
+            '{{ foo | sort: "bar" | map: "foo" }}',
+            staticData: ['foo' => new \Keepsuit\Liquid\Tests\Stubs\IteratorDrop], compiled: $compiled);
+    });
+
+    test('first and last calls toLiquid', function (bool $compiled) {
+        assertTemplateResult(
+            'foobar',
+            '{{ foo | first }}',
+            staticData: ['foo' => [new \Keepsuit\Liquid\Tests\Stubs\ThingWithToLiquid]], compiled: $compiled);
+        assertTemplateResult(
+            'foobar',
+            '{{ foo | last }}',
+            staticData: ['foo' => [new \Keepsuit\Liquid\Tests\Stubs\ThingWithToLiquid]], compiled: $compiled);
+    });
+
+    test('truncate calls toLiquid', function (bool $compiled) {
+        assertTemplateResult(
+            'wo...',
+            '{{ foo | truncate: 5 }}',
+            staticData: ['foo' => new ThingWithParamToLiquid], compiled: $compiled);
+    });
+
     test('replace', function (bool $compiled) {
         expect($this->filters->invoke($this->context, 'replace', 'a a a a', ['a', 'b']))->toBe('b b b b');
         expect($this->filters->invoke($this->context, 'replace', '1 1 1 1', [1, 2]))->toBe('2 2 2 2');
@@ -678,17 +796,7 @@ describe('rendering with template backends 3', function () {
         assertTemplateResult('abc', "{{ a | prepend: 'a'}}", ['a' => 'bc', 'b' => 'a'], compiled: $compiled);
         assertTemplateResult('abc', '{{ a | prepend: b}}', ['a' => 'bc', 'b' => 'a'], compiled: $compiled);
     });
-})->with('template backends');
 
-test('concat', function () {
-    expect($this->filters->invoke($this->context, 'concat', [1, 2], [[3, 4]]))->toBe([1, 2, 3, 4]);
-    expect($this->filters->invoke($this->context, 'concat', [1, 2], [['a']]))->toBe([1, 2, 'a']);
-    expect($this->filters->invoke($this->context, 'concat', [1, 2], [[10]]))->toBe([1, 2, 10]);
-
-    expect(fn () => $this->filters->invoke($this->context, 'concat', [1, 2], [10]))->toThrow(InvalidArgumentException::class);
-});
-
-describe('rendering with template backends 4', function () {
     test('default', function (bool $compiled) {
         expect($this->filters->invoke($this->context, 'default', 'foo', ['bar']))->toBe('foo');
         expect($this->filters->invoke($this->context, 'default', null, ['bar']))->toBe('bar');
@@ -766,111 +874,7 @@ describe('rendering with template backends 4', function () {
         $template = "{{ array | where: 'ok', false | map: 'handle' | join: ' ' }}";
         assertTemplateResult('beta gamma', $template, ['array' => $input], compiled: $compiled);
     });
-})->with('template backends');
 
-test('where string keys', function () {
-    $input = ['alpha', 'beta', 'gamma', 'delta'];
-
-    $expectation = ['beta'];
-
-    expect($this->filters->invoke($this->context, 'where', $input, ['be']))->toBe($expectation);
-});
-
-test('where no key set', function () {
-    $input = [
-        ['handle' => 'alpha', 'ok' => true],
-        ['handle' => 'beta'],
-        ['handle' => 'gamma'],
-        ['handle' => 'delta', 'ok' => true],
-    ];
-
-    $expectation = [
-        ['handle' => 'alpha', 'ok' => true],
-        ['handle' => 'delta', 'ok' => true],
-    ];
-
-    expect($this->filters->invoke($this->context, 'where', $input, ['ok', true]))->toBe($expectation);
-    expect($this->filters->invoke($this->context, 'where', $input, ['ok']))->toBe($expectation);
-});
-
-test('where non boolean value', function () {
-    $input = [
-        ['message' => 'Bonjour!', 'language' => 'French'],
-        ['message' => 'Hello!', 'language' => 'English'],
-        ['message' => 'Hallo!', 'language' => 'German'],
-    ];
-
-    expect($this->filters->invoke($this->context, 'where', $input, ['language', 'French']))->toBe([['message' => 'Bonjour!', 'language' => 'French']]);
-    expect($this->filters->invoke($this->context, 'where', $input, ['language', 'German']))->toBe([['message' => 'Hallo!', 'language' => 'German']]);
-    expect($this->filters->invoke($this->context, 'where', $input, ['language', 'English']))->toBe([['message' => 'Hello!', 'language' => 'English']]);
-});
-
-test('where non array map input', function () {
-    expect($this->filters->invoke($this->context, 'where', ['a' => 'ok'], ['a', 'ok']))->toBe([['a' => 'ok']]);
-    expect($this->filters->invoke($this->context, 'where', ['a' => 'not ok'], ['a', 'ok']))->toBe([]);
-});
-
-test('where indexable but non map value', function () {
-    expect(fn () => $this->filters->invoke($this->context, 'where', 1, ['ok', true]))->toThrow(InvalidArgumentException::class);
-    expect(fn () => $this->filters->invoke($this->context, 'where', 1, ['ok']))->toThrow(InvalidArgumentException::class);
-});
-
-test('where array of only unindexable values', function () {
-    expect($this->filters->invoke($this->context, 'where', [null], ['ok', true]))->toBeNull();
-    expect($this->filters->invoke($this->context, 'where', [null], ['ok']))->toBeNull();
-});
-
-test('where no target value', function () {
-    $input = [
-        ['foo' => false],
-        ['foo' => true],
-        ['foo' => 'for sure'],
-        ['bar' => true],
-    ];
-
-    expect($this->filters->invoke($this->context, 'where', $input, ['foo']))->toBe([['foo' => true], ['foo' => 'for sure']]);
-});
-
-test('sum with all numbers', function () {
-    $input = [1, 2];
-
-    expect($this->filters->invoke($this->context, 'sum', $input))->toBe(3);
-    expect(fn () => $this->filters->invoke($this->context, 'sum', $input, ['quantity']))->toThrow(InvalidArgumentException::class);
-});
-
-test('sum with numeric strings', function () {
-    $input = [1, 2, '3', '4'];
-
-    expect($this->filters->invoke($this->context, 'sum', $input))->toBe(10);
-    expect(fn () => $this->filters->invoke($this->context, 'sum', $input, ['quantity']))->toThrow(InvalidArgumentException::class);
-});
-
-test('sum with indexable map values', function () {
-    $input = [
-        ['quantity' => 1],
-        ['quantity' => 2, 'weight' => 3],
-        ['weight' => 4],
-    ];
-
-    expect($this->filters->invoke($this->context, 'sum', $input))->toBe(0);
-    expect($this->filters->invoke($this->context, 'sum', $input, ['quantity']))->toBe(3);
-    expect($this->filters->invoke($this->context, 'sum', $input, ['weight']))->toBe(7);
-    expect($this->filters->invoke($this->context, 'sum', $input, ['subtotal']))->toBe(0);
-});
-
-test('sum with indexable non map values', function () {
-    $input = [1, 2, 'foo', ['quantity' => 3]];
-
-    expect($this->filters->invoke($this->context, 'sum', $input))->toBe(3);
-});
-
-test('sum with unindexable values', function () {
-    $input = [1, true, null, ['quantity' => 2]];
-
-    expect($this->filters->invoke($this->context, 'sum', $input))->toBe(1);
-});
-
-describe('rendering with template backends 5', function () {
     test('sum without property calls to liquid', function (bool $compiled) {
         $t = new ThingWithParamToLiquid;
 
@@ -1030,21 +1034,7 @@ describe('rendering with template backends 5', function () {
             ['array' => $input],
             compiled: $compiled);
     });
-})->with('template backends');
 
-test('join calls to liquid on each element', function () {
-    $drop = new class implements \Keepsuit\Liquid\Contracts\MapsToLiquid
-    {
-        public function toLiquid(): string
-        {
-            return 'i did it';
-        }
-    };
-
-    expect($this->filters->invoke($this->context, 'join', [$drop, $drop], [', ']))->toBe('i did it, i did it');
-});
-
-describe('rendering with template backends 6', function () {
     test('reject', function (bool $compiled) {
         $input = [
             ['handle' => 'alpha', 'ok' => true],

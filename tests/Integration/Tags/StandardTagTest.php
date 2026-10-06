@@ -1,6 +1,46 @@
 <?php
 
-describe('rendering with template backends 1', function () {
+test('capture detects bad syntax', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Unexpected end of template - Valid syntax: capture <var>',
+        '{{ var2 }}{% capture %}{{ var }} foo {% endcapture %}{{ var2 }}{{ var2 }}',
+        staticData: ['var' => 'content']);
+});
+
+test('case strict parsing rejects trailing tokens', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Unexpected token Identifier: "extra" - Valid syntax: case <expression>',
+        '{% case condition extra %}{% when 1 %} hit {% endcase %}',
+        staticData: ['condition' => 1]);
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Unexpected token Identifier: "extra" - Valid syntax: when <expression> [, <expression>...]',
+        '{% case condition %}{% when 1 extra %} hit {% endcase %}',
+        staticData: ['condition' => 1]);
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Unexpected end of template - Valid syntax: when <expression> [, <expression>...]',
+        '{% case condition %}{% when 1, %} hit {% endcase %}',
+        staticData: ['condition' => 1]);
+});
+
+test('case rejects when after else and duplicate else', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): A when tag cannot follow an else tag - Valid syntax: when <expression> [, <expression>...]',
+        '{% case 1 %}{% else %}else{% when 1 %}one{% endcase %}');
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): A when tag cannot follow an else tag - Valid syntax: when <expression> [, <expression>...]',
+        '{% case 1 %}{% when 1 %}one{% else %}else{% when 2 %}two{% endcase %}');
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): A case block can only contain one else tag - Valid syntax: else',
+        '{% case 1 %}{% when 1 %}one{% else %}else{% else %}again{% endcase %}');
+});
+
+test('cycle strict parsing rejects trailing tokens', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Unexpected token Identifier: "extra" - Valid syntax: cycle [<name>:] <value>[, <value>...]',
+        '{% cycle "one", "two" extra %}');
+});
+
+describe('rendering with template backends', function () {
     test('no transform', function (bool $compiled) {
         assertTemplateResult(
             'this text should come out of the template without change...',
@@ -68,16 +108,7 @@ describe('rendering with template backends 1', function () {
             '{{ var2 }}{% capture var2 %}{{ var }} foo {% endcapture %}{{ var2 }}{{ var2 }}',
             staticData: ['var' => 'content'], compiled: $compiled);
     });
-})->with('template backends');
 
-test('capture detects bad syntax', function () {
-    assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Unexpected end of template - Valid syntax: capture <var>',
-        '{{ var2 }}{% capture %}{{ var }} foo {% endcapture %}{{ var2 }}{{ var2 }}',
-        staticData: ['var' => 'content']);
-});
-
-describe('rendering with template backends 2', function () {
     test('case', function (bool $compiled) {
         assertTemplateResult(
             ' its 2 ',
@@ -244,36 +275,7 @@ describe('rendering with template backends 2', function () {
             '{% case condition %}{% when 1, 2 %} {% assign r = "result" %} {% endcase %}{{ r }}',
             staticData: ['condition' => 2], compiled: $compiled);
     });
-})->with('template backends');
 
-test('case strict parsing rejects trailing tokens', function () {
-    assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Unexpected token Identifier: "extra" - Valid syntax: case <expression>',
-        '{% case condition extra %}{% when 1 %} hit {% endcase %}',
-        staticData: ['condition' => 1]);
-    assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Unexpected token Identifier: "extra" - Valid syntax: when <expression> [, <expression>...]',
-        '{% case condition %}{% when 1 extra %} hit {% endcase %}',
-        staticData: ['condition' => 1]);
-    assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Unexpected end of template - Valid syntax: when <expression> [, <expression>...]',
-        '{% case condition %}{% when 1, %} hit {% endcase %}',
-        staticData: ['condition' => 1]);
-});
-
-test('case rejects when after else and duplicate else', function () {
-    assertMatchSyntaxError(
-        'Liquid syntax error (line 1): A when tag cannot follow an else tag - Valid syntax: when <expression> [, <expression>...]',
-        '{% case 1 %}{% else %}else{% when 1 %}one{% endcase %}');
-    assertMatchSyntaxError(
-        'Liquid syntax error (line 1): A when tag cannot follow an else tag - Valid syntax: when <expression> [, <expression>...]',
-        '{% case 1 %}{% when 1 %}one{% else %}else{% when 2 %}two{% endcase %}');
-    assertMatchSyntaxError(
-        'Liquid syntax error (line 1): A case block can only contain one else tag - Valid syntax: else',
-        '{% case 1 %}{% when 1 %}one{% else %}else{% else %}again{% endcase %}');
-});
-
-describe('rendering with template backends 3', function () {
     test('assign', function (bool $compiled) {
         assertTemplateResult('variable', '{% assign a = "variable"%}{{a}}', compiled: $compiled);
     });
@@ -327,15 +329,7 @@ describe('rendering with template backends 3', function () {
             staticData: ['var1' => 1, 'var2' => 2],
             compiled: $compiled);
     });
-})->with('template backends');
 
-test('cycle strict parsing rejects trailing tokens', function () {
-    assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Unexpected token Identifier: "extra" - Valid syntax: cycle [<name>:] <value>[, <value>...]',
-        '{% cycle "one", "two" extra %}');
-});
-
-describe('rendering with template backends 4', function () {
     test('cycle evaluates variables and dynamic group names', function (bool $compiled, string $source, array $data, string $expected) {
         assertTemplateResult($expected, $source, data: $data, compiled: $compiled);
         expect(implode('', iterator_to_array(streamTemplate($source, data: $data, compiled: $compiled))))->toBe($expected);

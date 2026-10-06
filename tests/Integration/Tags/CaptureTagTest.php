@@ -2,7 +2,25 @@
 
 use Keepsuit\Liquid\Render\RenderContext;
 
-describe('rendering with template backends 1', function () {
+test('capture strict parsing rejects dotted target', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Unexpected token .: "." - Valid syntax: capture <var>',
+        '{% capture foo.bar %}x{% endcapture %}');
+});
+
+test('capture strict parsing rejects bracketed target', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Unexpected token [: "[" - Valid syntax: capture <var>',
+        '{% capture foo[bar] %}x{% endcapture %}');
+});
+
+test('capture strict parsing rejects quoted string target', function () {
+    assertMatchSyntaxError(
+        'Liquid syntax error (line 1): Expected Identifier, got String - Valid syntax: capture <var>',
+        "{% capture 'foo' %}x{% endcapture %}");
+});
+
+describe('rendering with template backends', function () {
     test('capture block content in variable', function (bool $compiled) {
         assertTemplateResult('test string', '{% capture var %}test string{% endcapture %}{{var}}', compiled: $compiled);
     });
@@ -44,27 +62,7 @@ describe('rendering with template backends 1', function () {
 
         assertTemplateResult('3-3', $source, compiled: $compiled);
     });
-})->with('template backends');
 
-test('capture strict parsing rejects dotted target', function () {
-    assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Unexpected token .: "." - Valid syntax: capture <var>',
-        '{% capture foo.bar %}x{% endcapture %}');
-});
-
-test('capture strict parsing rejects bracketed target', function () {
-    assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Unexpected token [: "[" - Valid syntax: capture <var>',
-        '{% capture foo[bar] %}x{% endcapture %}');
-});
-
-test('capture strict parsing rejects quoted string target', function () {
-    assertMatchSyntaxError(
-        'Liquid syntax error (line 1): Expected Identifier, got String - Valid syntax: capture <var>',
-        "{% capture 'foo' %}x{% endcapture %}");
-});
-
-describe('rendering with template backends 2', function () {
     test('increment assign score by bytes', function (bool $compiled) {
         $context = new RenderContext;
         parseTemplate('{% capture foo %}すごい{% endcapture %}', compiled: $compiled)->render($context);

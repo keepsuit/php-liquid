@@ -12,18 +12,6 @@ use Keepsuit\Liquid\TemplatesCache\MemoryTemplatesCache;
 use Keepsuit\Liquid\TemplateSharedState;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
-describe('rendering with template backends 1', function () {
-    test('parsed templates implement the template contract', function (bool $compiled) {
-        $template = testParseString(testEnvironmentFactory($compiled)->build(), 'hello', name: 'hello');
-
-        expect($template)
-            ->toBeInstanceOf(Template::class)
-            ->and($template->getState())->toBeInstanceOf(TemplateSharedState::class)
-            ->and($template->getErrors())->toBeEmpty()
-            ->and($template->name())->toBe('hello');
-    });
-})->with('template backends');
-
 test('template caches and partial loading accept template interface implementations', function () {
     $template = new class implements Template
     {
@@ -68,7 +56,17 @@ test('template caches and partial loading accept template interface implementati
     expect($environment->newRenderContext()->loadPartial('partial'))->toBe($template);
 });
 
-describe('rendering with template backends 2', function () {
+describe('rendering with template backends', function () {
+    test('parsed templates implement the template contract', function (bool $compiled) {
+        $template = testParseString(testEnvironmentFactory($compiled)->build(), 'hello', name: 'hello');
+
+        expect($template)
+            ->toBeInstanceOf(Template::class)
+            ->and($template->getState())->toBeInstanceOf(TemplateSharedState::class)
+            ->and($template->getErrors())->toBeEmpty()
+            ->and($template->name())->toBe('hello');
+    });
+
     test('assigns persist on same context between renders', function (bool $compiled) {
         $template = parseTemplate("{{ foo }}{% assign foo = 'foo' %}{{ foo }}", compiled: $compiled);
 

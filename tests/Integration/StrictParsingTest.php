@@ -41,24 +41,6 @@ test('invalid syntax fails during parsing regardless of render options', functio
     'assign indexed target' => ['{% assign a[0] = 1 %}'],
 ])->with([false, true])->with([false, true])->with([false, true])->with([false, true]);
 
-describe('rendering with template backends 1', function () {
-    test('complete syntax and explicit nil expressions remain valid', function (bool $compiled, bool $strictVariables, bool $strictFilters, bool $rethrowErrors, bool $lazyParsing, bool $stream) {
-        $environment = testEnvironmentFactory($compiled)
-            ->setStrictVariables($strictVariables)
-            ->setStrictFilters($strictFilters)
-            ->setRethrowErrors($rethrowErrors)
-            ->setLazyParsing($lazyParsing)->build();
-        $template = testParseString($environment, <<<'LIQUID'
-        {% if nil %}N{% elsif n == nil or n == 5 and true %}Y{% endif %}|{% unless null %}U{% endunless %}|{{ n | plus: nil }}|{{ n | plus: null }}|{{ n | abs }}|{% for i in arr %}{% for j in nil %}N{% else %}{{ i }}{% endfor %}{% else %}E{% endfor %}|{% raw %}{% %}{% endraw %}{% comment %}{%- -%}{% endcomment %}{% # inline comment %}
-        LIQUID);
-        $context = $environment->newRenderContext(data: ['n' => 5, 'arr' => [1, 2]]);
-
-        expect($stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context))
-            ->toBe('Y|U|5|5|5|12|{% %}');
-        expect($context->getErrors())->toBe([]);
-    })->with([false, true])->with([false, true])->with([false, true])->with([false, true])->with([false, true]);
-})->with('template backends');
-
 test('named filter arguments accept explicit nil', function () {
     expect(fn () => EnvironmentFactory::new()->build()->parseString('{{ n | custom: key: nil }}'))
         ->not->toThrow(SyntaxException::class);
@@ -82,7 +64,23 @@ test('invalid literal partials fail during parsing even when render errors are h
     expect($environment->templatesCache->has('p'))->toBeFalse();
 })->with([false, true]);
 
-describe('rendering with template backends 2', function () {
+describe('rendering with template backends', function () {
+    test('complete syntax and explicit nil expressions remain valid', function (bool $compiled, bool $strictVariables, bool $strictFilters, bool $rethrowErrors, bool $lazyParsing, bool $stream) {
+        $environment = testEnvironmentFactory($compiled)
+            ->setStrictVariables($strictVariables)
+            ->setStrictFilters($strictFilters)
+            ->setRethrowErrors($rethrowErrors)
+            ->setLazyParsing($lazyParsing)->build();
+        $template = testParseString($environment, <<<'LIQUID'
+        {% if nil %}N{% elsif n == nil or n == 5 and true %}Y{% endif %}|{% unless null %}U{% endunless %}|{{ n | plus: nil }}|{{ n | plus: null }}|{{ n | abs }}|{% for i in arr %}{% for j in nil %}N{% else %}{{ i }}{% endfor %}{% else %}E{% endfor %}|{% raw %}{% %}{% endraw %}{% comment %}{%- -%}{% endcomment %}{% # inline comment %}
+        LIQUID);
+        $context = $environment->newRenderContext(data: ['n' => 5, 'arr' => [1, 2]]);
+
+        expect($stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context))
+            ->toBe('Y|U|5|5|5|12|{% %}');
+        expect($context->getErrors())->toBe([]);
+    })->with([false, true])->with([false, true])->with([false, true])->with([false, true])->with([false, true]);
+
     test('partial parsing during rendering respects context overrides and error handlers', function (bool $compiled, bool $lazyParsing, bool $rethrowErrors, bool $customHandler, bool $stream) {
         $handler = new class implements LiquidErrorHandler
         {

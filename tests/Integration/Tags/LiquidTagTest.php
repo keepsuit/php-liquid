@@ -1,6 +1,88 @@
 <?php
 
-describe('rendering with template backends 1', function () {
+test('liquid tag errors', function () {
+    assertMatchSyntaxError("Liquid syntax error (line 1): Unknown tag 'error'", <<<'LIQUID'
+        {%- liquid error no such tag -%}
+        LIQUID);
+
+    assertMatchSyntaxError("Liquid syntax error (line 7): Unknown tag 'error'", <<<'LIQUID'
+        {{ test }}
+
+        {%-
+            liquid
+            for value in array
+
+                error no such tag
+            endfor
+        -%}
+        LIQUID);
+
+    assertMatchSyntaxError('Liquid syntax error (line 2): Unexpected character !', <<<'LIQUID'
+        {%- liquid
+            !!! the guards are vigilant
+        -%}
+        LIQUID);
+
+    assertMatchSyntaxError("Liquid syntax error (line 4): 'for' tag was never closed", <<<'LIQUID'
+    {%- liquid
+        for value in array
+            echo 'forgot to close the for tag'
+    -%}
+    LIQUID);
+});
+
+test('line number is correct after a blank token', function () {
+    assertMatchSyntaxError("Liquid syntax error (line 3): Unknown tag 'error'", "{% liquid echo ''\n\n error %}");
+    assertMatchSyntaxError("Liquid syntax error (line 3): Unknown tag 'error'", "{% liquid echo ''\n  \n error %}");
+});
+
+test('cannot open blocks living past a liquid tag', function () {
+    assertMatchSyntaxError("Liquid syntax error (line 3): 'if' tag was never closed", <<<'LIQUID'
+    {%- liquid
+        if true
+    -%}
+    {%- endif -%}
+    LIQUID);
+});
+
+test('cannot close blocks created before a liquid tag', function () {
+    assertMatchSyntaxError("Liquid syntax error (line 3): Unknown tag 'endif'", <<<'LIQUID'
+    {%- if true -%}
+    42
+    {%- liquid endif -%}
+    LIQUID);
+});
+
+test('comment tag inside liquid tag errors', function () {
+    assertMatchSyntaxError("Liquid syntax error (line 2): 'comment' tag was never closed", <<<'LIQUID'
+    {%- liquid
+        comment
+            forgot to close the comment
+        echo 'a'
+    -%}
+    LIQUID);
+
+    assertMatchSyntaxError("Liquid syntax error (line 5): Unknown tag 'error'", <<<'LIQUID'
+    {%- liquid
+        comment
+            a comment
+        endcomment
+        error no such tag
+    -%}
+    LIQUID);
+});
+
+test('nested liquid with unclosed if tag', function () {
+    assertMatchSyntaxError("Liquid syntax error (line 3): 'if' tag was never closed", <<<'LIQUID'
+    {%- liquid
+        liquid if true
+          echo "good"
+        endif
+    -%}
+    LIQUID);
+});
+
+describe('rendering with template backends', function () {
     test('liquid tag', function (bool $compiled) {
         assertTemplateResult('1 2 3', <<<'LIQUID'
     {%- liquid
@@ -56,45 +138,7 @@ describe('rendering with template backends 1', function () {
     LIQUID
             , compiled: $compiled);
     });
-})->with('template backends');
 
-test('liquid tag errors', function () {
-    assertMatchSyntaxError("Liquid syntax error (line 1): Unknown tag 'error'", <<<'LIQUID'
-        {%- liquid error no such tag -%}
-        LIQUID);
-
-    assertMatchSyntaxError("Liquid syntax error (line 7): Unknown tag 'error'", <<<'LIQUID'
-        {{ test }}
-
-        {%-
-            liquid
-            for value in array
-
-                error no such tag
-            endfor
-        -%}
-        LIQUID);
-
-    assertMatchSyntaxError('Liquid syntax error (line 2): Unexpected character !', <<<'LIQUID'
-        {%- liquid
-            !!! the guards are vigilant
-        -%}
-        LIQUID);
-
-    assertMatchSyntaxError("Liquid syntax error (line 4): 'for' tag was never closed", <<<'LIQUID'
-    {%- liquid
-        for value in array
-            echo 'forgot to close the for tag'
-    -%}
-    LIQUID);
-});
-
-test('line number is correct after a blank token', function () {
-    assertMatchSyntaxError("Liquid syntax error (line 3): Unknown tag 'error'", "{% liquid echo ''\n\n error %}");
-    assertMatchSyntaxError("Liquid syntax error (line 3): Unknown tag 'error'", "{% liquid echo ''\n  \n error %}");
-});
-
-describe('rendering with template backends 2', function () {
     test('nested liquid tag', function (bool $compiled) {
         assertTemplateResult('good', <<<'LIQUID'
     {%- if true -%}
@@ -105,26 +149,7 @@ describe('rendering with template backends 2', function () {
     LIQUID
             , compiled: $compiled);
     });
-})->with('template backends');
 
-test('cannot open blocks living past a liquid tag', function () {
-    assertMatchSyntaxError("Liquid syntax error (line 3): 'if' tag was never closed", <<<'LIQUID'
-    {%- liquid
-        if true
-    -%}
-    {%- endif -%}
-    LIQUID);
-});
-
-test('cannot close blocks created before a liquid tag', function () {
-    assertMatchSyntaxError("Liquid syntax error (line 3): Unknown tag 'endif'", <<<'LIQUID'
-    {%- if true -%}
-    42
-    {%- liquid endif -%}
-    LIQUID);
-});
-
-describe('rendering with template backends 3', function () {
     test('comment tag inside liquid tag', function (bool $compiled) {
         assertTemplateResult('center', <<<'LIQUID'
     {%- liquid
@@ -192,28 +217,7 @@ describe('rendering with template backends 3', function () {
     LIQUID
             , compiled: $compiled);
     });
-})->with('template backends');
 
-test('comment tag inside liquid tag errors', function () {
-    assertMatchSyntaxError("Liquid syntax error (line 2): 'comment' tag was never closed", <<<'LIQUID'
-    {%- liquid
-        comment
-            forgot to close the comment
-        echo 'a'
-    -%}
-    LIQUID);
-
-    assertMatchSyntaxError("Liquid syntax error (line 5): Unknown tag 'error'", <<<'LIQUID'
-    {%- liquid
-        comment
-            a comment
-        endcomment
-        error no such tag
-    -%}
-    LIQUID);
-});
-
-describe('rendering with template backends 4', function () {
     test('liquid tag in raw', function (bool $compiled) {
         assertTemplateResult("{% liquid echo 'test' %}", <<<'LIQUID'
     {% raw %}{% liquid echo 'test' %}{% endraw %}
@@ -247,13 +251,3 @@ describe('rendering with template backends 4', function () {
             ['liquid' => 'good'], compiled: $compiled);
     });
 })->with('template backends');
-
-test('nested liquid with unclosed if tag', function () {
-    assertMatchSyntaxError("Liquid syntax error (line 3): 'if' tag was never closed", <<<'LIQUID'
-    {%- liquid
-        liquid if true
-          echo "good"
-        endif
-    -%}
-    LIQUID);
-});

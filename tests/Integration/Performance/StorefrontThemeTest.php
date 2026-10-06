@@ -49,7 +49,44 @@ test('every discovered template exists and every template on disk is discovered'
     expect($onDisk)->toBe($expected);
 });
 
-describe('rendering with template backends 1', function () {
+test('page and layout data stay scoped to their own template work', function () {
+    $indexData = StorefrontTheme::renderData('templates.index');
+    $productData = StorefrontTheme::renderData('templates.product');
+
+    expect($indexData['page'])->toHaveKeys(['shop', 'collection', 'articles'])
+        ->not->toHaveKeys(['cart', 'linklists', 'product', 'page'])
+        ->and($productData['page'])->toHaveKeys(['collection', 'product'])
+        ->not->toHaveKeys(['shop', 'cart', 'linklists', 'articles', 'page'])
+        ->and($indexData['layout'])->toHaveKeys(['shop', 'cart', 'linklists', 'template', 'page_title'])
+        ->and($indexData['layout']['shop'])->toBe($indexData['page']['shop']);
+});
+
+test('hand-wired cart totals stay consistent with the rendered summary', function () {
+    // Database assigns rather than computes, so the cart total is a literal that
+    // can drift from item_count. Pin both rather than trusting the data.
+    $cart = Database::cart();
+
+    expect($cart->itemCount)->toBe(3)
+        ->and($cart->totalPrice)->toBe(12650)
+        ->and($cart->isEmpty())->toBeFalse();
+});
+
+test('products expose each drop resolution strategy the theme relies on', function () {
+    $product = Database::product();
+
+    // Public typed property.
+    expect($product->title)->toBe('Weekend Bag');
+
+    // Derived methods.
+    expect($product->onSale())->toBeTrue();
+    expect($product->savingCents())->toBe(2000);
+
+    // #[Cache]d method, and its value must survive a second read.
+    expect($product->inStockVariantCount())->toBe(3);
+    expect($product->inStockVariantCount())->toBe(3);
+});
+
+describe('rendering with template backends', function () {
     test('every page renders through the layout with no missing variables or filters', function (bool $compiled) {
         $environment = storefrontStrictEnvironment(compiled: $compiled);
 
@@ -72,21 +109,7 @@ describe('rendering with template backends 1', function () {
                 ->toMatch('/<title>[^<]+ &mdash; Northstar Goods<\/title>/');
         }
     });
-})->with('template backends');
 
-test('page and layout data stay scoped to their own template work', function () {
-    $indexData = StorefrontTheme::renderData('templates.index');
-    $productData = StorefrontTheme::renderData('templates.product');
-
-    expect($indexData['page'])->toHaveKeys(['shop', 'collection', 'articles'])
-        ->not->toHaveKeys(['cart', 'linklists', 'product', 'page'])
-        ->and($productData['page'])->toHaveKeys(['collection', 'product'])
-        ->not->toHaveKeys(['shop', 'cart', 'linklists', 'articles', 'page'])
-        ->and($indexData['layout'])->toHaveKeys(['shop', 'cart', 'linklists', 'template', 'page_title'])
-        ->and($indexData['layout']['shop'])->toBe($indexData['page']['shop']);
-});
-
-describe('rendering with template backends 2', function () {
     test('every page keeps its page-specific partial workload', function (bool $compiled) {
         $environment = storefrontStrictEnvironment(compiled: $compiled);
 
@@ -126,34 +149,7 @@ describe('rendering with template backends 2', function () {
         expect(Database::collection()->products)->toHaveCount(Database::PRODUCTS_PER_PAGE)
             ->and(substr_count($rendered, 'class="product-card"'))->toBe(Database::PRODUCTS_PER_PAGE);
     });
-})->with('template backends');
 
-test('hand-wired cart totals stay consistent with the rendered summary', function () {
-    // Database assigns rather than computes, so the cart total is a literal that
-    // can drift from item_count. Pin both rather than trusting the data.
-    $cart = Database::cart();
-
-    expect($cart->itemCount)->toBe(3)
-        ->and($cart->totalPrice)->toBe(12650)
-        ->and($cart->isEmpty())->toBeFalse();
-});
-
-test('products expose each drop resolution strategy the theme relies on', function () {
-    $product = Database::product();
-
-    // Public typed property.
-    expect($product->title)->toBe('Weekend Bag');
-
-    // Derived methods.
-    expect($product->onSale())->toBeTrue();
-    expect($product->savingCents())->toBe(2000);
-
-    // #[Cache]d method, and its value must survive a second read.
-    expect($product->inStockVariantCount())->toBe(3);
-    expect($product->inStockVariantCount())->toBe(3);
-});
-
-describe('rendering with template backends 3', function () {
     test('metafields resolve through liquidMethodMissing when the theme renders them', function (bool $compiled) {
         // The one dynamic path in the fixture, asserted through a real render so the
         // template lookup is what proves it, not a direct property access.

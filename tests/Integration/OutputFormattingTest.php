@@ -2,7 +2,11 @@
 
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
-describe('rendering with template backends 1', function () {
+// Reference strings captured from Shopify Liquid 5.13.0 rendering {{ value }}.
+
+// Reference strings captured from Shopify Liquid 5.13.0, which computes on BigDecimal.
+
+describe('rendering with template backends', function () {
     test('float output matches Shopify Liquid', function (bool $compiled, string $source, string $expected) {
         assertTemplateResult($expected, $source, compiled: $compiled);
         expect(implode('', iterator_to_array(streamTemplate($source, compiled: $compiled))))->toBe($expected);
@@ -19,10 +23,7 @@ describe('rendering with template backends 1', function () {
         ['{{ 1.0 | round: 1 }}', '1.0'],
         ['{{ 15.0 | round: -1 }}', '20'],
     ]);
-})->with('template backends');
 
-// Reference strings captured from Shopify Liquid 5.13.0 rendering {{ value }}.
-describe('rendering with template backends 2', function () {
     test('float values preserve Ruby notation and shortest round trip precision', function (bool $compiled, float $value, string $expected) {
         assertTemplateResult($expected, '{{ value }}', data: ['value' => $value], compiled: $compiled);
         expect(implode('', iterator_to_array(streamTemplate('{{ value }}', data: ['value' => $value], compiled: $compiled))))->toBe($expected);
@@ -46,10 +47,7 @@ describe('rendering with template backends 2', function () {
         [-INF, '-Infinity'],
         [NAN, 'NaN'],
     ]);
-})->with('template backends');
 
-// Reference strings captured from Shopify Liquid 5.13.0, which computes on BigDecimal.
-describe('rendering with template backends 3', function () {
     test('arithmetic filters use decimal arithmetic like Shopify', function (bool $compiled, string $source, string $expected) {
         assertTemplateResult($expected, $source, data: ['nums' => [0.1, 0.2, 0.3]], compiled: $compiled);
     })->with([

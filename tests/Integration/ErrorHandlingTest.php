@@ -9,70 +9,6 @@ use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Tests\Stubs\ErrorDrop;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
-describe('rendering with template backends 1', function () {
-    test('template parsed with line numbers renders them in errors', function (bool $compiled) {
-        $template = <<<'LIQUID'
-        Hello,
-
-        {{ errors.standard_error }} will raise a standard error.
-
-        Bla bla test.
-
-        {{ errors.syntax_error }} will raise a syntax error.
-
-        This is an argument error: {{ errors.argument_error }}
-
-        Bla.
-        LIQUID;
-
-        $expected = <<<'HTML'
-        Hello,
-
-        Liquid error (line 3): Standard error will raise a standard error.
-
-        Bla bla test.
-
-        Liquid syntax error (line 7): Syntax error will raise a syntax error.
-
-        This is an argument error: Liquid error (line 9): Argument error
-
-        Bla.
-        HTML;
-
-        assertTemplateResult($expected, $template, staticData: ['errors' => new ErrorDrop], renderErrors: true, compiled: $compiled);
-    });
-
-    test('standard error', function (bool $compiled) {
-        $template = parseTemplate(' {{ errors.standard_error }} ', compiled: $compiled);
-
-        expect($template->render(new RenderContext(staticData: ['errors' => new ErrorDrop])))
-            ->toBe(' Liquid error (line 1): Standard error ');
-
-        expect($template->getErrors())->toHaveCount(1);
-        expect($template->getErrors()[0])->toBeInstanceOf(StandardException::class);
-    });
-
-    test('syntax error', function (bool $compiled) {
-        $template = parseTemplate(' {{ errors.syntax_error }} ', compiled: $compiled);
-
-        expect($template->render(new RenderContext(staticData: ['errors' => new ErrorDrop])))
-            ->toBe(' Liquid syntax error (line 1): Syntax error ');
-
-        expect($template->getErrors())->toHaveCount(1);
-        expect($template->getErrors()[0])->toBeInstanceOf(SyntaxException::class);
-    });
-
-    test('argument error', function (bool $compiled) {
-        $template = parseTemplate(' {{ errors.argument_error }} ', compiled: $compiled);
-
-        expect($template->render(new RenderContext(staticData: ['errors' => new ErrorDrop])))
-            ->toBe(' Liquid error (line 1): Argument error ');
-
-        expect($template->getErrors())->toHaveCount(1);
-        expect($template->getErrors()[0])->toBeInstanceOf(\Keepsuit\Liquid\Exceptions\InvalidArgumentException::class);
-    });
-})->with('template backends');
-
 test('missing endtag parse time error', function () {
     assertMatchSyntaxError(
         "Liquid syntax error (line 1): 'for' tag was never closed",
@@ -153,7 +89,69 @@ test('strict error messages', function () {
         '{{%%%}}');
 });
 
-describe('rendering with template backends 2', function () {
+describe('rendering with template backends', function () {
+    test('template parsed with line numbers renders them in errors', function (bool $compiled) {
+        $template = <<<'LIQUID'
+        Hello,
+
+        {{ errors.standard_error }} will raise a standard error.
+
+        Bla bla test.
+
+        {{ errors.syntax_error }} will raise a syntax error.
+
+        This is an argument error: {{ errors.argument_error }}
+
+        Bla.
+        LIQUID;
+
+        $expected = <<<'HTML'
+        Hello,
+
+        Liquid error (line 3): Standard error will raise a standard error.
+
+        Bla bla test.
+
+        Liquid syntax error (line 7): Syntax error will raise a syntax error.
+
+        This is an argument error: Liquid error (line 9): Argument error
+
+        Bla.
+        HTML;
+
+        assertTemplateResult($expected, $template, staticData: ['errors' => new ErrorDrop], renderErrors: true, compiled: $compiled);
+    });
+
+    test('standard error', function (bool $compiled) {
+        $template = parseTemplate(' {{ errors.standard_error }} ', compiled: $compiled);
+
+        expect($template->render(new RenderContext(staticData: ['errors' => new ErrorDrop])))
+            ->toBe(' Liquid error (line 1): Standard error ');
+
+        expect($template->getErrors())->toHaveCount(1);
+        expect($template->getErrors()[0])->toBeInstanceOf(StandardException::class);
+    });
+
+    test('syntax error', function (bool $compiled) {
+        $template = parseTemplate(' {{ errors.syntax_error }} ', compiled: $compiled);
+
+        expect($template->render(new RenderContext(staticData: ['errors' => new ErrorDrop])))
+            ->toBe(' Liquid syntax error (line 1): Syntax error ');
+
+        expect($template->getErrors())->toHaveCount(1);
+        expect($template->getErrors()[0])->toBeInstanceOf(SyntaxException::class);
+    });
+
+    test('argument error', function (bool $compiled) {
+        $template = parseTemplate(' {{ errors.argument_error }} ', compiled: $compiled);
+
+        expect($template->render(new RenderContext(staticData: ['errors' => new ErrorDrop])))
+            ->toBe(' Liquid error (line 1): Argument error ');
+
+        expect($template->getErrors())->toHaveCount(1);
+        expect($template->getErrors()[0])->toBeInstanceOf(\Keepsuit\Liquid\Exceptions\InvalidArgumentException::class);
+    });
+
     test('default exception renderer with internal error', function (bool $compiled) {
         $template = parseTemplate('This is a runtime error: {{ errors.runtime_error }}', compiled: $compiled);
 

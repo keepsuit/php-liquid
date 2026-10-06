@@ -12,7 +12,25 @@ test('bad variable naming in for loop', function () {
     expect(fn () => renderTemplate('{% for a/b in x %}{% endfor %}'))->toThrow(SyntaxException::class);
 });
 
-describe('rendering with template backends 1', function () {
+test('for strict parsing rejects an absent collection', function () {
+    expect(fn () => parseTemplate('{% for i in %}x{% endfor %}'))->toThrow(SyntaxException::class);
+});
+
+test('in-memory for bodies retain loop scope and restore outer variables', function (string $method) {
+    $environment = \Keepsuit\Liquid\Environment::default();
+    $template = $environment->parseString('{% for item in items %}{{ item }}:{{ forloop.index }};{% endfor %}');
+    assert($template instanceof \Keepsuit\Liquid\ParsedTemplate);
+    $tag = $template->root->body->children()[0];
+    assert($tag instanceof \Keepsuit\Liquid\Tags\ForTag);
+    $context = $environment->newRenderContext(data: ['items' => ['a', 'b'], 'item' => 'outer', 'forloop' => 'outer loop']);
+    $output = $tag->$method($context);
+    expect($method === 'streamBlocks' ? implode('', iterator_to_array($output, preserve_keys: false)) : $output)->toBe('a:1;b:2;');
+    expect($context->getRegister('for_stack'))->toBe([]);
+    expect($context->get('item'))->toBe('outer');
+    expect($context->get('forloop'))->toBe('outer loop');
+})->with(['renderBlocks', 'streamBlocks']);
+
+describe('rendering with template backends', function () {
     test('limited ranges preserve offsets reversals and continuation without expanding the range', function (bool $compiled) {
         $source = '{% for i in (1..1000000000) reversed offset:2 limit:3 %}{{ i }},{% endfor %}'
             .'{% for i in (1..1000000000) offset:continue limit:2 %}{{ i }},{% endfor %}'
@@ -119,13 +137,7 @@ describe('rendering with template backends 1', function () {
         expect(fn () => renderTemplate('{% for i in missing %}x{% endfor %}', strictVariables: true, compiled: $compiled))
             ->toThrow(\Keepsuit\Liquid\Exceptions\UndefinedVariableException::class);
     });
-})->with('template backends');
 
-test('for strict parsing rejects an absent collection', function () {
-    expect(fn () => parseTemplate('{% for i in %}x{% endfor %}'))->toThrow(SyntaxException::class);
-});
-
-describe('rendering with template backends 2', function () {
     test('forloop exposes its name and its parent name', function (bool $compiled) {
         $source = '{% for i in arr %}{{ forloop.name }}{% for j in (1..1) %}:{{ forloop.name }}:{{ forloop.parentloop.name }}{% endfor %}{% endfor %}';
         assertTemplateResult('i-arr:j-(1..1):i-arr', $source, data: ['arr' => [1]], strictVariables: true, compiled: $compiled);
@@ -432,17 +444,3 @@ describe('rendering with template backends 2', function () {
         expect($context->getRegister('for_stack'))->toBe([]);
     });
 })->with('template backends');
-
-test('in-memory for bodies retain loop scope and restore outer variables', function (string $method) {
-    $environment = \Keepsuit\Liquid\Environment::default();
-    $template = $environment->parseString('{% for item in items %}{{ item }}:{{ forloop.index }};{% endfor %}');
-    assert($template instanceof \Keepsuit\Liquid\ParsedTemplate);
-    $tag = $template->root->body->children()[0];
-    assert($tag instanceof \Keepsuit\Liquid\Tags\ForTag);
-    $context = $environment->newRenderContext(data: ['items' => ['a', 'b'], 'item' => 'outer', 'forloop' => 'outer loop']);
-    $output = $tag->$method($context);
-    expect($method === 'streamBlocks' ? implode('', iterator_to_array($output, preserve_keys: false)) : $output)->toBe('a:1;b:2;');
-    expect($context->getRegister('for_stack'))->toBe([]);
-    expect($context->get('item'))->toBe('outer');
-    expect($context->get('forloop'))->toBe('outer loop');
-})->with(['renderBlocks', 'streamBlocks']);
