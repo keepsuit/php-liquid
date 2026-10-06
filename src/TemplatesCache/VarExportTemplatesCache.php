@@ -29,11 +29,6 @@ class VarExportTemplatesCache extends FilesystemTemplatesCache
 
         file_put_contents($compiledPath, '<?php return '.$compiledTemplate.';');
 
-        // Set the timestamp before the startup time to allow opcache to cache the file
-        if (is_numeric($_SERVER['REQUEST_TIME'])) {
-            touch($compiledPath, ((int) $_SERVER['REQUEST_TIME']) - 5);
-        }
-
         if (function_exists('opcache_invalidate')) {
             opcache_invalidate($compiledPath, true);
         }
