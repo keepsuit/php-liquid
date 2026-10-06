@@ -29,13 +29,11 @@ class FilterInputIterator implements IteratorAggregate
             return $this->flatten($this->input);
         }
 
-        $input = match (true) {
-            $this->input === null => [],
-            $this->input instanceof Traversable => $this->input,
-            default => [$this->input],
-        };
+        if ($this->input instanceof Traversable) {
+            return $this->normalize($this->input);
+        }
 
-        return $this->normalize($input);
+        return $this->normalize($this->input === null ? [] : [$this->input]);
     }
 
     protected function normalize(iterable $input): Traversable
