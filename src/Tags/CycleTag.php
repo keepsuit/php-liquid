@@ -110,10 +110,10 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
             default => throw new InvalidArgumentException('Invalid cycle name'),
         };
 
-        $iteration = $register[$key] ?? 0;
-        if (! is_int($iteration)) {
-            $iteration = 0;
-        }
+        $iteration = match (true) {
+            isset($register[$key]) && is_int($register[$key]) => $register[$key],
+            default => 0,
+        };
 
         $output = Variable::renderValue($context, $variables[$iteration]);
 
