@@ -147,3 +147,47 @@ test('artifacts that fail to load surface the error', function (string $source, 
     'invalid PHP' => ['<?php return (', ParseError::class],
     'load exception' => ['<?php throw new RuntimeException("Broken artifact");', RuntimeException::class],
 ]);
+
+test('compiled cache preserves partials and outputs collected while parsing', function () {
+    $path = __DIR__.'/../cache/compiled-state';
+    $cache = new CompiledTemplatesCache($path);
+    $cache->clear();
+    $environment = EnvironmentFactory::new()
+        ->setFilesystem(new StubFileSystem(['snippet' => 'hi']))
+        ->setTemplatesCache($cache)
+        ->build();
+
+    $state = $environment->parseString('{% render "snippet" %}')->getState();
+    $state->outputs->set('scalar', 'value');
+    $state->outputs->set('object', new ArrayObject(['a' => 1]));
+    $template = new ParsedTemplate(root: $environment->parseString('{% render "snippet" %}')->root, state: $state);
+
+    $cache->set('main', $template);
+    $compiledState = (new CompiledTemplatesCache($path))->get('main')->getState();
+
+    expect($compiledState->partials)->toBe(['snippet'])
+        ->and($compiledState->outputs->get('scalar'))->toBe('value')
+        ->and($compiledState->outputs->get('object'))->toEqual(new ArrayObject(['a' => 1]))
+        ->and($compiledState->errors)->toBe([]);
+
+    $cache->clear();
+});
+
+test('compiled cache rejects outputs that cannot be serialized', function (Closure $value) {
+    $path = __DIR__.'/../cache/compiled-outputs';
+    $cache = new CompiledTemplatesCache($path);
+    $cache->clear();
+    $environment = EnvironmentFactory::new()->setTemplatesCache($cache)->build();
+
+    $state = $environment->parseString('hello', name: 'main')->getState();
+    $state->outputs->set('key', ['nested' => $value()]);
+    $template = new ParsedTemplate(root: $environment->parseString('hello', name: 'main')->root, state: $state);
+
+    expect(fn () => $cache->set('main', $template))
+        ->toThrow(RuntimeException::class, 'Unable to serialize the outputs of template main.');
+
+    expect($cache->has('main'))->toBeFalse();
+})->with([
+    'closure' => [fn () => fn () => fn () => 1],
+    'resource' => [fn () => fn () => fopen('php://memory', 'r')],
+]);
