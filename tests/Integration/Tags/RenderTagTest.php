@@ -188,7 +188,7 @@ test('render tag does cache partials across parsing', function () {
     expect($environment->templatesCache->has('snippet'))->toBeTrue();
 });
 
-test('render tag only checks the cache once when loading a partial', function () {
+test('render tag checks the cache before parsing and after storing a missing partial', function () {
     $cache = new class extends MemoryTemplatesCache
     {
         public int $reads = 0;
@@ -208,7 +208,7 @@ test('render tag only checks the cache once when loading a partial', function ()
 
     testParseString($environment, '{% render "snippet" %}');
 
-    expect($cache->reads)->toBe(1);
+    expect($cache->reads)->toBe(2);
 });
 
 test('render tag within if statement', function () {

@@ -21,7 +21,7 @@ test('compiled cache compiles misses and loads roots and partials from disk', fu
         ->build();
 
     $template = $environment->parseTemplate('hello');
-    expect($template)->toBeInstanceOf(ParsedTemplate::class)
+    expect($template)->toBeInstanceOf(CompiledTemplate::class)
         ->and($cache->has('hello'))->toBeTrue()
         ->and($cache->get('hello'))->toBeInstanceOf(CompiledTemplate::class)
         ->and($environment->parseTemplate('hello'))->toBeInstanceOf(CompiledTemplate::class)

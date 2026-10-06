@@ -79,7 +79,7 @@ class ParseContext
 
         $this->environment->templatesCache->set($templateName, $template);
 
-        return $template;
+        return $this->environment->templatesCache->get($templateName) ?? $template;
     }
 
     public function parse(TokenStream|string $source, ?string $name = null): ParsedTemplate

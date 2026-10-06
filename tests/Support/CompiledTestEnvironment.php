@@ -4,7 +4,6 @@ namespace Keepsuit\Liquid\Tests\Support;
 
 use Keepsuit\Liquid\Compiler\CompiledTemplate;
 use Keepsuit\Liquid\Environment;
-use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\ParsedTemplate;
 use Keepsuit\Liquid\Template;
 use ReflectionClass;
@@ -37,11 +36,6 @@ class CompiledTestEnvironment extends Environment
         }
 
         return $compiledEnvironment;
-    }
-
-    public function newParseContext(): ParseContext
-    {
-        return new CompiledTestParseContext(environment: $this);
     }
 
     public static function compileTemplate(Environment $environment, Template $template): CompiledTemplate
