@@ -21,7 +21,7 @@ test('iteration behaviour is independent of render options', function (bool $str
         ->setFilesystem(new StubFileSystem(['p' => '{{ i }}']))
         ->build());
 
-    $template = $environment->parseString(<<<'LIQUID'
+    $template = testParseString($environment, <<<'LIQUID'
         {% for i in items offset:continue limit:2 %}{{ i }}{% endfor %}|{{ (1..3) | join: ',' }}|{{ (1..3) | size }}|{{ (1..3) | reverse | join }}|{% assign x = (1..3) %}{{ x | join }}|{% for i in (3..1) %}{{ i }}{% else %}E{% endfor %}|{% render 'p' for (1..3) as i %}|{% for i in s %}[{{ i }}]{% endfor %}|{% for i in empty_string %}x{% else %}E{% endfor %}|{% for i in number %}x{% else %}E{% endfor %}|{% for i in nil %}x{% else %}E{% endfor %}|{% tablerow i in nil %}x{% endtablerow %}|{% increment a %}{% increment a %}{{ a }}|{% increment b %} {% decrement b %}|{% cycle n, 'b' %}|{% for i in arr %}{{ forloop.name }}{% endfor %}
         LIQUID);
     $context = $environment->newRenderContext(data: [
@@ -43,7 +43,7 @@ test('iteration behaviour is independent of render options', function (bool $str
 
 test('strict iteration errors are collected or rethrown', function (string $source, bool $rethrowErrors, bool $stream) {
     $environment = testEnvironment(EnvironmentFactory::new()->setStrictVariables(true)->setRethrowErrors($rethrowErrors)->build());
-    $template = $environment->parseString($source);
+    $template = testParseString($environment, $source);
     $context = $environment->newRenderContext();
     $render = fn () => $stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context);
 
@@ -74,7 +74,7 @@ test('iteration errors use the configured handler unless rethrow is enabled', fu
         }
     };
     $environment = testEnvironment(EnvironmentFactory::new()->setErrorHandler($handler)->setRethrowErrors($rethrowErrors)->build());
-    $template = $environment->parseString("A{% for i in (1..3) offset:'bad' %}{{ i }}{% endfor %}B");
+    $template = testParseString($environment, "A{% for i in (1..3) offset:'bad' %}{{ i }}{% endfor %}B");
     $context = $environment->newRenderContext();
     $render = fn () => $stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context);
 
@@ -92,7 +92,7 @@ test('context overrides are inherited by range render partials', function (bool 
     $environment = testEnvironment(EnvironmentFactory::new()
         ->setFilesystem(new StubFileSystem(['p' => '{{ i | unknown_filter }}']))
         ->build());
-    $template = $environment->parseString("{% render 'p' for (1..3) as i %}");
+    $template = testParseString($environment, "{% render 'p' for (1..3) as i %}");
     $context = $environment->newRenderContext(options: new RenderContextOptions(
         strictVariables: true, strictFilters: $strictFilters, rethrowErrors: true, lazyParsing: false,
     ));
@@ -112,7 +112,7 @@ test('range render partials share cumulative assignment limits', function (bool 
         ->setFilesystem(new StubFileSystem(['p' => '{% assign values = (1..3) %}{{ i }}']))
         ->setLazyParsing(false)
         ->build());
-    $template = $environment->parseString("{% render 'p' for (1..3) as i %}");
+    $template = testParseString($environment, "{% render 'p' for (1..3) as i %}");
     $limitedContext = $environment->newRenderContext(resourceLimits: new ResourceLimits(cumulativeAssignScoreLimit: 11));
     $render = fn () => $stream ? implode('', iterator_to_array($template->stream($limitedContext))) : $template->render($limitedContext);
     expect($render)->toThrow(ResourceLimitException::class);
@@ -124,7 +124,7 @@ test('range render partials share cumulative assignment limits', function (bool 
 
 test('iteration syntax remains strict regardless of render options', function (string $source, bool $strictVariables) {
     $environment = testEnvironment(EnvironmentFactory::new()->setStrictVariables($strictVariables)->setRethrowErrors(false)->build());
-    expect(fn () => $environment->parseString($source))->toThrow(SyntaxException::class);
+    expect(fn () => testParseString($environment, $source))->toThrow(SyntaxException::class);
 })->with([
     'missing collection' => ['{% for i in %}x{% endfor %}'],
     'invalid for attribute' => ['{% for i in nil unexpected:1 %}x{% endfor %}'],

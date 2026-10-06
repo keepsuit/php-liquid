@@ -7,7 +7,7 @@ test('parse template from string', function () {
     $environment = testEnvironment(EnvironmentFactory::new()
         ->build());
 
-    $template = $environment->parseString('Hello World', 'foo');
+    $template = testParseString($environment, 'Hello World', 'foo');
 
     expect($template->name())->toBe('foo');
     expect($template->render($environment->newRenderContext()))->toBe('Hello World');

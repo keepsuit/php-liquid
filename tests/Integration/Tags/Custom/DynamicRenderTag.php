@@ -14,7 +14,7 @@ test('dynamically template name', function () {
     expect($environment->tagRegistry->get('render'))
         ->toBe(\Keepsuit\Liquid\Tags\Custom\DynamicRenderTag::class);
 
-    $template = $environment->parseString("{% assign name = 'snippet' %}{% render name %}");
+    $template = testParseString($environment, "{% assign name = 'snippet' %}{% render name %}");
 
     expect($template->render($environment->newRenderContext()))->toBe('echo');
 });

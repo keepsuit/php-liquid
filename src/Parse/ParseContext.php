@@ -82,7 +82,7 @@ class ParseContext
         return $template;
     }
 
-    public function parse(TokenStream|string $source, ?string $name = null): Template
+    public function parse(TokenStream|string $source, ?string $name = null): ParsedTemplate
     {
         $this->partials = [];
         $this->outputs = new OutputsBag;

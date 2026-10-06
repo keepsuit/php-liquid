@@ -160,7 +160,7 @@ test('render tag caches second read of some partial', function () {
         ->setFilesystem($fileSystem = new StubFileSystem(['snippet' => 'echo']))
         ->build());
 
-    $template = $environment->parseString('{% render "snippet" %}{% render "snippet" %}');
+    $template = testParseString($environment, '{% render "snippet" %}{% render "snippet" %}');
 
     expect($template->render($environment->newRenderContext()))->toBe('echoecho');
     expect($fileSystem->fileReadCount)->toBe(1);
@@ -173,14 +173,14 @@ test('render tag does cache partials across parsing', function () {
         ->setFilesystem($fileSystem = new StubFileSystem(['snippet' => 'my message']))
         ->build());
 
-    $template = $environment->parseString('{% render "snippet" %}');
+    $template = testParseString($environment, '{% render "snippet" %}');
     expect($template)
         ->state->partials->toBe(['snippet'])
         ->render($environment->newRenderContext())->toBe('my message');
     expect($fileSystem->fileReadCount)->toBe(1);
     expect($environment->templatesCache->has('snippet'))->toBeTrue();
 
-    $template = $environment->parseString('{% render "snippet" %}');
+    $template = testParseString($environment, '{% render "snippet" %}');
     expect($template)
         ->state->partials->toBe(['snippet'])
         ->render($environment->newRenderContext())->toBe('my message');
@@ -206,7 +206,7 @@ test('render tag only checks the cache once when loading a partial', function ()
         ->setTemplatesCache($cache)
         ->build());
 
-    $environment->parseString('{% render "snippet" %}');
+    testParseString($environment, '{% render "snippet" %}');
 
     expect($cache->reads)->toBe(1);
 });

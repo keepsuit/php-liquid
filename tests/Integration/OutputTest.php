@@ -39,7 +39,7 @@ test('variable piping', function () {
         staticData: $this->assigns,
     );
 
-    expect($environment->parseString(' {{ car.gm | make_funny }} ')->render($context))
+    expect(testParseString($environment, ' {{ car.gm | make_funny }} ')->render($context))
         ->toBe(' LOL ');
 });
 
@@ -51,7 +51,7 @@ test('variable piping with input', function () {
         staticData: $this->assigns,
     );
 
-    expect($environment->parseString(' {{ car.gm | cite_funny }} ')->render($context))
+    expect(testParseString($environment, ' {{ car.gm | cite_funny }} ')->render($context))
         ->toBe(' LOL: bad ');
 });
 
@@ -63,7 +63,7 @@ test('variable piping with args', function () {
         staticData: $this->assigns,
     );
 
-    expect($environment->parseString(" {{ car.gm | add_smiley : ':-(' }} ")->render($context))
+    expect(testParseString($environment, " {{ car.gm | add_smiley : ':-(' }} ")->render($context))
         ->toBe(' bad :-( ');
 });
 
@@ -75,7 +75,7 @@ test('variable piping with no args', function () {
         staticData: $this->assigns,
     );
 
-    expect($environment->parseString(' {{ car.gm | add_smiley }} ')->render($context))
+    expect(testParseString($environment, ' {{ car.gm | add_smiley }} ')->render($context))
         ->toBe(' bad :-) ');
 });
 
@@ -87,7 +87,7 @@ test('multiple variable piping with args', function () {
         staticData: $this->assigns,
     );
 
-    expect($environment->parseString(" {{ car.gm | add_smiley : ':-(' | add_smiley : ':-('}} ")->render($context))
+    expect(testParseString($environment, " {{ car.gm | add_smiley : ':-(' | add_smiley : ':-('}} ")->render($context))
         ->toBe(' bad :-( :-( ');
 });
 
@@ -99,7 +99,7 @@ test('variable piping with multiple args', function () {
         staticData: $this->assigns,
     );
 
-    expect($environment->parseString(" {{ car.gm | add_tag : 'span', 'bar'}} ")->render($context))
+    expect(testParseString($environment, " {{ car.gm | add_tag : 'span', 'bar'}} ")->render($context))
         ->toBe(' <span id="bar">bad</span> ');
 });
 
@@ -111,7 +111,7 @@ test('variable piping with variable args', function () {
         staticData: $this->assigns,
     );
 
-    expect($environment->parseString(" {{ car.gm | add_tag : 'span', car.bmw}} ")->render($context))
+    expect(testParseString($environment, " {{ car.gm | add_tag : 'span', car.bmw}} ")->render($context))
         ->toBe(' <span id="good">bad</span> ');
 });
 
@@ -123,7 +123,7 @@ test('multiple pipings', function () {
         staticData: ['best_cars' => 'bmw']
     );
 
-    expect($environment->parseString(' {{ best_cars | cite_funny | paragraph }} ')->render($context))
+    expect(testParseString($environment, ' {{ best_cars | cite_funny | paragraph }} ')->render($context))
         ->toBe(' <p>LOL: bmw</p> ');
 });
 
@@ -136,6 +136,6 @@ test('link to', function () {
         staticData: $this->assigns,
     );
 
-    expect($environment->parseString(" {{ 'Typo' | link_to: 'http://typo.leetsoft.com' }} ")->render($context))
+    expect(testParseString($environment, " {{ 'Typo' | link_to: 'http://typo.leetsoft.com' }} ")->render($context))
         ->toBe(' <a href="http://typo.leetsoft.com">Typo</a> ');
 });

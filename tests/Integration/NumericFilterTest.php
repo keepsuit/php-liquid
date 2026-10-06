@@ -78,7 +78,7 @@ test('numeric coercion keeps environment options independent', function (bool $s
         ->setLazyParsing(false)
         ->build());
     $context = $environment->newRenderContext(data: ['value' => null]);
-    $template = $environment->parseString("{{ value | plus: true }}|{{ '1abc' | minus: false }}|{{ 7.5 | modulo: -2 }}|{{ 1.0 | divided_by: 0 }}");
+    $template = testParseString($environment, "{{ value | plus: true }}|{{ '1abc' | minus: false }}|{{ 7.5 | modulo: -2 }}|{{ 1.0 | divided_by: 0 }}");
 
     $output = $stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context);
 
@@ -92,7 +92,7 @@ test('numeric filters report missing variables in inputs and arguments under str
         ->setRethrowErrors($rethrowErrors)
         ->build());
     $context = $environment->newRenderContext();
-    $template = $environment->parseString($source);
+    $template = testParseString($environment, $source);
     $render = fn () => $stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context);
 
     if ($rethrowErrors) {
@@ -117,7 +117,7 @@ test('missing variables coerce to zero without strict variables', function () {
 test('integer division and modulo by zero remain Liquid arithmetic errors', function (string $source, bool $rethrowErrors, bool $stream) {
     $environment = testEnvironment(EnvironmentFactory::new()->setRethrowErrors($rethrowErrors)->build());
     $context = $environment->newRenderContext();
-    $template = $environment->parseString($source);
+    $template = testParseString($environment, $source);
     $render = fn () => $stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context);
 
     if ($rethrowErrors) {
@@ -141,7 +141,7 @@ test('strict filters only controls unknown filters after numeric coercion', func
         ->setRethrowErrors($rethrowErrors)
         ->build());
     $context = $environment->newRenderContext();
-    $template = $environment->parseString("{{ 'abc' | plus: 1 | unknown }}");
+    $template = testParseString($environment, "{{ 'abc' | plus: 1 | unknown }}");
 
     if ($strictFilters && $rethrowErrors) {
         expect(fn () => $template->render($context))->toThrow(UndefinedFilterException::class);
@@ -168,7 +168,7 @@ test('numeric coercion works in partials with either lazy parsing setting', func
         ->setLazyParsing($lazyParsing)
         ->setFilesystem(new StubFileSystem(['number' => '{{ value | plus: 1 }}']))
         ->build());
-    $template = $environment->parseString("{% render 'number', value: nil %}");
+    $template = testParseString($environment, "{% render 'number', value: nil %}");
     $context = $environment->newRenderContext();
 
     expect($stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context))

@@ -76,7 +76,7 @@ test('assign score exceeding resource limit', function () {
 
 test('assigned ranges have the same resource score as arrays', function () {
     $environment = testEnvironment(EnvironmentFactory::new()->setRethrowErrors(true)->build());
-    $template = $environment->parseString('{% assign values = (1..3) %}{{ values | join }}');
+    $template = testParseString($environment, '{% assign values = (1..3) %}{{ values | join }}');
     $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(assignScoreLimit: 3));
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
 
@@ -87,7 +87,7 @@ test('assigned ranges have the same resource score as arrays', function () {
 
 test('range assignment limits are checked without materializing the range', function (int $start, int $end, string $prefix) {
     $environment = testEnvironment(EnvironmentFactory::new()->build());
-    $template = $environment->parseString($prefix.'{% assign values = (start..end) %}');
+    $template = testParseString($environment, $prefix.'{% assign values = (start..end) %}');
     $context = $environment->newRenderContext(
         data: ['start' => $start, 'end' => $end],
         resourceLimits: new ResourceLimits(assignScoreLimit: 1),
@@ -102,7 +102,7 @@ test('range assignment limits are checked without materializing the range', func
 
 test('nested range assignment scores cannot overflow', function (bool $rethrowErrors, bool $associative) {
     $environment = testEnvironment(EnvironmentFactory::new()->setRethrowErrors($rethrowErrors)->build());
-    $template = $environment->parseString('{% assign values = items %}');
+    $template = testParseString($environment, '{% assign values = items %}');
     $range = new \Keepsuit\Liquid\Nodes\Range(PHP_INT_MIN, PHP_INT_MAX);
     $context = $environment->newRenderContext(
         data: ['items' => $associative ? ['range' => $range] : [$range]],
@@ -118,7 +118,7 @@ test('assign score exceeding resource limit from composite object', function () 
         ->setRethrowErrors(true)
         ->build());
 
-    $template = $environment->parseString("{% assign foo = 'aaaa' | split: '' %}");
+    $template = testParseString($environment, "{% assign foo = 'aaaa' | split: '' %}");
 
     $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(assignScoreLimit: 3));
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);

@@ -3,14 +3,13 @@
 namespace Keepsuit\Liquid\Tests\Support;
 
 use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Parse\TokenStream;
 use Keepsuit\Liquid\Template;
 
 class CompiledTestParseContext extends ParseContext
 {
-    public function parse(TokenStream|string $source, ?string $name = null): Template
+    public function parseTemplate(string $templateName, bool $force = false): Template
     {
-        return CompiledTestEnvironment::compileTemplate($this->environment, parent::parse($source, $name));
+        return CompiledTestEnvironment::compileTemplate($this->environment, parent::parseTemplate($templateName, $force));
     }
 
     public function loadPartial(string $templateName): Template

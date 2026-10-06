@@ -10,7 +10,7 @@ use Keepsuit\Liquid\Tests\Stubs\SleepTag;
 
 test('profiling can be enabled with extension', function () {
     $environment = testEnvironment(EnvironmentFactory::new()->build());
-    $template = $environment->parseString("{{ 'a string' | upcase }}");
+    $template = testParseString($environment, "{{ 'a string' | upcase }}");
 
     $template->render($context = $environment->newRenderContext());
     expect($context->getRegister('profiler'))->toBeNull();
@@ -79,13 +79,13 @@ test('profiling multiple renders', function () {
         ->build());
 
     $context = $environment->newRenderContext();
-    $template = $environment->parseString('{% sleep 0.001 %}', 'index');
+    $template = testParseString($environment, '{% sleep 0.001 %}', 'index');
 
     $template->render($context);
     expect($profiler->getProfiles())->toHaveCount(1);
     $firstRenderProfile = $profiler->getProfiles()[0];
 
-    $template = $environment->parseString('{% sleep 0.001 %}', 'layout');
+    $template = testParseString($environment, '{% sleep 0.001 %}', 'layout');
     $template->render($context);
     expect($profiler->getProfiles())->toHaveCount(2);
     $secondRenderProfile = $profiler->getProfiles()[1];
@@ -206,7 +206,7 @@ function profileTemplate(string $source, array $assigns = []): Profile
         ->addExtension(new ProfilerExtension($profiler = new Profiler, tags: true, variables: true))
         ->build());
 
-    $template = $environment->parseString($source);
+    $template = testParseString($environment, $source);
 
     $context = $environment->newRenderContext(
         staticData: $assigns,

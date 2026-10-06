@@ -5,6 +5,7 @@ use Keepsuit\Liquid\EnvironmentFactory;
 use Keepsuit\Liquid\Exceptions\SyntaxException;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Parse\TokenStream;
+use Keepsuit\Liquid\ParsedTemplate;
 use Keepsuit\Liquid\Template;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 use Keepsuit\Liquid\Tests\Support\CompiledTestEnvironment;
@@ -20,9 +21,19 @@ function testEnvironment(Environment $environment): Environment
 }
 
 /** Parse a source for assertions on the parser, AST or parsed cache format. */
-function parseSource(string $source, ?Environment $environment = null): Template
+function parseSource(string $source, ?Environment $environment = null): ParsedTemplate
 {
     return ($environment ?? Environment::default())->parseString($source);
+}
+
+/** Parse a source and compile it when the environment uses the compiled test backend. */
+function testParseString(Environment $environment, string $source, ?string $name = null): Template
+{
+    $template = $environment->parseString($source, $name);
+
+    return $environment instanceof CompiledTestEnvironment
+        ? CompiledTestEnvironment::compileTemplate($environment, $template)
+        : $template;
 }
 
 /**
@@ -32,7 +43,7 @@ function parseTemplate(
     string $source,
     ?Environment $environment = null,
 ): Template {
-    return testEnvironment($environment ?? Environment::default())->parseString($source);
+    return testParseString(testEnvironment($environment ?? Environment::default()), $source);
 }
 
 function buildRenderContext(
@@ -72,7 +83,7 @@ function renderTemplate(
         ->setRethrowErrors(! $renderErrors)
         ->build());
 
-    $template = $environment->parseString($template);
+    $template = testParseString($environment, $template);
 
     $context = buildRenderContext(
         data: $data,
@@ -105,7 +116,7 @@ function streamTemplate(
         ->setRethrowErrors(! $renderErrors)
         ->build());
 
-    $template = $environment->parseString($template);
+    $template = testParseString($environment, $template);
 
     $context = buildRenderContext(
         data: $data,

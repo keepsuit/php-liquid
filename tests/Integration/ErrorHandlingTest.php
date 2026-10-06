@@ -177,7 +177,7 @@ test('render template name with line numbers', function () {
         ]))
         ->build());
 
-    $template = $environment->parseString("Argument error:\n{% render 'product' with errors %}");
+    $template = testParseString($environment, "Argument error:\n{% render 'product' with errors %}");
 
     $output = $template->render($environment->newRenderContext(
         staticData: ['errors' => new ErrorDrop],
@@ -213,7 +213,7 @@ test('internal error is thrown with template name', function () {
         ]))
         ->build());
 
-    expect(fn () => $environment->parseString("{% render 'snippet' with errors %}"))
+    expect(fn () => testParseString($environment, "{% render 'snippet' with errors %}"))
         ->toThrow(InternalException::class);
 });
 

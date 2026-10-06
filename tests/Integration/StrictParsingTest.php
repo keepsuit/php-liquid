@@ -16,7 +16,7 @@ test('invalid syntax fails during parsing regardless of render options', functio
         ->setLazyParsing($lazyParsing)
         ->build());
 
-    expect(fn () => $environment->parseString($source))->toThrow(SyntaxException::class);
+    expect(fn () => testParseString($environment, $source))->toThrow(SyntaxException::class);
 })->with([
     'empty if' => ['{% if %}Y{% endif %}'],
     'missing or condition' => ['{% if n == 5 or %}Y{% endif %}'],
@@ -49,7 +49,7 @@ test('complete syntax and explicit nil expressions remain valid', function (bool
         ->setRethrowErrors($rethrowErrors)
         ->setLazyParsing($lazyParsing)
         ->build());
-    $template = $environment->parseString(<<<'LIQUID'
+    $template = testParseString($environment, <<<'LIQUID'
         {% if nil %}N{% elsif n == nil or n == 5 and true %}Y{% endif %}|{% unless null %}U{% endunless %}|{{ n | plus: nil }}|{{ n | plus: null }}|{{ n | abs }}|{% for i in arr %}{% for j in nil %}N{% else %}{{ i }}{% endfor %}{% else %}E{% endfor %}|{% raw %}{% %}{% endraw %}{% comment %}{%- -%}{% endcomment %}{% # inline comment %}
         LIQUID);
     $context = $environment->newRenderContext(data: ['n' => 5, 'arr' => [1, 2]]);
@@ -79,7 +79,7 @@ test('invalid literal partials fail during parsing even when render errors are h
         ->setFilesystem(new StubFileSystem(['p' => '{% if %}Y{% endif %}']))
         ->build());
 
-    expect(fn () => $environment->parseString("{% render 'p' %}"))->toThrow(SyntaxException::class);
+    expect(fn () => testParseString($environment, "{% render 'p' %}"))->toThrow(SyntaxException::class);
     expect($environment->templatesCache->has('p'))->toBeFalse();
 })->with([false, true]);
 
@@ -99,8 +99,8 @@ test('partial parsing during rendering respects context overrides and error hand
         $factory->setErrorHandler($handler);
     }
     $environment = testEnvironment($factory->build());
-    $environment->templatesCache->set('p', $environment->parseString('valid'));
-    $template = $environment->parseString("A{% render 'p' %}B");
+    $environment->templatesCache->set('p', testParseString($environment, 'valid'));
+    $template = testParseString($environment, "A{% render 'p' %}B");
     $environment->templatesCache->remove('p');
     $context = $environment->newRenderContext(options: new RenderContextOptions(
         strictVariables: true, strictFilters: true, rethrowErrors: $rethrowErrors, lazyParsing: $lazyParsing,

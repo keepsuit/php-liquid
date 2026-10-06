@@ -14,7 +14,7 @@ use Keepsuit\Liquid\TemplateSharedState;
 use Keepsuit\Liquid\Tests\Stubs\StubFileSystem;
 
 test('parsed templates implement the template contract', function () {
-    $template = testEnvironment(Environment::default())->parseString('hello', name: 'hello');
+    $template = testParseString(testEnvironment(Environment::default()), 'hello', name: 'hello');
 
     expect($template)
         ->toBeInstanceOf(Template::class)
@@ -124,7 +124,7 @@ test('render length limit covers output from partials and custom nodes', functio
 
     // Checked once on the root output, so a node outside the library nested in
     // a partial is covered without either of them counting anything.
-    $template = $environment->parseString('{% render "snippet" %}');
+    $template = testParseString($environment, '{% render "snippet" %}');
 
     $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(renderLengthLimit: 5));
     expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
@@ -203,7 +203,7 @@ test('cumulative render score accumulates across repeated partial renders', func
         ->setFilesystem(new StubFileSystem(['snippet' => 'x']))
         ->build());
 
-    $template = $environment->parseString('{% render "snippet" %}');
+    $template = testParseString($environment, '{% render "snippet" %}');
     $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(cumulativeRenderScoreLimit: 3));
 
     expect($template->render($context))->toBe('x');
@@ -220,7 +220,7 @@ test('cumulative assign score accumulates across repeated partial renders', func
         ->setFilesystem(new StubFileSystem(['snippet' => '{% capture foo %}ab{% endcapture %}']))
         ->build());
 
-    $template = $environment->parseString('{% render "snippet" %}');
+    $template = testParseString($environment, '{% render "snippet" %}');
     $context = $environment->newRenderContext(resourceLimits: new ResourceLimits(cumulativeAssignScoreLimit: 3));
 
     expect($template->render($context))->toBe('');

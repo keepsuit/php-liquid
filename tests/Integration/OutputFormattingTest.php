@@ -79,7 +79,7 @@ test('arrays and generators render floats consistently', function (bool $stream)
             yield [2.0];
         })(),
     ]);
-    $template = $environment->parseString('{{ values }}|{{ chunks }}');
+    $template = testParseString($environment, '{{ values }}|{{ chunks }}');
 
     expect($stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context))
         ->toBe('1.02.0|1.02.0');
@@ -108,7 +108,7 @@ test('output formatting keeps environment options independent in partials', func
         ->setLazyParsing($options)
         ->setFilesystem(new StubFileSystem(partials: ['p' => $source]))
         ->build());
-    $template = $environment->parseString("{% render 'p', items: items %}");
+    $template = testParseString($environment, "{% render 'p', items: items %}");
     $context = $environment->newRenderContext(data: ['items' => [1.0, 2.0, 3.0]]);
 
     $output = $stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context);

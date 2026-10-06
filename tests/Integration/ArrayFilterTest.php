@@ -57,7 +57,7 @@ test('array filter behaviour is independent of render options', function (bool $
         ->setRethrowErrors($rethrowErrors)
         ->setLazyParsing($lazyParsing)
         ->build());
-    $template = $environment->parseString("{{ nil | join }}|{{ false | join }}|{{ values | uniq | join: ',' }}|{{ values | sum }}|{{ items | where: 'v' | size }}");
+    $template = testParseString($environment, "{{ nil | join }}|{{ false | join }}|{{ values | uniq | join: ',' }}|{{ values | sum }}|{{ items | where: 'v' | size }}");
     $context = $environment->newRenderContext(data: ['values' => [[1, 1.0, '1', true]], 'items' => [['v' => ''], ['v' => []], ['v' => false]]]);
 
     expect($stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context))
@@ -68,7 +68,7 @@ test('array filter behaviour is independent of render options', function (bool $
 test('array filters preserve strict missing variable errors including unused arguments', function (string $source, bool $rethrowErrors, bool $stream) {
     $environment = testEnvironment(EnvironmentFactory::new()->setStrictVariables(true)->setRethrowErrors($rethrowErrors)->build());
     $context = $environment->newRenderContext(data: ['items' => []]);
-    $template = $environment->parseString($source);
+    $template = testParseString($environment, $source);
     $render = fn () => $stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context);
 
     if ($rethrowErrors) {
@@ -103,7 +103,7 @@ test('missing array filter input behaves like nil without strict variables', fun
 test('invalid array arguments are Liquid errors with either error propagation setting', function (string $source, bool $rethrowErrors, bool $stream) {
     $environment = testEnvironment(EnvironmentFactory::new()->setRethrowErrors($rethrowErrors)->build());
     $context = $environment->newRenderContext(data: ['values' => [1, '2'], 'empty' => []]);
-    $template = $environment->parseString($source);
+    $template = testParseString($environment, $source);
     $render = fn () => $stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context);
 
     if ($rethrowErrors) {
@@ -120,7 +120,7 @@ test('invalid array arguments are Liquid errors with either error propagation se
 test('unknown filters still follow strict filters after array coercion', function (bool $strictFilters, bool $rethrowErrors) {
     $environment = testEnvironment(EnvironmentFactory::new()->setStrictFilters($strictFilters)->setRethrowErrors($rethrowErrors)->build());
     $context = $environment->newRenderContext();
-    $template = $environment->parseString('{{ true | join | unknown }}');
+    $template = testParseString($environment, '{{ true | join | unknown }}');
     if ($strictFilters && $rethrowErrors) {
         expect(fn () => $template->render($context))->toThrow(UndefinedFilterException::class);
     } else {
@@ -138,7 +138,7 @@ test('array errors use the configured handler unless rethrow is enabled', functi
         }
     };
     $environment = testEnvironment(EnvironmentFactory::new()->setErrorHandler($handler)->setRethrowErrors($rethrowErrors)->build());
-    $template = $environment->parseString("{{ nil | concat: 'x' }}");
+    $template = testParseString($environment, "{{ nil | concat: 'x' }}");
     $context = $environment->newRenderContext();
     $render = fn () => $stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context);
     if ($rethrowErrors) {
@@ -151,7 +151,7 @@ test('array errors use the configured handler unless rethrow is enabled', functi
 
 test('array coercion and context overrides work in partials with either lazy parsing setting', function (bool $lazyParsing, bool $stream) {
     $environment = testEnvironment(EnvironmentFactory::new()->setFilesystem(new StubFileSystem(['array' => "{{ value | join: ',' }}|{{ nil | join }}"]))->build());
-    $template = $environment->parseString("{% render 'array', value: values %}");
+    $template = testParseString($environment, "{% render 'array', value: values %}");
     $context = $environment->newRenderContext(
         data: ['values' => [[1, false], ['x']]],
         options: new RenderContextOptions(strictVariables: true, strictFilters: true, rethrowErrors: true, lazyParsing: $lazyParsing),
@@ -172,7 +172,7 @@ test('array filters normalize Liquid values and iterator keys', function () {
 
 test('array filter syntax remains strict regardless of render options', function () {
     $environment = testEnvironment(EnvironmentFactory::new()->setRethrowErrors(false)->setStrictVariables(false)->setStrictFilters(false)->build());
-    expect(fn () => $environment->parseString("{{ nil | join: 'x' trailing }}"))->toThrow(SyntaxException::class);
+    expect(fn () => testParseString($environment, "{{ nil | join: 'x' trailing }}"))->toThrow(SyntaxException::class);
 });
 
 test('custom array filters retain their parameter types', function () {
@@ -191,7 +191,7 @@ class ArrayFilterOverride extends FiltersProvider
 
 test('custom filters can compose internal filter support with the current context', function () {
     $environment = testEnvironment(EnvironmentFactory::new()->registerFilters(ArraySupportFilters::class)->build());
-    $template = $environment->parseString('{{ items | labels }}');
+    $template = testParseString($environment, '{{ items | labels }}');
     $drop = new \Keepsuit\Liquid\Tests\Stubs\ContextDrop;
     foreach (['first', 'second'] as $label) {
         $context = $environment->newRenderContext(data: ['items' => [[['label' => fn () => 1.0]], $drop], 'label' => $label]);
@@ -331,7 +331,7 @@ test('join stringifies hashes and preserves float and boolean types', function (
 
 test('partial errors inherit context overrides', function (bool $lazyParsing, bool $stream) {
     $environment = testEnvironment(EnvironmentFactory::new()->setFilesystem(new StubFileSystem(['array' => '{{ missing | join }}']))->build());
-    $template = $environment->parseString("{% render 'array' %}");
+    $template = testParseString($environment, "{% render 'array' %}");
     $context = $environment->newRenderContext(options: new RenderContextOptions(strictVariables: true, rethrowErrors: true, lazyParsing: $lazyParsing));
     expect(fn () => $stream ? implode('', iterator_to_array($template->stream($context))) : $template->render($context))
         ->toThrow(UndefinedVariableException::class);

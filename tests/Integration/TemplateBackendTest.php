@@ -28,13 +28,24 @@ test('lazy partials use the selected backend on their first render', function ()
         ->registerTag(\Keepsuit\Liquid\Tags\Custom\DynamicRenderTag::class)
         ->setLazyParsing(true)
         ->build());
-    $template = $environment->parseString("{% assign name = 'p' %}{% render name %}");
+    $template = testParseString($environment, "{% assign name = 'p' %}{% render name %}");
 
     expect($filesystem->fileReadCount)->toBe(0);
     expect(implode('', iterator_to_array($template->stream($environment->newRenderContext(staticData: ['value' => 'hello'])))))
         ->toBe('hello');
     expect($filesystem->fileReadCount)->toBe(1);
     expect($environment->templatesCache->get('p'))->toBeInstanceOf($expected);
+});
+
+test('named templates use the selected backend on their first parse and from cache', function () {
+    $expected = getenv('LIQUID_TEST_BACKEND') === 'compiled' ? CompiledTemplate::class : ParsedTemplate::class;
+    $environment = testEnvironment(EnvironmentFactory::new()
+        ->setFilesystem($filesystem = new StubFileSystem(['main' => 'hello']))
+        ->build());
+
+    expect($environment->parseTemplate('main'))->toBeInstanceOf($expected);
+    expect($environment->parseTemplate('main'))->toBeInstanceOf($expected);
+    expect($filesystem->fileReadCount)->toBe(1);
 });
 
 test('the first lazy partial returned by the render context uses the selected backend', function () {
