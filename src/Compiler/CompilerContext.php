@@ -133,7 +133,7 @@ final class CompilerContext
      */
     public function compileBody(Node $body): static
     {
-        $renderScore = $body instanceof BodyNode ? count($body->children()) : 1;
+        $renderScore = $body instanceof BodyNode ? max(1, count($body->children())) : 1;
         $source = $this->compileBodySource($body);
 
         if (! $this->inheritsNativeCompileMethod($body)) {
@@ -259,7 +259,7 @@ final class CompilerContext
 
     public function compileRootBody(BodyNode $body): void
     {
-        $renderScore = count($body->children());
+        $renderScore = max(1, count($body->children()));
         $source = $this->compileBodySource($body, emptyBuffer: true);
 
         if ($this->rendering) {

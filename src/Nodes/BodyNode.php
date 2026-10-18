@@ -156,7 +156,7 @@ class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
      */
     public function render(RenderContext $context): string
     {
-        $context->resourceLimits->incrementRenderScore(count($this->children));
+        $context->resourceLimits->incrementRenderScore(max(1, count($this->children)));
 
         $output = '';
 
@@ -195,7 +195,7 @@ class BodyNode extends Node implements CanBeCompiled, CanBeStreamed
      */
     public function stream(RenderContext $context): \Generator
     {
-        $context->resourceLimits->incrementRenderScore(count($this->children));
+        $context->resourceLimits->incrementRenderScore(max(1, count($this->children)));
 
         $buffer = '';
 

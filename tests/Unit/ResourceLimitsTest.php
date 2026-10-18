@@ -107,3 +107,10 @@ test('resource limits cumulative assign score limit', function () {
     expect(fn () => $limits->incrementAssignScore(2))->toThrow(ResourceLimitException::class);
     expect($limits->reached())->toBeTrue();
 });
+
+test('render score overflow reaches the limit instead of wrapping', function () {
+    $limits = new ResourceLimits;
+    $limits->incrementRenderScore();
+
+    expect(fn () => $limits->incrementRenderScore(PHP_INT_MAX))->toThrow(ResourceLimitException::class);
+});

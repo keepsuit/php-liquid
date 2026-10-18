@@ -51,9 +51,22 @@ All notable changes to `liquid` will be documented in this file.
   independently of render options; existing strict2-aligned syntax restrictions are unchanged.
 - `ParseContext::parse()` and `Environment::parseString()` now return `ParsedTemplate` instead of `Template`.
   - Custom overrides of these methods must declare a compatible `ParsedTemplate` return type.
+- `Range::getIterator()` now declares `\Traversable` instead of `\ArrayIterator`.
+  - Callers relying on `ArrayIterator` methods should wrap the result with `iterator_to_array()`.
 
 ### Fixed
 
+- Deeply nested expressions (e.g. `{{ a[a[a[…]]] }}`) throw `StackLevelException` at parse time
+  instead of overflowing the stack and crashing the PHP process.
+- Empty block bodies (e.g. `{% for i in (1..1000000) %}{% endfor %}`) count toward the render
+  score, so `renderScoreLimit` can no longer be bypassed with empty loops.
+- `size`, `first`, `last` and `slice` on a range no longer materialize it.
+- Array filters (`join`, `sum`, `map`, `sort`, `reverse`, …) charge one render score point per
+  item, so `renderScoreLimit` stops `{{ (1..10000000) | sum }}` before the range is materialized.
+  - Templates applying array filters to large collections reach existing render score limits
+    sooner; raise them if needed.
+- Render score increments that would overflow `PHP_INT_MAX` reach the limit instead of failing
+  with a `TypeError`.
 - `CompiledTemplatesCache` artifacts persist the `partials` and `outputs` collected while parsing,
   like the other caches. Outputs that cannot be serialized (closures, resources) throw a
   `RuntimeException` from `CompiledTemplatesCache::set()` instead of being dropped.
