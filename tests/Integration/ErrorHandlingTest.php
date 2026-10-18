@@ -233,3 +233,9 @@ describe('rendering with template backends', function () {
         $this->fail('Expected ArithmeticException to be thrown.');
     });
 })->with('template backends');
+
+test('deeply nested expressions fail to parse instead of exhausting the stack', function () {
+    $template = '{{ a'.str_repeat('[a', 20000).str_repeat(']', 20000).' }}';
+
+    expect(fn () => parseTemplate($template))->toThrow(StackLevelException::class);
+});
