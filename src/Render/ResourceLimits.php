@@ -43,6 +43,10 @@ class ResourceLimits
      */
     public function incrementRenderScore(int $amount = 1): ResourceLimits
     {
+        if ($amount > PHP_INT_MAX - $this->renderScore || $amount > PHP_INT_MAX - $this->cumulativeRenderScore) {
+            $this->throwLimitReachedException();
+        }
+
         $this->renderScore += $amount;
         $this->cumulativeRenderScore += $amount;
 
