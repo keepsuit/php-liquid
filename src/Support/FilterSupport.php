@@ -5,6 +5,7 @@ namespace Keepsuit\Liquid\Support;
 use Keepsuit\Liquid\Contracts\IsContextAware;
 use Keepsuit\Liquid\Drop;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
+use Keepsuit\Liquid\Nodes\Range;
 use Keepsuit\Liquid\Render\RenderContext;
 
 /**
@@ -25,9 +26,50 @@ class FilterSupport
         return $value;
     }
 
+    /**
+     * Charges one render score point per item before iterating, so oversized collections
+     * (e.g. huge ranges) reach the limit before being materialized.
+     *
+     * @return bool false when the size is unknown and items must be charged while iterating
+     */
+    public function chargeIteration(mixed $input): bool
+    {
+        $count = match (true) {
+            is_array($input), $input instanceof \Countable => count($input),
+            $input instanceof Range => $input->length(),
+            default => null,
+        };
+
+        if ($count === null) {
+            return false;
+        }
+
+        $this->context->resourceLimits->incrementRenderScore($count);
+
+        return true;
+    }
+
+    public function chargeItem(): void
+    {
+        $this->context->resourceLimits->incrementRenderScore();
+    }
+
     public function normalizeCollection(iterable $input): array
     {
+        if (! $this->chargeIteration($input)) {
+            $input = $this->chargedItems($input);
+        }
+
         return Arr::map(Arr::from($input), $this->normalize(...));
+    }
+
+    private function chargedItems(iterable $input): \Generator
+    {
+        foreach ($input as $key => $value) {
+            $this->chargeItem();
+
+            yield $key => $value;
+        }
     }
 
     public function iterate(mixed $input): FilterInputIterator

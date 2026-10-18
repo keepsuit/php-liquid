@@ -8,6 +8,7 @@ use Keepsuit\Liquid\Attributes\Hidden;
 use Keepsuit\Liquid\Condition\ConditionOperator;
 use Keepsuit\Liquid\Contracts\AsLiquidValue;
 use Keepsuit\Liquid\Exceptions\InvalidArgumentException;
+use Keepsuit\Liquid\Nodes\Range;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Support\DecimalMath;
 use Keepsuit\Liquid\Support\FilterCoercion;
@@ -330,6 +331,10 @@ class StandardFilters extends FiltersProvider
      */
     public function first(mixed $input): mixed
     {
+        if (self::isNativeRange($input)) {
+            return $input->length() === 0 ? null : $input->start;
+        }
+
         if ($input instanceof UndefinedVariable) {
             throw $input->toException();
         }
@@ -391,6 +396,10 @@ class StandardFilters extends FiltersProvider
      */
     public function last(mixed $input): mixed
     {
+        if (self::isNativeRange($input)) {
+            return $input->length() === 0 ? null : $input->end;
+        }
+
         if ($input instanceof UndefinedVariable) {
             throw $input->toException();
         }
@@ -581,6 +590,10 @@ class StandardFilters extends FiltersProvider
      */
     public function size(mixed $input): int
     {
+        if (self::isNativeRange($input)) {
+            return $input->length();
+        }
+
         if ($input instanceof UndefinedVariable) {
             throw $input->toException();
         }
@@ -607,6 +620,12 @@ class StandardFilters extends FiltersProvider
     {
         $start = FilterCoercion::toInteger($start);
         $length = $length === null || $length === false ? 1 : FilterCoercion::toInteger($length);
+
+        if (self::isNativeRange($input)) {
+            $count = $input->length();
+
+            return $start < -$count || $start >= $count || $length <= 0 ? [] : $input->slice($start, $length);
+        }
 
         if (is_iterable($input) && ! is_array($input)) {
             $input = iterator_to_array($input);
@@ -1110,5 +1129,15 @@ class StandardFilters extends FiltersProvider
         }
 
         return true;
+    }
+
+    /**
+     * Subclasses may override iteration, so only the native range can skip materializing.
+     *
+     * @phpstan-assert-if-true Range $input
+     */
+    protected static function isNativeRange(mixed $input): bool
+    {
+        return $input instanceof Range && $input::class === Range::class;
     }
 }

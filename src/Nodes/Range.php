@@ -85,9 +85,9 @@ class Range extends Node implements \IteratorAggregate
     }
 
     /**
-     * @return \ArrayIterator<int, int>
+     * @return \Traversable<int, int>
      */
-    public function getIterator(): \ArrayIterator
+    public function getIterator(): \Traversable
     {
         return new \ArrayIterator($this->toArray());
     }

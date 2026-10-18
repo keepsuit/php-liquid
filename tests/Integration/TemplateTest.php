@@ -174,6 +174,41 @@ describe('rendering with template backends', function () {
         expect($context->resourceLimits->reached())->toBeFalse();
     });
 
+    test('empty loop bodies count toward the render score', function (bool $compiled) {
+        $template = parseTemplate('{% for a in (1..1000) %}{% endfor %}', compiled: $compiled);
+        $context = new RenderContext(
+            resourceLimits: new ResourceLimits(renderScoreLimit: 50)
+        );
+        expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
+    });
+
+    test('size, first, last and slice do not materialize huge ranges', function (bool $compiled) {
+        assertTemplateResult(
+            sprintf('%d|1|%d|%d,%d', PHP_INT_MAX, PHP_INT_MAX, PHP_INT_MAX - 1, PHP_INT_MAX),
+            '{% assign r = (x..y) %}{{ r | size }}|{{ r | first }}|{{ r | last }}|{{ r | slice: -2, 2 | join: "," }}',
+            ['x' => 1, 'y' => PHP_INT_MAX],
+            compiled: $compiled,
+        );
+        assertTemplateResult('||0|', '{% assign r = (x..y) %}{{ r | first }}|{{ r | last }}|{{ r | size }}|{{ r | slice: 0 }}', ['x' => 2, 'y' => 1], compiled: $compiled);
+        assertTemplateResult('|', '{{ (1..3) | slice: -4 }}|{{ (1..3) | slice: 3 }}', compiled: $compiled);
+    });
+
+    test('array filters charge the render score for each item', function (bool $compiled, string $filter) {
+        $template = parseTemplate('{{ (1..3000000) | '.$filter.' }}', compiled: $compiled);
+        $context = new RenderContext(resourceLimits: new ResourceLimits(renderScoreLimit: 1000));
+        expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
+
+        $template = parseTemplate('{{ items | '.$filter.' }}', compiled: $compiled);
+        $items = fn () => yield from range(1, 100);
+
+        $context = new RenderContext(data: ['items' => $items()], resourceLimits: new ResourceLimits(renderScoreLimit: 50));
+        expect(fn () => $template->render($context))->toThrow(ResourceLimitException::class);
+
+        $context = new RenderContext(data: ['items' => $items()], resourceLimits: new ResourceLimits(renderScoreLimit: 1000));
+        $template->render($context);
+        expect($context->resourceLimits->reached())->toBeFalse();
+    })->with(['join', 'sum', 'reverse', 'sort', 'uniq', 'compact']);
+
     test('resource limits abort rendering after first error', function (bool $compiled) {
         $template = parseTemplate('{% for a in (1..100) %} foo1 {% endfor %} bar {% for a in (1..100) %} foo2 {% endfor %}', compiled: $compiled);
         $context = new RenderContext(

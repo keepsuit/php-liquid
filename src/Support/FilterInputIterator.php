@@ -35,18 +35,24 @@ class FilterInputIterator implements IteratorAggregate
             default => [$this->input],
         };
 
-        return $this->normalize($input);
+        return $this->normalize($input, $this->support->chargeIteration($input));
     }
 
-    protected function normalize(iterable $input): Traversable
+    protected function normalize(iterable $input, bool $charged = true): Traversable
     {
         foreach ($input as $value) {
+            if (! $charged) {
+                $this->support->chargeItem();
+            }
+
             yield $this->support->normalize($value);
         }
     }
 
     protected function flatten(array $input): Traversable
     {
+        $this->support->chargeIteration($input);
+
         foreach ($input as $value) {
             if (is_array($value) && array_is_list($value)) {
                 foreach ($this->flatten($value) as $item) {
