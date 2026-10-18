@@ -7,6 +7,10 @@ namespace Keepsuit\Liquid\Support;
  */
 class Str
 {
+    private const CACHE_MAX_ENTRIES = 1024;
+
+    private const CACHE_MAX_KEY_LENGTH = 256;
+
     protected static array $snakeCache = [];
 
     protected static array $camelCache = [];
@@ -18,25 +22,27 @@ class Str
      */
     public static function snake(string $value, string $delimiter = '_'): string
     {
-        $key = $value;
+        $key = $delimiter.':'.$value;
 
-        if (isset(static::$snakeCache[$key][$delimiter])) {
-            return static::$snakeCache[$key][$delimiter];
+        if (isset(static::$snakeCache[$key])) {
+            return static::$snakeCache[$key];
         }
 
         if (! ctype_lower($value)) {
+            $original = $value;
+
             if (($value = preg_replace('/\s+/u', '', ucwords($value))) === null) {
-                return $key;
+                return $original;
             }
 
             if (($value = preg_replace('/(.)(?=[A-Z])/u', '$1'.$delimiter, $value)) === null) {
-                return $key;
+                return $original;
             }
 
             $value = static::lower($value);
         }
 
-        return static::$snakeCache[$key][$delimiter] = $value;
+        return static::remember(static::$snakeCache, $key, $value);
     }
 
     /**
@@ -48,7 +54,7 @@ class Str
             return static::$camelCache[$value];
         }
 
-        return static::$camelCache[$value] = lcfirst(static::studly($value));
+        return static::remember(static::$camelCache, $value, lcfirst(static::studly($value)));
     }
 
     /**
@@ -66,7 +72,31 @@ class Str
 
         $studlyWords = array_map(fn ($word) => ucfirst($word), $words);
 
-        return static::$studlyCache[$key] = implode($studlyWords);
+        return static::remember(static::$studlyCache, $key, implode($studlyWords));
+    }
+
+    /**
+     * Caches keyed by template or data names must stay bounded: long-running workers
+     * would otherwise retain every distinct name they ever see.
+     *
+     * @template T
+     *
+     * @param  T  $value
+     * @return T
+     */
+    public static function remember(array &$cache, string $key, mixed $value): mixed
+    {
+        if (strlen($key) > self::CACHE_MAX_KEY_LENGTH) {
+            return $value;
+        }
+
+        if (count($cache) >= self::CACHE_MAX_ENTRIES) {
+            $cache = [];
+        }
+
+        $cache[$key] = $value;
+
+        return $value;
     }
 
     /**

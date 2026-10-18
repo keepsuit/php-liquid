@@ -46,11 +46,11 @@ final class DropMetadata
      */
     public function possibleNames(string $name): array
     {
-        return $this->possibleNames[$name] ??= array_values(array_unique([
+        return $this->possibleNames[$name] ?? Str::remember($this->possibleNames, $name, array_values(array_unique([
             $name,
             Str::camel($name),
             Str::snake($name),
-        ]));
+        ])));
     }
 
     public function resolveStaticMember(string $name): ?DropMemberResolution
@@ -63,22 +63,20 @@ final class DropMetadata
 
         foreach ($possibleNames as $propertyName) {
             if (in_array($propertyName, $this->properties, true)) {
-                return $this->staticResolution[$name] = DropMemberResolution::property($propertyName);
+                return Str::remember($this->staticResolution, $name, DropMemberResolution::property($propertyName));
             }
         }
 
         foreach ($possibleNames as $methodName) {
             if (in_array($methodName, $this->invokableMethods, true)) {
-                return $this->staticResolution[$name] = DropMemberResolution::method(
+                return Str::remember($this->staticResolution, $name, DropMemberResolution::method(
                     $methodName,
                     in_array($methodName, $this->cacheableMethods, true)
-                );
+                ));
             }
         }
 
-        $this->staticResolution[$name] = null;
-
-        return null;
+        return Str::remember($this->staticResolution, $name, null);
     }
 
     public static function init(Drop $drop): DropMetadata

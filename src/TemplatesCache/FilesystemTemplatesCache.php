@@ -77,8 +77,9 @@ abstract class FilesystemTemplatesCache extends MemoryTemplatesCache
 
     protected function ensureCacheDirectoryExists(): void
     {
-        if (! is_dir($this->cachePath)) {
-            mkdir($this->cachePath, 0755, true);
+        // Another process may create the directory between the check and mkdir().
+        if (! is_dir($this->cachePath) && ! @mkdir($this->cachePath, 0755, true) && ! is_dir($this->cachePath)) {
+            throw new \RuntimeException(sprintf('Unable to create the template cache directory "%s".', $this->cachePath));
         }
     }
 
