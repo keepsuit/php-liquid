@@ -67,6 +67,13 @@ All notable changes to `liquid` will be documented in this file.
     sooner; raise them if needed.
 - Render score increments that would overflow `PHP_INT_MAX` reach the limit instead of failing
   with a `TypeError`.
+- Name caches used to resolve drop members and snake/camel/studly conversions are bounded, so
+  long-running workers no longer retain every distinct lookup name (e.g. `{{ drop[key] }}` with
+  dynamic keys).
+- `FilesystemTemplatesCache` no longer fails when another process creates the cache directory
+  concurrently, and throws a `RuntimeException` when the directory cannot be created.
+- `ResourceLimits` rejects negative limits with an `InvalidArgumentException`; previously every
+  render failed immediately with a `ResourceLimitException`.
 - `CompiledTemplatesCache` artifacts persist the `partials` and `outputs` collected while parsing,
   like the other caches. Outputs that cannot be serialized (closures, resources) throw a
   `RuntimeException` from `CompiledTemplatesCache::set()` instead of being dropped.
