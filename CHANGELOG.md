@@ -53,9 +53,22 @@ All notable changes to `liquid` will be documented in this file.
   - Custom overrides of these methods must declare a compatible `ParsedTemplate` return type.
 - `Range::getIterator()` now declares `\Traversable` instead of `\ArrayIterator`.
   - Callers relying on `ArrayIterator` methods should wrap the result with `iterator_to_array()`.
+- A variable defined in an inner scope shadows outer variables with the same name even when it
+  lacks the looked-up key, like Shopify Liquid. Previously the lookup fell back to the outer
+  variable (e.g. `{% for x in list %}{{ x.k }}{% endfor %}` read `k` from an outer `x`).
+  - `RenderContext::findVariables()` is removed.
+- `RenderContext::set()` with a dotted key (e.g. `product.collections`) overrides only that path
+  for the current scope: the root keeps its own value, so its other keys stay readable. Previously
+  it created a partial array for the root and relied on the outer-scope fallback.
+  - `{{ product }}` inside the scope now renders the original value instead of the partial array.
+  - The override does not apply to an inner variable that shadows the root (e.g. a `for` loop
+    variable with the same name).
 
 ### Fixed
 
+- `render` with a dotted partial name (e.g. `render "snippets.card"`) no longer defines a
+  `snippets` variable in the partial: the variable named after the partial is a literal key,
+  like Shopify Liquid.
 - Deeply nested expressions (e.g. `{{ a[a[a[…]]] }}`) throw `StackLevelException` at parse time
   instead of overflowing the stack and crashing the PHP process.
 - Empty block bodies (e.g. `{% for i in (1..1000000) %}{% endfor %}`) count toward the render
