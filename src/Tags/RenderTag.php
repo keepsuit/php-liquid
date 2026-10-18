@@ -274,9 +274,8 @@ class RenderTag extends Tag implements CanBeCompiled, CanBeStreamed, HasParseTre
     {
         $partialContext = $rootContext->newIsolatedSubContext($templateName);
 
-        foreach ($variables as $key => $value) {
-            $partialContext->set($key, $value);
-        }
+        // Partial names may contain dots: the variable named after them is a literal key, not a path.
+        $partialContext->merge($variables);
 
         foreach ($this->attributes as $key => $value) {
             $partialContext->set($key, $rootContext->evaluate($value));

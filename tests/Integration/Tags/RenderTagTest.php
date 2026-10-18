@@ -45,6 +45,19 @@ test('render tag checks the cache before parsing and after storing a missing par
 });
 
 describe('rendering with template backends', function () {
+    test('partial names with dots define a literal variable, not a path', function (bool $compiled) {
+        assertTemplateResult(
+            '|T|T',
+            '{% render "snippets.card" %}|{% render "product.card", product: product %}|{% render "product.card" for list as product %}',
+            ['product' => ['title' => 'T'], 'list' => [['title' => 'T']]],
+            partials: [
+                'snippets.card' => '{% if snippets %}defined{% endif %}',
+                'product.card' => '{{ product.title }}',
+            ],
+            compiled: $compiled,
+        );
+    });
+
     test('render with no arguments', function (bool $compiled) {
         assertTemplateResult(
             'rendered content',
