@@ -97,3 +97,11 @@ test('filesystem cache does not memoize missing templates', function () {
     $writer->set('missing', parseSource('Hello'));
     expect($reader->get('missing'))->toBeInstanceOf(\Keepsuit\Liquid\Template::class);
 });
+
+test('filesystem cache reports a cache directory that cannot be created', function () {
+    $file = $this->tempDir.'/file';
+    touch($file);
+
+    expect(fn () => new \Keepsuit\Liquid\TemplatesCache\SerializeTemplatesCache($file.'/cache'))
+        ->toThrow(RuntimeException::class, 'Unable to create the template cache directory');
+});
