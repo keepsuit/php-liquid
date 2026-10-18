@@ -24,7 +24,6 @@ use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 use Keepsuit\Liquid\Interrupts\Interrupt;
 use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\ParseContext;
-use Keepsuit\Liquid\Support\Arr;
 use Keepsuit\Liquid\Support\MissingValue;
 use Keepsuit\Liquid\Support\OutputsBag;
 use Keepsuit\Liquid\Template;
@@ -49,6 +48,16 @@ final class RenderContext
      * @var array<array<string, mixed>>
      */
     protected array $scopes;
+
+    /**
+     * Values set on dotted paths, by scope depth (0 = outermost scope), root name and path.
+     * Public so the lookup hot path can skip override resolution without a method call.
+     *
+     * @var array<int, array<string, array<string, array{0: list<string>, 1: mixed}>>>
+     *
+     * @internal
+     */
+    public array $pathOverrides = [];
 
     protected ContextSharedState $sharedState;
 
@@ -127,6 +136,10 @@ final class RenderContext
             throw new RuntimeException('Cannot pop the outer scope');
         }
 
+        if ($this->pathOverrides !== []) {
+            unset($this->pathOverrides[count($this->scopes) - 1]);
+        }
+
         return array_shift($this->scopes) ?? [];
     }
 
@@ -201,15 +214,41 @@ final class RenderContext
         ];
     }
 
+    /**
+     * A dotted key (e.g. `product.collections`) overrides only that path: the root keeps
+     * resolving to its own value, so its other keys stay readable.
+     */
     public function set(string $key, mixed $value): void
     {
         if (str_contains($key, '.')) {
-            Arr::set($this->scopes[0], $key, $value);
+            [$name, $path] = explode('.', $key, 2);
+            $this->pathOverrides[count($this->scopes) - 1][$name][$path] = [explode('.', $path), $value];
 
             return;
         }
 
+        if ($this->pathOverrides !== []) {
+            unset($this->pathOverrides[count($this->scopes) - 1][$key]);
+        }
+
         $this->scopes[0][$key] = $value;
+    }
+
+    /**
+     * Depth of the innermost scope defining $key (0 = outermost scope), or -1 when only
+     * the render data, static data or nothing defines it.
+     *
+     * @internal
+     */
+    public function scopeDepth(string $key): int
+    {
+        foreach ($this->scopes as $index => $scope) {
+            if (array_key_exists($key, $scope)) {
+                return count($this->scopes) - 1 - $index;
+            }
+        }
+
+        return -1;
     }
 
     public function get(string $key): mixed
@@ -247,32 +286,6 @@ final class RenderContext
 
         // Fall back to the implicit self drop only when no value was found anywhere.
         return $key === 'self' ? $this->getSelfDrop() : $this->missingValue;
-    }
-
-    /**
-     * Every value $key resolves to, innermost scope first.
-     *
-     * Only useful to callers that need to fall back to an outer scope when the
-     * innermost value does not satisfy them; prefer findVariable() otherwise.
-     *
-     * @return list<mixed>
-     */
-    public function findVariables(string $key): array
-    {
-        $variables = [];
-
-        foreach ([...$this->scopes, $this->data, $this->sharedState->staticVariables] as $scope) {
-            if (array_key_exists($key, $scope)) {
-                $variables[] = $this->resolveVariable($scope[$key]);
-            }
-        }
-
-        // Fall back to the implicit self drop only when no value was found anywhere.
-        if ($variables === [] && $key === 'self') {
-            return [$this->getSelfDrop()];
-        }
-
-        return $variables;
     }
 
     /**
@@ -499,6 +512,7 @@ final class RenderContext
             $subContext = clone $this;
             $subContext->data = [];
             $subContext->scopes = [[]];
+            $subContext->pathOverrides = [];
             $subContext->dynamicRegisters = [];
             $subContext->interrupts = [];
             $subContext->selfDrop = null;

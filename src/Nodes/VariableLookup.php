@@ -148,39 +148,80 @@ class VariableLookup implements CanBeEvaluated, CanBeExported, HasParseTreeVisit
      */
     public static function evaluateParts(RenderContext $context, string $name, array $lookups): mixed
     {
-        $variable = $context->findVariable($name);
+        if ($context->pathOverrides !== [] && ($override = self::findPathOverride($context, $name, $lookups)) !== null) {
+            [$variable, $remaining] = $override;
+        } else {
+            $variable = $context->findVariable($name);
+            $remaining = $lookups;
 
-        if ($variable instanceof MissingValue) {
-            return self::undefinedValue($context, $name, $lookups);
+            if ($variable instanceof MissingValue) {
+                return self::undefinedValue($context, $name, $lookups);
+            }
         }
 
-        if ($lookups === []) {
+        if ($remaining === []) {
             return $variable;
         }
 
-        $result = self::walkLookupParts($context, $variable, $lookups);
+        $result = self::walkLookupParts($context, $variable, $remaining);
 
-        if (! $result instanceof MissingValue) {
-            return $result;
-        }
+        return $result instanceof MissingValue
+            ? self::undefinedValue($context, $name, $lookups)
+            : $result;
+    }
 
-        // The name resolved but the lookup chain broke on the innermost value: an
-        // outer scope may still hold one the chain resolves against.
-        foreach ($context->findVariables($name) as $candidate) {
-            // Skip the value already walked above: re-walking it would repeat any
-            // side effects the broken chain triggered on the way.
-            if ($candidate === $variable) {
-                continue;
+    /**
+     * Returns the value of the innermost path override matching the start of $lookups,
+     * and the lookups left to walk from it.
+     *
+     * @param  array<string|int|VariableLookup>  $lookups
+     * @return array{0: mixed, 1: array<string|int|VariableLookup>}|null
+     */
+    private static function findPathOverride(RenderContext $context, string $name, array $lookups): ?array
+    {
+        $overrides = $context->pathOverrides;
+        // An override applies only while $name still resolves to a value from the
+        // override's scope or an outer one, not to an inner variable shadowing it.
+        $rootDepth = max($context->scopeDepth($name), 0);
+        $keys = [];
+
+        krsort($overrides);
+
+        foreach ($overrides as $depth => $byName) {
+            if ($depth < $rootDepth) {
+                break;
             }
 
-            $result = self::walkLookupParts($context, $candidate, $lookups);
+            $match = null;
 
-            if (! $result instanceof MissingValue) {
-                return $result;
+            foreach ($byName[$name] ?? [] as [$parts, $value]) {
+                if (count($parts) > count($lookups) || ($match !== null && count($parts) <= count($match[0]))) {
+                    continue;
+                }
+
+                foreach ($parts as $i => $part) {
+                    $key = $keys[$i] ??= $lookups[$i] instanceof VariableLookup ? $context->evaluate($lookups[$i]) : $lookups[$i];
+
+                    if (! (is_string($key) || is_int($key)) || (string) $key !== $part) {
+                        continue 2;
+                    }
+                }
+
+                $match = [$parts, $value];
+            }
+
+            if ($match !== null) {
+                $value = $context->normalizeValue($match[1]);
+
+                if ($value instanceof IsContextAware) {
+                    $value->setContext($context);
+                }
+
+                return [$value, array_slice($lookups, count($match[0]))];
             }
         }
 
-        return self::undefinedValue($context, $name, $lookups);
+        return null;
     }
 
     /**

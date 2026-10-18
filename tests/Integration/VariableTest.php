@@ -64,6 +64,72 @@ describe('rendering with template backends', function () {
         ], factory: $templateFactory, compiled: $compiled);
     });
 
+    test('path overrides keep the other keys of the overridden object', function (bool $compiled) {
+        $factory = (new \Keepsuit\Liquid\EnvironmentFactory)->registerTag(\Keepsuit\Liquid\Tests\Stubs\VariableOverrideTag::class);
+        $product = new class extends \Keepsuit\Liquid\Drop
+        {
+            public string $name = 'Mug';
+
+            public function collections(): array
+            {
+                return ['all', 'sale'];
+            }
+        };
+
+        assertTemplateResult(
+            'Mug:paged|all,sale',
+            '{% override product.collections "paged" %}{{ product.name }}:{{ product.collections }}{% endoverride %}|{{ product.collections | join: "," }}',
+            ['product' => $product],
+            factory: $factory,
+            compiled: $compiled,
+        );
+    });
+
+    test('path overrides apply to nested paths and dynamic keys', function (bool $compiled) {
+        $factory = (new \Keepsuit\Liquid\EnvironmentFactory)->registerTag(\Keepsuit\Liquid\Tests\Stubs\VariableOverrideTag::class);
+
+        assertTemplateResult(
+            'L:p:1:p',
+            '{% override section.settings.collection.items "p" %}{{ section.settings.label }}:{{ section.settings.collection.items }}:{{ section.settings.collection.items.size }}:{{ section.settings.collection[key] }}{% endoverride %}',
+            ['section' => ['settings' => ['label' => 'L', 'collection' => ['items' => [1, 2]]]], 'key' => 'items'],
+            factory: $factory,
+            compiled: $compiled,
+        );
+    });
+
+    test('inner path overrides win and are removed with their scope', function (bool $compiled) {
+        $factory = (new \Keepsuit\Liquid\EnvironmentFactory)->registerTag(\Keepsuit\Liquid\Tests\Stubs\VariableOverrideTag::class);
+
+        assertTemplateResult(
+            '2|1|0|v',
+            '{% override a.b "1" %}{% override a.b "2" %}{{ a.b }}{% endoverride %}|{{ a.b }}{% endoverride %}|{{ a.b }}|{% override missing.key "v" %}{{ missing.key }}{% endoverride %}',
+            ['a' => ['b' => 0]],
+            factory: $factory,
+            compiled: $compiled,
+        );
+    });
+
+    test('path overrides do not apply to an inner variable shadowing the root', function (bool $compiled) {
+        $factory = (new \Keepsuit\Liquid\EnvironmentFactory)->registerTag(\Keepsuit\Liquid\Tests\Stubs\VariableOverrideTag::class);
+
+        assertTemplateResult(
+            'own',
+            '{% override product.collections "paged" %}{% for product in related %}{{ product.collections }}{% endfor %}{% endoverride %}',
+            ['product' => ['collections' => 'all'], 'related' => [['collections' => 'own']]],
+            factory: $factory,
+            compiled: $compiled,
+        );
+    });
+
+    test('an inner variable shadows outer variables with the same name', function (bool $compiled) {
+        assertTemplateResult(
+            '|',
+            '{% for x in outer %}{{ x.k }}{% endfor %}|',
+            ['x' => ['k' => 'outer'], 'outer' => [['j' => 1]]],
+            compiled: $compiled,
+        );
+    });
+
     test('nested variable lookup', function (bool $compiled) {
         assertTemplateResult('1', '{{ c.b }}', [
             'a' => ['b' => 1],
