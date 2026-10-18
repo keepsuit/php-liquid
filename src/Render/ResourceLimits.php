@@ -25,7 +25,13 @@ class ResourceLimits
         public readonly ?int $assignScoreLimit = null,
         public readonly ?int $cumulativeRenderScoreLimit = null,
         public readonly ?int $cumulativeAssignScoreLimit = null,
-    ) {}
+    ) {
+        foreach (get_defined_vars() as $name => $limit) {
+            if ($limit !== null && $limit < 0) {
+                throw new \InvalidArgumentException(sprintf('%s cannot be negative.', $name));
+            }
+        }
+    }
 
     public static function clone(ResourceLimits $limits): ResourceLimits
     {

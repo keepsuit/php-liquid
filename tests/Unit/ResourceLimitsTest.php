@@ -114,3 +114,8 @@ test('render score overflow reaches the limit instead of wrapping', function () 
 
     expect(fn () => $limits->incrementRenderScore(PHP_INT_MAX))->toThrow(ResourceLimitException::class);
 });
+
+test('resource limits reject negative values', function () {
+    expect(fn () => new ResourceLimits(renderScoreLimit: -1))
+        ->toThrow(InvalidArgumentException::class, 'renderScoreLimit cannot be negative.');
+});
