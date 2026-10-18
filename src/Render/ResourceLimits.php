@@ -26,10 +26,17 @@ class ResourceLimits
         public readonly ?int $cumulativeRenderScoreLimit = null,
         public readonly ?int $cumulativeAssignScoreLimit = null,
     ) {
-        foreach (get_defined_vars() as $name => $limit) {
-            if ($limit !== null && $limit < 0) {
-                throw new \InvalidArgumentException(sprintf('%s cannot be negative.', $name));
-            }
+        self::assertNotNegative('renderLengthLimit', $renderLengthLimit);
+        self::assertNotNegative('renderScoreLimit', $renderScoreLimit);
+        self::assertNotNegative('assignScoreLimit', $assignScoreLimit);
+        self::assertNotNegative('cumulativeRenderScoreLimit', $cumulativeRenderScoreLimit);
+        self::assertNotNegative('cumulativeAssignScoreLimit', $cumulativeAssignScoreLimit);
+    }
+
+    private static function assertNotNegative(string $name, ?int $limit): void
+    {
+        if ($limit !== null && $limit < 0) {
+            throw new \InvalidArgumentException(sprintf('%s cannot be negative.', $name));
         }
     }
 
