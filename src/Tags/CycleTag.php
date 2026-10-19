@@ -93,9 +93,9 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
     }
 
     /**
+     * @param  list<Expression>  $variables
      * @internal
      *
-     * @param  list<Expression>  $variables
      */
     public static function renderValues(RenderContext $context, mixed $name, array $variables): string
     {
@@ -111,7 +111,7 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
         };
 
         $iteration = match (true) {
-            isset($register[$key]) && is_int($register[$key]) => $register[$key],
+            isset($register[$key]) && is_int($register[$key]) => (int) $register[$key],
             default => 0,
         };
 

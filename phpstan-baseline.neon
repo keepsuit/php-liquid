@@ -1,6 +1,13 @@
 parameters:
 	ignoreErrors:
 		-
-			message: "#^Parameter \\#3 \\.\\.\\.\\$values of function sprintf expects bool\\|float\\|int\\|string\\|null, mixed given\\.$#"
+			message: '#^Parameter \#1 \$input of method Keepsuit\\Liquid\\Support\\FilterInputIterator\:\:normalize\(\) expects iterable, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Support/FilterInputIterator.php
+
+		-
+			message: '#^Parameter \#3 \.\.\.\$values of function sprintf expects bool\|float\|int\|string\|null, mixed given\.$#'
+			identifier: argument.type
 			count: 1
 			path: tests/Stubs/TestDrop.php
