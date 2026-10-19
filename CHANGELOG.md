@@ -63,6 +63,10 @@ All notable changes to `liquid` will be documented in this file.
   - `{{ product }}` inside the scope now renders the original value instead of the partial array.
   - The override does not apply to an inner variable that shadows the root (e.g. a `for` loop
     variable with the same name).
+- `size`, `first` and `last` resolve as pseudo-properties only with dot notation, like Shopify
+  Liquid: `a["size"]` is a plain key lookup (empty, or an undefined variable error in strict mode,
+  unless `a` has a `size` key).
+  - Replace `a["size"]`, `a["first"]` and `a["last"]` with `a.size`, `a.first` and `a.last`.
 
 ### Fixed
 

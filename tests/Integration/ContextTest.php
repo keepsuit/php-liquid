@@ -1,6 +1,7 @@
 <?php
 
 use Keepsuit\Liquid\Nodes\Range;
+use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Render\RenderContext;
 use Keepsuit\Liquid\Render\RenderContextOptions;
 use Keepsuit\Liquid\Support\UndefinedVariable;
@@ -607,6 +608,13 @@ test('dotted keys bind context aware values to the context', function () {
     expect($context->get('product.drop.test'))->toBe('ok');
 });
 
+test('dotted keys override bracket pseudo-property keys', function () {
+    $context = new RenderContext(data: ['a' => ['size' => 'original']]);
+    $context->set('a.size', 'override');
+
+    expect($context->get('a["size"]'))->toBe('override');
+});
+
 describe('rendering with template backends', function () {
     test('variables not existing', function (bool $compiled, bool $strict) {
         $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
@@ -767,7 +775,12 @@ describe('rendering with template backends', function () {
         assertTemplateResult('true', '{% if value.size > 2 %}true{% else %}false{% endif %}', ['value' => $string], strictVariables: $strict, compiled: $compiled);
         assertTemplateResult('H', '{{ value.first }}', ['value' => $string], strictVariables: $strict, compiled: $compiled);
         assertTemplateResult('d', '{{ value.last }}', ['value' => $string], strictVariables: $strict, compiled: $compiled);
-        assertTemplateResult('11|H|d', '{{ value["size"] }}|{{ value["first"] }}|{{ value["last"] }}', ['value' => $string], strictVariables: $strict, compiled: $compiled);
+        if ($strict) {
+            expect(fn () => renderTemplate('{{ value["size"] }}', ['value' => $string], strictVariables: true, compiled: $compiled))
+                ->toThrow(\Keepsuit\Liquid\Exceptions\UndefinedVariableException::class);
+        } else {
+            assertTemplateResult('||', '{{ value["size"] }}|{{ value["first"] }}|{{ value["last"] }}', ['value' => $string], compiled: $compiled);
+        }
 
         $unicode = 'éclair';
         assertTemplateResult('6', '{{ value.size }}', ['value' => $unicode], strictVariables: $strict, compiled: $compiled);
@@ -810,10 +823,21 @@ describe('rendering with template backends', function () {
 
     test('hash notation for lookup filters', function (bool $compiled, bool $strict) {
         assertTemplateResult('1', '{{ value.first }}', ['value' => [1, 2, 3, 4, 5]], strictVariables: $strict, compiled: $compiled);
-        assertTemplateResult('1', '{{ value["first"] }}', ['value' => [1, 2, 3, 4, 5]], strictVariables: $strict, compiled: $compiled);
+        if ($strict) {
+            expect(fn () => renderTemplate('{{ value["first"] }}', ['value' => [1, 2, 3, 4, 5]], strictVariables: true, compiled: $compiled))
+                ->toThrow(\Keepsuit\Liquid\Exceptions\UndefinedVariableException::class);
+        } else {
+            assertTemplateResult('|', '{{ value["first"] }}|{{ value[key] }}', ['value' => [1, 2, 3, 4, 5], 'key' => 'size'], compiled: $compiled);
+        }
 
         assertTemplateResult('Hello', '{{ value["first"] }}', ['value' => ['first' => 'Hello']], strictVariables: $strict, compiled: $compiled);
-        assertTemplateResult('', '{{ value["first"] }}', ['value' => ['key' => 'value']], strictVariables: $strict, compiled: $compiled);
+        assertTemplateResult('3', '{{ value["size"] }}', ['value' => ['size' => 3, 'a' => 1]], strictVariables: $strict, compiled: $compiled);
+        if ($strict) {
+            expect(fn () => renderTemplate('{{ value["first"] }}', ['value' => ['key' => 'value']], strictVariables: true, compiled: $compiled))
+                ->toThrow(\Keepsuit\Liquid\Exceptions\UndefinedVariableException::class);
+        } else {
+            assertTemplateResult('', '{{ value["first"] }}', ['value' => ['key' => 'value']], compiled: $compiled);
+        }
         assertTemplateResult('|keyvalue', '{{ value.first }}|{{ value | first }}', ['value' => ['key' => 'value']], strictVariables: $strict, compiled: $compiled);
         assertTemplateResult('', '{{ value.first }}', ['value' => new ArrayIterator(['key' => 'value'])], strictVariables: $strict, compiled: $compiled);
     })->with([
@@ -875,3 +899,12 @@ describe('rendering with template backends', function () {
         'strict' => true,
     ]);
 })->with('template backends');
+
+test('context lookups keep the bracket notation of size, first and last', function () {
+    $context = new RenderContext(data: ['value' => [1, 2, 3]]);
+
+    expect($context->get('value.size'))->toBe(3)
+        ->and($context->get('value["size"]'))->toBeNull()
+        ->and($context->get("value['first']"))->toBeNull()
+        ->and(VariableLookup::fromMarkup('value["size"].first')->toString())->toBe('value["size"].first');
+});

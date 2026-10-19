@@ -22,6 +22,7 @@ use Keepsuit\Liquid\Exceptions\StackLevelException;
 use Keepsuit\Liquid\Exceptions\StandardException;
 use Keepsuit\Liquid\Exceptions\UndefinedDropMethodException;
 use Keepsuit\Liquid\Interrupts\Interrupt;
+use Keepsuit\Liquid\Nodes\BracketKey;
 use Keepsuit\Liquid\Nodes\VariableLookup;
 use Keepsuit\Liquid\Parse\ParseContext;
 use Keepsuit\Liquid\Support\MissingValue;
@@ -250,8 +251,8 @@ final class RenderContext
      * Returns the value of the innermost path override matching the start of $lookups,
      * and the lookups left to walk from it.
      *
-     * @param  array<string|int|VariableLookup>  $lookups
-     * @return array{0: mixed, 1: array<string|int|VariableLookup>}|null
+     * @param  array<string|int|VariableLookup|BracketKey>  $lookups
+     * @return array{0: mixed, 1: array<string|int|VariableLookup|BracketKey>}|null
      *
      * @internal
      */
@@ -282,7 +283,11 @@ final class RenderContext
                 }
 
                 foreach ($parts as $i => $part) {
-                    $key = $keys[$i] ??= $lookups[$i] instanceof VariableLookup ? $this->evaluate($lookups[$i]) : $lookups[$i];
+                    $key = $keys[$i] ??= match (true) {
+                        $lookups[$i] instanceof VariableLookup => $this->evaluate($lookups[$i]),
+                        $lookups[$i] instanceof BracketKey => $lookups[$i]->value,
+                        default => $lookups[$i],
+                    };
 
                     if (! (is_string($key) || is_int($key)) || (string) $key !== $part) {
                         continue 2;
