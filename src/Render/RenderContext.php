@@ -51,13 +51,10 @@ final class RenderContext
 
     /**
      * Values set on dotted paths, by scope depth (0 = outermost scope), root name and path.
-     * Public so the lookup hot path can skip override resolution without a method call.
      *
      * @var array<int, array<string, array<string, array{0: list<string>, 1: mixed}>>>
-     *
-     * @internal
      */
-    public array $pathOverrides = [];
+    protected array $pathOverrides = [];
 
     protected ContextSharedState $sharedState;
 
@@ -237,10 +234,8 @@ final class RenderContext
     /**
      * Depth of the innermost scope defining $key (0 = outermost scope), or -1 when only
      * the render data, static data or nothing defines it.
-     *
-     * @internal
      */
-    public function scopeDepth(string $key): int
+    protected function scopeDepth(string $key): int
     {
         foreach ($this->scopes as $index => $scope) {
             if (array_key_exists($key, $scope)) {
@@ -249,6 +244,66 @@ final class RenderContext
         }
 
         return -1;
+    }
+
+    /**
+     * Returns the value of the innermost path override matching the start of $lookups,
+     * and the lookups left to walk from it.
+     *
+     * @param  array<string|int|VariableLookup>  $lookups
+     * @return array{0: mixed, 1: array<string|int|VariableLookup>}|null
+     *
+     * @internal
+     */
+    public function findPathOverride(string $name, array $lookups): ?array
+    {
+        if ($this->pathOverrides === []) {
+            return null;
+        }
+
+        $overrides = $this->pathOverrides;
+        // An override applies only while $name still resolves to a value from the
+        // override's scope or an outer one, not to an inner variable shadowing it.
+        $rootDepth = max($this->scopeDepth($name), 0);
+        $keys = [];
+
+        krsort($overrides);
+
+        foreach ($overrides as $depth => $byName) {
+            if ($depth < $rootDepth) {
+                break;
+            }
+
+            $match = null;
+
+            foreach ($byName[$name] ?? [] as [$parts, $value]) {
+                if (count($parts) > count($lookups) || ($match !== null && count($parts) <= count($match[0]))) {
+                    continue;
+                }
+
+                foreach ($parts as $i => $part) {
+                    $key = $keys[$i] ??= $lookups[$i] instanceof VariableLookup ? $this->evaluate($lookups[$i]) : $lookups[$i];
+
+                    if (! (is_string($key) || is_int($key)) || (string) $key !== $part) {
+                        continue 2;
+                    }
+                }
+
+                $match = [$parts, $value];
+            }
+
+            if ($match !== null) {
+                $value = $this->normalizeValue($match[1]);
+
+                if ($value instanceof IsContextAware) {
+                    $value->setContext($this);
+                }
+
+                return [$value, array_slice($lookups, count($match[0]))];
+            }
+        }
+
+        return null;
     }
 
     public function get(string $key): mixed

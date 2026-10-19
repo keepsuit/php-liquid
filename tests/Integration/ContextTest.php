@@ -600,6 +600,13 @@ test('dotted keys override only that path', function (bool $strict) {
     'strict' => true,
 ]);
 
+test('dotted keys bind context aware values to the context', function () {
+    $context = new RenderContext(data: ['test' => 'ok']);
+    $context->set('product.drop', new ContextSensitiveDrop);
+
+    expect($context->get('product.drop.test'))->toBe('ok');
+});
+
 describe('rendering with template backends', function () {
     test('variables not existing', function (bool $compiled, bool $strict) {
         $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
