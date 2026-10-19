@@ -148,7 +148,9 @@ class VariableLookup implements CanBeEvaluated, CanBeExported, HasParseTreeVisit
      */
     public static function evaluateParts(RenderContext $context, string $name, array $lookups): mixed
     {
-        if ($context->pathOverrides !== [] && ($override = self::findPathOverride($context, $name, $lookups)) !== null) {
+        $override = $context->pathOverrides !== [] ? self::findPathOverride($context, $name, $lookups) : null;
+
+        if ($override !== null) {
             [$variable, $remaining] = $override;
         } else {
             $variable = $context->findVariable($name);
