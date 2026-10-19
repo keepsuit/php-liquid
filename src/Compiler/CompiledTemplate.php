@@ -222,7 +222,7 @@ abstract class CompiledTemplate extends AbstractTemplate
         if ($loop !== null && $alias !== 'forloop') {
             $partialContext->set('forloop', $loop);
         }
-        $partialContext->set($alias, $value);
+        $partialContext->merge([$alias => $value]);
 
         foreach ($attributes as $key => $expression) {
             $partialContext->set($key, VariableLookup::evaluateDescriptor($context, $expression));
@@ -248,7 +248,7 @@ abstract class CompiledTemplate extends AbstractTemplate
 
         $value = $variable ? VariableLookup::evaluateDescriptor($context, $variable) : null;
         $partialContext = $context->newIsolatedSubContext($partialName);
-        $partialContext->set($contextVariableName, $value);
+        $partialContext->merge([$contextVariableName => $value]);
 
         foreach ($attributes as $key => $value) {
             $partialContext->set($key, VariableLookup::evaluateDescriptor($context, $value));

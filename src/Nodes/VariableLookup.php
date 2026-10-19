@@ -148,39 +148,28 @@ class VariableLookup implements CanBeEvaluated, CanBeExported, HasParseTreeVisit
      */
     public static function evaluateParts(RenderContext $context, string $name, array $lookups): mixed
     {
-        $variable = $context->findVariable($name);
+        $override = $context->findPathOverride($name, $lookups);
 
-        if ($variable instanceof MissingValue) {
-            return self::undefinedValue($context, $name, $lookups);
+        if ($override !== null) {
+            [$variable, $remaining] = $override;
+        } else {
+            $variable = $context->findVariable($name);
+            $remaining = $lookups;
+
+            if ($variable instanceof MissingValue) {
+                return self::undefinedValue($context, $name, $lookups);
+            }
         }
 
-        if ($lookups === []) {
+        if ($remaining === []) {
             return $variable;
         }
 
-        $result = self::walkLookupParts($context, $variable, $lookups);
+        $result = self::walkLookupParts($context, $variable, $remaining);
 
-        if (! $result instanceof MissingValue) {
-            return $result;
-        }
-
-        // The name resolved but the lookup chain broke on the innermost value: an
-        // outer scope may still hold one the chain resolves against.
-        foreach ($context->findVariables($name) as $candidate) {
-            // Skip the value already walked above: re-walking it would repeat any
-            // side effects the broken chain triggered on the way.
-            if ($candidate === $variable) {
-                continue;
-            }
-
-            $result = self::walkLookupParts($context, $candidate, $lookups);
-
-            if (! $result instanceof MissingValue) {
-                return $result;
-            }
-        }
-
-        return self::undefinedValue($context, $name, $lookups);
+        return $result instanceof MissingValue
+            ? self::undefinedValue($context, $name, $lookups)
+            : $result;
     }
 
     /**

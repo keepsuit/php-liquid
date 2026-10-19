@@ -66,17 +66,20 @@ test('add item in outer scope', function (bool $strict) {
     'strict' => true,
 ]);
 
-test('lookup falls back to outer scope when the inner value has no such key', function (bool $strict) {
+test('an inner value shadows the outer one even when it has no such key', function (bool $strict) {
     $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
     $context->set('product', ['title' => 'outer']);
 
     $context->stack(function () use ($context, $strict) {
-        // The inner `product` shadows the outer one but cannot resolve `.title`,
-        // so resolution has to continue into the outer scope.
         $context->set('product', ['handle' => 'inner']);
 
         expect($context->get('product.handle'))->toBe('inner');
-        expect($context->get('product.title'))->toBe('outer');
+
+        if ($strict) {
+            expect($context->get('product.title'))->toBeInstanceOf(UndefinedVariable::class);
+        } else {
+            expect($context->get('product.title'))->toBeNull();
+        }
 
         if ($strict) {
             expect($context->get('product.missing'))->toBeInstanceOf(UndefinedVariable::class);
@@ -105,7 +108,7 @@ test('null values shadow outer values at every lookup level', function () {
 
     $context->stack(function (RenderContext $context) {
         $context->set('product', ['other' => true]);
-        expect($context->get('product.title'))->toBeNull();
+        expect($context->get('product.title'))->toBeInstanceOf(UndefinedVariable::class);
     });
 });
 
@@ -579,20 +582,30 @@ test('lazy variable resolution distinguishes defined-null from undefined', funct
     'strict' => true,
 ]);
 
-test('lazy variable resolution falls back when a lookup path misses', function (bool $strict) {
+test('dotted keys override only that path', function (bool $strict) {
     $context = new RenderContext(options: new RenderContextOptions(strictVariables: $strict));
-    $context->set('test', ['b' => 'outer']);
+    $context->set('test', ['b' => 'outer', 'c' => 'outer']);
 
     $context->stack(function () use ($context) {
-        $context->set('test', ['c' => 'inner']);
+        $context->set('test.c', 'inner');
 
-        expect($context->get('test.c'))->toBe('inner');
         expect($context->get('test.b'))->toBe('outer');
+        expect($context->get('test.c'))->toBe('inner');
+        expect($context->get('test'))->toBe(['b' => 'outer', 'c' => 'outer']);
     });
+
+    expect($context->get('test.c'))->toBe('outer');
 })->with([
     'default' => false,
     'strict' => true,
 ]);
+
+test('dotted keys bind context aware values to the context', function () {
+    $context = new RenderContext(data: ['test' => 'ok']);
+    $context->set('product.drop', new ContextSensitiveDrop);
+
+    expect($context->get('product.drop.test'))->toBe('ok');
+});
 
 describe('rendering with template backends', function () {
     test('variables not existing', function (bool $compiled, bool $strict) {
