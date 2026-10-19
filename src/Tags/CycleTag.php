@@ -94,8 +94,8 @@ class CycleTag extends Tag implements HasParseTreeVisitorChildren
 
     /**
      * @param  list<Expression>  $variables
-     * @internal
      *
+     * @internal
      */
     public static function renderValues(RenderContext $context, mixed $name, array $variables): string
     {
