@@ -2,6 +2,153 @@
 
 All notable changes to `liquid` will be documented in this file.
 
+## v0.13.0 - 2026-11-02
+
+#### Added
+
+- Opt-in compiled template artifacts via `Environment::compile()`, loadable with `require`
+  and supporting both rendering and streaming.
+- `TemplatesCache\CompiledTemplatesCache` compiles parsed templates into reusable PHP artifacts on disk.
+
+#### Breaking changes
+
+- `Keepsuit\Liquid\Template` is now an interface. Use `ParsedTemplate` for the concrete
+  parsed template class; `AbstractTemplate` is the shared base class. Serialized caches
+  containing the old `Template` class become cache misses.
+  - Replace `new Template($document)` with `new ParsedTemplate($document)`.
+  - `$template->root` is only available on `ParsedTemplate`; type hints on `Template` keep working.
+  - Stale serialized entries are reparsed and overwritten on first use; clear the cache on deploy
+    to avoid the reparse.
+  
+- Remove the protected `renderOutput` method from `Nodes\Variable` and the protected
+  `undefined` and `walkLookups` methods from `Nodes\VariableLookup`.
+  - Replace `$this->renderOutput($output)` with `Variable::renderEvaluated($context, $output)`.
+  - Subclasses of `VariableLookup` should override `evaluate()` or call
+    `VariableLookup::evaluateParts($context, $name, $lookups)`, which resolves the lookup chain
+    and returns `UndefinedVariable` under `strictVariables`.
+  
+- Native nodes and tags now implement `CanBeCompiled` or `CanBeExported`, adding public
+  `compile()` and `export()` methods. `Condition` adds the public `compileExpression()` and
+  static `compare()` methods. Subclasses that already declare these methods with a different
+  signature must be updated.
+  - Rename unrelated `compile()`/`export()` methods, or match the signatures
+    `compile(CompilerContext $context): void` and `export(CompilerContext $context): ?string`.
+  
+- Interpreted `BodyNode::stream()` now yields chunks of custom `CanBeStreamed` nodes without
+  buffering, so stream chunk boundaries may change. The concatenated output is unchanged.
+  - Code that inspects individual chunks should concatenate them instead.
+  
+- Align float output and string conversions with Shopify Liquid 5.13: integral floats
+  retain `.0`, full float precision is preserved, and scientific notation follows Ruby.
+  Prices and output snapshots may change.
+  - `{{ 3.0 }}` and `{{ 2 | times: 1.0 }}` now render `3.0` and `2.0` instead of `3` and `2`.
+    Apply `round` or a money filter where an integral output is expected.
+  
+- `plus`, `minus`, `times`, `divided_by`, `modulo` and `sum` compute with decimal arithmetic like
+  Shopify (`{{ 0.1 | plus: 0.2 }}` renders `0.3`). Adds the `brick/math` dependency.
+- Align `tablerow` HTML whitespace with Shopify: adjacent cells, newlines between rows,
+  and a final newline after `</tr>`. Remove reliance on platform-specific line endings.
+- Preserve whitespace inside `raw` bodies when their delimiters use whitespace control;
+  the markers continue to trim surrounding text. Environment options remain independent.
+- Reject incomplete `if`/`elsif`/`unless` conditions, empty tags, duplicate `for` `else`
+  sections, and missing filter arguments with `SyntaxException` during parsing. Templates
+  previously accepted with these syntax errors must be corrected. Parsing remains strict
+  independently of render options; existing strict2-aligned syntax restrictions are unchanged.
+- `ParseContext::parse()` and `Environment::parseString()` now return `ParsedTemplate` instead of `Template`.
+  - Custom overrides of these methods must declare a compatible `ParsedTemplate` return type.
+  
+- `Range::getIterator()` now declares `\Traversable` instead of `\ArrayIterator`.
+  - Callers relying on `ArrayIterator` methods should wrap the result with `iterator_to_array()`.
+  
+- A variable defined in an inner scope shadows outer variables with the same name even when it
+  lacks the looked-up key, like Shopify Liquid. Previously the lookup fell back to the outer
+  variable (e.g. `{% for x in list %}{{ x.k }}{% endfor %}` read `k` from an outer `x`).
+  - `RenderContext::findVariables()` is removed.
+  
+- `RenderContext::set()` with a dotted key (e.g. `product.collections`) overrides only that path
+  for the current scope: the root keeps its own value, so its other keys stay readable. Previously
+  it created a partial array for the root and relied on the outer-scope fallback.
+  - `{{ product }}` inside the scope now renders the original value instead of the partial array.
+  - The override does not apply to an inner variable that shadows the root (e.g. a `for` loop
+    variable with the same name).
+  
+- `size`, `first` and `last` resolve as pseudo-properties only with dot notation, like Shopify
+  Liquid: `a["size"]` is a plain key lookup (empty, or an undefined variable error in strict mode,
+  unless `a` has a `size` key).
+  - Replace `a["size"]`, `a["first"]` and `a["last"]` with `a.size`, `a.first` and `a.last`.
+  
+
+#### Fixed
+
+- `render` with a dotted partial name (e.g. `render "snippets.card"`) no longer defines a
+  `snippets` variable in the partial: the variable named after the partial is a literal key,
+  like Shopify Liquid.
+- Deeply nested expressions (e.g. `{{ a[a[a[…]]] }}`) throw `StackLevelException` at parse time
+  instead of overflowing the stack and crashing the PHP process.
+- Empty block bodies (e.g. `{% for i in (1..1000000) %}{% endfor %}`) count toward the render
+  score, so `renderScoreLimit` can no longer be bypassed with empty loops.
+- `size`, `first`, `last` and `slice` on a range no longer materialize it.
+- Array filters (`join`, `sum`, `map`, `sort`, `reverse`, …) charge one render score point per
+  item, so `renderScoreLimit` stops `{{ (1..10000000) | sum }}` before the range is materialized.
+  - Templates applying array filters to large collections reach existing render score limits
+    sooner; raise them if needed.
+  
+- Render score increments that would overflow `PHP_INT_MAX` reach the limit instead of failing
+  with a `TypeError`.
+- Name caches used to resolve drop members and snake/camel/studly conversions are bounded, so
+  long-running workers no longer retain every distinct lookup name (e.g. `{{ drop[key] }}` with
+  dynamic keys).
+- `FilesystemTemplatesCache` no longer fails when another process creates the cache directory
+  concurrently, and throws a `RuntimeException` when the directory cannot be created.
+- `ResourceLimits` rejects negative limits with an `InvalidArgumentException`; previously every
+  render failed immediately with a `ResourceLimitException`.
+- `CompiledTemplatesCache` artifacts persist the `partials` and `outputs` collected while parsing,
+  like the other caches. Outputs that cannot be serialized (closures, resources) throw a
+  `RuntimeException` from `CompiledTemplatesCache::set()` instead of being dropped.
+  Artifacts compiled before this change keep working with empty state until recompiled.
+
+#### Notes
+
+- `Environment::parseTemplate()` returns the template read back from the cache after storing it, so the
+  first load of a named template with `CompiledTemplatesCache` returns a compiled template like later loads.
+  Caches that do not retain templates fall back to the parsed instance.
+- Compiled artifacts keep their actual write timestamps, following the configured OPcache
+  `file_update_protection`.
+- Custom `CanBeCompiled` nodes must throw `Keepsuit\Liquid\Compiler\UnsupportedNodeException`
+  to request runtime fallback; any other exception aborts compilation. Emit generated
+  yields through `CompilerContext::writeYield()`, not `write('yield ...')`.
+- Compiled artifact classes are never unloaded in long-running workers.
+
+#### Performance
+
+- Filesystem template caches keep templates loaded from disk in memory when `keepInMemory` is enabled, instead of reading and unserializing them on every lookup.
+- Faster partial rendering and variable resolution: isolated sub-contexts are cloned instead of
+  constructed, and compiled templates output string values without runtime calls.
+- Integer outputs are rendered without a runtime call.
+
+### What's Changed
+
+* fix(render): do not leak stack traces in arithmetic errors by @cappuc in https://github.com/keepsuit/php-liquid/pull/85
+* Fix Shopify comparison and lookup semantics by @cappuc in https://github.com/keepsuit/php-liquid/pull/86
+* fix: align loop, range and counter behaviour with Shopify Liquid by @cappuc in https://github.com/keepsuit/php-liquid/pull/87
+* Fix date filter strftime formatting by @cappuc in https://github.com/keepsuit/php-liquid/pull/88
+* Fix Liquid numeric filter coercion and arithmetic semantics by @cappuc in https://github.com/keepsuit/php-liquid/pull/89
+* Fix strict parsing of incomplete Liquid syntax by @cappuc in https://github.com/keepsuit/php-liquid/pull/90
+* Fix string and HTML filter compatibility with Shopify Liquid by @cappuc in https://github.com/keepsuit/php-liquid/pull/91
+* Fix Shopify-compatible array filter coercion and semantics by @cappuc in https://github.com/keepsuit/php-liquid/pull/92
+* Fix float, tablerow and raw output formatting by @cappuc in https://github.com/keepsuit/php-liquid/pull/93
+* Keep filesystem-cached templates in memory after the first load by @cappuc in https://github.com/keepsuit/php-liquid/pull/94
+* Add opt-in compiled template artifacts by @cappuc in https://github.com/keepsuit/php-liquid/pull/72
+* fix(compiler): persist parse-time state in compiled artifacts by @cappuc in https://github.com/keepsuit/php-liquid/pull/95
+* fix: align template parsing and artifact caching; simplify backend tests by @cappuc in https://github.com/keepsuit/php-liquid/pull/96
+* fix: harden render limits against nested expressions, empty loops and large ranges by @cappuc in https://github.com/keepsuit/php-liquid/pull/97
+* fix: bound name caches, tolerate concurrent cache directory creation, reject negative limits by @cappuc in https://github.com/keepsuit/php-liquid/pull/98
+* perf: render integer outputs without a runtime call by @cappuc in https://github.com/keepsuit/php-liquid/pull/99
+* fix(context)!: path overrides instead of outer-scope lookup fallback by @cappuc in https://github.com/keepsuit/php-liquid/pull/100
+* fix(liquid)!: size, first and last pseudo-properties only with dot notation by @cappuc in https://github.com/keepsuit/php-liquid/pull/101
+
+**Full Changelog**: https://github.com/keepsuit/php-liquid/compare/v0.12.1...v0.13.0
+
 ## Unreleased
 
 ### Added
@@ -19,26 +166,31 @@ All notable changes to `liquid` will be documented in this file.
   - `$template->root` is only available on `ParsedTemplate`; type hints on `Template` keep working.
   - Stale serialized entries are reparsed and overwritten on first use; clear the cache on deploy
     to avoid the reparse.
+  
 - Remove the protected `renderOutput` method from `Nodes\Variable` and the protected
   `undefined` and `walkLookups` methods from `Nodes\VariableLookup`.
   - Replace `$this->renderOutput($output)` with `Variable::renderEvaluated($context, $output)`.
   - Subclasses of `VariableLookup` should override `evaluate()` or call
     `VariableLookup::evaluateParts($context, $name, $lookups)`, which resolves the lookup chain
     and returns `UndefinedVariable` under `strictVariables`.
+  
 - Native nodes and tags now implement `CanBeCompiled` or `CanBeExported`, adding public
   `compile()` and `export()` methods. `Condition` adds the public `compileExpression()` and
   static `compare()` methods. Subclasses that already declare these methods with a different
   signature must be updated.
   - Rename unrelated `compile()`/`export()` methods, or match the signatures
     `compile(CompilerContext $context): void` and `export(CompilerContext $context): ?string`.
+  
 - Interpreted `BodyNode::stream()` now yields chunks of custom `CanBeStreamed` nodes without
   buffering, so stream chunk boundaries may change. The concatenated output is unchanged.
   - Code that inspects individual chunks should concatenate them instead.
+  
 - Align float output and string conversions with Shopify Liquid 5.13: integral floats
   retain `.0`, full float precision is preserved, and scientific notation follows Ruby.
   Prices and output snapshots may change.
   - `{{ 3.0 }}` and `{{ 2 | times: 1.0 }}` now render `3.0` and `2.0` instead of `3` and `2`.
     Apply `round` or a money filter where an integral output is expected.
+  
 - `plus`, `minus`, `times`, `divided_by`, `modulo` and `sum` compute with decimal arithmetic like
   Shopify (`{{ 0.1 | plus: 0.2 }}` renders `0.3`). Adds the `brick/math` dependency.
 - Align `tablerow` HTML whitespace with Shopify: adjacent cells, newlines between rows,
@@ -51,22 +203,27 @@ All notable changes to `liquid` will be documented in this file.
   independently of render options; existing strict2-aligned syntax restrictions are unchanged.
 - `ParseContext::parse()` and `Environment::parseString()` now return `ParsedTemplate` instead of `Template`.
   - Custom overrides of these methods must declare a compatible `ParsedTemplate` return type.
+  
 - `Range::getIterator()` now declares `\Traversable` instead of `\ArrayIterator`.
   - Callers relying on `ArrayIterator` methods should wrap the result with `iterator_to_array()`.
+  
 - A variable defined in an inner scope shadows outer variables with the same name even when it
   lacks the looked-up key, like Shopify Liquid. Previously the lookup fell back to the outer
   variable (e.g. `{% for x in list %}{{ x.k }}{% endfor %}` read `k` from an outer `x`).
   - `RenderContext::findVariables()` is removed.
+  
 - `RenderContext::set()` with a dotted key (e.g. `product.collections`) overrides only that path
   for the current scope: the root keeps its own value, so its other keys stay readable. Previously
   it created a partial array for the root and relied on the outer-scope fallback.
   - `{{ product }}` inside the scope now renders the original value instead of the partial array.
   - The override does not apply to an inner variable that shadows the root (e.g. a `for` loop
     variable with the same name).
+  
 - `size`, `first` and `last` resolve as pseudo-properties only with dot notation, like Shopify
   Liquid: `a["size"]` is a plain key lookup (empty, or an undefined variable error in strict mode,
   unless `a` has a `size` key).
   - Replace `a["size"]`, `a["first"]` and `a["last"]` with `a.size`, `a.first` and `a.last`.
+  
 
 ### Fixed
 
@@ -82,6 +239,7 @@ All notable changes to `liquid` will be documented in this file.
   item, so `renderScoreLimit` stops `{{ (1..10000000) | sum }}` before the range is materialized.
   - Templates applying array filters to large collections reach existing render score limits
     sooner; raise them if needed.
+  
 - Render score increments that would overflow `PHP_INT_MAX` reach the limit instead of failing
   with a `TypeError`.
 - Name caches used to resolve drop members and snake/camel/studly conversions are bounded, so
