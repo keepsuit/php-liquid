@@ -48,7 +48,6 @@ class AssignTag extends Tag implements CanBeCompiled, HasParseTreeVisitorChildre
     public function render(RenderContext $context): string
     {
         $value = $this->from->evaluate($context);
-        array_sum(range(1, 100));
 
         $context->setToActiveScope($this->to, $value);
         $context->resourceLimits->incrementAssignScore(static::computeAssignScore($value));
