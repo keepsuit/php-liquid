@@ -14,6 +14,8 @@ use PhpBench\Attributes\Iterations;
 use PhpBench\Attributes\OutputMode;
 use PhpBench\Attributes\OutputTimeUnit;
 use PhpBench\Attributes\Revs;
+use Tally\Attribute\Before;
+use Tally\Attribute\Warmup;
 
 #[Groups(['operations'])]
 #[Iterations(10)]
@@ -21,6 +23,7 @@ use PhpBench\Attributes\Revs;
 #[OutputMode('throughput')]
 #[OutputTimeUnit('seconds', precision: 3)]
 #[BeforeMethods('setUp')]
+#[Warmup(1)]
 class OperationBench
 {
     private Environment $environment;
@@ -81,6 +84,7 @@ class OperationBench
     /** @var ProductDrop[] */
     protected array $productList;
 
+    #[Before]
     public function setUp(): void
     {
         $this->environment = EnvironmentFactory::new()->build();

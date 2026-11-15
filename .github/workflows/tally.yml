@@ -1,0 +1,38 @@
+name: Tally Benchmarks
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tally:
+    # Expected counts are only valid for this exact image and PHP setup; changing either means re-accepting them.
+    runs-on: ubuntu-24.04
+    name: Tally (PHP 8.5)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: mbstring, posix
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Run Tally
+        run: vendor/bin/tally run --output=tmp/tally-results
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tally-results
+          path: tmp/tally-results
