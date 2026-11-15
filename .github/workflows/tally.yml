@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   expected:
@@ -27,8 +28,28 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
+      # The report also goes to a file of its own, for the PR comment.
       - name: Run Tally
-        run: vendor/bin/tally run --output=tmp/tally-results
+        run: GITHUB_STEP_SUMMARY="$RUNNER_TEMP/tally.md" vendor/bin/tally run --output=tmp/tally-results
+
+      - name: Publish report
+        if: always()
+        run: cat "$RUNNER_TEMP/tally.md" >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+
+      - name: Comment on PR
+        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            const file = `${process.env.RUNNER_TEMP}/tally.md`;
+            if (!fs.existsSync(file)) return;
+            const report = fs.readFileSync(file, 'utf8');
+            await require('./.github/scripts/upsert-pr-comment.js')({
+              github, context,
+              marker: '<!-- tally-php-8.5 -->',
+              body: `# Tally (PHP 8.5)\nCompared with the committed \`#[Expected]\` numbers.\n\n${report}`,
+            });
 
       - name: Upload results
         if: always()
@@ -99,4 +120,24 @@ jobs:
         run: |
           sed -i '/#\[Expected(/d' $TALLY_PATHS
           env -u GITHUB_ACTIONS vendor/bin/tally accept "$RUNNER_TEMP/base-results" $TALLY_PATHS
-          vendor/bin/tally compare "$RUNNER_TEMP/pr-results" $TALLY_PATHS
+          GITHUB_STEP_SUMMARY="$RUNNER_TEMP/tally.md" vendor/bin/tally compare "$RUNNER_TEMP/pr-results" $TALLY_PATHS
+
+      - name: Publish report
+        if: always()
+        run: cat "$RUNNER_TEMP/tally.md" >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+
+      - name: Comment on PR
+        if: always() && github.event.pull_request.head.repo.fork == false && steps.base.outputs.skip != 'true'
+        uses: actions/github-script@v9
+        env:
+          PHP_VERSION: ${{ matrix.php }}
+        with:
+          script: |
+            const fs = require('fs');
+            const file = `${process.env.RUNNER_TEMP}/tally.md`;
+            if (!fs.existsSync(file)) return;
+            await require('./.github/scripts/upsert-pr-comment.js')({
+              github, context,
+              marker: `<!-- tally-php-${process.env.PHP_VERSION} -->`,
+              body: `# Tally (PHP ${process.env.PHP_VERSION})\nCompared with the base measured in the same job. Committed numbers are PHP 8.5 only: never accept these.\n\n${fs.readFileSync(file, 'utf8')}`,
+            });
