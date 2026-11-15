@@ -1,5 +1,21 @@
 # Benchmark suite
 
+Two tools, two jobs:
+
+- **[Tally](https://github.com/phpstan/tally)** gates pull requests. It counts
+  instructions, cycles and memory under a CPU simulation, so the same code gives
+  the same numbers on every run. It answers *"did this PR add work?"*.
+- **PHPBench** measures wall-clock time locally. It answers *"is it actually
+  faster?"*, which counts cannot: allocations, cache misses and file I/O cost time
+  that instructions do not show.
+
+| Benchmark | Tally (CI) | PHPBench (local) |
+| --- | --- | --- |
+| `OperationBench` | per-feature gate | when needed |
+| `ThemeBench` | whole-pipeline gate | confirm speedups, compare interpreted vs compiled, profile |
+| `GrowthBench` | complexity bounds | — |
+| `TemplateCacheBench` | — (file I/O) | yes |
+
 ```bash
 composer benchmark             # default group: the storefront theme
 composer benchmark:cache       # cache group: template-cache backends
@@ -35,13 +51,56 @@ The split is what lets the theme be realistic. Whenever realism and measurement
 sensitivity conflict inside the theme, realism wins — sensitivity is not the
 theme's job.
 
-Benchmarks run with OPcache enabled and JIT disabled, both locally (`phpbench.json`)
+Benchmarks run with OPcache enabled and JIT disabled, in both tools (`phpbench.json`, `tally.php`)
 and in CI. With JIT, short-lived benchmark processes mostly measure JIT compilation of
 the large generated template functions.
 
-Pull-request comparisons enforce a worst-subject throughput regression threshold
-of 5%. The comparator still labels changes inside its 2% noise band as neutral,
-and marks RSD above 5% as high variance for review.
+**`GrowthBench`** (`performance/tally/`, Tally only) checks how cost grows with
+input size instead of pinning numbers: a `limit`ed range must stay constant from
+10 to 1M items, and a product loop and `uniq` on nested lists must stay at most
+linear from 4 to 96 items. It lives outside `performance/benchmarks` because
+PHPBench cannot run Tally data providers.
+
+## Tally in CI
+
+`tally.yml` runs two jobs on every pull request:
+
+- **PHP 8.5** compares every case with the `#[Expected]` numbers committed next to
+  it, and checks the `GrowthBench` bounds. Tolerance: ±2 % instructions, ±5 %
+  cycles, ±5 % memory.
+- **PHP 8.2–8.4** have no committed numbers. Each job measures the base and the PR
+  in the same run, writes the base numbers into the PR's benchmark files and
+  compares the PR against them.
+
+Tally needs Linux: `tally.php` configures it, and locally it runs in a
+`php:8.5-cli` container. Local numbers differ from CI, so they are never
+committed.
+
+### Updating `#[Expected]`
+
+Update the numbers only when a change is known and intended, in the same PR that
+causes it:
+
+- **slower**: find the cause first. Accept only if it is the price of the change,
+  and say why in the PR description. Otherwise it is a regression.
+- **faster**: accept, or a later regression back to the old numbers goes unnoticed.
+- **new**, or the benchmark itself changed: accept.
+- **the environment changed** (runner image, PHP patch release, extensions, ini,
+  Tally version): accept in a dedicated PR with no other changes.
+
+Never accept just to turn CI green, in a later PR, or for drift inside the
+tolerance. Small increases that each pass add up until one PR crosses the
+tolerance: check the benchmark's history before blaming that PR alone.
+
+Take the numbers from the last CI run of the PR only:
+
+```bash
+gh run download <run-id> -p 'tally-*' -D tmp/tally
+vendor/bin/tally accept tmp/tally
+```
+
+A diff on `#[Expected]` is a performance change: review it, never approve it on
+autopilot.
 
 ## The storefront fixture
 
@@ -106,8 +165,8 @@ Known gaps, in rough priority order:
 - **Additional per-tag `operations` subjects.** The suite isolates property,
   method, `liquidMethodMissing` hit/miss, filters and list-size scaling, but it
   does not yet isolate `case`, `capture`, `cycle` or `render` depth.
-- **Full-theme size scaling.** The operations group exposes 4 / 24 / 96-product
-  loop scaling, while the storefront theme deliberately keeps a fixed 24-product
+- **Full-theme size scaling.** `GrowthBench` checks 4 / 24 / 96-product loop
+  scaling, while the storefront theme deliberately keeps a fixed 24-product
   dataset. A second full-theme size profile would be useful only if a suspected
   regression needs that wider lens.
 - **Coverage-only tags.** `tablerow`, `increment`, `decrement`, `ifchanged`,

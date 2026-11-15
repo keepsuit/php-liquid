@@ -13,3 +13,7 @@
 /art export-ignore
 /docs export-ignore
 /UPGRADING.md export-ignore
+/performance export-ignore
+/tools export-ignore
+/phpbench.json export-ignore
+/tally.php export-ignore
