@@ -16,6 +16,9 @@ use PhpBench\Attributes\OutputMode;
 use PhpBench\Attributes\OutputTimeUnit;
 use PhpBench\Attributes\Revs;
 use Spatie\TemporaryDirectory\TemporaryDirectory;
+use Tally\Attribute\After;
+use Tally\Attribute\Before;
+use Tally\Attribute\Warmup;
 
 /**
  * Whole-pipeline canary for the storefront theme.
@@ -33,6 +36,7 @@ use Spatie\TemporaryDirectory\TemporaryDirectory;
 #[Revs(20)]
 #[OutputMode('throughput')]
 #[OutputTimeUnit('seconds', precision: 3)]
+#[Warmup(1)]
 class ThemeBench
 {
     private Environment $environment;
@@ -57,6 +61,8 @@ class ThemeBench
     /** @var list<string> */
     private array $pageTemplateNames;
 
+    // Tally hooks are per class, so every case gets both setups; neither is counted.
+    #[Before]
     public function setUp(): void
     {
         $this->environment = StorefrontTheme::environment();
@@ -74,6 +80,7 @@ class ThemeBench
         $this->pageTemplateNames = StorefrontTheme::pageTemplateNames();
     }
 
+    #[Before]
     public function setUpCompiled(): void
     {
         $this->compiledDirectory = (new TemporaryDirectory)->deleteWhenDestroyed()->create();
@@ -91,6 +98,7 @@ class ThemeBench
         $this->pageTemplateNames = StorefrontTheme::pageTemplateNames();
     }
 
+    #[After]
     public function tearDownCompiled(): void
     {
         $this->compiledCache->clear();
