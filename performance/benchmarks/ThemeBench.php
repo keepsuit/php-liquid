@@ -18,7 +18,6 @@ use PhpBench\Attributes\Revs;
 use Spatie\TemporaryDirectory\TemporaryDirectory;
 use Tally\Attribute\After;
 use Tally\Attribute\Before;
-use Tally\Attribute\Expected;
 use Tally\Attribute\Warmup;
 
 /**
@@ -107,7 +106,6 @@ class ThemeBench
     }
 
     #[BeforeMethods('setUp')]
-    #[Expected(instructions: '11.17M', cycles: '12.87M', memory: '337.5KiB')]
     public function benchTokenize(): void
     {
         foreach ($this->sources as $source) {
@@ -116,7 +114,6 @@ class ThemeBench
     }
 
     #[BeforeMethods('setUp')]
-    #[Expected(instructions: '24.15M', cycles: '30.30M', memory: '359.6KiB')]
     public function benchParse(): void
     {
         foreach ($this->sources as $name => $source) {
@@ -125,7 +122,6 @@ class ThemeBench
     }
 
     #[BeforeMethods('setUp')]
-    #[Expected(instructions: '64.82M', cycles: '81.67M', memory: '123.8KiB')]
     public function benchCompile(): void
     {
         $compiler = new Compiler;
@@ -136,7 +132,6 @@ class ThemeBench
     }
 
     #[BeforeMethods('setUp')]
-    #[Expected(instructions: '19.80M', cycles: '27.46M', memory: '296.7KiB')]
     public function benchRender(): void
     {
         foreach ($this->pageTemplateNames as $pageTemplateName) {
@@ -146,7 +141,6 @@ class ThemeBench
 
     #[BeforeMethods('setUpCompiled')]
     #[AfterMethods('tearDownCompiled')]
-    #[Expected(instructions: '16.70M', cycles: '23.27M', memory: '296.7KiB')]
     public function benchRenderCompiled(): void
     {
         foreach ($this->pageTemplateNames as $pageTemplateName) {
@@ -155,7 +149,6 @@ class ThemeBench
     }
 
     #[BeforeMethods('setUp')]
-    #[Expected(instructions: '22.70M', cycles: '32.63M', memory: '271.5KiB')]
     public function benchStream(): void
     {
         foreach ($this->pageTemplateNames as $pageTemplateName) {
@@ -165,7 +158,6 @@ class ThemeBench
 
     #[BeforeMethods('setUpCompiled')]
     #[AfterMethods('tearDownCompiled')]
-    #[Expected(instructions: '18.54M', cycles: '26.56M', memory: '245.3KiB')]
     public function benchStreamCompiled(): void
     {
         foreach ($this->pageTemplateNames as $pageTemplateName) {

@@ -63,44 +63,21 @@ PHPBench cannot run Tally data providers.
 
 ## Tally in CI
 
-`tally.yml` runs two jobs on every pull request:
+`tally.yml` compares every pull request with its base, on PHP 8.2 to 8.5. Each job
+measures both in the same run, so the runner, the PHP build and the libraries are
+the same for both, and only the code can move the numbers. No numbers are
+committed, so there is nothing to keep up to date. `GrowthBench` checks its
+bounds on the PR alone. Tolerance: ±2 % instructions, ±5 % cycles, ±5 % memory.
 
-- **PHP 8.5** compares every case with the `#[Expected]` numbers committed next to
-  it, and checks the `GrowthBench` bounds. Tolerance: ±2 % instructions, ±5 %
-  cycles, ±5 % memory.
-- **PHP 8.2–8.4** have no committed numbers. Each job measures the base and the PR
-  in the same run, writes the base numbers into the PR's benchmark files and
-  compares the PR against them.
+Each PR gets one comment per PHP version. A slower case fails the job: find the
+cause, and if it is the price of the change, say why in the PR description.
 
-Tally needs Linux: `tally.php` configures it, and locally it runs in a
-`php:8.5-cli` container. Local numbers differ from CI, so they are never
-committed.
+Comparing each PR with its base misses small increases that add up: five PRs at
++1.5 % each all pass. Before a release, run the workflow by hand
+(`workflow_dispatch`): without input it compares the branch with the latest tag.
 
-### Updating `#[Expected]`
-
-Update the numbers only when a change is known and intended, in the same PR that
-causes it:
-
-- **slower**: find the cause first. Accept only if it is the price of the change,
-  and say why in the PR description. Otherwise it is a regression.
-- **faster**: accept, or a later regression back to the old numbers goes unnoticed.
-- **new**, or the benchmark itself changed: accept.
-- **the environment changed** (runner image, PHP patch release, extensions, ini,
-  Tally version): accept in a dedicated PR with no other changes.
-
-Never accept just to turn CI green, in a later PR, or for drift inside the
-tolerance. Small increases that each pass add up until one PR crosses the
-tolerance: check the benchmark's history before blaming that PR alone.
-
-Take the numbers from the last CI run of the PR only:
-
-```bash
-gh run download <run-id> -p 'tally-*' -D tmp/tally
-vendor/bin/tally accept tmp/tally
-```
-
-A diff on `#[Expected]` is a performance change: review it, never approve it on
-autopilot.
+Tally needs Linux. Locally it runs in a `php:8.5-cli` container, configured by
+`tally.php`.
 
 ## The storefront fixture
 

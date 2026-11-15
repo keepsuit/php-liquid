@@ -3,80 +3,33 @@ name: Tally Benchmarks
 on:
   pull_request:
   workflow_dispatch:
+    inputs:
+      base:
+        description: 'Ref to compare against (default: latest tag)'
+        required: false
 
 permissions:
   contents: read
   pull-requests: write
 
 jobs:
-  expected:
-    # Expected counts are only valid for this exact image and PHP setup; changing either means re-accepting them.
-    runs-on: ubuntu-24.04
-    name: Tally (PHP 8.5)
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.5'
-          extensions: mbstring, posix
-          coverage: none
-
-      - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist --no-progress
-
-      # The report also goes to a file of its own, for the PR comment.
-      - name: Run Tally
-        run: GITHUB_STEP_SUMMARY="$RUNNER_TEMP/tally.md" vendor/bin/tally run --output=tmp/tally-results
-
-      - name: Publish report
-        if: always()
-        run: cat "$RUNNER_TEMP/tally.md" >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
-
-      - name: Comment on PR
-        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const fs = require('fs');
-            const file = `${process.env.RUNNER_TEMP}/tally.md`;
-            if (!fs.existsSync(file)) return;
-            const report = fs.readFileSync(file, 'utf8');
-            await require('./.github/scripts/upsert-pr-comment.js')({
-              github, context,
-              marker: '<!-- tally-php-8.5 -->',
-              body: `# Tally (PHP 8.5)\nCompared with the committed \`#[Expected]\` numbers.\n\n${report}`,
-            });
-
-      - name: Upload results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: tally-results
-          path: tmp/tally-results
-
-  versions:
-    # Committed numbers only fit PHP 8.5, so other versions compare the PR against its base measured in the same job.
-    if: github.event_name == 'pull_request'
+  tally:
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.2', '8.3', '8.4']
+        php: ['8.2', '8.3', '8.4', '8.5']
     name: Tally vs base (PHP ${{ matrix.php }})
 
     env:
-      # GrowthBench is left out: its bounds do not depend on the base.
+      # Cases compared with the base. GrowthBench is left out: its bounds need no base.
       TALLY_PATHS: performance/benchmarks/OperationBench.php performance/benchmarks/ThemeBench.php
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Setup PHP
@@ -88,12 +41,16 @@ jobs:
 
       - name: Prepare base worktree
         id: base
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || inputs.base }}
         run: |
+          BASE_REF="${BASE_REF:-$(git describe --tags --abbrev=0)}"
           BASE_DIR="$RUNNER_TEMP/base"
-          git worktree add "$BASE_DIR" "${{ github.event.pull_request.base.sha }}"
+          git worktree add "$BASE_DIR" "$BASE_REF"
           echo "BASE_DIR=$BASE_DIR" >> "$GITHUB_ENV"
+          echo "label=$(git -C "$BASE_DIR" describe --tags --exact-match 2>/dev/null || git -C "$BASE_DIR" rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
           if [ ! -f "$BASE_DIR/tally.php" ]; then
-            echo "::notice::Base has no Tally setup, nothing to compare against."
+            echo "::notice::Base $BASE_REF has no Tally setup, nothing to compare against."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -103,8 +60,7 @@ jobs:
           composer install --no-interaction --prefer-dist --no-progress
           composer install --no-interaction --prefer-dist --no-progress --working-dir="$BASE_DIR"
 
-      # Exit code 1 only means the counts differ from the committed PHP 8.5 numbers; the compare step decides.
-      # GITHUB_ACTIONS is unset so these runs do not annotate against those numbers.
+      # Exit code 1 is a failed growth bound; the compare step reports it. GITHUB_ACTIONS is unset so only that step annotates.
       - name: Run Tally (base)
         if: steps.base.outputs.skip != 'true'
         working-directory: ${{ env.BASE_DIR }}
@@ -112,25 +68,25 @@ jobs:
 
       - name: Run Tally (PR)
         if: steps.base.outputs.skip != 'true'
-        run: env -u GITHUB_ACTIONS vendor/bin/tally run --output="$RUNNER_TEMP/pr-results" $TALLY_PATHS || [ $? -eq 1 ]
+        run: env -u GITHUB_ACTIONS vendor/bin/tally run --output="$RUNNER_TEMP/pr-results" || [ $? -eq 1 ]
 
-      # Expectations are stripped first: accept only rewrites cases outside the tolerance, and those left behind would keep the PHP 8.5 numbers.
-      - name: Compare PR with base
+      # The base numbers become the expectations of this checkout only; nothing is committed.
+      - name: Compare with base
         if: steps.base.outputs.skip != 'true'
         run: |
-          sed -i '/#\[Expected(/d' $TALLY_PATHS
           env -u GITHUB_ACTIONS vendor/bin/tally accept "$RUNNER_TEMP/base-results" $TALLY_PATHS
-          GITHUB_STEP_SUMMARY="$RUNNER_TEMP/tally.md" vendor/bin/tally compare "$RUNNER_TEMP/pr-results" $TALLY_PATHS
+          GITHUB_STEP_SUMMARY="$RUNNER_TEMP/tally.md" vendor/bin/tally compare "$RUNNER_TEMP/pr-results"
 
       - name: Publish report
         if: always()
         run: cat "$RUNNER_TEMP/tally.md" >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
 
       - name: Comment on PR
-        if: always() && github.event.pull_request.head.repo.fork == false && steps.base.outputs.skip != 'true'
+        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
         uses: actions/github-script@v9
         env:
           PHP_VERSION: ${{ matrix.php }}
+          BASE_LABEL: ${{ steps.base.outputs.label }}
         with:
           script: |
             const fs = require('fs');
@@ -139,5 +95,5 @@ jobs:
             await require('./.github/scripts/upsert-pr-comment.js')({
               github, context,
               marker: `<!-- tally-php-${process.env.PHP_VERSION} -->`,
-              body: `# Tally (PHP ${process.env.PHP_VERSION})\nCompared with the base measured in the same job. Committed numbers are PHP 8.5 only: never accept these.\n\n${fs.readFileSync(file, 'utf8')}`,
+              body: `# Tally (PHP ${process.env.PHP_VERSION})\nExpected = base \`${process.env.BASE_LABEL}\` measured in this job. Nothing to accept: no numbers are committed.\n\n${fs.readFileSync(file, 'utf8')}`,
             });

@@ -15,7 +15,6 @@ use PhpBench\Attributes\OutputMode;
 use PhpBench\Attributes\OutputTimeUnit;
 use PhpBench\Attributes\Revs;
 use Tally\Attribute\Before;
-use Tally\Attribute\Expected;
 use Tally\Attribute\Warmup;
 
 #[Groups(['operations'])]
@@ -120,7 +119,6 @@ class OperationBench
         $this->productList = Database::products();
     }
 
-    #[Expected(instructions: '248.5K', cycles: '267.4K', memory: '1.500KiB')]
     public function benchScalarRender(): void
     {
         $this->scalarTemplate->render($this->environment->newRenderContext(
@@ -128,13 +126,11 @@ class OperationBench
         ));
     }
 
-    #[Expected(instructions: '74.46K', cycles: '100.3K', memory: '3.195KiB')]
     public function benchLimitedRangeRender(): void
     {
         $this->limitedRangeTemplate->render($this->environment->newRenderContext());
     }
 
-    #[Expected(instructions: '31.11M', cycles: '31.63M', memory: '68.27KiB')]
     public function benchUniqNestedLists(): void
     {
         $this->uniqNestedListsTemplate->render($this->environment->newRenderContext(
@@ -142,7 +138,6 @@ class OperationBench
         ));
     }
 
-    #[Expected(instructions: '311.3K', cycles: '333.8K', memory: '2.844KiB')]
     public function benchScalarStream(): void
     {
         $this->drain($this->scalarTemplate->stream($this->environment->newRenderContext(
@@ -150,7 +145,6 @@ class OperationBench
         )));
     }
 
-    #[Expected(instructions: '425.3K', cycles: '454.5K', memory: '1.750KiB')]
     public function benchNestedArrayRender(): void
     {
         $this->nestedTemplate->render($this->environment->newRenderContext(
@@ -158,7 +152,6 @@ class OperationBench
         ));
     }
 
-    #[Expected(instructions: '488.2K', cycles: '533.4K', memory: '3.344KiB')]
     public function benchNestedArrayStream(): void
     {
         $this->drain($this->nestedTemplate->stream($this->environment->newRenderContext(
@@ -166,7 +159,6 @@ class OperationBench
         )));
     }
 
-    #[Expected(instructions: '2.281M', cycles: '2.347M', memory: '30.80KiB')]
     public function benchArrayOutputRender(): void
     {
         $this->arrayOutputTemplate->render($this->environment->newRenderContext(
@@ -174,7 +166,6 @@ class OperationBench
         ));
     }
 
-    #[Expected(instructions: '3.655M', cycles: '3.706M', memory: '26.74KiB')]
     public function benchNestedArrayOutputRender(): void
     {
         $this->arrayOutputTemplate->render($this->environment->newRenderContext(
@@ -182,7 +173,6 @@ class OperationBench
         ));
     }
 
-    #[Expected(instructions: '514.9K', cycles: '561.0K', memory: '1.867KiB')]
     public function benchDropRender(): void
     {
         $this->nestedTemplate->render($this->environment->newRenderContext(
@@ -190,7 +180,6 @@ class OperationBench
         ));
     }
 
-    #[Expected(instructions: '577.7K', cycles: '661.5K', memory: '2.836KiB')]
     public function benchDropStream(): void
     {
         $this->drain($this->nestedTemplate->stream($this->environment->newRenderContext(
@@ -198,43 +187,36 @@ class OperationBench
         )));
     }
 
-    #[Expected(instructions: '674.1K', cycles: '794.7K', memory: '1.867KiB')]
     public function benchDropMethodRender(): void
     {
         $this->dropMethodTemplate->render($this->productContext());
     }
 
-    #[Expected(instructions: '737.9K', cycles: '911.1K', memory: '3.242KiB')]
     public function benchDropMethodStream(): void
     {
         $this->drain($this->dropMethodTemplate->stream($this->productContext()));
     }
 
-    #[Expected(instructions: '843.4K', cycles: '980.3K', memory: '2.055KiB')]
     public function benchDropMethodMissingHitRender(): void
     {
         $this->dropMethodMissingHitTemplate->render($this->productContext());
     }
 
-    #[Expected(instructions: '906.3K', cycles: '1.088M', memory: '3.648KiB')]
     public function benchDropMethodMissingHitStream(): void
     {
         $this->drain($this->dropMethodMissingHitTemplate->stream($this->productContext()));
     }
 
-    #[Expected(instructions: '1.683M', cycles: '2.435M', memory: '8.297KiB')]
     public function benchDropMethodMissingMissRender(): void
     {
         $this->dropMethodMissingMissTemplate->render($this->productContext());
     }
 
-    #[Expected(instructions: '1.773M', cycles: '2.625M', memory: '10.26KiB')]
     public function benchDropMethodMissingMissStream(): void
     {
         $this->drain($this->dropMethodMissingMissTemplate->stream($this->productContext()));
     }
 
-    #[Expected(instructions: '299.6K', cycles: '372.7K', memory: '3.383KiB')]
     public function benchProductListRender(): void
     {
         $this->productListTemplate->render($this->environment->newRenderContext(
@@ -242,7 +224,6 @@ class OperationBench
         ));
     }
 
-    #[Expected(instructions: '365.9K', cycles: '519.7K', memory: '7.070KiB')]
     public function benchProductListStream(): void
     {
         $this->drain($this->productListTemplate->stream($this->environment->newRenderContext(
@@ -250,19 +231,16 @@ class OperationBench
         )));
     }
 
-    #[Expected(instructions: '423.6K', cycles: '492.0K', memory: '1.500KiB')]
     public function benchFilterWithoutArguments(): void
     {
         $this->filterWithoutArgumentsTemplate->render($this->filterContext());
     }
 
-    #[Expected(instructions: '751.2K', cycles: '868.7K', memory: '1.500KiB')]
     public function benchFilterWithArguments(): void
     {
         $this->filterWithArgumentsTemplate->render($this->filterContext());
     }
 
-    #[Expected(instructions: '3.185M', cycles: '3.663M', memory: '4.281KiB')]
     public function benchArrayFilters(): void
     {
         $this->arrayFiltersTemplate->render($this->environment->newRenderContext(
@@ -270,7 +248,6 @@ class OperationBench
         ));
     }
 
-    #[Expected(instructions: '643.7K', cycles: '705.8K', memory: '1.500KiB')]
     public function benchConditionRender(): void
     {
         $this->conditionTemplate->render($this->environment->newRenderContext(staticData: [
@@ -279,7 +256,6 @@ class OperationBench
         ]));
     }
 
-    #[Expected(instructions: '361.2K', cycles: '385.7K', memory: '1.500KiB')]
     public function benchAssignRender(): void
     {
         $this->assignTemplate->render($this->environment->newRenderContext(staticData: [
@@ -287,7 +263,6 @@ class OperationBench
         ]));
     }
 
-    #[Expected(instructions: '338.3K', cycles: '357.8K', memory: '1.867KiB')]
     public function benchAssignCompositeRender(): void
     {
         $this->assignCompositeTemplate->render($this->environment->newRenderContext(staticData: [
@@ -295,7 +270,6 @@ class OperationBench
         ]));
     }
 
-    #[Expected(instructions: '444.5K', cycles: '501.1K', memory: '2.234KiB')]
     public function benchCaptureRender(): void
     {
         $this->captureTemplate->render($this->environment->newRenderContext());
