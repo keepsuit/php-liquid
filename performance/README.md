@@ -51,8 +51,8 @@ The split is what lets the theme be realistic. Whenever realism and measurement
 sensitivity conflict inside the theme, realism wins — sensitivity is not the
 theme's job.
 
-Benchmarks run with OPcache enabled and JIT disabled, in both tools (`phpbench.json`, `tally.php`)
-and in CI. With JIT, short-lived benchmark processes mostly measure JIT compilation of
+Benchmarks run with OPcache enabled and JIT disabled in both tools (`phpbench.json`,
+`tally.php`), locally and in CI. With JIT, short-lived benchmark processes mostly measure JIT compilation of
 the large generated template functions.
 
 **`GrowthBench`** (`performance/tally/`, Tally only) checks how cost grows with
