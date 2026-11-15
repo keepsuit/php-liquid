@@ -83,7 +83,8 @@ class ThemeBench
     #[Before]
     public function setUpCompiled(): void
     {
-        $this->compiledDirectory = (new TemporaryDirectory)->deleteWhenDestroyed()->create();
+        // The default name comes from mt_rand(), which Tally's Valgrind makes the same in every process, so parallel cases would share it.
+        $this->compiledDirectory = (new TemporaryDirectory)->name('theme-bench-'.getmypid())->force()->deleteWhenDestroyed()->create();
         $this->compiledCache = new CompiledTemplatesCache($this->compiledDirectory->path());
         $this->compiledEnvironment = StorefrontTheme::environmentFactory()->setTemplatesCache($this->compiledCache)->build();
 
