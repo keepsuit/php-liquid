@@ -1,0 +1,99 @@
+name: Tally Benchmarks
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: 'Ref to compare against (default: latest tag)'
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  tally:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4', '8.5']
+    name: Tally vs base (PHP ${{ matrix.php }})
+
+    env:
+      # Cases compared with the base. GrowthBench is left out: its bounds need no base.
+      TALLY_PATHS: performance/benchmarks/OperationBench.php performance/benchmarks/ThemeBench.php
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, posix
+          coverage: none
+
+      - name: Prepare base worktree
+        id: base
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || inputs.base }}
+        run: |
+          BASE_REF="${BASE_REF:-$(git describe --tags --abbrev=0)}"
+          BASE_DIR="$RUNNER_TEMP/base"
+          git worktree add "$BASE_DIR" "$BASE_REF"
+          echo "BASE_DIR=$BASE_DIR" >> "$GITHUB_ENV"
+          echo "label=$(git -C "$BASE_DIR" describe --tags --exact-match 2>/dev/null || git -C "$BASE_DIR" rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          if [ ! -f "$BASE_DIR/tally.php" ]; then
+            echo "::notice::Base $BASE_REF has no Tally setup, nothing to compare against."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies
+        if: steps.base.outputs.skip != 'true'
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          composer install --no-interaction --prefer-dist --no-progress --working-dir="$BASE_DIR"
+
+      # Exit code 1 is a failed growth bound; the compare step reports it. GITHUB_ACTIONS is unset so only that step annotates.
+      - name: Run Tally (base)
+        if: steps.base.outputs.skip != 'true'
+        working-directory: ${{ env.BASE_DIR }}
+        run: env -u GITHUB_ACTIONS vendor/bin/tally run --output="$RUNNER_TEMP/base-results" || [ $? -eq 1 ]
+
+      - name: Run Tally (PR)
+        if: steps.base.outputs.skip != 'true'
+        run: env -u GITHUB_ACTIONS vendor/bin/tally run --output="$RUNNER_TEMP/pr-results" || [ $? -eq 1 ]
+
+      # The base numbers become the expectations of this checkout only; nothing is committed.
+      - name: Compare with base
+        if: steps.base.outputs.skip != 'true'
+        run: |
+          env -u GITHUB_ACTIONS vendor/bin/tally accept "$RUNNER_TEMP/base-results" $TALLY_PATHS
+          GITHUB_STEP_SUMMARY="$RUNNER_TEMP/tally.md" vendor/bin/tally compare "$RUNNER_TEMP/pr-results"
+
+      - name: Publish report
+        if: always()
+        run: cat "$RUNNER_TEMP/tally.md" >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+
+      - name: Comment on PR
+        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
+        uses: actions/github-script@v9
+        env:
+          PHP_VERSION: ${{ matrix.php }}
+          BASE_LABEL: ${{ steps.base.outputs.label }}
+        with:
+          script: |
+            const fs = require('fs');
+            const file = `${process.env.RUNNER_TEMP}/tally.md`;
+            if (!fs.existsSync(file)) return;
+            await require('./.github/scripts/upsert-pr-comment.js')({
+              github, context,
+              marker: `<!-- tally-php-${process.env.PHP_VERSION} -->`,
+              body: `# Tally (PHP ${process.env.PHP_VERSION})\nExpected = base \`${process.env.BASE_LABEL}\` measured in this job. Nothing to accept: no numbers are committed.\n\n${fs.readFileSync(file, 'utf8')}`,
+            });
